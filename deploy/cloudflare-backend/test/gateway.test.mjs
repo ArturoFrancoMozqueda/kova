@@ -233,3 +233,239 @@ test("a public image edge hit replaces historical origin timings without another
   assert.equal(hit.headers.get("x-kova-image-cache"), "HIT");
   assert.equal(calls, 1);
 });
+
+test("a code-update reset retries a verified GET once on a fresh stub while keeping private headers", async () => {
+  const stubs = [], requests = [];
+  let canceled = false;
+  const env = { KOVA_NATIVE_BACKEND: "1", API: { getByName(name) {
+    const index = stubs.length;
+    const stub = { async fetch(request) {
+      requests.push(request);
+      if (!index) return new Response(new ReadableStream({ cancel() { canceled = true; } }), {
+        status: 503, headers: { "x-kova-controller-failure": "code-update-reset" },
+      });
+      return Response.json({ quotes: [] }, { headers: { "Set-Cookie": "session=synthetic-updated; Secure; HttpOnly" } });
+    } };
+    stubs.push({ name, stub }); return stub;
+  } } };
+  const response = await gateway.fetch(new Request("https://api.test/api/v1/quotes?limit=50&offset=0", { headers: {
+    Cookie: "session=synthetic-private", "X-Branch-Id": "synthetic-branch", "CF-Connecting-IP": "192.0.2.1",
+    "X-Kova-Controller-Failure": "spoofed", "X-Forwarded-For": "spoofed",
+  } }), env);
+  assert.equal(response.status, 200);
+  assert.equal(stubs.length, 2);
+  assert.notEqual(stubs[0].stub, stubs[1].stub);
+  assert.deepEqual(stubs.map(s => s.name), ["api-0", "api-0"]);
+  assert.equal(canceled, true);
+  for (const request of requests) {
+    assert.equal(request.url, "https://api.test/api/v1/quotes?limit=50&offset=0");
+    assert.equal(request.headers.get("cookie"), "session=synthetic-private");
+    assert.equal(request.headers.get("x-branch-id"), "synthetic-branch");
+    assert.equal(request.headers.get("x-kova-client-ip"), "192.0.2.1");
+    assert.equal(request.headers.has("x-kova-controller-failure"), false);
+    assert.equal(request.headers.has("x-forwarded-for"), false);
+  }
+  assert.equal(response.headers.get("x-kova-controller-failure"), null);
+  assert.match(response.headers.get("set-cookie"), /synthetic-updated/);
+  assert.match(response.headers.get("cache-control"), /private, no-store/);
+  assert.equal(response.headers.get("cloudflare-cdn-cache-control"), "no-store");
+  assert.deepEqual(await response.json(), { quotes: [] });
+});
+
+test("only verified native GET reads recover from code-update resets, never mutations or application errors", async t => {
+  const previous = console.error;
+  console.error = () => {};
+  t.after(() => { console.error = previous; });
+  for (const [method, path, headers, native = "1"] of [
+    ["POST", "/api/v1/orders", { "Idempotency-Key": "synthetic-key" }],
+    ["PATCH", "/api/v1/quotes", { "Idempotency-Key": "synthetic-key" }],
+    ["DELETE", "/api/v1/quotes", { "Idempotency-Key": "synthetic-key" }],
+    ["POST", "/api/v1/auth/login", {}], ["POST", "/api/v1/auth/refresh", {}],
+    ["GET", "/api/v1/billing/subscription", {}], ["GET", "/api/v1/unknown", {}],
+    ["GET", "/api/v1/quotes/", {}], ["GET", "/api/v1/quotes", {}, "0"],
+  ]) {
+    let calls = 0;
+    const response = await gateway.fetch(new Request(`https://api.test${path}`, { method, headers }), {
+      KOVA_NATIVE_BACKEND: native, API: { getByName() { calls++; return { fetch() {
+        return new Response("reset", { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } });
+      } }; } },
+    });
+    assert.equal(calls, 1, `${method} ${path} must not replay`);
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.has("x-kova-controller-failure"), false);
+  }
+  for (const extra of [ {}, { "x-kova-runtime": "native-resident" },
+    { "x-kova-process-id": "a".repeat(32) }, { "Set-Cookie": "session=synthetic" } ]) {
+    for (const status of [500, 503]) {
+      let calls = 0;
+      const headers = Object.keys(extra).length ? { "x-kova-controller-failure": "code-update-reset", ...extra } : {};
+      const response = await gateway.fetch(new Request("https://api.test/api/v1/quotes"), {
+        KOVA_NATIVE_BACKEND: "1", API: { getByName() { calls++; return { fetch() {
+          return new Response("application failure", { status, headers });
+        } }; } },
+      });
+      assert.equal(calls, 1, "application/unknown failures cannot trigger recovery");
+      assert.equal(response.status, status);
+      assert.equal(await response.text(), "application failure");
+      assert.equal(response.headers.has("x-kova-controller-failure"), false);
+      if (extra["Set-Cookie"]) assert.equal(response.headers.get("set-cookie"), extra["Set-Cookie"]);
+    }
+  }
+});
+
+test("an exact reset thrown by the stub can recover once but overloads and a second failure cannot replay", async t => {
+  const previous = console.error;
+  console.error = () => {};
+  t.after(() => { console.error = previous; });
+  for (const [error, expectedCalls] of [
+    [new Error("Durable Object reset because its code was updated."), 2],
+    [Object.assign(new Error("Durable Object reset because its code was updated."), { overloaded: true }), 1],
+    [new Error("Durable Object is overloaded."), 1],
+    [new Error("Durable Object reset because its code was updated. extra"), 1],
+    [new Error("unknown private message"), 1],
+  ]) {
+    let calls = 0;
+    const response = await gateway.fetch(new Request("https://api.test/api/v1/quotes"), {
+      KOVA_NATIVE_BACKEND: "1", API: { getByName() { calls++; return { fetch() { throw error; } }; } },
+    });
+    assert.equal(calls, expectedCalls);
+    assert.equal(response.status, 503);
+    assert.equal((await response.text()).includes(error.message), false);
+    assert.equal(response.headers.has("x-kova-controller-failure"), false);
+  }
+});
+
+test("read recovery observes cancellation and a total budget including the first attempt and backoff", async () => {
+  const { fetchWithControllerUpdateRecovery: recover } = await import("../../controller-update-recovery.mjs");
+  const reset = () => new Response("private reset", { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } });
+  let now = 0, calls = 0, waits = 0;
+  const late = await recover(new Request("https://api.test/api/v1/quotes"), () => ({ fetch() {
+    calls++; now = 1960; return reset();
+  } }), { now: () => now, wait: async () => { waits++; } });
+  assert.equal(calls, 1); assert.equal(waits, 0); assert.equal(await late.text(), "private reset");
+  now = 0; calls = 0;
+  const overslept = await recover(new Request("https://api.test/api/v1/quotes"), () => ({ fetch() {
+    calls++; return reset();
+  } }), { now: () => now, wait: async () => { now = 2001; } });
+  assert.equal(calls, 1); assert.equal(await overslept.text(), "private reset");
+  const abort = new AbortController(); calls = 0;
+  await assert.rejects(recover(new Request("https://api.test/api/v1/quotes", { signal: abort.signal }), () => ({ fetch() {
+    calls++; return reset();
+  } }), { wait: async () => { abort.abort(new DOMException("Canceled", "AbortError")); } }), { name: "AbortError" });
+  assert.equal(calls, 1);
+  const retryAbort = new AbortController(); calls = 0;
+  await assert.rejects(recover(new Request("https://api.test/api/v1/quotes", { signal: retryAbort.signal }), () => ({ fetch(request) {
+    calls++;
+    if (calls === 1) return reset();
+    retryAbort.abort(new DOMException("Canceled", "AbortError"));
+    assert.equal(request.signal.aborted, true);
+    return new Promise(() => {});
+  } }), { wait: async () => {} }), { name: "AbortError" });
+  assert.equal(calls, 2);
+  // Simulate a first attempt consuming most of the budget. A hanging second
+  // RPC that ignores abort is still bounded by the remainder, not a new 2s.
+  now = 0; calls = 0;
+  const started = performance.now();
+  await assert.rejects(recover(new Request("https://api.test/api/v1/quotes"), () => ({ fetch(request) {
+    calls++;
+    if (calls === 1) { now = 1900; return reset(); }
+    assert.equal(request.signal.aborted, false);
+    return new Promise(() => {});
+  } }), { now: () => now, wait: async () => { now += 50; } }), { name: "TimeoutError" });
+  assert.equal(calls, 2);
+  assert.ok(performance.now() - started < 500, "only the remaining 50ms may be spent on recovery");
+  // Normal first reads do not gain a new 2s timeout from this recovery path.
+  now = 0;
+  const healthy = await recover(new Request("https://api.test/api/v1/quotes"), () => ({ fetch() {
+    now = 5000; return Response.json({ ok: true });
+  } }), { now: () => now });
+  assert.equal(healthy.status, 200);
+});
+
+test("a recovered streamed response remains cancellable by the original client after headers", async () => {
+  const { fetchWithControllerUpdateRecovery: recover } = await import("../../controller-update-recovery.mjs");
+  const original = new AbortController();
+  let calls = 0, retrySignal, streamAborts = 0;
+  const response = await recover(new Request("https://api.test/api/v1/quotes", { signal: original.signal }), () => ({
+    fetch(request) {
+      if (++calls === 1) return new Response("reset", { status: 503, headers: {
+        "x-kova-controller-failure": "code-update-reset",
+      } });
+      retrySignal = request.signal;
+      return new Response(new ReadableStream({ start(controller) {
+        controller.enqueue(new TextEncoder().encode("partial"));
+        request.signal.addEventListener("abort", () => {
+          streamAborts++;
+          controller.error(request.signal.reason);
+        }, { once: true });
+      } }));
+    },
+  }), { wait: async () => {} });
+  const reader = response.body.getReader();
+  assert.equal(new TextDecoder().decode((await reader.read()).value), "partial");
+  assert.equal(retrySignal.aborted, false);
+  original.abort(new DOMException("Client canceled stream", "AbortError"));
+  assert.equal(retrySignal.aborted, true);
+  await assert.rejects(reader.read(), { name: "AbortError" });
+  assert.equal(streamAborts, 1);
+  assert.equal(calls, 2);
+});
+
+test("the exact verified GET allowlist can recover and a second marked reset remains a private failure", async () => {
+  const { fetchWithControllerUpdateRecovery: recover } = await import("../../controller-update-recovery.mjs");
+  for (const path of ["/health", "/health/db", "/api/v1/auth/session", "/api/v1/catalog/products",
+    "/api/v1/reports/dashboard", "/api/v1/purchasing/orders", "/api/v1/quotes"]) {
+    let calls = 0;
+    const response = await recover(new Request(`https://api.test${path}`), () => ({ fetch() {
+      if (++calls === 1) return new Response(null, { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } });
+      return Response.json({ ok: true });
+    } }), { wait: async () => {} });
+    assert.equal(response.status, 200); assert.equal(calls, 2);
+  }
+  let calls = 0;
+  const response = await gateway.fetch(new Request("https://api.test/api/v1/quotes"), {
+    KOVA_NATIVE_BACKEND: "1", API: { getByName() { calls++; return { fetch() {
+      return new Response("reset", { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } });
+    } }; } },
+  });
+  assert.equal(calls, 2); assert.equal(response.status, 503);
+  assert.equal(response.headers.has("x-kova-controller-failure"), false);
+  assert.match(response.headers.get("cache-control"), /private, no-store/);
+});
+
+test("client cancellation during the actual backoff clears the wait without a second stub", async () => {
+  const { fetchWithControllerUpdateRecovery: recover } = await import("../../controller-update-recovery.mjs");
+  const abort = new AbortController();
+  let calls = 0;
+  const pending = recover(new Request("https://api.test/api/v1/quotes", { signal: abort.signal }), () => ({
+    fetch() { calls++; return new Response(null, { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } }); },
+  }));
+  const timer = setTimeout(() => abort.abort(new DOMException("Client canceled", "AbortError")), 5);
+  try { await assert.rejects(pending, { name: "AbortError" }); }
+  finally { clearTimeout(timer); }
+  assert.equal(calls, 1);
+});
+
+test("recognized recovery emits one fixed event without private context and logger failures cannot alter it", async t => {
+  const { fetchWithControllerUpdateRecovery: recover } = await import("../../controller-update-recovery.mjs");
+  const previous = console.info;
+  t.after(() => { console.info = previous; });
+  const events = [];
+  console.info = value => events.push(value);
+  const run = async () => {
+    let calls = 0;
+    const response = await recover(new Request("https://api.test/api/v1/quotes?private=synthetic-secret", { headers: {
+      Cookie: "session=synthetic-secret", "X-Branch-Id": "synthetic-secret",
+    } }), () => ({ fetch() {
+      if (++calls === 1) return new Response(null, { status: 503, headers: { "x-kova-controller-failure": "code-update-reset" } });
+      return Response.json({ ok: true });
+    } }), { wait: async () => {} });
+    assert.equal(response.status, 200);
+    assert.equal(calls, 2);
+  };
+  await run();
+  assert.deepEqual(events, [JSON.stringify({ event: "controller_update_read_retried" })]);
+  assert.equal(events[0].includes("synthetic-secret"), false);
+  console.info = () => { throw new Error("synthetic-logger-failure"); };
+  await run();
+});

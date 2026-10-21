@@ -1,3 +1,4 @@
+import { CONTROLLER_FAILURE_HEADER, CODE_UPDATE_RESET, isCodeUpdateReset } from "../controller-update-recovery.mjs";
 import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavailable } from "./policy.mjs";
 
 // Only the read-only acceptance contracts can opt in to fixed stage telemetry.
@@ -107,6 +108,7 @@ export function residentContainerClass(Container) {
         // authoritative client IP. Replace caller-controlled proxy metadata so
         // native redirects preserve the original HTTPS scheme safely.
         const headers = new Headers(request.headers);
+        headers.delete(CONTROLLER_FAILURE_HEADER);
         const origin = new URL(request.url);
         headers.set("x-forwarded-proto", origin.protocol === "https:" ? "https" : "http");
         headers.set("host", origin.host);
@@ -125,11 +127,19 @@ export function residentContainerClass(Container) {
           console.error(JSON.stringify({ event: "native_backend_unavailable" }));
           return unavailable();
         }
-        return privateResponse(response, request);
-      } catch {
+        const result = privateResponse(response, request);
+        result.headers.delete(CONTROLLER_FAILURE_HEADER);
+        return result;
+      } catch (error) {
         diagnostic?.("failed");
-        console.error(JSON.stringify({ event: "native_backend_unavailable" }));
-        return unavailable();
+        const reset = isCodeUpdateReset(error);
+        try { console.error(JSON.stringify({ event: "native_backend_unavailable",
+          ...(reset ? { reason: "code_update_reset" } : {}),
+        })); }
+        catch { /* Observability must never replace the private failure. */ }
+        const result = unavailable();
+        if (reset) result.headers.set(CONTROLLER_FAILURE_HEADER, CODE_UPDATE_RESET);
+        return result;
       }
     }
 

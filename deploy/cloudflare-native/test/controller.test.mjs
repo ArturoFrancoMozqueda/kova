@@ -526,3 +526,80 @@ test("diagnostic logging failure cannot change a normal application response", a
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "unchanged");
 });
+
+test("only the exact code-update reset marks a private controller failure and never replays inside the DO", async t => {
+  const previous = console.error;
+  console.error = () => {};
+  t.after(() => { console.error = previous; });
+  let calls = 0;
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { calls++; throw this.env.error; }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  for (const [error, marked] of [
+    [new Error("Durable Object reset because its code was updated."), true],
+    [Object.assign(new Error("Durable Object reset because its code was updated."), { overloaded: true }), false],
+    [new Error("Durable Object is overloaded."), false],
+    [new Error("Durable Object reset because its code was updated. extra"), false],
+    [new Error("synthetic-private-failure"), false],
+  ]) {
+    env.error = error;
+    const before = calls;
+    const response = await resident.fetch(new Request("https://api.test/api/v1/quotes"));
+    assert.equal(calls, before + 1);
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("x-kova-controller-failure"), marked ? "code-update-reset" : null);
+    assert.match(response.headers.get("cache-control"), /private, no-store/);
+    assert.equal((await response.text()).includes(error.message), false);
+  }
+});
+
+test("an application cannot forge the controller reset marker", async () => {
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { return new Response("app failure", { status: 503, headers: {
+      "x-kova-controller-failure": "code-update-reset", "x-kova-runtime": "native-resident",
+    } }); }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  const response = await resident.fetch(new Request("https://api.test/api/v1/quotes"));
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-kova-controller-failure"), null);
+  assert.equal(await response.text(), "app failure");
+});
+
+test("only a proved code-update reset adds a fixed reason to the existing unavailable event", async t => {
+  const previous = console.error;
+  t.after(() => { console.error = previous; });
+  const events = [];
+  console.error = value => events.push(value);
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { throw this.env.error; }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  env.error = new Error("Durable Object reset because its code was updated.");
+  assert.equal((await resident.fetch(new Request("https://api.test/api/v1/quotes?secret=synthetic-private"))).status, 503);
+  env.error = new Error("synthetic-private-failure");
+  assert.equal((await resident.fetch(new Request("https://api.test/api/v1/quotes"))).status, 503);
+  assert.deepEqual(events, [
+    JSON.stringify({ event: "native_backend_unavailable", reason: "code_update_reset" }),
+    JSON.stringify({ event: "native_backend_unavailable" }),
+  ]);
+  assert.equal(events.join("").includes("synthetic-private"), false);
+  console.error = () => { throw new Error("synthetic-logger-failure"); };
+  env.error = new Error("Durable Object reset because its code was updated.");
+  const response = await resident.fetch(new Request("https://api.test/api/v1/quotes"));
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-kova-controller-failure"), "code-update-reset");
+});

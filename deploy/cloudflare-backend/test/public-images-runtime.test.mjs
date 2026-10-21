@@ -73,3 +73,58 @@ test("real workerd Cache API serves repeat public images before the API and pres
     await mf.dispose();
   }
 });
+
+test("real workerd recovers a marked code-update read once and retains distinct cookies without replaying writes", async () => {
+  const script = (await build({
+    entryPoints: [fileURLToPath(new URL("../gateway.mjs", import.meta.url))],
+    bundle: true, write: false, format: "esm", platform: "neutral", target: "es2022", external: ["node:*"],
+  })).outputFiles[0].text;
+  const mf = new Miniflare(convertV4MiniflareOptions({ workers: [{
+    name: "gateway", modules: true, script,
+    compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
+    bindings: { KOVA_NATIVE_BACKEND: "1" },
+    durableObjects: { API: { className: "ResetApi", scriptName: "reset-api" } },
+  }, {
+    name: "reset-api", modules: true,
+    compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
+    durableObjects: { API: { className: "ResetApi", useSQLite: true } },
+    script: `import { DurableObject } from "cloudflare:workers";
+      export class ResetApi extends DurableObject {
+        reads = 0; writes = 0;
+        async fetch(request) {
+          const path = new URL(request.url).pathname;
+          if (path === "/_test-count") return Response.json({ reads: this.reads, writes: this.writes });
+          if (request.headers.has("x-kova-controller-failure")) throw new Error("Inbound marker was forwarded");
+          if (request.method === "GET") this.reads++; else this.writes++;
+          if (request.method !== "GET" || this.reads === 1) return Response.json({ detail: "temporary" }, {
+            status: 503, headers: { "x-kova-controller-failure": "code-update-reset" },
+          });
+          if (request.headers.get("cookie") !== "session=synthetic" || request.headers.get("x-branch-id") !== "synthetic") {
+            throw new Error("Private context changed during read recovery");
+          }
+          const headers = new Headers();
+          headers.append("set-cookie", "session=synthetic-updated; Secure; HttpOnly");
+          headers.append("set-cookie", "csrf=synthetic-updated; Secure; SameSite=Lax");
+          return Response.json({ quotes: [] }, { headers });
+        }
+      }
+      export default { fetch() { return new Response(null, { status: 404 }); } };`,
+  }] }));
+  try {
+    const response = await mf.dispatchFetch("https://api.test/api/v1/quotes?limit=50&offset=0", { headers: {
+      Cookie: "session=synthetic", "X-Branch-Id": "synthetic", "X-Kova-Controller-Failure": "spoofed",
+    } });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { quotes: [] });
+    assert.equal(response.headers.getSetCookie().length, 2);
+    assert.equal(response.headers.has("x-kova-controller-failure"), false);
+    assert.match(response.headers.get("cache-control"), /private, no-store/);
+    const write = await mf.dispatchFetch("https://api.test/api/v1/orders", {
+      method: "POST", headers: { "Idempotency-Key": "synthetic" }, body: "synthetic-order",
+    });
+    assert.equal(write.status, 503);
+    assert.equal(write.headers.has("x-kova-controller-failure"), false);
+    const api = (await mf.getDurableObjectNamespace("API", "gateway")).getByName("api-0");
+    assert.deepEqual(await (await api.fetch("https://api.test/_test-count")).json(), { reads: 2, writes: 1 });
+  } finally { await mf.dispose(); }
+});
