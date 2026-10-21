@@ -1,9 +1,12 @@
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
+import { waitForNativeBackendRelease } from "./cloudflare-native-readiness.mjs";
+import { cloudflareContainerProvider, validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare-backend");
+const nativeDirectory = path.join(root, "deploy/cloudflare-native");
 export const backendWorkers = ["kova-backend-jobs", "kova-backend", "kova-backend-gateway"];
 
 export function validateBackendVersions(input) {
@@ -64,8 +67,26 @@ export function cloudflareBackendProvider({ run, env }) {
   const cf = (args, capture = false) => run(process.execPath,
     [path.join(directory, "node_modules/cf/bin/cf"), ...args],
     { cwd: directory, env, capture, label: "Cloudflare backend" });
+  const native = env.KOVA_NATIVE_BACKEND === "1";
+  const containers = native ? cloudflareContainerProvider({ run, env }) : undefined;
+  const nativeCf = (args, capture = false) => run(process.execPath,
+    [path.join(nativeDirectory, "node_modules/cf/bin/cf"), ...args],
+    { cwd: nativeDirectory, env, capture, label: "Cloudflare resident backend" });
   return {
-    waitForPublicBackend: waitForBackendRelease,
+    requiresNativeContainer: native,
+    ...(containers ? { captureNative: containers.capture } : {}),
+    async waitForPublicBackend(input) {
+      const nativeRuntime = native && input.nativeRuntime !== false;
+      await (nativeRuntime ? waitForNativeBackendRelease : waitForBackendRelease)(input);
+      if (nativeRuntime) {
+        // A Python and a native publication can share the same commit. Prove
+        // the runtime as well as the SHA before accepting/promoting the site.
+        await run("python3", [path.join(root, "scripts/check_native_resident.py"),
+          "--base", input.backendUrl, "--sha", input.sha, "--check-private-bindings"], {
+          cwd: root, env: { PATH: env.PATH }, label: "Resident runtime acceptance",
+        });
+      }
+    },
     async capture() {
       const captured = {};
       for (const name of backendWorkers) {
@@ -84,26 +105,48 @@ export function cloudflareBackendProvider({ run, env }) {
         throw new Error("Backend build requires both Hyperdrive IDs and locked Python packages");
       }
       if (!env.SUPABASE_DB_URL) throw new Error("Backend migrations require the existing owner connection");
+      if (native) {
+        // Inspect names only. Sealed credentials stay inside Cloudflare/CI;
+        // never substitute the migration owner for the tenant runtime role.
+        const secrets = JSON.parse(await cf(["workers", "secrets", "list", "--script-name", "kova-backend"], true));
+        for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL"]) {
+          if (!Array.isArray(secrets) || !secrets.some(secret => secret.name === name)) {
+            throw new Error(`Resident backend requires provisioned ${name}`);
+          }
+        }
+      }
       await run("uv", ["run", "--frozen", "alembic", "upgrade", "head"], {
         cwd: path.join(root, "backend"), label: "Database migrations", env: {
           ...env, DATABASE_URL: env.SUPABASE_DB_URL, MIGRATION_DATABASE_URL: env.SUPABASE_DB_URL,
         },
       });
+      const artifactEnv = { ...env, KOVA_BUILD_SHA: sha };
+      delete artifactEnv.SUPABASE_DB_URL;
       await run(process.execPath, [path.join(directory, "build.mjs")],
-        { cwd: directory, env: { ...env, KOVA_BUILD_SHA: sha }, label: "Cloudflare backend artifact" });
-      for (const name of backendWorkers) await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"]);
+        { cwd: directory, env: artifactEnv, label: "Cloudflare backend artifact" });
+      if (native) {
+        await run(process.execPath, [path.join(nativeDirectory, "build.mjs")], {
+          cwd: nativeDirectory, env: artifactEnv, label: "Cloudflare resident artifact",
+        });
+        await nativeCf(["deploy", "--prebuilt", "--worker", "kova-backend", "--dry-run"]);
+      }
+      const pythonWorkers = backendWorkers.filter(name => !native || name !== "kova-backend");
+      for (const name of pythonWorkers) await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"]);
       // Build identity is a versioned text binding, not a rotated secret.
       // Keep existing credential bindings sealed and preserve rollback checks.
       for (const name of backendWorkers) {
-        await cf(["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)]);
+        await (native && name === "kova-backend" ? nativeCf : cf)(
+          ["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)]);
       }
     },
-    async restore(input) {
+    async restore(input, nativeSnapshot) {
       const versions = validateBackendVersions(input);
+      if (native) validateNativeContainerSnapshot(nativeSnapshot);
       for (const name of ["kova-backend", "kova-backend-jobs", "kova-backend-gateway"]) {
         await cf(["workers", "deployments", "create", "--script-name", name,
           "--strategy", "percentage", "--versions", JSON.stringify([{ version_id: versions[name], percentage: 100 }])]);
       }
+      if (native) await containers.restore(nativeSnapshot, { workersRestored: true });
     },
   };
 }

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { backendWorkers, cloudflareBackendProvider, validateBackendVersions, waitForBackendRelease } from "./cloudflare-backend-provider.mjs";
 import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
 import { release, releaseProvider } from "./release.mjs";
+import { nativeContainerIdentity } from "./cloudflare-container-provider.mjs";
 
 const version = "dcad4869-ba1d-43d4-865b-66349697bd7c";
 const versions = Object.fromEntries(backendWorkers.map(name => [name, version]));
@@ -144,6 +145,69 @@ test("missing migration inputs fail before building or modifying any service", a
     const provider = cloudflareBackendProvider({ env: { ...env, [missing]: "" }, run: assert.fail });
     await assert.rejects(provider.publish(sha));
   }
+});
+
+test("resident release refuses missing sealed runtime credentials before migrations", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    run: async (_command, args) => { calls.push(args); return JSON.stringify([{ name: "MIGRATION_DATABASE_URL" }]); } });
+  await assert.rejects(provider.publish(sha), /provisioned APP_DATABASE_URL/);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("list"));
+});
+
+test("resident release replaces only API artifact and preserves rollback workers and secrets", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    run: async (command, args, options) => {
+      calls.push({ command, args, options });
+      if (args.includes("secrets")) return JSON.stringify([
+        { name: "APP_DATABASE_URL" }, { name: "MIGRATION_DATABASE_URL" },
+      ]);
+      if (args.some(arg => arg.endsWith("/build.mjs"))) {
+        assert.equal(options.env.SUPABASE_DB_URL, undefined);
+        assert.equal(options.env.KOVA_BUILD_SHA, sha);
+      }
+      assert.equal(args.join(" ").includes(env.SUPABASE_DB_URL), false);
+    } });
+  await provider.publish(sha);
+  const deploys = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
+  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]), backendWorkers);
+  assert.ok(deploys[1].options.cwd.endsWith("/deploy/cloudflare-native"));
+  assert.ok(deploys[0].options.cwd.endsWith("/deploy/cloudflare-backend"));
+  assert.ok(deploys[2].options.cwd.endsWith("/deploy/cloudflare-backend"));
+  assert.equal(calls.some(call => call.args.includes("put")), false);
+});
+
+const absentContainer = { name: nativeContainerIdentity.name, namespaceId: nativeContainerIdentity.namespaceId,
+  applicationId: null, image: null, instanceType: "lite", maxInstances: 1 };
+
+test("resident releases require a captured image or explicit absence before creating a candidate", async () => {
+  await assert.rejects(release({ artifact, sha, provider: {
+    requiresNativeContainer: true, createCandidate: assert.fail,
+  } }), /captured Container/);
+});
+
+test("first native cutover recovery verifies the restored Python runtime", async () => {
+  let restored = false;
+  await recoverRelease({ phase: "candidate", artifact: { ...artifact, cloudflareNativeContainer: absentContainer },
+    failedSha: "b".repeat(40), provider: {
+      requiresNativeContainer: true, requiresCloudflareBackend: true,
+      async restoreCloudflareBackend(values, snapshot) {
+        assert.deepEqual(values, versions); assert.deepEqual(snapshot, absentContainer); restored = true;
+      },
+      async waitForPublicBackend(input) {
+        assert.ok(restored); assert.equal(input.nativeRuntime, false); assert.equal(input.sha, sha);
+      },
+    }, verify: async () => ({ accepted: true }) });
+});
+
+test("native rollback refuses an absent capture before restoring any Worker", async () => {
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId }, run: assert.fail });
+  await assert.rejects(provider.restore(versions), /rollback identity/);
 });
 
 test("rollback restores all captured versions without rebuilding or invoking Fly", async () => {

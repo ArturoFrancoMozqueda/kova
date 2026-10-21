@@ -23,6 +23,9 @@ export function candidateUrl(value) {
 export async function release({ artifact: rawArtifact, sha, provider,
   verify = verifyDeployment, recover = recoverRelease }) {
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
+    throw new Error("Resident release requires the captured Container image or explicit absence");
+  }
   if (provider.requiresCloudflare && !artifact.cloudflareVersion) {
     throw new Error("Cloudflare release requires a captured rollback version");
   }
@@ -93,6 +96,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
     requiresCloudflare: Boolean(cloudflare),
     ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),
+    requiresNativeContainer: Boolean(backend?.requiresNativeContainer),
     ...(backend ? { waitForPublicBackend: backend.waitForPublicBackend } : {}),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);

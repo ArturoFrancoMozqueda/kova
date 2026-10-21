@@ -17,6 +17,7 @@ if (provider) {
 if (backend) {
   const artifact = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
   artifact.cloudflareBackendVersions = await backend.capture();
+  if (backend.requiresNativeContainer) artifact.cloudflareNativeContainer = await backend.captureNative();
   fs.writeFileSync(process.argv[2], JSON.stringify(artifact, null, 2) + "\n");
   console.log("Captured all three Cloudflare backend versions for exact rollback.");
 }

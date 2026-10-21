@@ -42,7 +42,7 @@ class PolicyTests(unittest.TestCase):
         policy = POLICY.classify(["README.md"])
         needs = {job: {"result": "success"} for job in
                  ["changes", "repository", "security"]}
-        for job in ["backend-integration", "backend-workers", "frontend", "frontend-unit", "integration", "migrations",
+        for job in ["backend-integration", "backend-workers", "backend-native", "frontend", "frontend-unit", "integration", "migrations",
                     "assistant-parser", "supply-chain"]:
             needs[job] = {"result": "skipped"}
         self.assertEqual(POLICY.gate_errors(policy, needs), [])
@@ -52,7 +52,7 @@ class PolicyTests(unittest.TestCase):
 
     def test_gate_rejects_failure_cancellation_or_missing_required_job(self):
         policy = POLICY.classify(None)
-        jobs = ["changes", "repository", "security", "backend-integration", "backend-workers", "frontend", "frontend-unit",
+        jobs = ["changes", "repository", "security", "backend-integration", "backend-workers", "backend-native", "frontend", "frontend-unit",
                 "integration", "migrations", "assistant-parser", "supply-chain"]
         for job in jobs:
             for result in ["failure", "cancelled", "skipped", None]:
@@ -63,7 +63,7 @@ class PolicyTests(unittest.TestCase):
     def test_code_gate_accepts_optional_supply_skip_but_not_failed_required_suites(self):
         policy = POLICY.classify(["backend/app/assistant/generation.py"], main=True)
         needs = {job: {"result": "success"} for job in
-                 ["changes", "repository", "security", "backend-integration", "backend-workers", "frontend",
+                 ["changes", "repository", "security", "backend-integration", "backend-workers", "backend-native", "frontend",
                   "frontend-unit", "integration", "migrations", "assistant-parser"]}
         needs["supply-chain"] = {"result": "skipped"}
         self.assertEqual(POLICY.gate_errors(policy, needs), [])

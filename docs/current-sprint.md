@@ -1,8 +1,34 @@
 # Current Sprint
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
-## Arranque por módulo solicitado, candidato sin publicar
+## Backend residente en Cloudflare — implementación en validación
+
+Se prepara FastAPI nativo en un único Container `lite`, con proceso residente tras
+inactividad, conservando dominios, frontend, R2, jobs y namespaces existentes. El
+gateway dirige este modo directamente a `api-0` para evitar coordinadores intermedios
+y su coste. Las credenciales actuales no se extraen ni rotan: un aprovisionamiento
+explícito de CI crea un login que hereda sólo `kova_app`, conserva RLS y sella las
+conexiones. Rate limiting y avisos de jobs usan bindings privados persistentes.
+
+Aceptación antes del cambio: CI incluye imagen amd64 bajo 256 MiB y 1/16 CPU,
+SHA inmutable, guards de producción, R2 HEAD autenticado sin escrituras, captura de
+Workers e imagen para rollback, API/proxy/DB y misma identidad de proceso tras
+inactividad. Todavía no se declara el runtime nativo publicado. Referencia operativa:
+`deploy/cloudflare-native/README.md`.
+
+Validación local: primera suite completa 1,883 aprobada; suite posterior pg8000
+1,937 aprobada, sin fallos/errores/omitidas. Imagen local arm64 con cuota `lite`:
+24 contratos GET, mediana 97 ms, máximo 203 ms y pico 114 MiB; esta medición no
+sustituye aceptación amd64 ni producción. R2 añade memoria y se verifica aparte.
+
+## Arranque por módulo solicitado #231, publicado; latencia todavía abierta
+
+#231 publicó `ed2e5a6d7c0ac164d895b5c347de5de47d44bcab` con CI y aceptación
+productiva aprobados (39367734205). API/proxy/DB y SHA exacto verificados. Las
+primeras peticiones observadas dieron mediana 3,794 ms y máximo 8,303 ms, frente
+a mediana 108 ms al repetir. No se forzaron procesos fríos: no prueba ausencia
+de arranque ni elimina la necesidad del backend residente solicitado.
 
 #230 publicó `1d0bfc7cab06` con CI completo verde y aceptación productiva
 (39364788528, 03:45:14 UTC del 20 de octubre). Sitio/proxy/API/DB y SHA exacto
@@ -10,12 +36,13 @@ verificados; 64/64 contratos GET aprobaron. La latencia sigue abierta: primeras
 peticiones directas, mediana 6,516.5 ms y máximo 11,244 ms, tres de 16 sobre diez
 segundos; repeticiones mediana 212 ms. Desbloquear la compilación no bastó.
 
-El siguiente corte conserva las validaciones completas y carga los routers originales
+El corte #231 conserva las validaciones completas y carga los routers originales
 por prefijo, bajo la admisión del coordinador. El snapshot conserva librerías; toda
 la metadata ORM se inicializa antes de escribir y los validadores de rutas ajenas
 se difieren. El backend nativo conserva aplicación/OpenAPI completos. Se verifican
 cobertura de prefijos, mismo contrato y definiciones originales de permisos, orden de
-guards y denegación anónima. CI/publicación y mejora productiva todavía pendientes.
+guards y denegación anónima. CI y publicación aprobados; el arranque frío sigue
+siendo un límite de esta arquitectura.
 
 ## Publicación #227 aceptada; latencia de primera petición aún abierta
 

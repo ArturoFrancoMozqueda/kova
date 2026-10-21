@@ -4,16 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+  checks: read
 
-# A main release may not overtake another release: Fly is updated before the
-# Vercel candidate is accepted, so overlapping SHAs could otherwise race.
+# Main releases, including explicit reruns after configuration changes, may
+# not overtake one another while backend and frontend candidates are verified.
 # Obsolete PR validation is safe to cancel because it never deploys.
 concurrency:
   group: >-
-    ${{ github.event_name == 'push'
+    ${{ github.event_name != 'pull_request'
         && format('{0}-{1}', github.workflow, github.ref)
         || format('{0}-pr-{1}', github.workflow, github.event.pull_request.number) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -390,10 +392,15 @@ jobs:
     uses: ./.github/workflows/ci-maintenance.yml
 
 
+  backend-native:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    uses: ./.github/workflows/native-backend.yml
+
   required:
     name: CI required
     if: always()
-    needs: [changes, repository, backend-integration, backend-workers, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
+    needs: [changes, repository, backend-integration, backend-workers, backend-native, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -410,7 +417,7 @@ jobs:
     needs: [changes, required]
     # Planned optional skips must not suppress a successful aggregate gate.
     # Failed/cancelled/missing gates still block all production effects.
-    if: always() && !cancelled() && needs.required.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    if: always() && !cancelled() && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     environment: production
@@ -489,14 +496,18 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --prefix deploy/cloudflare-backend
+          if [[ "$KOVA_NATIVE_BACKEND" == "1" ]]; then npm ci --prefix deploy/cloudflare-native; fi
           uv sync --project backend --frozen
           uv python install cpython-3.14.2-emscripten-wasm32-musl
           uv venv /tmp/kova-release-pyodide --python cpython-3.14.2-emscripten-wasm32-musl
           uv pip install --python /tmp/kova-release-pyodide/bin/python --only-binary :all: --preview-features pylock -r deploy/cloudflare-backend/pylock.toml
+        env:
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
       - name: Capture exact Cloudflare rollback version
         if: vars.KOVA_CLOUDFLARE_FRONTEND == '1' || vars.KOVA_CLOUDFLARE_BACKEND == '1'
         run: node frontend/scripts/capture-cloudflare.mjs "$RUNNER_TEMP/release-rollback.json"
         env:
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
           KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
           KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -516,6 +527,7 @@ jobs:
           KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
           KOVA_HYPERDRIVE_APP_ID: ${{ vars.KOVA_HYPERDRIVE_APP_ID }}
           KOVA_HYPERDRIVE_PRIVILEGED_ID: ${{ vars.KOVA_HYPERDRIVE_PRIVILEGED_ID }}
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
           KOVA_WORKERS_PACKAGES: /tmp/kova-release-pyodide/lib/python3.14/site-packages
           SUPABASE_DB_URL: ${{ vars.KOVA_CLOUDFLARE_BACKEND == '1' && secrets.SUPABASE_DB_URL || '' }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
