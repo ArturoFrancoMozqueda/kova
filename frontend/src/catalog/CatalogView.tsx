@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -115,7 +115,7 @@ export default function CatalogView() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [searchParams] = useSearchParams();
-  const handledSetupParam = useRef<string | null>(null);
+  const location = useLocation();
   const [pending, setPending] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const { toast } = useToast();
@@ -166,13 +166,20 @@ export default function CatalogView() {
       : searchParams.get("inventory") === "activate"
         ? "inventory=activate"
         : null;
-    if (!setupParam || handledSetupParam.current === setupParam) return;
-    handledSetupParam.current = setupParam;
+    if (!setupParam) return;
+    // Creation links are one-shot intents. Consume only recognized commands,
+    // preserving filters so cancelling and selecting the task again works.
+    const remaining = new URLSearchParams(searchParams);
+    if (remaining.get("new") === "product") remaining.delete("new");
+    if (remaining.get("inventory") === "activate") remaining.delete("inventory");
+    navigate({ pathname: location.pathname,
+      search: remaining.size ? `?${remaining.toString()}` : "", hash: location.hash,
+    }, { replace: true, state: location.state });
     setModal({
       type: "product-create",
       defaultTrackInventory: setupParam === "inventory=activate",
     });
-  }, [canCreate, loadState.status, modal, searchParams]);
+  }, [canCreate, loadState.status, modal, searchParams, navigate, location.pathname, location.hash, location.state]);
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);

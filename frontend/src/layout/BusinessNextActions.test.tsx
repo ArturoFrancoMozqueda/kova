@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { BusinessNextActions } from "./BusinessNextActions";
 
-const destinations = ["/inventory", "/purchasing", "/replenishment", "/register", "/pedidos", "/customers", "/service-cases", "/reports", "/operations-queue"].map(to => ({ to }));
+const destinations = ["/settings/public-catalog", "/commercial-requests", "/catalog", "/inventory", "/purchasing", "/replenishment", "/register", "/pedidos", "/customers", "/service-cases", "/reports", "/operations-queue"].map(to => ({ to }));
 function Location() { return <output aria-label="Destino actual">{useLocation().pathname}</output>; }
 function host(pathname: string, allowed = destinations) {
   return render(<MemoryRouter initialEntries={[pathname]}>
@@ -14,7 +14,10 @@ function host(pathname: string, allowed = destinations) {
 describe("next actions within existing business sections", () => {
   it.each([
     ["/catalog", ["Revisar existencias", "Preparar compra"]],
-    ["/inventory", ["Planear reposición", "Cobrar una venta"]],
+    ["/settings/public-catalog", ["Atender solicitudes", "Editar productos y fotos"]],
+    ["/inventory", ["Planear reposición", "Preparar compra"]],
+    ["/replenishment", ["Preparar compra", "Revisar existencias"]],
+    ["/purchasing", ["Revisar existencias", "Cobrar una venta"]],
     ["/quotes", ["Revisar pedidos", "Gestionar clientes"]],
     ["/orders", ["Atender incidencias", "Revisar resultados"]],
     ["/inbox", ["Atender pendientes", "Gestionar clientes"]],
@@ -33,16 +36,33 @@ describe("next actions within existing business sections", () => {
   });
 
   it("uses the allowed destinations, hides empty navigation, and follows a real route", () => {
-    const view = host("/catalog", [{ to: "/purchasing" }]);
+    const view = host("/inventory", [{ to: "/purchasing" }]);
     const link = screen.getByRole("link", { name: "Preparar compra" });
     expect(screen.queryByRole("link", { name: "Revisar existencias" })).toBeNull();
     expect(link).toHaveAttribute("href", "/purchasing");
     link.focus(); expect(link).toHaveFocus();
     fireEvent.click(link);
     expect(screen.getByLabelText("Destino actual")).toHaveTextContent("/purchasing");
-    view.unmount(); host("/catalog", []);
+    view.unmount(); host("/inventory", []);
     expect(screen.queryByRole("navigation", { name: "Continúa tu operación" })).toBeNull();
   });
+
+  it("takes the owner from publication to requests without changing publication", () => {
+    host("/settings/public-catalog");
+    const link = screen.getByRole("link", { name: "Atender solicitudes" });
+    expect(link).toHaveAttribute("href", "/commercial-requests");
+    fireEvent.click(link);
+    expect(screen.getByLabelText("Destino actual")).toHaveTextContent("/commercial-requests");
+  });
+
+  it("never substitutes a sharing or stock task with an unavailable destination", () => {
+    const view = host("/settings/public-catalog", [{ to: "/catalog" }]);
+    expect(screen.queryByRole("link", { name: "Atender solicitudes" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Editar productos y fotos" })).toHaveAttribute("href", "/catalog");
+    view.unmount(); host("/settings/public-catalog", [{ to: "/purchasing" }]);
+    expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
   it("offers direct order creation only with create permission and the parent feature destination", () => {
     const view = render(<MemoryRouter><BusinessNextActions pathname="/quotes" destinations={[{ to: "/pedidos" }]} canCreateCustomerOrders /></MemoryRouter>);
     expect(screen.getByRole("link", { name: "Crear pedido" })).toHaveAttribute("href", "/pedidos/nuevo");

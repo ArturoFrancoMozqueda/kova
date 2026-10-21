@@ -2,7 +2,13 @@ type Section = { to: string; label: string };
 
 // Task vocabulary helps an owner find the existing destination. Visibility is
 // decided by AppShell's role, feature and capability filters before searching.
-const sectionDetails: Record<string, { description: string; keywords: string }> = {
+const sectionDetails: Record<string, { description: string; keywords: string; task?: boolean }> = {
+  "/pedidos/nuevo": { description: "Abre el formulario para preparar un pedido nuevo.", keywords: "crear nuevo nueva pedido pedidos encargo", task: true },
+  "/catalog?new=product": { description: "Abre el formulario para agregar un producto al catálogo.", keywords: "crear nuevo nueva agregar producto productos", task: true },
+  "/settings/employees": { description: "Administra empleados e invitaciones de tu equipo.", keywords: "empleados equipo agregar invitar permisos acceso", task: true },
+  "/settings/business-profile": { description: "Actualiza el nombre, contacto y zona horaria de tu negocio.", keywords: "perfil negocio nombre contacto datos zona horaria", task: true },
+  "/settings/receipt": { description: "Personaliza los datos y el papel de tus recibos.", keywords: "recibo ticket logo pie papel impresora", task: true },
+  "/settings/branches": { description: "Administra sucursales y sus direcciones.", keywords: "sucursal sucursales locales ubicaciones", task: true },
   "/dashboard": { description: "Entiende tus ventas y decide qué atender.", keywords: "resumen hoy numeros negocio panel" },
   "/register": { description: "Agrega productos y cobra una venta.", keywords: "vender cobrar caja ticket efectivo tarjeta" },
   "/customers": { description: "Consulta clientes y su historial.", keywords: "crear nuevo nueva agregar contactos compradores historial" },
@@ -47,4 +53,12 @@ export function matchesSectionQuery(section: Section, query: string): boolean {
   const details = sectionDetails[section.to];
   const searchable = normalize(`${section.label} ${details?.description ?? ""} ${details?.keywords ?? ""}`);
   return terms.every(term => searchable.includes(term));
+}
+
+/** Name matches lead; descriptions still discover destinations across closed groups. */
+export function discoverSections<T extends Section>(sections: readonly T[], query: string): T[] {
+  const terms = normalize(query).trim().split(/\s+/).filter(Boolean);
+  const score = (section: Section) => terms.filter(term => normalize(section.label).includes(term)).length;
+  return sections.filter(section => matchesSectionQuery(section, query)).sort((a, b) =>
+    score(b) - score(a) || Number(sectionDetails[b.to]?.task === true) - Number(sectionDetails[a.to]?.task === true));
 }

@@ -2,7 +2,53 @@
 
 Last updated: 2026-10-21
 
+## Flujo del dueño: tareas accesibles sin explorar ajustes
+
+Implementación local del 21 de octubre, pendiente de CI y aceptación productiva:
+
+- Buscar desde el encabezado móvil abre y enfoca el buscador existente. En
+  escritorio usa el buscador lateral, sin una barra superior adicional. Prioriza tareas concretas y abre Crear producto, Crear pedido y
+  ajustes específicos de recibo, perfil, sucursales y equipo según permisos.
+  No agrega niveles al menú ni cambia Caja/Pedidos/Panel de la barra inferior.
+- Acciones rápidas aparece una sola vez, antes de métricas y disponible aun
+  mientras cargan o fallan los reportes. El siguiente paso de onboarding conserva
+  prioridad. No se agregan consultas ni se presume que existen pendientes.
+- El acceso existente de Productos a Compartir catálogo no se duplica en el pie.
+  La continuación vincula publicación → solicitudes, y reposición →
+  compras → existencias. Conserva dos enlaces como máximo y filtros de acceso.
+- Las intenciones de creación de producto se consumen una vez preservando el
+  filtro, ancla y estado de navegación; cancelar y volver a elegir la tarea abre nuevamente el formulario.
+  No se guardan productos por navegar ni se cambia la prioridad de inventario.
+
+Validación: 62 pruebas de layout, 45 de dashboard, 20 de catálogo y cuatro de guía inicial aprobadas;
+regresiones rojas antes de corregir continuidad y repetición del formulario.
+Revisión independiente sin bloqueos. Build completo y ESLint aprobaron. Nueve
+pruebas de navegador sobre el build final aprobaron: tareas con reportes
+pendientes/error, búsqueda a formulario repetible y recibo directo en escritorio
+y móvil, más regresión de fotos y el contrato anterior de escritorio con contenido
+en y=0 sin barra superior adicional, sin modificar esa prueba. Se revisaron capturas sin desbordamiento;
+Cancelar en el formulario móvil requiere su desplazamiento interno existente.
+Publicación pendiente; estas pruebas no equivalen a validar cobros, envíos o
+cuentas externas.
+
 ## Estado productivo verificado del 21 de octubre
+
+#248 está publicado como `c4b57b205e2545fe6a80a4cd6ed342732bf2d17b`.
+CI y release `39649619567` aprobaron al primer intento, sin rollback: 25 contratos,
+mismo proceso, mediana 290ms y máximo 1061ms. Los seis contratos públicos
+confirmaron ese SHA. Computer Use posterior: sesión 200/359ms, Cotizaciones
+200/535ms, cinco fotos iniciales 90–1170ms y seis adicionales 1.61–1.82s; al salir
+siguieron once, sin descargas adicionales de 400px. Tras 330s sin probes del
+verificador, doce imágenes fueron 200/MISS con proceso y bytes conservados:
+160px mediana/máximo 975/1034ms; 320px 354/432ms; 400px 374/429ms.
+
+Durante propagación, una lectura de sesión devolvió 503/242ms desde la versión
+anterior cf56c9d7 (4be82), según el log correlacionado a las 18:20:29.413Z. Ese código
+no tenía el marcador nuevo. Después se recuperó el recorrido; no se declara que
+se ejercitó el retry productivo ni que salud prueba por sí sola la convergencia
+del controlador. No hubo cobros, envíos ni cambios de datos de negocio en CU.
+
+Antecedentes aceptados:
 
 #247 está publicado como `4be82c85cddd7f7909ca99a5bbe2054fd572330d`:
 CI/release `39642218045` aprobó en el primer intento, sin rollback. La aceptación
@@ -41,7 +87,7 @@ streaming, cookies y aislamiento. Eventos diagnósticos fijos no incluyen contex
 privado y sus fallos no afectan la petición. La batería inicial de 50 pruebas
 aprobó, incluida la frontera gateway→DO en workerd; los 39 checks afectados por
 la telemetría final también aprobaron, con dos regresiones rojas antes del cambio.
-Revisión independiente sin bloqueos; publicación de esta corrección pendiente.
+Revisión independiente sin bloqueos; corrección publicada en #248 según la aceptación anterior.
 
 #246 se integró y publicó como `7266af61c9f001dbff1e3f7a98d1239535d51fe5`.
 CI/release `39637031484` aprobó todos los controles y aceptó la publicación sin

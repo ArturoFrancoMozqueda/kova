@@ -1,11 +1,16 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ state: {
   status: "authenticated", tenantId: "tenant-a", tenantName: "Mi negocio", tenantLogoUrl: null,
   sessionMode: "online", user: { id: "user-a", email: "owner@example.com", role: "owner" },
 }, logout: vi.fn() }));
+const deniedPermissions = vi.hoisted(() => new Set<string>());
+vi.mock("@/auth/permissions", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/auth/permissions")>();
+  return { ...actual, usePermission: (permission: string) => deniedPermissions.has(permission) ? false : actual.usePermission(permission) };
+});
 const features = vi.hoisted(() => ({ customer_orders: false, margin_reports: false }));
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => auth }));
 vi.mock("@/auth/AuthContext", () => ({ useAuthContext: () => auth }));
@@ -22,9 +27,13 @@ vi.mock("@/telemetry/funnel", () => ({ flushFunnelEvents: vi.fn() }));
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 import AppShell from "./AppShell";
 
+function CurrentRoute() {
+  const location = useLocation();
+  return <output aria-label="Ruta actual">{location.pathname}{location.search}</output>;
+}
 function host(path = "/register") {
   return render(<MemoryRouter initialEntries={[path]}><Routes><Route element={<AppShell />}>
-    <Route path="*" element={<Link to="/quotes">Abrir cotizaciones desde el contenido</Link>} />
+    <Route path="*" element={<><Link to="/quotes">Abrir cotizaciones desde el contenido</Link><CurrentRoute /></>} />
   </Route></Routes></MemoryRouter>);
 }
 function navigation() { return within(document.querySelector("aside nav") as HTMLElement); }
@@ -33,6 +42,7 @@ beforeEach(() => {
   window.localStorage.clear();
   auth.state.user.role = "owner";
   auth.state.sessionMode = "online";
+  deniedPermissions.clear();
   features.customer_orders = false;
   features.margin_reports = false;
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true,
@@ -50,7 +60,7 @@ describe("daily links and secondary navigation groups", () => {
     expect(result).toHaveAttribute("href", "/settings/public-catalog");
     expect(result).toHaveAccessibleDescription("Comparte productos con fotos y recibe solicitudes.");
     expect(navigation().getAllByRole("link")).toHaveLength(1);
-    expect(navigation().getByRole("status")).toHaveTextContent("1 sección encontrada");
+    expect(navigation().getByRole("status")).toHaveTextContent("1 resultado encontrado");
     fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda de secciones" }));
     expect(search).toHaveFocus();
     expect(navigation().getByRole("button", { name: "Ventas y atención" })).toHaveAttribute("aria-expanded", "false");
@@ -68,8 +78,11 @@ describe("daily links and secondary navigation groups", () => {
     features.customer_orders = true; host();
     fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: query } });
     expect(navigation().getByRole("link", { name: label })).toHaveAttribute("href", href);
-    // Search finds sections; the direct creation action is offered separately.
-    expect(navigation().getAllByRole("link").map(link => link.getAttribute("href"))).not.toContain("/pedidos/nuevo");
+    if (href === "/pedidos") {
+      expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", "/pedidos/nuevo");
+    } else {
+      expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", href);
+    }
     await act(async () => {});
   });
 
@@ -88,7 +101,7 @@ describe("daily links and secondary navigation groups", () => {
     expect(navigation().getByRole("link", { name: "Análisis" })).toHaveAttribute("href", "/reports");
     fireEvent.change(search, { target: { value: "inexistente" } });
     expect(navigation().queryAllByRole("link")).toHaveLength(0);
-    expect(navigation().getByRole("status")).toHaveTextContent("No encontramos esa sección");
+    expect(navigation().getByRole("status")).toHaveTextContent("No encontramos esa acción o sección");
     fireEvent.keyDown(search, { key: "Escape" });
     expect(search).toHaveValue("");
     expect(navigation().getByRole("link", { name: "Caja" })).toBeVisible();
@@ -256,6 +269,98 @@ describe("daily links and secondary navigation groups", () => {
     const cashier = host("/quotes"); expect(context()).not.toBeInTheDocument();
     cashier.unmount(); auth.state.user.role = "owner"; auth.state.sessionMode = "offline";
     host("/quotes"); expect(context()).not.toBeInTheDocument();
+    await act(async () => {});
+  });
+
+  it("opens and focuses existing section search from the mobile header, clears then closes with Escape", async () => {
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    host();
+    const trigger = screen.getByRole("button", { name: "Buscar tareas del negocio" });
+    fireEvent.click(trigger);
+    const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    expect(search).toHaveFocus();
+    expect(search).toHaveAttribute("placeholder", "¿Qué quieres hacer?");
+    fireEvent.change(search, { target: { value: "crear producto" } });
+    expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", "/catalog?new=product");
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(search).toHaveValue(""); expect(search).toHaveFocus();
+    expect(screen.getByRole("dialog", { name: "Navegación de la cuenta" })).toBeInTheDocument();
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Navegación de la cuenta" })).toBeNull();
+    expect(trigger).toHaveFocus();
+    await act(async () => {});
+  });
+
+  it("keeps desktop content clear and expands the existing compact rail search without a header button", async () => {
+    window.localStorage.setItem("kova-sidebar-collapsed", "1");
+    host();
+    expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
+    expect(document.querySelector("header")).toHaveClass("xl:hidden");
+    fireEvent.click(screen.getByRole("button", { name: "Buscar sección" }));
+    const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    expect(search).toHaveFocus();
+    expect(window.localStorage.getItem("kova-sidebar-collapsed")).toBe("0");
+    expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.change(search, { target: { value: "crear producto" } });
+    expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", "/catalog?new=product");
+    await act(async () => {});
+  });
+
+  it("navigates straight to supported creation tasks and settings without opening extra groups", async () => {
+    features.customer_orders = true; host();
+    const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    for (const [query, name, href] of [
+      ["crear pedido", "Crear pedido", "/pedidos/nuevo"],
+      ["crear producto", "Crear producto", "/catalog?new=product"],
+      ["recibo", "Personalizar recibo", "/settings/receipt"],
+      ["empleados", "Empleados y accesos", "/settings/employees"],
+      ["equipo", "Empleados y accesos", "/settings/employees"],
+      ["perfil", "Perfil del negocio", "/settings/business-profile"],
+      ["sucursales", "Sucursales", "/settings/branches"],
+    ]) {
+      fireEvent.change(search, { target: { value: query } });
+      expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", href);
+      fireEvent.click(navigation().getByRole("link", { name }));
+      expect(search).toHaveValue("");
+      expect(screen.getByLabelText("Ruta actual")).toHaveTextContent(href);
+    }
+    await act(async () => {});
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("never offers creation without both parent access and create permission, or owner-only employee settings to managers", async () => {
+    features.customer_orders = true;
+    deniedPermissions.add("customer_orders.create"); deniedPermissions.add("catalog.create");
+    const view = host();
+    const search = () => screen.getByRole("searchbox", { name: "Buscar sección" });
+    fireEvent.change(search(), { target: { value: "crear pedido" } });
+    expect(navigation().queryByRole("link", { name: "Crear pedido" })).toBeNull();
+    expect(navigation().getByRole("link", { name: "Pedidos" })).toHaveAttribute("href", "/pedidos");
+    fireEvent.change(search(), { target: { value: "crear producto" } });
+    expect(navigation().queryByRole("link", { name: "Crear producto" })).toBeNull();
+    view.unmount(); deniedPermissions.clear(); deniedPermissions.add("customer_orders.view");
+    const noParent = host(); fireEvent.change(search(), { target: { value: "crear pedido" } });
+    expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    noParent.unmount(); deniedPermissions.clear(); auth.state.user.role = "manager";
+    host(); fireEvent.change(search(), { target: { value: "empleados" } });
+    expect(navigation().queryByRole("link", { name: "Empleados y accesos" })).toBeNull();
+    fireEvent.change(search(), { target: { value: "sucursales" } });
+    expect(navigation().getByRole("link", { name: "Sucursales" })).toHaveAttribute("href", "/settings/branches");
+    await act(async () => {});
+  });
+
+  it("keeps the new header and task destinations out of cashier and offline sessions", async () => {
+    auth.state.user.role = "cashier"; features.customer_orders = true;
+    const view = host();
+    expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "crear pedido" } });
+    expect(navigation().queryByRole("link", { name: "Crear pedido" })).toBeNull();
+    expect(navigation().getByRole("link", { name: "Pedidos" })).toBeInTheDocument();
+    view.unmount(); auth.state.user.role = "owner"; auth.state.sessionMode = "offline";
+    host(); expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(navigation().getAllByRole("link")).toHaveLength(1);
     await act(async () => {});
   });
 

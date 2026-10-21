@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
 import { listCategories, listModifierGroups, listProducts } from "./api";
@@ -24,12 +24,69 @@ function host() {
     <Route path="/settings/public-catalog" element={<h1>Publicador existente</h1>} />
   </Routes></ToastProvider></MemoryRouter>);
 }
+
+function TaskLocation() {
+  const location = useLocation();
+  return <output aria-label="Ruta de tarea">{location.pathname}{location.search}{location.hash}</output>;
+}
+function taskHost(path: string) {
+  render(<MemoryRouter initialEntries={[path]}><ToastProvider>
+    <Link to="/catalog?new=product&search=concha">Crear producto desde búsqueda</Link>
+    <TaskLocation /><Routes><Route path="/catalog" element={<CatalogView />} /></Routes>
+  </ToastProvider></MemoryRouter>);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   auth.state.user.role = "owner";
 });
 
 describe("catalog publication discovery", () => {
+
+  it("preserves the existing anchor while consuming a creation command", async () => {
+    taskHost("/catalog?search=concha&new=product#productos");
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo producto" });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos"));
+  });
+
+
+  it.each(["new=product", "inventory=activate", "new=product&inventory=activate"])("consumes %s once and preserves the catalog filter", async intent => {
+    taskHost(`/catalog?${intent}&search=concha`);
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo producto" });
+    expect(within(dialog).getByRole("checkbox", { name: "Controlar inventario" })).toHaveProperty("checked", intent === "inventory=activate");
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent(/^\/catalog\?search=concha$/));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).not.toBeInTheDocument());
+    expect(screen.getByPlaceholderText(/Buscar por producto, SKU o descripción/)).toHaveValue("concha");
+    expect(listProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it("can reopen the product task after cancellation in the same catalog without reloading data", async () => {
+    taskHost("/catalog");
+    await screen.findByRole("link", { name: "Compartir catálogo" });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      fireEvent.click(screen.getByRole("link", { name: "Crear producto desde búsqueda" }));
+      const dialog = await screen.findByRole("dialog", { name: "Nuevo producto" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).not.toBeInTheDocument());
+    }
+    expect(listProducts).toHaveBeenCalledTimes(1);
+    expect(listCategories).toHaveBeenCalledTimes(1);
+    expect(listModifierGroups).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not consume a creation task or open a form without create permission", async () => {
+    auth.state.user.role = "cashier";
+    taskHost("/catalog?new=product&search=concha");
+    await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).toBeNull();
+    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?new=product&search=concha");
+  });
+
   it.each(["owner", "manager"])("links %s to publication without extra data requests", async (role) => {
     auth.state.user.role = role;
     host();

@@ -288,6 +288,7 @@ def test_product_cost_create_update_clear_and_audit(client, db):
             AuditLog.tenant_id == UUID(signup["tenant_id"]),
             AuditLog.action == "catalog.product.update",
         )
+        .order_by(AuditLog.created_at.asc(), AuditLog.id.asc())
         .all()
     )
     assert [audit.changes["cost_price"] for audit in cost_audits] == ["11.25", None]
