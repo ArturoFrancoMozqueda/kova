@@ -60,6 +60,33 @@ def test_transparent_photo_preserves_alpha():
         assert thumbnail.convert("RGBA").getpixel((0, 0))[3] == 0
 
 
+def test_large_transparent_photo_prefilters_before_final_lanczos(monkeypatch):
+    image = Image.new("RGBA", (3200, 2500), (20, 100, 220, 255))
+    image.paste((20, 100, 220, 0), (0, 0, 1600, 2500))
+    encoded = io.BytesIO()
+    image.save(encoded, "PNG")
+    image.close()
+    intermediates = []
+    original = Image.Image.reduce
+
+    def counted(source, *args, **kwargs):
+        reduced = original(source, *args, **kwargs)
+        intermediates.append((reduced.size, reduced.mode))
+        return reduced
+
+    monkeypatch.setattr(Image.Image, "reduce", counted)
+    result, media_type = images._resize_to_width(encoded.getvalue(), "image/png", 400)
+    assert media_type == "image/webp"
+    # Keep final LANCZOS work bounded while filtering premultiplied alpha,
+    # rather than scanning the original 8 MP for the final resampling pass.
+    assert intermediates and all(size[0] <= 800 and mode == "RGBa"
+                                 for size, mode in intermediates)
+    with Image.open(io.BytesIO(result)) as thumbnail:
+        assert thumbnail.size == (400, 312)
+        assert thumbnail.convert("RGBA").getpixel((10, 150))[3] == 0
+        assert thumbnail.convert("RGBA").getpixel((390, 150))[3] == 255
+
+
 def test_phone_orientation_is_applied_before_emitting_webp():
     source = Image.new("RGB", (1200, 800), "red")
     source.paste("blue", (0, 400, 1200, 800))

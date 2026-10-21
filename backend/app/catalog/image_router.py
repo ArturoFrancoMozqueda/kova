@@ -153,7 +153,7 @@ def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tupl
             ImageOps.exif_transpose(img, in_place=True)
             source = img if img.mode == mode else img.convert(mode)
             resized = source.resize(
-                (target_width, target_height), Image.Resampling.LANCZOS, reducing_gap=3.0,
+                (target_width, target_height), Image.Resampling.LANCZOS, reducing_gap=2.0,
             )
             buf = io.BytesIO()
             resized.save(buf, format="WEBP", quality=82, method=4)
