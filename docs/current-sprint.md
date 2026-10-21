@@ -2,9 +2,21 @@
 
 Last updated: 2026-10-21
 
+## Navegación visible del dueño
+
+Corrección solicitada el 21 de octubre tras revisar el menú productivo: las
+secciones del negocio deben reconocerse sin abrir acordeones. Se sustituyen por
+encabezados estáticos y enlaces directos, también accesibles como iconos al
+contraer voluntariamente el menú de escritorio. Se conserva la búsqueda de
+secciones y tareas, los permisos, la sesión offline y la navegación móvil.
+Validación local: 61 pruebas de layout, TypeScript, ESLint completo y revisión
+independiente sin bloqueos. 25 pruebas de navegador aprobaron: teclado, enlaces
+directos, rail, foco y scroll móvil, privacidad del borrador y búsqueda de tareas.
+Se revisaron capturas de escritorio y móvil. CI y publicación pendientes.
+
 ## Flujo del dueño: tareas accesibles sin explorar ajustes
 
-Implementación local del 21 de octubre, pendiente de CI y aceptación productiva:
+Publicado en #249 como `0887bdcc51b729511c6026de69b87e490c566e5d`:
 
 - Buscar desde el encabezado móvil abre y enfoca el buscador existente. En
   escritorio usa el buscador lateral, sin una barra superior adicional. Prioriza tareas concretas y abre Crear producto, Crear pedido y
@@ -28,8 +40,14 @@ pendientes/error, búsqueda a formulario repetible y recibo directo en escritori
 y móvil, más regresión de fotos y el contrato anterior de escritorio con contenido
 en y=0 sin barra superior adicional, sin modificar esa prueba. Se revisaron capturas sin desbordamiento;
 Cancelar en el formulario móvil requiere su desplazamiento interno existente.
-Publicación pendiente; estas pruebas no equivalen a validar cobros, envíos o
-cuentas externas.
+CI y release `39664180827` aprobaron, con 25 contratos de aceptación sobre el
+mismo proceso (mediana 180ms, máximo 494ms) y seis contratos públicos posteriores.
+Computer Use con el tenant de pruebas confirmó búsqueda y repetición de Crear
+producto, recibo, empleados, Crear pedido, publicación y lectura del catálogo
+público con fotos, solicitudes y continuidad compras → existencias → reposición.
+Se verificaron escritorio y móvil emulado de 393×852, sin cobros, envíos ni
+creación de registros de negocio. Estas pruebas no equivalen a validar cuentas
+externas o todas las operaciones de escritura.
 
 ## Estado productivo verificado del 21 de octubre
 
