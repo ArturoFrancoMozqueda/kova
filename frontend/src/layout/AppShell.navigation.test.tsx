@@ -59,6 +59,27 @@ describe("daily links and secondary navigation groups", () => {
     expect(window.localStorage.getItem("kova-sidebar-groups-v1")).toBeNull();
   });
 
+  it.each([
+    ["crear pedido", "Pedidos", "/pedidos"],
+    ["nuevo pedido", "Pedidos", "/pedidos"],
+    ["crear cotización", "Cotizaciones", "/quotes"],
+    ["nuevo cliente", "Clientes", "/customers"],
+  ])("finds the existing section for intent '%s'", async (query, label, href) => {
+    features.customer_orders = true; host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: query } });
+    expect(navigation().getByRole("link", { name: label })).toHaveAttribute("href", href);
+    // Search finds sections; the direct creation action is offered separately.
+    expect(navigation().getAllByRole("link").map(link => link.getAttribute("href"))).not.toContain("/pedidos/nuevo");
+    await act(async () => {});
+  });
+
+  it("does not expose order creation search results when the order feature is disabled", async () => {
+    host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "crear pedido" } });
+    expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    await act(async () => {});
+  });
+
   it("matches accents and task descriptions, and Escape clears an empty-result search", async () => {
     host(); const search = screen.getByRole("searchbox", { name: "Buscar sección" });
     fireEvent.change(search, { target: { value: "FACTURACIÓN" } });
@@ -114,7 +135,7 @@ describe("daily links and secondary navigation groups", () => {
 
   it("shows five daily links and three closed groups instead of twenty peer links", async () => {
     host(); const nav = navigation();
-    expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Panel", "Clientes", "Ventas", "Turnos"]);
+    expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Panel", "Pendientes", "Ventas", "Turnos"]);
     expect(nav.getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual([
       "Productos e inventario", "Ventas y atención", "Gestión y ajustes",
     ]);
@@ -128,14 +149,21 @@ describe("daily links and secondary navigation groups", () => {
   it("retains complete labels and every existing secondary destination", async () => {
     features.margin_reports = true; features.customer_orders = true; host();
     const nav = navigation();
-    for (const name of ["Productos e inventario", "Ventas y atención", "Gestión y ajustes"]) fireEvent.click(nav.getByRole("button", { name }));
-    for (const [name, href] of [["Compras y proveedores", "/purchasing"], ["Facturación e integraciones", "/settings/integrations"], ["Postventa y seguimiento", "/followups"], ["Solicitudes del catálogo", "/commercial-requests"]]) {
-      expect(nav.getByRole("link", { name })).toHaveAttribute("href", href);
+    const paths = new Set(nav.getAllByRole("link").map(link => link.getAttribute("href")));
+    for (const name of ["Productos e inventario", "Ventas y atención", "Gestión y ajustes"]) {
+      const trigger = nav.getByRole("button", { name });
+      trigger.focus();
+      fireEvent.click(trigger);
+      expect(trigger).toHaveFocus();
+      expect(nav.getAllByRole("button").filter(button => button.getAttribute("aria-expanded") === "true")).toEqual([trigger]);
+      for (const link of nav.getAllByRole("link")) paths.add(link.getAttribute("href"));
     }
+    expect([...paths]).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers"]));
+    const allPaths = nav.getAllByRole("link", { hidden: true }).map(link => link.getAttribute("href"));
+    expect(new Set(allPaths).size).toBe(allPaths.length);
+    expect(paths.size).toBe(28);
+    fireEvent.click(nav.getByRole("button", { name: "Productos e inventario" }));
     expect(nav.getByRole("link", { name: "Compras y proveedores" }).querySelector("span[aria-hidden]")).not.toHaveClass("truncate");
-    const paths = nav.getAllByRole("link").map(link => link.getAttribute("href"));
-    expect(new Set(paths).size).toBe(paths.length);
-    expect(paths).toHaveLength(28);
     await act(async () => {});
   });
   it("opens the active deep-link group, permits closing it, then opens the next active group", async () => {
@@ -177,4 +205,56 @@ describe("daily links and secondary navigation groups", () => {
     expect(navigation().queryAllByRole("button")).toHaveLength(0);
     await act(async () => {});
   });
+  it("normalizes old multi-open preferences, lets the deep link win and preserves unrelated settings", async () => {
+    window.localStorage.setItem("kova-sidebar-groups-v1", JSON.stringify({ products: true, commercial: true, management: true }));
+    window.localStorage.setItem("other-ui-preference", "preserve");
+    const view = host("/quotes");
+    expect(navigation().getAllByRole("button").filter(button => button.getAttribute("aria-expanded") === "true").map(button => button.getAttribute("aria-label"))).toEqual(["Ventas y atención"]);
+    view.unmount(); host();
+    expect(navigation().getAllByRole("button").filter(button => button.getAttribute("aria-expanded") === "true").map(button => button.getAttribute("aria-label"))).toEqual(["Productos e inventario"]);
+    fireEvent.click(navigation().getByRole("button", { name: "Gestión y ajustes" }));
+    expect(window.localStorage.getItem("other-ui-preference")).toBe("preserve");
+    await act(async () => {});
+  });
+
+  it("keeps the mobile drawer usable with one open group and closes it after choosing daily pending work", async () => {
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    host();
+    const trigger = screen.getAllByRole("button", { name: "Abrir menú de navegación" })[0];
+    fireEvent.click(trigger);
+    const drawer = screen.getByRole("dialog", { name: "Navegación de la cuenta" });
+    expect(drawer).toHaveFocus();
+    const firstControl = drawer.querySelector<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])')!;
+    const logout = within(drawer).getByRole("button", { name: "Cerrar sesión" });
+    logout.focus(); fireEvent.keyDown(document, { key: "Tab" });
+    expect(firstControl).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(logout).toHaveFocus();
+    fireEvent.click(within(drawer).getByRole("button", { name: "Productos e inventario" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: "Ventas y atención" }));
+    expect(within(drawer).getByRole("button", { name: "Productos e inventario" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(drawer).getByRole("link", { name: "Clientes" })).toHaveAttribute("href", "/customers");
+    fireEvent.click(within(drawer).getByRole("link", { name: "Pendientes" }));
+    expect(screen.queryByRole("dialog", { name: "Navegación de la cuenta" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    await act(async () => {});
+  });
+
+  it("shares permissions and feature filtering with contextual actions and keeps them out of offline or cashier sessions", async () => {
+    const view = host("/quotes");
+    const context = () => screen.queryByRole("navigation", { name: "Continúa tu operación" });
+    expect(within(context()!).queryByRole("link", { name: "Revisar pedidos" })).toBeNull();
+    expect(within(context()!).getByRole("link", { name: "Gestionar clientes" })).toHaveAttribute("href", "/customers");
+    features.customer_orders = true; view.unmount();
+    const enabled = host("/quotes");
+    expect(within(context()!).getByRole("link", { name: "Crear pedido" })).toHaveAttribute("href", "/pedidos/nuevo");
+    enabled.unmount(); auth.state.user.role = "manager";
+    const manager = host("/quotes"); expect(context()).toBeInTheDocument();
+    manager.unmount(); auth.state.user.role = "cashier";
+    const cashier = host("/quotes"); expect(context()).not.toBeInTheDocument();
+    cashier.unmount(); auth.state.user.role = "owner"; auth.state.sessionMode = "offline";
+    host("/quotes"); expect(context()).not.toBeInTheDocument();
+    await act(async () => {});
+  });
+
 });

@@ -5,6 +5,7 @@ import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import { test } from "node:test";
+import { FrontendCommitMismatch } from "./verify-deployment.mjs";
 import {
   cliProvider,
   recoverRelease,
@@ -83,6 +84,7 @@ function fakes({ failVercel = false } = {}) {
       },
     },
     async verify(input) {
+      assert.equal(Object.hasOwn(input, "frontendBypassSecret"), false);
       calls.push(["verify", input.sha]);
       return { commit: input.sha, site: "reachable", proxy: "reachable" };
     },
@@ -192,3 +194,30 @@ test(
     });
   },
 );
+
+test("public recovery revalidates a regressing attempted frontend without candidate bypass", async () => {
+  const fake = fakes();
+  const failedSha = "f".repeat(40);
+  fake.provider.restoreCloudflare = async () => {};
+  fake.provider.waitForPublicFrontend = async ({ sha, previousSha }) => {
+    assert.equal(sha, artifact.releaseSha);
+    assert.equal(previousSha, failedSha);
+  };
+  fake.provider.waitForPublicBackend = async input => {
+    assert.equal(Object.hasOwn(input, "frontendBypassSecret"), false);
+  };
+  const deadlines = [];
+  let attempts = 0;
+  const result = await recoverRelease({ phase: "acceptance", failedSha,
+    artifact: { ...artifact, cloudflareVersion: "dcad4869-ba1d-43d4-865b-66349697bd7c" },
+    provider: fake.provider, verify: async input => {
+      attempts++;
+      assert.equal(Object.hasOwn(input, "frontendBypassSecret"), false);
+      deadlines.push(input.deadline);
+      if (attempts === 1) throw new FrontendCommitMismatch(artifact.releaseSha, failedSha.slice(0, 12));
+      return { commit: input.sha };
+    } });
+  assert.equal(result.verification.commit, artifact.releaseSha);
+  assert.equal(attempts, 2);
+  assert.deepEqual(deadlines, [deadlines[0], deadlines[0]]);
+});

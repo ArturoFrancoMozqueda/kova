@@ -146,6 +146,50 @@ revisión nueva sólo para las visibles y foto cuadrada en escritorio. Revisión
 independiente sin regresiones bloqueantes. No se registraron cobros, compras,
 pedidos o mensajes durante Computer Use.
 
+## Continuidad de sesión y navegación por tareas — pendiente de publicación
+
+#243 pasó CI `39613792409` y se fusionó como
+`7a32729e91db562d223620e86ef4852264b0c6f5`. No apareció una ejecución push de
+ese SHA; se inició una sola ejecución manual `39616192422` tras verificar main.
+Todos sus gates aprobaron, pero la publicación falló en aceptación: readiness
+había observado el frontend nuevo y la verificación final recibió el anterior.
+El recovery terminó correctamente y la comprobación pública confirmó frontend y
+API `909919950261…`, ambos 200 y backend residente. Por tanto #243 fusionado no
+equivale a #243 activo en producción.
+
+La corrección de publicación comparte los headers públicos entre readiness,
+aceptación y recuperación, reservando el bypass al candidato protegido. Sólo
+reintenta un mismatch tipado del frontend anterior capturado: máximo 10 intentos,
+separados por 2s dentro de un único deadline de 20s. Cada intento revalida sitio,
+frontend, API, DB y proxy; backend inválido, HTTP, versión desconocida o metadatos
+malformados siguen fallando inmediatamente. No se modifican DNS, tokens o cuentas.
+
+Computer Use también observó dos refresh en el mismo intervalo de 22.5min:
+200/362ms y 401/420ms, con error `Invalid or expired refresh token`. La prueba
+determinista con AuthProvider, TrialChip y refresh real reprodujo la doble
+rotación y pérdida de sesión aun con una renovación exitosa. Probe e interceptor
+ahora comparten una sola promesa por provider; el resultado tardío no reintenta
+solicitudes de una identidad cerrada/cambiada. Se conservan cookies, TTL,
+revocación y backend. La coordinación simultánea entre pestañas queda fuera de
+esta corrección; no se promete resolver todos los motivos de cierre de sesión.
+
+La instrucción del dueño es completar tareas, no recorrer carpetas. Cambios
+acotados: Pendientes como entrada diaria, Clientes conservado en el grupo
+comercial, un solo grupo de menú abierto y búsqueda por intención (nuevo pedido,
+crear cotización, nuevo cliente). Máximo dos acciones contextuales conectan
+secciones; Crear pedido usa la ruta existente y exige su permiso y función.
+No se muestran en Caja/Panel/Turnos ni en formularios, edición o detalles;
+se preservan permisos, flags, offline, enlaces y todas las capacidades/datos.
+Cotizaciones explica precios del catálogo y opciones adicionales en lenguaje del
+negocio, sin referencias al servidor. La QA real adicional comprobó el modal de
+producto: Tab/ShiftTab permanecen dentro, Escape cierra y restaura el foco.
+
+Validación integrada tras restaurar npm ci desde package-lock: 146 pruebas de
+auth/navegación/cotizaciones aprobadas; contratos de release 123 y una omisión
+prevista de Windows. TypeScript, build SSR/prerender, lint y escaneo de bundle
+aprobaron. Revisión independiente de auth y UX sin bloqueos. CI y aceptación
+productiva del siguiente corte siguen siendo gates pendientes.
+
 ## Backend residente en Cloudflare — publicado y verificado
 
 FastAPI nativo se publicó inicialmente en un único Container `lite` (ahora `basic`,

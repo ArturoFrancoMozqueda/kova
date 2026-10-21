@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { pathToFileURL, URL } from "node:url";
 import path from "node:path";
-import { verifyDeployment } from "./verify-deployment.mjs";
+import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
 import { validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
@@ -115,15 +115,14 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
         previousSha: failedSha ?? artifact.releaseSha,
         ...(artifact.cloudflareNativeContainer ? {
           nativeRuntime: artifact.cloudflareNativeContainer.applicationId !== null,
-        } : {}),
-        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+        } : {}) });
     }
-    const verification = await verify({
-      frontendUrl: artifact.frontendUrl,
-      backendUrl: artifact.backendUrl,
-      sha: artifact.releaseSha,
-      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-    });
+    const publicInput = { frontendUrl: artifact.frontendUrl,
+      backendUrl: artifact.backendUrl, sha: artifact.releaseSha };
+    const verification = artifact.cloudflareVersion
+      ? await verifyPublicDeployment({ ...publicInput,
+        previousSha: failedSha ?? artifact.releaseSha, verify })
+      : await verify(publicInput);
     return { phase, restored, releaseSha: artifact.releaseSha, verification };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

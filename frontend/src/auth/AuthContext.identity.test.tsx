@@ -20,7 +20,8 @@ const localCaches = vi.hoisted(() => ({
 const reportIdentity = vi.hoisted(() => vi.fn());
 vi.mock("@/reports/api", () => ({ setReportsCacheIdentity: reportIdentity }));
 const billingIdentity = vi.hoisted(() => vi.fn());
-vi.mock("@/billing/api", () => ({ setBillingCacheIdentity: billingIdentity }));
+const billingSubscription = vi.hoisted(() => vi.fn());
+vi.mock("@/billing/api", () => ({ setBillingCacheIdentity: billingIdentity, getBillingSubscription: billingSubscription }));
 
 vi.mock("./api", () => ({
   ApiError: class ApiError extends Error {},
@@ -55,6 +56,7 @@ vi.mock("@/settings/api", () => ({
 
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { AuthProvider, useAuthContext } from "./AuthContext";
+import { TrialChip } from "@/billing/TrialChip";
 
 const session = (tenantId: string, userId: string, role = "owner") => ({
   authenticated: true as const,
@@ -116,6 +118,7 @@ describe("AuthProvider identity continuity", () => {
     vi.mocked(apiLogout).mockReset().mockResolvedValue(undefined);
     reportIdentity.mockReset();
     billingIdentity.mockReset();
+    billingSubscription.mockReset();
   });
 
   it.each([
@@ -430,6 +433,64 @@ describe("AuthProvider identity continuity", () => {
     expect(refreshSession).toHaveBeenCalledOnce();
     expect(networkFetch).toHaveBeenCalledOnce();
     view.unmount();
+  });
+
+  it.each(["renewed", "revoked", "logout"] as const)("shares single-use refresh between TrialChip and the focus probe (%s)", async (outcome) => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    let resolveProbe!: (value: { authenticated: false }) => void;
+    let resolveRefresh!: (value: Response) => void;
+    let billingRequests = 0;
+    let refreshRequests = 0;
+    const networkFetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (input.toString() === "/api/v1/auth/refresh") {
+        expect(init?.method).toBe("POST");
+        refreshRequests += 1;
+        return refreshRequests === 1
+          ? new Promise<Response>(resolve => { resolveRefresh = resolve; })
+          : Promise.resolve(new Response("Invalid or expired refresh token", { status: 401 }));
+      }
+      billingRequests += 1;
+      return Promise.resolve(new Response("{}", { status: billingRequests === 1 ? 401 : 200 }));
+    });
+    window.fetch = networkFetch;
+    billingSubscription.mockResolvedValueOnce(null).mockImplementation(async () => {
+      await window.fetch("/api/v1/billing/subscription");
+      return null;
+    });
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveProbe = resolve; }))
+      .mockResolvedValue(session("tenant-a", "user-a"));
+    // Single-use rotation: a second request loses with 401 although the first
+    // request installs valid successor cookies.
+    const actualApi = await vi.importActual<typeof import("./api")>("./api");
+    vi.mocked(refreshSession).mockImplementation(actualApi.refreshSession);
+    const view = render(<MemoryRouter initialEntries={["/register"]}><AuthProvider><Probe /><TrialChip /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(refreshSession).toHaveBeenCalledTimes(1));
+    await act(async () => { resolveProbe({ authenticated: false }); });
+    if (outcome === "logout") {
+      act(() => screen.getByRole("button", { name: "logout-probe" }).click());
+      await screen.findByText("unauthenticated");
+    }
+    await act(async () => { resolveRefresh(new Response(null, { status: outcome === "revoked" ? 401 : 200 })); });
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(refreshRequests).toBe(1);
+    if (outcome === "renewed") {
+      await waitFor(() => expect(billingRequests).toBe(2));
+      expect(screen.getByText("tenant-a:user-a:online")).toBeVisible();
+      expect(offlineAccess.clear).not.toHaveBeenCalled();
+      expect(apiLogout).not.toHaveBeenCalled();
+      expect(new Headers(networkFetch.mock.calls[2][1]?.headers).get("X-Kova-Branch")).toBe("tenant-a");
+    } else {
+      await screen.findByText("unauthenticated");
+      expect(billingRequests).toBe(1);
+      expect(offlineAccess.cache).toHaveBeenCalledOnce();
+      expect(apiLogout).toHaveBeenCalledTimes(outcome === "logout" ? 1 : 0);
+    }
+    view.unmount();
+    visibility.mockRestore();
   });
 
   it("refreshes a changed role for the same user when the tab regains focus", async () => {
