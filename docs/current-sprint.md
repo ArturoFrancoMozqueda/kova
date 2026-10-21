@@ -103,11 +103,53 @@ mismo SHA. Sólo las lecturas de originales usan propietario en transacción de
 sólo lectura; cada escritura asume kova_app, fija tenant validado y usa el CAS
 existente para actualizar únicamente miniaturas sin cambiar fecha, URL u original.
 No crea cuentas, roles o recursos nuevos. La ejecución productiva y la medición
-posterior son gates pendientes de este seguimiento.
+posterior se documentan a continuación.
+
+Aceptación de #242, publicado como `90991995026191737a4af965a150158ac724580b`:
+CI y release `39580225817` aprobaron. La configuración productiva confirma basic,
+máximo una instancia, una running e imagen coincidente; la API no informa la cuota
+física de la VM individual. El mantenimiento SQL `39581662335` se detuvo antes de
+procesar fotos porque la identidad de administración no puede asumir `kova_app`.
+No se cambiaron permisos. Se completó la preparación de las 12 fotos del tenant
+de prueba con 48 GET acotados de la API existente, usando su escritor RLS normal;
+SQL de sólo lectura confirmó 12/12 variantes válidas a 160 y 320px. Tras 330s sin
+probes del verificador, cuatro fotos simultáneas por ancho devolvieron 200/MISS,
+mismos bytes y proceso: 160px mediana 774ms/máximo 806ms; 320px 358/410ms;
+400px 330/386ms. No se amplió el TTL de 300s ni se promete ausencia universal de
+reinicios o latencia equivalente en todos los dispositivos.
+
+Reanudación de Computer Use, pendiente de publicar sus correcciones: login,
+actualización del cliente, Caja (filtros, SKU, cantidad y efectivo exacto sin
+cobrar, carrito vaciado), Inventario e historial, Compras existentes, Pedidos y
+formulario sin guardar, búsqueda de secciones, Automatizaciones sin activar reglas
+y catálogo público con fotografías. Una pestaña de la versión anterior falló al
+expirar la sesión: AuthView/AuthLayout 404 y ErrorBoundary; recarga manual recuperó
+login. Se implementa recuperación fatal online acotada a una vez por build/tab,
+sin alterar cookies o ventas offline y conservando protección de Caja/devoluciones.
+Se corrigieron avisos falsos de error/vacío durante la carga de turno, proveedores
+y productos, con reproducciones previas en pruebas.
+
+La muestra móvil posterior de Caja (393×852/DPR3, Edge sin throttling) descargó
+12 fotos simultáneas aunque sólo tres eran visibles: 1.93–2.42s, todas 200.
+Agua mineral: cola 0.63ms, espera servidor 2.13s, descarga 3ms, API 1712ms,
+DB 292ms y resize cero. Es distinta de la prueba HTTP con cuatro fotos; no prueba
+una regresión del decoder. Se limita la admisión de fotografías a las que
+intersectan el viewport, conservando URL, recorte y caché existentes. Quedan por
+verificar CI, publicación y esa interacción móvil tras desplegar el cambio.
+
+Validación integrada local: 75 pruebas focales y compilación SSR/prerender
+aprobadas; cuatro recorridos E2E de 404 real (dev/preview) comprueban recuperación
+acotada y conservación de cookie, almacenamiento ajeno y venta offline con su
+clave idempotente. Un navegador local aislado comprobó tres solicitudes iniciales
+para tres fotos visibles a 393×852/DPR3, admisión al scroll sin duplicación,
+revisión nueva sólo para las visibles y foto cuadrada en escritorio. Revisión
+independiente sin regresiones bloqueantes. No se registraron cobros, compras,
+pedidos o mensajes durante Computer Use.
 
 ## Backend residente en Cloudflare — publicado y verificado
 
-FastAPI nativo está publicado en un único Container `lite`, con proceso residente tras
+FastAPI nativo se publicó inicialmente en un único Container `lite` (ahora `basic`,
+según la aceptación de #242 arriba), con proceso residente tras
 inactividad, conservando dominios, frontend, R2, jobs y namespaces existentes. El
 gateway dirige este modo directamente a `api-0` para evitar coordinadores intermedios
 y su coste. Las credenciales actuales no se extraen ni rotan: un aprovisionamiento
