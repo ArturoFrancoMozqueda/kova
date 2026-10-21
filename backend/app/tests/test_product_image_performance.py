@@ -218,6 +218,31 @@ def test_malformed_webp_headers_fall_back_without_constructing_decoder(monkeypat
     assert opened == []
 
 
+def test_animated_webp_preserves_original_without_allocating_decoder_canvases(monkeypatch):
+    first = Image.new("RGB", (800, 600), "red")
+    second = Image.new("RGB", (800, 600), "blue")
+    encoded = io.BytesIO()
+    first.save(encoded, "WEBP", save_all=True, append_images=[second],
+               duration=[100, 100], lossless=True)
+    first.close()
+    second.close()
+    source = encoded.getvalue()
+    assert source[12:16] == b"VP8X" and source[20] & 0x02
+    with Image.open(io.BytesIO(source)) as animation:
+        assert animation.n_frames == 2
+    decoders = []
+    original = WebPImagePlugin._webp.WebPAnimDecoder
+
+    def counted(*args):
+        decoders.append(True)
+        return original(*args)
+
+    monkeypatch.setattr(WebPImagePlugin._webp, "WebPAnimDecoder", counted)
+    assert images._resize_to_width(source, "image/webp", 160) == (source, "image/webp")
+    assert decoders == []
+    assert not images._resized_images
+
+
 def test_large_jpeg_still_uses_draft_before_pixel_limit(monkeypatch):
     source = photo(size=(2400, 1800))
     monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 500_000)

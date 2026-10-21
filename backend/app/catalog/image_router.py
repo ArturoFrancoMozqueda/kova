@@ -123,6 +123,11 @@ def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tupl
             size = _webp_canvas_size(data)
             if size is None or size[0] * size[1] > _MAX_DECODED_PIXELS:
                 return data, content_type
+            # Animated WebP allocates multiple full-size canvases even when
+            # only its first frame is requested. Preserve the original
+            # animation instead of exceeding the resident memory budget.
+            if data[12:16] == b"VP8X" and data[20] & 0x02:
+                return data, content_type
         with Image.open(io.BytesIO(data)) as img:
             # PNG.getexif() can load the full bitmap. Check first, except JPEG
             # which can reduce its decode dimensions with draft() below.
