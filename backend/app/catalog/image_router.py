@@ -13,8 +13,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if sys.platform != "emscripten":
-    from PIL import Image, ImageOps
-    from PIL import WebPImagePlugin  # noqa: F401 -- register encoder before serving the first photo
+    from PIL import (
+        Image,
+        ImageOps,
+        WebPImagePlugin,  # noqa: F401 -- register encoder before serving the first photo
+    )
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
