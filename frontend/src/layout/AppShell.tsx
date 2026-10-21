@@ -7,6 +7,7 @@ import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
 import {
   BILLING_VIEW_PERMISSION,
+  CATALOG_CREATE_PERMISSION,
   CUSTOMER_ORDER_VIEW_PERMISSION,
   CUSTOMER_ORDER_CREATE_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
@@ -62,7 +63,7 @@ import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
-import { matchesSectionQuery, sectionDescription } from "./navigationDiscovery";
+import { discoverSections, sectionDescription } from "./navigationDiscovery";
 import { BusinessNextActions } from "./BusinessNextActions";
 
 type NavItem = {
@@ -233,6 +234,7 @@ export default function AppShell() {
   const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
+  const canCreateProducts = usePermission(CATALOG_CREATE_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
   const assistantIdentity = state.status === "authenticated" && state.sessionMode === "online" && isAdminRole(state.user.role)
@@ -320,9 +322,25 @@ export default function AppShell() {
     .flatMap(path => filteredNavItems.filter(item => item.to === path && item.group === "operation"));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
   const searchingSections = !(isDesktop && sidebarCollapsed) && navigationQuery.trim().length > 0;
-  const sectionResults = searchingSections
-    ? [...operationNavItems, ...businessNavItems].filter(item => matchesSectionQuery(item, navigationQuery))
-    : [];
+  const searchDestinations = [...operationNavItems, ...businessNavItems];
+  if (isAdminRole(userRole) && !isOfflineSession) {
+    const hasDestination = (path: string) => filteredNavItems.some(item => item.to === path);
+    if (hasDestination("/pedidos") && canCreateCustomerOrders) searchDestinations.push({
+      to: "/pedidos/nuevo", label: "Crear pedido", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business",
+    });
+    if (hasDestination("/catalog") && canCreateProducts) searchDestinations.push({
+      to: "/catalog?new=product", label: "Crear producto", icon: <Package className="h-4.5 w-4.5" />, group: "business",
+    });
+    if (hasDestination("/settings")) {
+      for (const [to, label] of [
+        ["/settings/business-profile", "Perfil del negocio"],
+        ["/settings/receipt", "Personalizar recibo"],
+        ["/settings/branches", "Sucursales"],
+        ...(userRole === "owner" ? [["/settings/employees", "Empleados y accesos"]] : []),
+      ]) searchDestinations.push({ to, label, icon: <Settings className="h-4.5 w-4.5" />, group: "business" });
+    }
+  }
+  const sectionResults = searchingSections ? discoverSections(searchDestinations, navigationQuery) : [];
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const drawerOpen = sidebarOpen && !isDesktop;
@@ -377,11 +395,22 @@ export default function AppShell() {
 
   useEffect(() => {
     if (sidebarCompact) setNavigationQuery("");
-    if (!sidebarCompact && focusSearchOnExpand.current) {
+    if (!sidebarCompact && focusSearchOnExpand.current && (isDesktop || drawerOpen)) {
       focusSearchOnExpand.current = false;
       navigationSearchRef.current?.focus();
     }
-  }, [sidebarCompact]);
+  }, [sidebarCompact, drawerOpen, isDesktop]);
+
+  const openNavigationSearch = (trigger: HTMLElement) => {
+    trigger.focus();
+    if (isDesktop && !sidebarCompact) {
+      navigationSearchRef.current?.focus();
+      return;
+    }
+    focusSearchOnExpand.current = true;
+    if (isDesktop) toggleSidebarCollapsed();
+    else setSidebarOpen(true);
+  };
 
   const toggleNavGroup = (id: BusinessNavGroup) => {
     if (sidebarCompact) {
@@ -401,7 +430,7 @@ export default function AppShell() {
       key={item.to}
       to={item.to}
       end={item.to === "/settings"}
-      onClick={closeSidebar}
+      onClick={() => { setNavigationQuery(""); closeSidebar(); }}
       title={sidebarCompact ? item.label : undefined}
       aria-label={sidebarCompact || describe ? item.label : undefined}
       aria-describedby={describe ? `section-purpose-${item.to.replaceAll("/", "-")}` : undefined}
@@ -475,14 +504,14 @@ export default function AppShell() {
 
       {filteredNavItems.length > 1 && <div className={cn("border-b border-sidebar-border", sidebarCompact ? "px-2 py-3" : "px-3 py-3")}>
         {sidebarCompact ? <button type="button" aria-label="Buscar sección" title="Buscar sección"
-          onClick={() => { focusSearchOnExpand.current = true; toggleSidebarCollapsed(); }}
+          onClick={event => openNavigationSearch(event.currentTarget)}
           className="flex min-h-11 w-full items-center justify-center rounded-kova-md text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
           <Search aria-hidden="true" className="h-4 w-4" />
         </button> : <div role="search" aria-label="Buscar secciones de Kova" className="relative">
           <label htmlFor="navigation-section-search" className="sr-only">Buscar sección</label>
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-sidebar-muted" />
           <input id="navigation-section-search" ref={navigationSearchRef} type="search" maxLength={120}
-            placeholder="Buscar sección…" value={navigationQuery} aria-controls="navigation-sections"
+            placeholder="¿Qué quieres hacer?" value={navigationQuery} aria-controls="navigation-sections"
             autoComplete="off" spellCheck={false}
             onChange={event => setNavigationQuery(event.target.value)}
             onKeyDown={event => { if (event.key === "Escape" && navigationQuery) { event.preventDefault(); event.stopPropagation(); setNavigationQuery(""); } }}
@@ -503,8 +532,8 @@ export default function AppShell() {
       >
         {searchingSections ? <div className="space-y-1">
           <p role="status" className="px-2 pb-2 text-xs text-sidebar-muted">{sectionResults.length
-            ? `${sectionResults.length} ${sectionResults.length === 1 ? "sección encontrada" : "secciones encontradas"}`
-            : "No encontramos esa sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
+            ? `${sectionResults.length} ${sectionResults.length === 1 ? "resultado encontrado" : "resultados encontrados"}`
+            : "No encontramos esa acción o sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
           {sectionResults.map(item => renderNavItem(item, false, true))}
         </div> : <><div className="space-y-1">
           {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Operación</p>}
@@ -667,7 +696,7 @@ export default function AppShell() {
         className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
       >
         {/* Mobile top bar */}
-        <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
+        <header className={cn("flex shrink-0 items-center gap-2 border-b bg-background px-3 py-3", !(isAdminRole(userRole) && !isOfflineSession) && "xl:hidden")}>
           <button
             type="button"
             onClick={(event) => {
@@ -677,7 +706,7 @@ export default function AppShell() {
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
+            className="flex h-11 xl:hidden w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -691,6 +720,13 @@ export default function AppShell() {
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tenantName || copy.app.homeTitle}</span>
           {/* Persistent online/offline + queue visibility on mobile, where the
               sidebar footer (its only home before) is hidden during POS. */}
+          {isAdminRole(userRole) && !isOfflineSession ? <button
+            type="button" aria-label="Buscar tareas del negocio" aria-controls="navigation-sections"
+            onClick={event => openNavigationSearch(event.currentTarget)}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"
+          >
+            <Search aria-hidden="true" className="h-4 w-4" /><span className="hidden sm:inline">Buscar</span>
+          </button> : null}
           <OfflineIndicator compact />
           <TrialChip compact />
         </header>

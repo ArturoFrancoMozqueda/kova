@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
-import { BILLING_VIEW_PERMISSION, permissionsForRole } from "@/auth/permissions";
+import { BILLING_VIEW_PERMISSION, REPORTS_VIEW_ALL_PERMISSION, permissionsForRole } from "@/auth/permissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   DEFAULT_TIMEZONE,
@@ -446,6 +446,9 @@ export default function DashboardView() {
     && (state.user.role === "owner" || state.user.role === "manager");
   const canViewBilling = state.status === "authenticated"
     && permissionsForRole(state.user.role).has(BILLING_VIEW_PERMISSION);
+  const canViewReports = state.status === "authenticated"
+    && permissionsForRole(state.user.role).has(REPORTS_VIEW_ALL_PERMISSION);
+  const canUseTaskActions = state.status === "authenticated" && state.sessionMode !== "offline";
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const identity = state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : null;
   const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
@@ -580,6 +583,55 @@ export default function DashboardView() {
         />
       </div>
 
+      {loadState.status === "ready" && (
+        <div className="mb-6 empty:hidden">
+          <OnboardingChecklist
+            hasProducts={loadState.hasProducts}
+            orderCount={loadState.summary.order_count}
+            trackedInventoryCount={loadState.trackedInventoryCount}
+            hasActiveSubscription={loadState.hasActiveSubscription}
+            canViewBilling={canViewBilling}
+            onboarding={loadState.onboarding}
+            tenantName={tenantName}
+          />
+        </div>
+      )}
+
+      {canUseTaskActions && (
+        <Card className="mb-6">
+          <CardHeader>
+            <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
+          </CardHeader>
+          <CardContent>
+            <nav aria-label={copy.dashboard.quickActions} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ...(canManageBusiness ? [
+                  { to: "/operations-queue", icon: ClipboardList, iconClass: "bg-kova-mist text-kova-ink", label: "Ver pendientes", desc: "Seguimientos, citas y atención al cliente." },
+                  { to: "/settings/public-catalog", icon: Share2, iconClass: "bg-kova-growth/10 text-kova-growth", label: "Compartir catálogo", desc: "Elige productos y publica tu enlace." },
+                ] : []),
+                { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: "Revisar turnos", desc: "Consulta tus turnos y cortes de caja." },
+                ...(canViewReports ? [
+                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: "Ver análisis", desc: copy.dashboard.viewReportsDesc },
+                ] : []),
+              ].map(({ to, icon: Icon, iconClass, label, desc }) => (
+                <Link key={to} to={to} className="group">
+                  <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                </Link>
+              ))}
+            </nav>
+          </CardContent>
+        </Card>
+      )}
+
       {loadState.status === "loading" && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -637,17 +689,6 @@ export default function DashboardView() {
 
       {loadState.status === "ready" && (
         <div className="space-y-6">
-          {/* Onboarding checklist — hidden once complete */}
-          <OnboardingChecklist
-            hasProducts={loadState.hasProducts}
-            orderCount={loadState.summary.order_count}
-            trackedInventoryCount={loadState.trackedInventoryCount}
-            hasActiveSubscription={loadState.hasActiveSubscription}
-            canViewBilling={canViewBilling}
-            onboarding={loadState.onboarding}
-            tenantName={tenantName}
-          />
-
           <InsightStrip
             show="banner"
             summary={loadState.summary}
@@ -909,37 +950,6 @@ export default function DashboardView() {
               </Card>
             </>
           )}
-
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
-            </CardHeader>
-            <CardContent>
-              <nav aria-label={copy.dashboard.quickActions} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: "Revisar turnos", desc: "Consulta tus turnos y cortes de caja." },
-                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
-                  ...(canManageBusiness ? [
-                    { to: "/settings/public-catalog", icon: Share2, iconClass: "bg-kova-growth/10 text-kova-growth", label: "Compartir catálogo", desc: "Elige productos y publica tu enlace." },
-                    { to: "/operations-queue", icon: ClipboardList, iconClass: "bg-kova-mist text-kova-ink", label: "Ver pendientes", desc: "Seguimientos, citas y atención al cliente." },
-                  ] : []),
-                ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                  <Link key={to} to={to} className="group">
-                    <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{label}</p>
-                        <p className="text-xs text-muted-foreground">{desc}</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </div>
-                  </Link>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
         </div>
       )}
     </ViewLayout>

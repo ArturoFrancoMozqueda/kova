@@ -7,12 +7,24 @@ type Journey = { paths: string[]; actions: Action[] };
 // Destinations are existing screens, so labels describe the task available there.
 // Access is inherited from the shell's permission and feature filtered navigation.
 const journeys: Journey[] = [
-  { paths: ["/catalog", "/settings/public-catalog"], actions: [
+  { paths: ["/catalog"], actions: [
     { to: "/inventory", label: "Revisar existencias" },
     { to: "/purchasing", label: "Preparar compra" },
   ] },
-  { paths: ["/inventory", "/purchasing", "/replenishment"], actions: [
+  { paths: ["/settings/public-catalog"], actions: [
+    { to: "/commercial-requests", label: "Atender solicitudes" },
+    { to: "/catalog", label: "Editar productos y fotos" },
+  ] },
+  { paths: ["/inventory"], actions: [
     { to: "/replenishment", label: "Planear reposición" },
+    { to: "/purchasing", label: "Preparar compra" },
+  ] },
+  { paths: ["/replenishment"], actions: [
+    { to: "/purchasing", label: "Preparar compra" },
+    { to: "/inventory", label: "Revisar existencias" },
+  ] },
+  { paths: ["/purchasing"], actions: [
+    { to: "/inventory", label: "Revisar existencias" },
     { to: "/register", label: "Cobrar una venta" },
   ] },
   { paths: ["/commercial-requests", "/crm", "/quotes"], actions: [

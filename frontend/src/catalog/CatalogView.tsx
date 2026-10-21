@@ -114,8 +114,7 @@ export default function CatalogView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
-  const [searchParams] = useSearchParams();
-  const handledSetupParam = useRef<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pending, setPending] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const { toast } = useToast();
@@ -166,13 +165,18 @@ export default function CatalogView() {
       : searchParams.get("inventory") === "activate"
         ? "inventory=activate"
         : null;
-    if (!setupParam || handledSetupParam.current === setupParam) return;
-    handledSetupParam.current = setupParam;
+    if (!setupParam) return;
+    // Creation links are one-shot intents. Consume only recognized commands,
+    // preserving filters so cancelling and selecting the task again works.
+    const remaining = new URLSearchParams(searchParams);
+    if (remaining.get("new") === "product") remaining.delete("new");
+    if (remaining.get("inventory") === "activate") remaining.delete("inventory");
+    setSearchParams(remaining, { replace: true });
     setModal({
       type: "product-create",
       defaultTrackInventory: setupParam === "inventory=activate",
     });
-  }, [canCreate, loadState.status, modal, searchParams]);
+  }, [canCreate, loadState.status, modal, searchParams, setSearchParams]);
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);

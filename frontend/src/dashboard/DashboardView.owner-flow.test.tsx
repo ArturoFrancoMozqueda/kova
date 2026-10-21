@@ -78,6 +78,47 @@ beforeEach(() => {
 });
 
 describe("owner dashboard journey", () => {
+  it("keeps one set of task actions available while sales data is loading", async () => {
+    vi.mocked(getDashboardOverview).mockReturnValue(new Promise(() => {}));
+    host();
+    const actions = screen.getByRole("navigation", { name: copy.dashboard.quickActions });
+    expect(within(actions).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual([
+      "/operations-queue", "/settings/public-catalog", "/shifts", "/reports",
+    ]);
+    expect(within(actions).getByRole("link", { name: /Ver análisis/ })).toBeVisible();
+    expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
+    expect(screen.queryByTestId("net-sales")).not.toBeInTheDocument();
+    await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day"));
+  });
+
+  it("keeps task actions reachable when sales data fails without extra API calls", async () => {
+    vi.mocked(getDashboardOverview).mockRejectedValue(new Error("report unavailable"));
+    host();
+    await screen.findByText(copy.dashboard.loadError);
+    const actions = screen.getByRole("navigation", { name: copy.dashboard.quickActions });
+    expect(within(actions).getByRole("link", { name: /Ver pendientes/ })).toHaveAttribute("href", "/operations-queue");
+    expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
+    expect(getDashboardOverview).toHaveBeenCalledOnce();
+    for (const legacy of [getBusinessStory, getSalesByHour, getSalesSummary]) expect(legacy).not.toHaveBeenCalled();
+  });
+
+  it("keeps onboarding first, then one task block before the sales metrics", async () => {
+    host();
+    const next = await screen.findByRole("group", { name: "Siguiente paso" });
+    const actions = screen.getByRole("navigation", { name: copy.dashboard.quickActions });
+    const metrics = screen.getByTestId("net-sales");
+    expect(next.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(actions.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
+  });
+
+  it("does not expose task actions unavailable in an offline session", async () => {
+    auth.state.sessionMode = "offline";
+    host();
+    await screen.findByTestId("net-sales");
+    expect(screen.queryByRole("navigation", { name: copy.dashboard.quickActions })).not.toBeInTheDocument();
+  });
+
   it("highlights the first incomplete backend step and keeps the other steps reversibly available", async () => {
     const { container } = host();
     const next = await screen.findByRole("group", { name: "Siguiente paso" });
@@ -161,7 +202,7 @@ describe("owner dashboard journey", () => {
     const quick = await screen.findByRole("navigation", { name: copy.dashboard.quickActions });
     const links = within(quick).getAllByRole("link");
     expect(links.map(link => link.getAttribute("href"))).toEqual([
-      "/shifts", "/reports", "/settings/public-catalog", "/operations-queue",
+      "/operations-queue", "/settings/public-catalog", "/shifts", "/reports",
     ]);
     expect(within(quick).getByRole("link", { name: /Revisar turnos/ })).toBeVisible();
     expect(within(quick).queryByText("Cerrar turno")).not.toBeInTheDocument();
@@ -179,7 +220,7 @@ describe("owner dashboard journey", () => {
     const quick = await screen.findByRole("navigation", { name: copy.dashboard.quickActions });
     expect(within(quick).queryByRole("link", { name: /Compartir catálogo/ })).not.toBeInTheDocument();
     expect(within(quick).queryByRole("link", { name: /Ver pendientes/ })).not.toBeInTheDocument();
-    expect(within(quick).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/shifts", "/reports"]);
+    expect(within(quick).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/shifts"]);
   });
 
   it("places one actionable section between the executive summary and business health", async () => {
