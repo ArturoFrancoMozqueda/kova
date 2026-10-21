@@ -1,5 +1,10 @@
 import { expect, test } from "./fixtures";
 
+// Fault injection must reach page.route on every reload. Service-worker
+// precache fetches bypass that route and could recover the real asset instead.
+// Service-worker/offline behavior remains covered by the dedicated PWA suites.
+test.use({ serviceWorkers: "block" });
+
 const authAsset =
   /\/(?:assets\/AuthView-[^/]+\.js|src\/auth\/AuthView\.tsx)(?:\?|$)/;
 

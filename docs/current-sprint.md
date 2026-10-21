@@ -12,7 +12,13 @@ secciones y tareas, los permisos, la sesión offline y la navegación móvil.
 Validación local: 61 pruebas de layout, TypeScript, ESLint completo y revisión
 independiente sin bloqueos. 25 pruebas de navegador aprobaron: teclado, enlaces
 directos, rail, foco y scroll móvil, privacidad del borrador y búsqueda de tareas.
-Se revisaron capturas de escritorio y móvil. CI y publicación pendientes.
+Se revisaron capturas de escritorio y móvil. Cuatro comprobaciones focales
+aprobaron tras reconstruir el build final. CI inicial detectó una interferencia
+del service worker con el 404 simulado de un chunk de login: la traza mostró
+precache 200 y login válido al recargar. Se aísla sólo `stale-chunks.spec.ts` sin
+SW, manteniendo conteos, cookies e IndexedDB; los dos casos aprobaron y la traza
+final conserva los tres 404 esperados. Esta prueba no acredita limpieza real del
+SW; precache y offline conservan su cobertura separada. CI y publicación pendientes.
 
 ## Flujo del dueño: tareas accesibles sin explorar ajustes
 
