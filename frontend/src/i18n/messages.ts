@@ -2160,6 +2160,7 @@ export const copy = {
     noShiftWarning: "No hay turno abierto. Los cobros en efectivo están bloqueados hasta que abras uno.",
     cashRequiresShift: "Para cobrar en efectivo, abre un turno de caja primero.",
     cashShiftUnknown: "No pudimos comprobar el turno. Reconecta o vuelve a intentarlo antes de cobrar en efectivo.",
+    cashShiftLoading: "Comprobando el turno de caja antes de habilitar efectivo…",
     openShift: "Abrir turno",
     openOrder: "Abrir orden",
     newSale: "Nueva venta",

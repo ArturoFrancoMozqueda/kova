@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -265,6 +265,45 @@ describe("RegisterView cash-without-shift guard", () => {
     expect((await screen.findAllByText(copy.register.cashShiftUnknown)).length).toBeGreaterThan(0);
     expect(cashRadio).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps cash blocked without a failure warning while the initial shift lookup is pending", async () => {
+    let resolveShift!: (shift: Shift | null) => void;
+    getOpenShift.mockReturnValue(new Promise<Shift | null>((resolve) => { resolveShift = resolve; }));
+    renderRegister();
+
+    await addProductToCart();
+    expect(screen.getByRole("status")).toHaveTextContent(copy.register.cashShiftLoading);
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: copy.register.openShift })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toHaveAttribute("aria-disabled", "true");
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+
+    await act(async () => { resolveShift(openShift); });
+    expect(screen.queryByText(copy.register.cashShiftLoading)).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: cashLabel })).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toHaveAttribute("aria-disabled", "false");
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+  });
+
+  it("shows the real shift failure only after the initial lookup rejects and keeps cash blocked", async () => {
+    let rejectShift!: (error: Error) => void;
+    getOpenShift.mockReturnValue(new Promise<Shift | null>((_resolve, reject) => { rejectShift = reject; }));
+    renderRegister();
+
+    await addProductToCart();
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+
+    await act(async () => { rejectShift(new Error("offline")); });
+    expect(screen.queryByText(copy.register.cashShiftLoading)).not.toBeInTheDocument();
+    expect(screen.getAllByText(copy.register.cashShiftUnknown).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: copy.register.openShift }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+    expect(queueOfflineSale).not.toHaveBeenCalled();
   });
 
   it("shows neutral cash guidance before interaction and keeps the financial guard", async () => {

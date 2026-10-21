@@ -46,6 +46,7 @@ export default function PurchasingView() {
     try {
       const [s, p, o] = await Promise.all([listSuppliers(), listProducts(), listPurchases(offset)]);
       setSuppliers(s); setProducts(p.filter(item => item.is_active && item.track_inventory)); setPurchases(o);
+      setError("");
     } catch (e) { setError(e instanceof Error ? e.message : "No pudimos cargar tus compras."); }
     finally { setLoading(false); }
   }, [offset]);
@@ -86,12 +87,18 @@ export default function PurchasingView() {
           <Label htmlFor="supplier-contact">Teléfono o correo (opcional)</Label><Input id="supplier-contact" maxLength={200} value={contact} onChange={e => setContact(e.target.value)} />
           <Button disabled={disabled} type="submit">Guardar proveedor</Button>
         </form>
-        {suppliers.length === 0 ? <p className="text-sm text-muted-foreground">Agrega tu primer proveedor para preparar una compra.</p> : <ul className="space-y-2 text-sm">{suppliers.map(s => <li key={s.id}><strong>{s.name}</strong>{s.contact && <p className="text-muted-foreground">{s.contact}</p>}</li>)}</ul>}
+        {suppliers.length === 0 ? (
+          loading ? <p role="status" className="text-sm text-muted-foreground">Cargando proveedores…</p>
+            : !error ? <p className="text-sm text-muted-foreground">Agrega tu primer proveedor para preparar una compra.</p> : null
+        ) : <ul className="space-y-2 text-sm">{suppliers.map(s => <li key={s.id}><strong>{s.name}</strong>{s.contact && <p className="text-muted-foreground">{s.contact}</p>}</li>)}</ul>}
       </CardContent></Card>
       <Card className="lg:col-span-2"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
         <form onSubmit={submitPurchase} className="space-y-4">
           <Label htmlFor="purchase-supplier">Proveedor</Label><Select id="purchase-supplier" required value={supplierId} onChange={e => setSupplierId(e.target.value)}><option value="">Selecciona un proveedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
-          {products.length === 0 && <p className="text-sm">Activa el control de inventario de tus productos en Catálogo para comprarlos.</p>}
+          {products.length === 0 && (
+            loading ? <p role="status" className="text-sm text-muted-foreground">Cargando productos con inventario…</p>
+              : !error ? <p className="text-sm">Activa el control de inventario de tus productos en Catálogo para comprarlos.</p> : null
+          )}
           {lines.map((line, index) => <div key={index} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
             <div><Label htmlFor={`purchase-product-${index}`}>Producto</Label><Select id={`purchase-product-${index}`} required value={line.product_id} onChange={e => setLines(rows => rows.map((row, i) => i === index ? { ...row, product_id: e.target.value } : row))}><option value="">Selecciona</option>{products.filter(p => p.id === line.product_id || !lines.some(l => l.product_id === p.id)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></div>
             <div><Label htmlFor={`purchase-qty-${index}`}>Unidades</Label><Input id={`purchase-qty-${index}`} type="number" min={1} max={2147483647} step={1} required value={line.quantity} onChange={e => setLines(rows => rows.map((row, i) => i === index ? { ...row, quantity: Number(e.target.value) } : row))} /></div>
@@ -107,7 +114,7 @@ export default function PurchasingView() {
     </div>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
       {loading && <p role="status">Cargando compras…</p>}
-      {!loading && purchases.length === 0 && <p>No hay compras en esta página.</p>}
+      {!loading && !error && purchases.length === 0 && <p>No hay compras en esta página.</p>}
       {purchases.map(purchase => <Card key={purchase.id}><CardContent className="space-y-3 pt-6">
         <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span>{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
         <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>

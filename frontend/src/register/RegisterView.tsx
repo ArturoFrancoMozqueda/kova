@@ -50,6 +50,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
+import { RegisterProductPhoto } from "./RegisterProductPhoto";
 import { exactSkuMatches, skuSearchMatches } from "./skuSearch";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +78,6 @@ import {
   CloudOff,
 } from "lucide-react";
 import { trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
-import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getReceiptSettings } from "@/settings/api";
 import {
@@ -725,6 +725,10 @@ function RegularRegisterView() {
       )
     : paymentMethod === "cash";
   const cashBlocked = hasOpenShift !== true && saleIncludesCash;
+  const cashShiftLoading = hasOpenShift === null && !shiftCheckFailed;
+  const cashShiftMessage = hasOpenShift === false
+    ? copy.register.cashRequiresShift
+    : cashShiftLoading ? copy.register.cashShiftLoading : copy.register.cashShiftUnknown;
   const canSubmitSale =
     canCreateOrders &&
     pricing.valid &&
@@ -1404,20 +1408,7 @@ function RegularRegisterView() {
                           ? { label: copy.inventoryView.lowBadge, tone: "warning" }
                           : undefined}
                       image={product.image_url ? (
-                        <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full">
-                          <img
-                            src={productImageSrc(product.image_url, 400)}
-                            srcSet={productImageSrcSet(product.image_url)}
-                            sizes="auto, (max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px"
-                            width={400}
-                            height={400}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full"
-                            style={productImageStyle(product)}
-                          />
-                        </div>
+                        <RegisterProductPhoto product={product} />
                       ) : undefined}
                       onAdd={() => addProduct(product)}
                     />
@@ -1775,8 +1766,8 @@ function RegularRegisterView() {
                           icon,
                           disabled: value === "cash" && hasOpenShift !== true,
                           onDisabledSelect: () => toast(
-                            hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown,
-                            "warning",
+                            cashShiftMessage,
+                            cashShiftLoading ? "info" : "warning",
                           ),
                         }))}
                         onChange={selectPaymentMethod}
@@ -1932,14 +1923,26 @@ function RegularRegisterView() {
                 {/* Cash is blocked without an open drawer — tell the cashier
                     why the charge button is disabled and how to unblock it. */}
                 {cashBlocked && (
-                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:text-sm">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
+                  <div
+                    role={cashShiftLoading ? "status" : undefined}
+                    className={cn(
+                      "flex items-start gap-2 rounded-lg border p-3 text-xs sm:text-sm",
+                      cashShiftLoading
+                        ? "border-border bg-muted/40 text-muted-foreground"
+                        : "border-destructive/30 bg-destructive/10 text-destructive",
+                    )}
+                  >
+                    {cashShiftLoading
+                      ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                      : <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />}
                     <span className="min-w-0 flex-1">
-                      {hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown}
+                      {cashShiftMessage}
                     </span>
-                    <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
-                      {copy.register.openShift}
-                    </Link>
+                    {!cashShiftLoading && (
+                      <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
+                        {copy.register.openShift}
+                      </Link>
+                    )}
                   </div>
                 )}
 
