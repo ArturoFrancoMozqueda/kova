@@ -401,10 +401,10 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </div>
           </fieldset>
           <fieldset disabled={busy || !online} className="space-y-4">
-            <legend className="font-medium">Productos sin modificadores</legend>
+            <legend className="font-medium">Productos de la propuesta</legend>
             <p className="text-sm text-muted-foreground">
-              Los importes se calculan en el servidor. Para productos con
-              modificadores, usa el flujo de Pedidos.
+              Los precios se toman de tu catálogo al crear la cotización.
+              Para productos con opciones adicionales, prepara un pedido.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="min-w-0 flex-1">

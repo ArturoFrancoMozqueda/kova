@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef<AuthState>(state);
   const mounted = useRef(true);
   const refreshEpoch = useRef(0);
+  const refreshPromise = useRef<Promise<boolean> | null>(null);
   const initialProbeStarted = useRef(false);
   const identityChangePending = useRef(false);
   const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
@@ -126,6 +127,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearLatestRequestId();
     };
   }, [authenticatedTenantId]);
+
+  // Session probes and API retries must share the same single-use cookie
+  // rotation. Separate flights can log out a tab whose other request won.
+  const refreshSessionOnce = useCallback(() => {
+    if (!refreshPromise.current) {
+      const pending = refreshSession().finally(() => {
+        if (refreshPromise.current === pending) refreshPromise.current = null;
+      });
+      refreshPromise.current = pending;
+    }
+    return refreshPromise.current;
+  }, []);
 
   const refreshInternal = useCallback(async (
     allowOfflineFallback: boolean,
@@ -217,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session && !session.authenticated) {
       let refreshed: boolean;
       try {
-        refreshed = await refreshSession();
+        refreshed = await refreshSessionOnce();
       } catch (error) {
         return unavailable(error);
       }
@@ -283,7 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => undefined);
     return next;
-  }, [applyState]);
+  }, [applyState, refreshSessionOnce]);
 
   const refresh = useCallback(() => refreshInternal(true), [refreshInternal]);
 
@@ -359,7 +372,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Skipped for auth endpoints themselves to avoid recursive loops.
   useEffect(() => {
     const originalFetch = window.fetch.bind(window);
-    let refreshPromise: Promise<boolean> | null = null;
 
     const authPaths = new Set([
       "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
@@ -425,14 +437,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.status !== 401) return response;
       if (!canRetry) return response;
 
-      // De-dupe concurrent refresh attempts.
-      if (!refreshPromise) {
-        refreshPromise = refreshSession().finally(() => {
-          refreshPromise = null;
-        });
-      }
-      const ok = await refreshPromise;
+      const ok = await refreshSessionOnce();
       if (!ok) return response;
+      const currentIdentity = stateRef.current;
+      // A rotation that finishes after logout or an identity change must not
+      // replay the previous identity's request.
+      if (!mounted.current || identityChangePending.current || hasLogoutPending()
+        || (activeIdentity.status === "authenticated" && (
+          currentIdentity.status !== "authenticated"
+          || currentIdentity.tenantId !== activeIdentity.tenantId
+          || currentIdentity.user.id !== activeIdentity.user.id
+          || currentIdentity.user.role !== activeIdentity.user.role
+        ))) return response;
       // Retry the original request once with refreshed cookies.
       const retriedResponse = await originalFetch(retryInput, requestInit);
       captureApiRequestId(input, retriedResponse);
@@ -442,7 +458,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.fetch = originalFetch;
     };
-  }, [applyState, refreshInternal]);
+  }, [applyState, refreshInternal, refreshSessionOnce]);
 
   const logout = useCallback(async () => {
     refreshEpoch.current += 1;

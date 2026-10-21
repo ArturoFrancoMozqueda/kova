@@ -6,7 +6,7 @@ import {
   cliProvider, productionHostname, recoverRelease, resolveNpxCommand, runProviderCommand,
   validateRollbackArtifact,
 } from "./release-recovery.mjs";
-import { verifyDeployment } from "./verify-deployment.mjs";
+import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider } from "./cloudflare-backend-provider.mjs";
 
@@ -60,11 +60,14 @@ export async function release({ artifact: rawArtifact, sha, provider,
     }
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
-        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha,
-        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha });
     }
-    await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
-      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    if (provider.requiresCloudflare) {
+      await verifyPublicDeployment({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha, verify });
+    } else {
+      await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha });
+    }
     return { sha, url, phase, accepted: true };
   } catch (error) {
     if (phase) {

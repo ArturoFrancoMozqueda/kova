@@ -8,6 +8,7 @@ import { useFeature } from "@/auth/useFeature";
 import {
   BILLING_VIEW_PERMISSION,
   CUSTOMER_ORDER_VIEW_PERMISSION,
+  CUSTOMER_ORDER_CREATE_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
   INVENTORY_ADJUST_PERMISSION,
   EXPENSES_MANAGE_PERMISSION,
@@ -62,6 +63,7 @@ import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
 import { matchesSectionQuery, sectionDescription } from "./navigationDiscovery";
+import { BusinessNextActions } from "./BusinessNextActions";
 
 type NavItem = {
   to: string;
@@ -73,7 +75,7 @@ type NavItem = {
 };
 
 const adminNavItems: NavItem[] = [
-  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
+  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "business", permission: CUSTOMERS_VIEW_PERMISSION },
 
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
@@ -87,7 +89,7 @@ const adminNavItems: NavItem[] = [
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
-  { to: "/operations-queue", label: "Pendientes del negocio", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/operations-queue", label: "Pendientes", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/service-cases", label: "Atención postventa", icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
   { to: "/appointments", label: "Agenda", icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
   { to: "/loyalty", label: "Lealtad de clientes", icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
@@ -135,10 +137,10 @@ const businessNavGroups: {
   { id: "products", label: "Productos e inventario", icon: <Package className="h-4 w-4" />,
     paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
   { id: "commercial", label: "Ventas y atención", icon: <Handshake className="h-4 w-4" />,
-    paths: ["/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
+    paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
       "/followups", "/appointments", "/loyalty"] },
   { id: "management", label: "Gestión y ajustes", icon: <Settings className="h-4 w-4" />,
-    paths: ["/reports", "/expenses", "/reconciliation", "/operations-queue", "/automations",
+    paths: ["/reports", "/expenses", "/reconciliation", "/automations",
       "/assistant", "/settings", "/settings/billing", "/settings/integrations",
       "/settings/channels"] },
 ];
@@ -147,6 +149,10 @@ function businessGroupForPath(pathname: string): BusinessNavGroup | undefined {
   return businessNavGroups.find(group => group.paths.some(path =>
     pathname === path || pathname.startsWith(`${path}/`)
   ))?.id;
+}
+
+function onlyOpenGroup(active?: BusinessNavGroup): OpenNavGroups {
+  return { products: active === "products", commercial: active === "commercial", management: active === "management" };
 }
 
 function readStoredNavGroups(pathname: string): OpenNavGroups {
@@ -160,8 +166,7 @@ function readStoredNavGroups(pathname: string): OpenNavGroups {
     }
   } catch { /* Navigation preferences are optional; no account data is stored. */ }
   const active = businessGroupForPath(pathname);
-  if (active) groups[active] = true;
-  return groups;
+  return onlyOpenGroup(active ?? (Object.keys(groups) as BusinessNavGroup[]).find(id => groups[id]));
 }
 
 function readStoredSidebarCollapsed(): boolean {
@@ -212,7 +217,7 @@ export default function AppShell() {
     setNavigationQuery("");
     const active = businessGroupForPath(location.pathname);
     if (active) setOpenNavGroups(current => current[active]
-      ? current : { ...current, [active]: true });
+      ? current : onlyOpenGroup(active));
   }, [location.pathname]);
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
@@ -227,6 +232,7 @@ export default function AppShell() {
   const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
   const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
+  const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
   const assistantIdentity = state.status === "authenticated" && state.sessionMode === "online" && isAdminRole(state.user.role)
@@ -310,8 +316,8 @@ export default function AppShell() {
     if (item.feature === "customer_orders" && !customerOrdersEnabled) return false;
     return true;
   });
-  const operationNavItems = ["/register", "/dashboard", "/customers", "/orders", "/shifts", "/pedidos"]
-    .flatMap(path => filteredNavItems.filter(item => item.to === path));
+  const operationNavItems = ["/register", "/dashboard", "/operations-queue", "/customers", "/orders", "/shifts", "/pedidos"]
+    .flatMap(path => filteredNavItems.filter(item => item.to === path && item.group === "operation"));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
   const searchingSections = !(isDesktop && sidebarCollapsed) && navigationQuery.trim().length > 0;
   const sectionResults = searchingSections
@@ -383,7 +389,7 @@ export default function AppShell() {
       try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, "0"); } catch { /* Optional UI preference. */ }
     }
     setOpenNavGroups(current => {
-      const next = { ...current, [id]: sidebarCompact || !current[id] };
+      const next = onlyOpenGroup(sidebarCompact || !current[id] ? id : undefined);
       try { window.localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next)); }
       catch { /* Optional UI preference; navigation still works. */ }
       return next;
@@ -725,6 +731,10 @@ export default function AppShell() {
           >
             <Outlet />
           </Suspense>
+          {/* Continuation follows the task so primary content keeps its mobile viewport. */}
+          {isAdminRole(userRole) && !isOfflineSession ? (
+            <BusinessNextActions pathname={location.pathname} destinations={filteredNavItems} canCreateCustomerOrders={canCreateCustomerOrders} />
+          ) : null}
         </div>
         <FirstUseTour />
         <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />

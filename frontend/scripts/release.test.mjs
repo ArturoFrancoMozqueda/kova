@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { FrontendCommitMismatch } from "./verify-deployment.mjs";
 import { candidateUrl, release, releaseProvider } from "./release.mjs";
 import { recoverRelease } from "./release-recovery.mjs";
 
@@ -101,7 +102,9 @@ test("Cloudflare waits for the new backend before verifying or promoting the can
       ? artifact.frontendUrl : "https://candidate.vercel.app";
     assert.deepEqual(input, { backendUrl: artifact.backendUrl, frontendUrl, sha,
       previousSha: artifact.releaseSha,
-      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+      ...(fake.calls.includes("promote") ? {} : {
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+      }) });
     fake.calls.push("backend-ready");
   };
   await release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions }, sha, ...fake });
@@ -130,8 +133,7 @@ test("failed backend readiness restores and waits for the exact old backend befo
       throw new Error("new backend did not propagate");
     }
     assert.deepEqual(input, { frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl,
-      sha: artifact.releaseSha, previousSha: sha,
-      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+      sha: artifact.releaseSha, previousSha: sha });
     fake.calls.push("restored-ready");
   };
   await assert.rejects(release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions },
@@ -194,4 +196,30 @@ test("candidate URL rejects insecure, unrelated or ambiguous targets", () => {
   for (const url of ["http://candidate.vercel.app", "https://kova.example",
     "https://candidate.vercel.app/path", "https://candidate.vercel.app\ntext",
     "https://vercel.app.attacker.example"]) assert.throws(() => candidateUrl(url));
+});
+
+test("new frontend readiness may regress to captured previous at final acceptance without bypass headers", async () => {
+  const fake = fixture();
+  fake.provider.requiresCloudflare = true;
+  fake.provider.waitForPublicFrontend = async () => { fake.calls.push("ready-new"); };
+  let publicCalls = 0;
+  const deadlines = [];
+  fake.verify = async input => {
+    if (input.frontendUrl !== artifact.frontendUrl) {
+      assert.equal(Object.hasOwn(input, "frontendBypassSecret"), true);
+      fake.calls.push("verify");
+      return;
+    }
+    assert.equal(Object.hasOwn(input, "frontendBypassSecret"), false);
+    deadlines.push(input.deadline);
+    publicCalls++;
+    fake.calls.push(publicCalls === 1 ? "acceptance-previous" : "acceptance-new");
+    if (publicCalls === 1) throw new FrontendCommitMismatch(sha, artifact.releaseSha.slice(0, 12));
+  };
+  const result = await release({ artifact: { ...artifact,
+    cloudflareVersion: "dcad4869-ba1d-43d4-865b-66349697bd7c" }, sha, ...fake });
+  assert.equal(result.accepted, true);
+  assert.deepEqual(deadlines, [deadlines[0], deadlines[0]]);
+  assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "promote",
+    "ready-new", "acceptance-previous", "acceptance-new"]);
 });
