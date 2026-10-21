@@ -851,6 +851,64 @@ test("catalog fits at 390px with category and product visible", async ({ page })
   await expectNoHorizontalOverflow(page);
 });
 
+test.describe("register photos on a high-density phone", () => {
+  test.use({ deviceScaleFactor: 3 });
+
+  test("keeps viewport-sized photos when searching the menu and leaving Caja", async ({ page }) => {
+    await markFirstUseToursSeen(page);
+    await mockCommon(page, {
+      viewport: { width: 393, height: 852 },
+      billingAccess: { ...ACTIVE_ACCESS, reason: "active", trialing: false, trial_ends_at: null },
+    });
+    await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: Array.from({ length: 12 }, (_, index) => ({
+      ...PRODUCT,
+      id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+      name: `Producto ${index}`,
+      image_url: `/api/v1/catalog/products/00000000-0000-4000-8000-${String(index).padStart(12, "0")}/image?v=1`,
+    })) }));
+    await page.route("**/api/v1/catalog/modifier-groups", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/quotes?**", route => route.fulfill({ json: { items: [], total: 0 } }));
+    const photoRequests: string[] = [];
+    await page.route("**/api/v1/catalog/products/*/image?**", async route => {
+      photoRequests.push(route.request().url());
+      await route.fulfill({ contentType: "image/png", path: "public/showcase/products/alfajores.png" });
+    });
+
+    await page.goto("/register");
+    const photos = page.locator('img[srcset][src*="/catalog/products/"]');
+    await expect.poll(() => photos.count()).toBeGreaterThan(0);
+    await page.waitForLoadState("networkidle");
+    const initial = photoRequests.length;
+    expect(initial).toBeGreaterThan(0);
+    expect(initial).toBeLessThan(12);
+    await expect.poll(() => photos.evaluateAll(images => images.every(image => {
+      const img = image as HTMLImageElement;
+      return img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width === 48;
+    }))).toBe(true);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+
+    const content = page.locator("#contenido-principal");
+    await content.evaluate(element => element.scrollTo(0, element.scrollHeight));
+    await expect.poll(() => photoRequests.length).toBeGreaterThan(initial);
+    await page.waitForLoadState("networkidle");
+    const afterScroll = photoRequests.length;
+    expect(new Set(photoRequests).size).toBe(afterScroll);
+    await content.evaluate(element => element.scrollTo(0, 0));
+    await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+    await page.getByRole("searchbox", { name: "Buscar sección" }).fill("crear cotización");
+    await page.waitForLoadState("networkidle");
+    expect(photoRequests).toHaveLength(afterScroll);
+
+    await page.getByRole("link", { name: "Cotizaciones", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Cotizaciones", exact: true })).toBeVisible();
+    await expect(photos).toHaveCount(0);
+    await page.waitForLoadState("networkidle");
+    // Leaving a screen must not fetch larger versions of its detached images.
+    expect(photoRequests).toHaveLength(afterScroll);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+  });
+});
+
 test.describe("catalog thumbnails on a high-density phone", () => {
   test.use({ deviceScaleFactor: 3 });
 

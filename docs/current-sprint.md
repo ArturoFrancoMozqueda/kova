@@ -2,6 +2,46 @@
 
 Last updated: 2026-10-21
 
+## Estado productivo verificado del 21 de octubre
+
+#246 se integró y publicó como `7266af61c9f001dbff1e3f7a98d1239535d51fe5`.
+CI/release `39637031484` aprobó todos los controles y aceptó la publicación sin
+rollback. La aceptación posterior comprobó 25 contratos sobre el mismo proceso,
+mediana 224ms y máximo 487ms. Una comprobación independiente verificó sitio,
+frontend, API, DB y proxy con ese SHA exacto, sin cabeceras de bypass. Los cambios
+acumulados de #243–#246 están publicados; sus intentos fallidos descritos abajo
+son antecedentes, no el estado productivo actual. El fallo previo del registro
+no tiene una causa raíz demostrada: el diagnóstico nuevo conserva HTTP/código
+numéricos sin credenciales, y esta publicación superó esa operación.
+
+Computer Use posterior verificó la sesión de propietario en Edge móvil
+393×852/DPR3: la recarga recuperó sesión con una única renovación 200; Caja
+solicitó inicialmente cinco fotografías de 160px (953–1460ms), frente a doce en
+el recorrido anterior. Al desplazarse solicitó otras dos (398/411ms) y volver
+arriba no duplicó las siete. El catálogo público existente mostró las doce fotos
+reales y estados honestos para productos sin imagen. Se comprobaron agrupación
+exclusiva del menú, Pendientes en Operación, búsqueda «crear cotización» y acceso
+«Crear pedido» al formulario, sin guardar registros, efectuar cobros ni envíos.
+
+Limitaciones observadas: una solicitud de salud durante el cambio de imagen del
+backend tardó 14.59s antes de responder 200 con el SHA nuevo; no representa una
+medición estable tras la publicación. Al salir de Caja aparecieron siete
+solicitudes adicionales de los mismos productos a 400px, con 4.56–5.55s. Esto es
+un pendiente de rendimiento reproducido en navegador local al desmontar una
+imagen; no se declara eliminada toda la latencia con la mejora inicial de Caja.
+
+Seguimiento acotado de las descargas al salir de Caja: el navegador local con
+AppShell/Register reales reproduce cinco cargas iniciales a 160px y doce tras
+recorrer la lista; abrir menú y buscar no agrega solicitudes. Navegar a
+Cotizaciones desmonta las fotos y, con `sizes="auto, …"`, dispara otras doce a
+400px. La regresión nueva falla antes en ambos proyectos de navegador (12→24).
+Retirar únicamente `auto` conserva las medias existentes y evita esas descargas
+(12→12); IO, lazy, fuentes, revisión, recorte y venta permanecen iguales. Cuatro
+pruebas de navegador y 46 unitarias, build/TypeScript y ESLint dirigidos aprueban.
+En escritorio 1366×900/DPR1, nueve fotos cuadradas de 147.33px cargan 320px: el
+size declarado de 200px es una estimación conservadora, no una medición exacta.
+Este seguimiento todavía requiere CI y aceptación productiva propios.
+
 ## Revisión real del dueño y carga de fotografías
 
 Se recorrió el tenant de prueba autorizado mediante Computer Use en Edge, con
