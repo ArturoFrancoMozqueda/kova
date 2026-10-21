@@ -2,6 +2,35 @@
 
 Last updated: 2026-10-21
 
+## Prueba real del circuito comercial y continuidad
+
+El propietario autorizó escrituras en el tenant de soporte. Computer Use sobre
+producción del 21 de octubre creó el producto y cliente `QA-20261021-E2E`,
+registró cinco unidades, publicó sólo ese producto adicional y envió una consulta
+con contacto reservado `.invalid`. Se verificó solicitud → oportunidad →
+cotización `COT-952CCC99` → pedido `PED-F814A689` → venta `747E0AF8` por $10 en
+efectivo registrado, sin procesar dinero ni enviar mensajes externos.
+
+Inventario conservó cinco unidades antes de confirmar el pedido y cuatro tras
+la venta. El Panel pasó de $0/0 ventas a $10/1 venta y ticket $10. La devolución
+total quedó registrada con recibo neto $0, y se canceló el pedido con nota QA.
+No se abrió ni cerró un turno para esta prueba. La auditoría no se elimina.
+
+Limpieza pendiente de desbloqueo manual del Mac: verificar retorno de stock,
+ajuste de salida de las unidades QA, retirar sólo el producto QA de la
+publicación original de 16 productos, desactivar producto/cliente y comprobar
+reporte neto. No se declara completada esa limpieza ni toda la automatización.
+
+Fricciones observadas: solicitud convertida sin enlace a su oportunidad y
+siguiente paso de cotizar sin acción directa desde CRM. Se preparan enlaces y
+precarga de cliente/oportunidad validados por el recurso autenticado exacto;
+abrir el formulario no crea, comparte ni acepta una cotización.
+Validación local: 41 pruebas de CRM/solicitudes/cotizaciones y siete pruebas
+de navegador aprobadas, incluido el recorrido de enlaces en1440/390/320px sin
+escrituras y con la oportunidad fuera de la primera página. Build, TypeScript,
+ESLint completo y revisión independiente aprobaron. Se revisaron capturas sin
+desbordamiento. CI y publicación pendientes.
+
 ## Navegación visible del dueño
 
 Corrección solicitada el 21 de octubre tras revisar el menú productivo: las
@@ -18,7 +47,13 @@ del service worker con el 404 simulado de un chunk de login: la traza mostró
 precache 200 y login válido al recargar. Se aísla sólo `stale-chunks.spec.ts` sin
 SW, manteniendo conteos, cookies e IndexedDB; los dos casos aprobaron y la traza
 final conserva los tres 404 esperados. Esta prueba no acredita limpieza real del
-SW; precache y offline conservan su cobertura separada. CI y publicación pendientes.
+SW; precache y offline conservan su cobertura separada. Publicado en #250 como
+`4c411f01e73d556c316666bb11e9fac043c18192`; CI/release `39671524769` aprobó,
+25 contratos sobre el mismo proceso (mediana184ms, máximo366ms), sin rollback.
+Los seis contratos públicos y CU con el tenant confirmaron menú estático,
+scroll móvil de393×852, entrada a Solicitudes y Catálogo mediante Tab/Enter
+con el rail contraído. La sesión cargó la versión nueva con recargas normales,
+sin borrar datos. Se restauró el Panel y la ventana original.
 
 ## Flujo del dueño: tareas accesibles sin explorar ajustes
 

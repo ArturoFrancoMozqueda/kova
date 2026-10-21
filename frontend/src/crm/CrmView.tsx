@@ -840,16 +840,25 @@ function OpportunityCard({
           ))}
         </select>
       </label>
-      <Button
-        className="mt-3"
-        size="sm"
-        variant="outline"
-        disabled={busy || !online}
-        onClick={() => onEdit(row)}
-        aria-label={`Editar seguimiento de ${row.title}`}
-      >
-        Editar seguimiento
-      </Button>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || !online}
+          onClick={() => onEdit(row)}
+          aria-label={`Editar seguimiento de ${row.title}`}
+        >
+          Editar seguimiento
+        </Button>
+        {online && !busy && (
+          <Link
+            to={`/quotes?opportunity_id=${encodeURIComponent(row.id)}`}
+            className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-kova-blue underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"
+          >
+            Preparar cotización
+          </Link>
+        )}
+      </div>
     </article>
   );
 }

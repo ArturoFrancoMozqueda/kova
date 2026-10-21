@@ -1,21 +1,23 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import QuotesView from "./QuotesView";
 import type { Quote } from "./types";
+
+const access = vi.hoisted(() => ({ tenantId: "tenant-1", branchId: "branch-1" }));
 
 vi.mock("@/auth/useAuth", () => ({
   useAuth: () => ({
     state: {
       status: "authenticated",
       user: { id: "user-1", role: "owner" },
-      tenantId: "tenant-1",
+      tenantId: access.tenantId,
       sessionMode: "online",
     },
   }),
 }));
 vi.mock("@/branches/activeBranch", () => ({
-  getActiveBranchId: () => "branch-1",
+  getActiveBranchId: () => access.branchId,
 }));
 const fetchMock = vi.fn<typeof fetch>();
 const json = (data: unknown, status = 200) =>
@@ -70,6 +72,8 @@ const mount = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  access.tenantId = "tenant-1";
+  access.branchId = "branch-1";
   Object.defineProperty(navigator, "onLine", {
     configurable: true,
     value: true,
@@ -333,4 +337,118 @@ it("loads opportunities only for the selected quote customer", async () => {
   expect(screen.getByLabelText("Oportunidad de origen (opcional)")).toHaveValue(
     "",
   );
+});
+
+const linkedOpportunity = {
+  id: "10000000-0000-4000-8000-000000000001",
+  customer_id: "20000000-0000-4000-8000-000000000001",
+  customer_name: "Cliente de la oportunidad",
+  title: "Propuesta fuera de la primera página",
+  stage: "proposal",
+  version: 2,
+};
+
+function LinkLocation() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return <>
+    <output data-testid="quote-location">{location.pathname}{location.search}{location.hash}:{JSON.stringify(location.state)}</output>
+    <button onClick={() => navigate("/quotes?filter=manual#manual")}>Salir del enlace</button>
+  </>;
+}
+
+it("prefills the exact opportunity and its server customer outside paginated search without writing", async () => {
+  fetchMock.mockImplementation(async (url) => {
+    if (String(url).endsWith(`/crm/opportunities/${linkedOpportunity.id}`)) return json(linkedOpportunity);
+    if (String(url).includes("/crm?")) return json({ opportunities: [], opportunities_has_more: true });
+    if (String(url).includes("/customers?")) return json([]);
+    if (String(url).endsWith("/catalog/products")) return json([product]);
+    return json({ items: [], total: 0 });
+  });
+  render(<MemoryRouter initialEntries={[{ pathname: "/quotes", search: `?opportunity_id=${linkedOpportunity.id}&customer_id=untrusted&filter=draft`, hash: "#propuesta", state: { from: "crm" } }]}><LinkLocation /><QuotesView /></MemoryRouter>);
+  expect(await screen.findByRole("form", { name: "Nueva cotización" })).toBeVisible();
+  await screen.findByRole("option", { name: linkedOpportunity.customer_name });
+  expect(screen.getByLabelText("Cliente registrado")).toHaveValue(linkedOpportunity.customer_id);
+  expect(screen.getByLabelText("Oportunidad de origen (opcional)")).toHaveValue(linkedOpportunity.id);
+  expect(screen.getByRole("option", { name: linkedOpportunity.title })).toBeVisible();
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method !== "GET")).toBe(false);
+  await waitFor(() => expect(screen.getByTestId("quote-location")).toHaveTextContent('/quotes?customer_id=untrusted&filter=draft#propuesta:{"from":"crm"}'));
+  expect(fetchMock.mock.calls.find(([url]) => String(url).endsWith(`/crm/opportunities/${linkedOpportunity.id}`))?.[1]).toMatchObject({
+    credentials: "include", cache: "no-store",
+    headers: expect.objectContaining({ "X-Kova-Expected-Tenant": "tenant-1", "X-Kova-Branch": "branch-1" }),
+  });
+});
+
+const sourceFetch = (response: () => Promise<Response>) => {
+  fetchMock.mockImplementation(async (url) => {
+    if (String(url).includes("/crm/opportunities/")) return response();
+    if (String(url).includes("/customers?")) return json([customer]);
+    if (String(url).includes("/crm?")) return json({ opportunities: [] });
+    if (String(url).endsWith("/catalog/products")) return json([product]);
+    return json({ items: [], total: 0 });
+  });
+};
+
+it.each([403, 404, 409, 503])("does not prefill or write from an unavailable opportunity (%s)", async (status) => {
+  sourceFetch(async () => json({ detail: "Unavailable" }, status));
+  render(<MemoryRouter initialEntries={[`/quotes?opportunity_id=${linkedOpportunity.id}`]}><QuotesView /></MemoryRouter>);
+  expect(await screen.findByRole("alert")).toHaveTextContent(status === 403 || status === 404 ? "no está disponible" : "No pudimos consultar");
+  expect(screen.queryByRole("form", { name: "Nueva cotización" })).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar precarga" }));
+  fireEvent.click(screen.getByRole("button", { name: "Nueva cotización" }));
+  expect(screen.getByLabelText("Cliente registrado")).toHaveValue("");
+});
+
+it.each(["opportunity_id=invalid", `opportunity_id=${linkedOpportunity.id}&opportunity_id=${linkedOpportunity.id}`])("rejects invalid or duplicated source parameters (%s)", async (query) => {
+  render(<MemoryRouter initialEntries={[`/quotes?${query}`]}><QuotesView /></MemoryRouter>);
+  expect(await screen.findByRole("alert")).toHaveTextContent("identificador de registro válido");
+  expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/crm/opportunities/"))).toBe(false);
+  expect(screen.queryByRole("form")).not.toBeInTheDocument();
+});
+
+it("rejects an exact endpoint response for a different opportunity", async () => {
+  sourceFetch(async () => json({ ...linkedOpportunity, id: "10000000-0000-4000-8000-000000000002" }));
+  render(<MemoryRouter initialEntries={[`/quotes?opportunity_id=${linkedOpportunity.id}`]}><QuotesView /></MemoryRouter>);
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos confirmar");
+  expect(screen.queryByRole("form")).not.toBeInTheDocument();
+});
+
+it.each(["cancel", "navigate", "branch", "tenant"])("ignores a late source response after %s", async (change) => {
+  let resolveSource!: (response: Response) => void;
+  let calls = 0;
+  sourceFetch(() => ++calls === 1 ? new Promise(resolve => { resolveSource = resolve; }) : Promise.resolve(json({}, 404)));
+  const view = render(<MemoryRouter initialEntries={[`/quotes?opportunity_id=${linkedOpportunity.id}`]}><LinkLocation /><QuotesView /></MemoryRouter>);
+  await waitFor(() => expect(calls).toBe(1));
+  if (change === "cancel") fireEvent.click(screen.getByRole("button", { name: "Cancelar precarga" }));
+  else if (change === "navigate") fireEvent.click(screen.getByRole("button", { name: "Salir del enlace" }));
+  else {
+    if (change === "branch") access.branchId = "branch-2";
+    else access.tenantId = "tenant-2";
+    view.rerender(<MemoryRouter><LinkLocation /><QuotesView /></MemoryRouter>);
+    await screen.findByRole("alert");
+  }
+  await act(async () => { resolveSource(json(linkedOpportunity)); });
+  expect(screen.queryByRole("form", { name: "Nueva cotización" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: linkedOpportunity.customer_name })).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+});
+
+it("does not prefill a source while offline", async () => {
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  render(<MemoryRouter initialEntries={[`/quotes?opportunity_id=${linkedOpportunity.id}`]}><QuotesView /></MemoryRouter>);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Conéctate para consultar");
+  expect(screen.queryByRole("form")).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/crm/opportunities/"))).toBe(false);
+});
+
+it("clears the verified source on manual customer change without writing", async () => {
+  sourceFetch(async () => json(linkedOpportunity));
+  render(<MemoryRouter initialEntries={[`/quotes?opportunity_id=${linkedOpportunity.id}&customer_id=untrusted`]}><QuotesView /></MemoryRouter>);
+  await screen.findByRole("form", { name: "Nueva cotización" });
+  await screen.findByRole("option", { name: customer.name });
+  fireEvent.change(screen.getByLabelText("Cliente registrado"), { target: { value: customer.id } });
+  expect(screen.getByLabelText("Oportunidad de origen (opcional)")).toHaveValue("");
+  expect(screen.queryByRole("option", { name: linkedOpportunity.title })).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
 });

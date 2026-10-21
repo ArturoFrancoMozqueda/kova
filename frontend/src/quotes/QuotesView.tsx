@@ -6,7 +6,8 @@ import {
   type FormEvent,
 } from "react";
 import { FileText, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import {
   OperationsError,
   OperationsSession,
@@ -55,6 +56,19 @@ export default function QuotesView() {
 function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const request = useOperationsRequest("/api/v1", identity);
   const online = useOnline();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const linked = useLinkedRecord<Opportunity>(identity, "opportunity_id", "/api/v1/crm/opportunities");
+  const [sourceOpportunity, setSourceOpportunity] = useState<Opportunity | null>(null);
+  const dismissedLink = useRef(false);
+  const consumeOpportunityLink = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.delete("opportunity_id");
+    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, {
+      replace: true,
+      state: location.state,
+    });
+  }, [location, navigate]);
   const [page, setPage] = useState<QuotesPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
@@ -84,6 +98,36 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const locked = useRef(false);
   const generation = useRef(0);
   const command = useRef<{ body: string; key: string } | null>(null);
+  useEffect(() => {
+    dismissedLink.current = false;
+    if (!linked.requested) return;
+    setCreateOpen(false);
+    setSourceOpportunity(null);
+    setCustomerId("");
+    setOpportunityId("");
+    setItems([]);
+    setExpiresAt("");
+  }, [linked.id, linked.requested]);
+  useEffect(() => {
+    if (!linked.requested || !linked.record || dismissedLink.current) return;
+    setSourceOpportunity(linked.record);
+    setCustomerId(linked.record.customer_id);
+    setOpportunityId(linked.record.id);
+    setCreateOpen(true);
+    consumeOpportunityLink();
+  }, [linked.requested, linked.record, consumeOpportunityLink]);
+  const closeOpportunityLink = () => {
+    dismissedLink.current = true;
+    consumeOpportunityLink();
+  };
+  const toggleCreate = () => {
+    if (createOpen && sourceOpportunity) {
+      setSourceOpportunity(null);
+      setCustomerId("");
+      setOpportunityId("");
+    }
+    setCreateOpen((value) => !value);
+  };
   const load = useCallback(async () => {
     const revision = ++generation.current;
     setLoading(true);
@@ -284,8 +328,8 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         meta="Acuerda productos, cantidades y vigencia antes de comprometer la operación."
         actions={
           <Button
-            disabled={busy || !online || !page}
-            onClick={() => setCreateOpen((value) => !value)}
+            disabled={busy || !online || !page || linked.requested}
+            onClick={toggleCreate}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {createOpen ? "Cerrar formulario" : "Nueva cotización"}
@@ -301,6 +345,14 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <p role="status" className="rounded-xl border p-4 text-sm">
           Conéctate para crear o actualizar cotizaciones.
         </p>
+      )}
+      {linked.requested && (
+        <section aria-label="Oportunidad de origen" className="space-y-3 rounded-xl border p-4">
+          {linked.loading && <p role="status">Verificando la oportunidad de origen…</p>}
+          {linked.error && <p role="alert">{linked.error}</p>}
+          {linked.error && online && linked.id && <Button variant="outline" onClick={linked.reload}>Reintentar oportunidad</Button>}
+          <Button variant="outline" onClick={closeOpportunityLink}>Cancelar precarga</Button>
+        </section>
       )}
       {error && (
         <ViewError
@@ -318,7 +370,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </p>
       )}
       {loading && !page && <p role="status">Cargando cotizaciones…</p>}
-      {createOpen && (
+      {createOpen && !linked.requested && (
         <form
           onSubmit={create}
           aria-label="Nueva cotización"
@@ -349,14 +401,17 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 onChange={(event) => {
                   setCustomerId(event.target.value);
                   setOpportunityId("");
+                  setSourceOpportunity(null);
                 }}
               >
                 <option value="">Elige un cliente</option>
                 {customerId &&
-                  !customers.some((row) => row.id === customerId) && (
-                    <option value={customerId}>Cliente seleccionado</option>
+                  (!customers.some((row) => row.id === customerId) || sourceOpportunity?.customer_id === customerId) && (
+                    <option value={customerId}>
+                      {sourceOpportunity?.customer_id === customerId ? sourceOpportunity.customer_name : "Cliente seleccionado"}
+                    </option>
                   )}
-                {customers.map((row) => (
+                {customers.filter((row) => row.id !== sourceOpportunity?.customer_id).map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.name}
                   </option>
@@ -375,7 +430,10 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 onChange={(event) => setOpportunityId(event.target.value)}
               >
                 <option value="">Sin oportunidad vinculada</option>
-                {opportunities.map((row) => (
+                {sourceOpportunity?.customer_id === customerId && (
+                    <option value={sourceOpportunity.id}>{sourceOpportunity.title}</option>
+                  )}
+                {opportunities.filter((row) => row.id !== sourceOpportunity?.id).map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.title}
                   </option>
