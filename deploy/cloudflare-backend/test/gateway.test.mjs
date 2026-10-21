@@ -157,3 +157,79 @@ test("the deployable gateway bundles its shared policy while retaining the nativ
   assert.equal(response.status, 200);
   assert.match(response.headers.get("cache-control"), /^public, max-age=/);
 });
+
+const imageUrl = "https://api.test/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123&w=160";
+function imageTimingEnv(timing, responseOverrides = {}) {
+  const headers = { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400",
+    ...(timing === undefined ? {} : { "Server-Timing": timing }), ...responseOverrides.headers };
+  return { API: { getByName() { return { fetch: () => new Response("synthetic-image", {
+    ...responseOverrides, headers,
+  }) }; } } };
+}
+
+test("qualified public images preserve only bounded numerical stage timings and add the current API hop", async () => {
+  const response = await gateway.fetch(new Request(imageUrl), imageTimingEnv(
+    'image-resize;dur=17.250, private-db;dur=11;desc="synthetic-private", image-db;dur=0001.200, image-cache;dur=0',
+  ));
+  assert.match(response.headers.get("server-timing"),
+    /^image-db;dur=1\.2, image-cache;dur=0, image-resize;dur=17\.25, api;dur=[0-9]+\.[0-9]$/);
+  assert.doesNotMatch(response.headers.get("server-timing"), /private|synthetic/);
+  assert.match(response.headers.get("cache-control"), /^public, max-age=/);
+  assert.equal(await response.text(), "synthetic-image");
+});
+
+test("missing or malformed upstream stage timings cannot reflect metadata through the gateway", async () => {
+  for (const timing of [undefined, '', 'image-db;dur=-1', 'image-db;dur=NaN',
+    'image-db;dur=Infinity', 'image-db;dur=1e3', 'image-db;dur=300001',
+    'image-db;dur=0.0001', 'image-db;dur=1;desc="synthetic-private"',
+    'image-db;dur="1"', 'image-db;dur=1, image-db;dur=2',
+    'image-cache;desc="hit"', 'api;dur=0;desc="synthetic-private"',
+    `image-db;dur=1, unknown;desc="${"x".repeat(512)}"`]) {
+    const response = await gateway.fetch(new Request(imageUrl), imageTimingEnv(timing));
+    assert.match(response.headers.get("server-timing"), /^api;dur=[0-9]+\.[0-9]$/);
+  }
+  const bounded = await gateway.fetch(new Request(imageUrl), imageTimingEnv('image-db;dur=300000'));
+  assert.match(bounded.headers.get("server-timing"), /^image-db;dur=300000, api;dur=/);
+});
+
+test("upstream image timings stay hidden for every nonqualified or private response", async () => {
+  const timing = 'image-db;dur=1, image-cache;dur=0, image-resize;dur=2';
+  for (const [request, overrides] of [
+    [new Request("https://api.test/api/v1/reports/dashboard"), {}],
+    [new Request(imageUrl, { method: "POST" }), {}],
+    [new Request(imageUrl + "&tenant=synthetic-private"), {}],
+    [new Request(imageUrl, { headers: { Origin: "https://synthetic.test" } }), {}],
+    [new Request(imageUrl), { status: 404 }],
+    [new Request(imageUrl), { status: 500 }],
+    [new Request(imageUrl), { headers: { "Cache-Control": "private, no-store" } }],
+    [new Request(imageUrl), { headers: { "Content-Type": "application/json" } }],
+    [new Request(imageUrl), { headers: { "Set-Cookie": "synthetic-private=1" } }],
+    [new Request(imageUrl), { headers: { Vary: "Cookie" } }],
+  ]) {
+    const response = await gateway.fetch(request, imageTimingEnv(timing, overrides));
+    assert.match(response.headers.get("server-timing"), /^api;dur=[0-9]+\.[0-9]$/);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(response.headers.get("cdn-cache-control"), "no-store");
+    assert.equal(response.headers.get("cloudflare-cdn-cache-control"), "no-store");
+  }
+});
+
+test("a public image edge hit replaces historical origin timings without another API call", async t => {
+  const entries = new Map();
+  const previous = globalThis.caches;
+  globalThis.caches = { default: {
+    async match(key) { return entries.get(key.url)?.clone(); },
+    async put(key, response) { entries.set(key.url, response.clone()); },
+  } };
+  t.after(() => { if (previous === undefined) delete globalThis.caches; else globalThis.caches = previous; });
+  let calls = 0;
+  const env = imageTimingEnv('image-db;dur=10, image-cache;dur=0, image-resize;dur=20');
+  const original = env.API.getByName;
+  env.API.getByName = (...args) => { calls++; return original(...args); };
+  const first = await gateway.fetch(new Request(imageUrl), env);
+  assert.match(first.headers.get("server-timing"), /^image-db;dur=10, image-cache;dur=0, image-resize;dur=20, api;dur=/);
+  const hit = await gateway.fetch(new Request(imageUrl), env);
+  assert.equal(hit.headers.get("server-timing"), 'image-cache;desc="hit"');
+  assert.equal(hit.headers.get("x-kova-image-cache"), "HIT");
+  assert.equal(calls, 1);
+});

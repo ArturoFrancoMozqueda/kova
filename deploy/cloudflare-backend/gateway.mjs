@@ -27,6 +27,23 @@ export function coordinatorShard(cookie, path) {
   return base + lane;
 }
 
+// Public image diagnostics contain bounded numbers only: never forward an
+// arbitrary upstream metric name, description or private request metadata.
+function publicImageTimings(value) {
+  if (!value || value.length > 512) return [];
+  const timings = new Map();
+  for (const part of value.split(",")) {
+    const match = /^(image-db|image-cache|image-resize);dur=([0-9]{1,6}(?:\.[0-9]{1,3})?)$/.exec(part.trim());
+    if (!match) continue;
+    const duration = Number(match[2]);
+    if (duration > 300000 || timings.has(match[1])) return [];
+    timings.set(match[1], duration);
+  }
+  return ["image-db", "image-cache", "image-resize"]
+    .filter(name => timings.has(name))
+    .map(name => `${name};dur=${timings.get(name)}`);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
@@ -57,7 +74,9 @@ export default {
         );
         const image = publicImageResponse(anonymousRequest, response);
         const result = image || new Response(response.body, response);
-        result.headers.set("Server-Timing", `api;dur=${(performance.now() - started).toFixed(1)}`);
+        const timings = image ? publicImageTimings(response.headers.get("server-timing")) : [];
+        timings.push(`api;dur=${(performance.now() - started).toFixed(1)}`);
+        result.headers.set("Server-Timing", timings.join(", "));
         if (!image) {
           result.headers.set("Cache-Control", "private, no-store, max-age=0");
           result.headers.set("CDN-Cache-Control", "no-store");

@@ -44,3 +44,42 @@ describe("TopHoursPanel", () => {
     expect(screen.getByText("Tu mejor hora: 13:00–14:00 · $2,500.00")).toBeInTheDocument();
   });
 });
+
+it("shows five zero-net tickets alongside the other two completed tickets", () => {
+  const base = makeStory();
+  render(<DaypartsPanel story={makeStory({
+    summary: { ...base.summary, gross_sales: "238.88", refund_total: "72.88", net_sales: "166.00",
+      completed_orders: 7, average_ticket: "23.71" },
+    sales_by_daypart: [
+      { ...base.sales_by_daypart[0], net_sales: "0.00", order_count: 5, average_ticket: "0.00", sales_share_pct: 0 },
+      { ...base.sales_by_daypart[1], net_sales: "128.00", order_count: 1, average_ticket: "128.00", sales_share_pct: 77 },
+      { ...base.sales_by_daypart[2], net_sales: "38.00", order_count: 1, average_ticket: "38.00", sales_share_pct: 23 },
+    ],
+  })} previousStory={null} />);
+  expect(screen.getByText("$0.00 netos")).toBeVisible();
+  expect(screen.getByText("5 órdenes · Ticket promedio neto $0.00")).toBeVisible();
+  expect(screen.getByText("77% del total · 1 orden · $128.00")).toBeVisible();
+  expect(screen.getByText("23% del total · 1 orden · $38.00")).toBeVisible();
+  expect(screen.queryByText("Sin operaciones")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("meter")).toHaveLength(2);
+});
+
+it("preserves negative net amounts and counts without an invalid percentage meter", () => {
+  const row = makeStory().sales_by_daypart[0];
+  render(<DaypartsPanel story={makeStory({ sales_by_daypart: [{ ...row,
+    net_sales: "-10.00", order_count: 2, average_ticket: "-5.00", sales_share_pct: -10,
+  }] })} previousStory={null} />);
+  expect(screen.getByText("-$10.00 netos")).toBeVisible();
+  expect(screen.getByText("2 órdenes · Ticket promedio neto -$5.00")).toBeVisible();
+  expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+  expect(screen.queryByText("Sin operaciones")).not.toBeInTheDocument();
+});
+
+it("distinguishes an empty block from completed tickets with zero net sales", () => {
+  const row = makeStory().sales_by_daypart[0];
+  render(<DaypartsPanel story={makeStory({ sales_by_daypart: [{ ...row,
+    net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0,
+  }] })} previousStory={null} />);
+  expect(screen.getByText("Sin operaciones")).toBeVisible();
+  expect(screen.queryByText(/órdenes/)).not.toBeInTheDocument();
+});

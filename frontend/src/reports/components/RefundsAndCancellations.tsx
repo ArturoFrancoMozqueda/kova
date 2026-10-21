@@ -28,7 +28,8 @@ function refundSeverity(rate: number, count: number): { tone: Severity; message:
   if (tone === "info") {
     return {
       tone,
-      message: count <= 1 && rate < 5 ? copy.reportsView.refundSingleGuard : copy.reportsView.refundRateNormal,
+      message: count === 0 ? "Sin devoluciones registradas."
+        : count === 1 && rate < 5 ? copy.reportsView.refundSingleGuard : copy.reportsView.refundRateNormal,
     };
   }
   return {
@@ -39,8 +40,9 @@ function refundSeverity(rate: number, count: number): { tone: Severity; message:
 
 function cancelSeverity(rate: number, count: number): { tone: Severity; message: string } {
   const tone = cancelSeverityLevel(rate, count);
-  const message =
-    tone === "info"
+  const message = count > 0 && count < 3
+    ? "Muestra pequeña; revisa cada cancelación."
+    : tone === "info"
       ? copy.reportsView.cancelNormal
       : tone === "watch"
         ? copy.reportsView.cancelWatch
@@ -125,11 +127,13 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
         highlight={highlight}
       >
         <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm text-kova-ink">
-          {copy.reportsView.refundsCalmSummary(
-            copy.reportsView.refundCountValue(refundCount),
-            formatMoney(summary.refund_total),
-            copy.reportsView.cancelCountValue(cancelCount),
-          )}
+          {cancelCount > 0 && cancelCount < 3
+            ? `${copy.reportsView.refundCountValue(refundCount)} por ${formatMoney(summary.refund_total)} y ${copy.reportsView.cancelCountValue(cancelCount)}. Muestra pequeña; revisa cada cancelación.`
+            : copy.reportsView.refundsCalmSummary(
+              copy.reportsView.refundCountValue(refundCount),
+              formatMoney(summary.refund_total),
+              copy.reportsView.cancelCountValue(cancelCount),
+            )}
         </p>
         <p className="mt-2 text-xs text-kova-muted">{copy.reportsView.refundPeriodBasis}</p>
         <div className="mt-3">
@@ -155,8 +159,9 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
         />
         <Tile label={copy.reportsView.refundsTileCancellations} value={String(cancelCount)} note={cancel.message} valueTone={cancel.tone} />
         <Tile
-          label={copy.reportsView.refundsTileRate}
+          label="% del importe devuelto"
           value={`${Math.round(refundRate)}%`}
+          subValue={`${formatMoney(summary.refund_total)} devueltos de ${formatMoney(summary.gross_sales)} en ventas brutas`}
           valueTone={refund.tone}
           note={refund.message}
         />
