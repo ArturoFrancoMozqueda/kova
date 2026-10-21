@@ -5,11 +5,16 @@ export const NATIVE_INSTANCE = "api-0";
 export const RATE_LIMIT_HOST = "rate-limit.kova.internal";
 export const JOBS_HOST = "jobs.kova.internal";
 
+// Both identities belong to the immutable image. A Worker and its Container
+// image roll independently; injecting the Worker's SHA can break a valid image.
+const IMAGE_IDENTITIES = new Set(["KOVA_RELEASE_SHA", "KOVA_IMAGE_SHA"]);
+
 // Explicit Settings projection: never enumerate arbitrary account secrets or
 // serialize resource bindings. Values stay inside the Worker/container runtime.
 export function nativeEnvironment(env) {
   const values = {};
   for (const name of settingsKeys) {
+    if (IMAGE_IDENTITIES.has(name)) continue;
     if (typeof env[name] === "string") values[name] = env[name];
   }
   for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL", "SECRET_KEY"]) {
@@ -22,7 +27,6 @@ export function nativeEnvironment(env) {
     ...values,
     APP_ENV: "production",
     DATABASE_URL: values.MIGRATION_DATABASE_URL,
-    KOVA_RELEASE_SHA: env.KOVA_BUILD_SHA,
     CLOUDFLARE_CONTAINER_MODE: "true",
     TRUSTED_CLIENT_IP_HEADER: "x-kova-client-ip",
     ASSISTANT_DOCUMENTS_ENABLED: "false",

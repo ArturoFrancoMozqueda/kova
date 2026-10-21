@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { nativeEnvironment, rateLimitBridge, jobsBridge, privateResponse, publicPath } from "../policy.mjs";
 import { residentContainerClass } from "../lifecycle.mjs";
 import { persistentRateLimitClass } from "../rate-limit.mjs";
+import settingsKeys from "../settings-keys.json" with { type: "json" };
 
 const sha = "a".repeat(40);
 const settings = () => ({
@@ -60,7 +61,7 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
   }
   assert.equal(result.APP_ENV, "production");
   assert.equal(result.DATABASE_URL, env.MIGRATION_DATABASE_URL);
-  assert.equal(result.KOVA_RELEASE_SHA, sha);
+  assert.equal(Object.hasOwn(result, "KOVA_RELEASE_SHA"), false);
   assert.equal(result.CLOUDFLARE_CONTAINER_MODE, "true");
   assert.equal(result.TRUSTED_CLIENT_IP_HEADER, "x-kova-client-ip");
   assert.equal(result.ASSISTANT_DOCUMENTS_ENABLED, "false");
@@ -69,6 +70,56 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
     const missing = { ...env }; delete missing[name];
     assert.throws(() => nativeEnvironment(missing));
   }
+});
+
+test("image identities cannot be overridden even by future Settings allowlist entries", () => {
+  const originalKeys = [...settingsKeys];
+  try {
+    // Simulate Settings later exposing either image-owned field. Neither may
+    // ever become a container.start env override, regardless of its value.
+    settingsKeys.push("KOVA_IMAGE_SHA", "KOVA_RELEASE_SHA");
+    for (const value of ["malicious", "b".repeat(40), sha]) {
+      const projected = nativeEnvironment({
+        ...settings(), KOVA_RELEASE_SHA: value, KOVA_IMAGE_SHA: value,
+      });
+      assert.equal(Object.hasOwn(projected, "KOVA_RELEASE_SHA"), false);
+      assert.equal(Object.hasOwn(projected, "KOVA_IMAGE_SHA"), false);
+    }
+  } finally {
+    settingsKeys.splice(0, settingsKeys.length, ...originalKeys);
+  }
+});
+
+test("rolling image keeps baked identities but readiness requires the controller's expected SHA", async () => {
+  const imageSha = "b".repeat(40);
+  let processEnvironment;
+  let databaseReads = 0;
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
+    async startAndWaitForPorts() {
+      // The SDK forwards envVars as container.start({env}); start overrides
+      // image defaults. Exercise that merge with an old Worker and new image.
+      processEnvironment = { KOVA_RELEASE_SHA: imageSha, KOVA_IMAGE_SHA: imageSha, ...this.envVars };
+      assert.equal(processEnvironment.KOVA_RELEASE_SHA, imageSha);
+      assert.equal(processEnvironment.KOVA_IMAGE_SHA, imageSha);
+      this.ctx.container.running = true;
+    }
+    async containerFetch(url) {
+      if (url.endsWith("/db")) { databaseReads++; return new Response(null); }
+      return Response.json({ status: "ok", release_sha: processEnvironment.KOVA_RELEASE_SHA });
+    }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), KOVA_RELEASE_SHA: "malicious", KOVA_IMAGE_SHA: "malicious",
+    API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const context = () => ({ id: { toString: () => "resident" }, container: { running: false } });
+  const oldController = new Resident(context(), env);
+  await assert.rejects(() => oldController.ready(), /release identity mismatch/);
+  assert.equal(databaseReads, 0, "mismatching image must not pass readiness");
+  const matchingController = new Resident(context(), { ...env, KOVA_BUILD_SHA: imageSha });
+  assert.equal((await matchingController.ready()).release_sha, imageSha);
+  assert.equal(databaseReads, 1, "matching image still must prove database readiness");
 });
 
 test("only api-0 starts the process; all other existing API objects proxy there", async () => {
