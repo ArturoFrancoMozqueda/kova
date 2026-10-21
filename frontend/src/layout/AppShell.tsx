@@ -721,9 +721,6 @@ export default function AppShell() {
           <BranchSelector />
           {!isOfflineSession ? <EmailVerificationBanner /> : null}
           {!isOfflineSession ? <BillingBanner /> : null}
-          {isAdminRole(userRole) && !isOfflineSession ? (
-            <BusinessNextActions pathname={location.pathname} destinations={filteredNavItems} canCreateCustomerOrders={canCreateCustomerOrders} />
-          ) : null}
           <Suspense
             fallback={(
               <ShellRouteFallback
@@ -734,6 +731,10 @@ export default function AppShell() {
           >
             <Outlet />
           </Suspense>
+          {/* Continuation follows the task so primary content keeps its mobile viewport. */}
+          {isAdminRole(userRole) && !isOfflineSession ? (
+            <BusinessNextActions pathname={location.pathname} destinations={filteredNavItems} canCreateCustomerOrders={canCreateCustomerOrders} />
+          ) : null}
         </div>
         <FirstUseTour />
         <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />

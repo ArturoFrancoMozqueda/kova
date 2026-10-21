@@ -243,6 +243,8 @@ describe("daily links and secondary navigation groups", () => {
   it("shares permissions and feature filtering with contextual actions and keeps them out of offline or cashier sessions", async () => {
     const view = host("/quotes");
     const context = () => screen.queryByRole("navigation", { name: "Continúa tu operación" });
+    const content = screen.getByRole("link", { name: "Abrir cotizaciones desde el contenido" });
+    expect(content.compareDocumentPosition(context()!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(within(context()!).queryByRole("link", { name: "Revisar pedidos" })).toBeNull();
     expect(within(context()!).getByRole("link", { name: "Gestionar clientes" })).toHaveAttribute("href", "/customers");
     features.customer_orders = true; view.unmount();
