@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, LayoutGrid, ShoppingCart, X } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
+import { CATALOG_CREATE_PERMISSION, usePermission } from "@/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { listProducts } from "@/catalog/api";
 import { copy } from "@/i18n/messages";
@@ -37,7 +38,9 @@ function tourKey(pathname: string): TourKey | null {
 
 export function FirstUseTour() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useAuth();
+  const canCreateProduct = usePermission(CATALOG_CREATE_PERMISSION);
   const key = tourKey(location.pathname);
   const storageKey = useMemo(() => {
     if (!key || state.status !== "authenticated") return null;
@@ -50,7 +53,7 @@ export function FirstUseTour() {
     let cancelled = false;
 
     async function decideVisibility() {
-      if (!storageKey || !key) {
+      if (!storageKey || !key || (key === "catalog" && !canCreateProduct)) {
         setOpen(false);
         return;
       }
@@ -84,7 +87,7 @@ export function FirstUseTour() {
     return () => {
       cancelled = true;
     };
-  }, [key, storageKey]);
+  }, [key, storageKey, canCreateProduct]);
 
   if (!key || !storageKey || !presence.mounted) return null;
 
@@ -99,6 +102,15 @@ export function FirstUseTour() {
     }
     void trackFunnelEvent("onboarding_tour_dismissed", { tour: key, action });
     setOpen(false);
+  };
+
+  const start = () => {
+    close("started");
+    if (key === "catalog" && canCreateProduct) {
+      const search = new URLSearchParams(location.search);
+      search.set("new", "product");
+      navigate({ pathname: "/catalog", search: search.toString(), hash: location.hash });
+    }
   };
 
   return (
@@ -146,7 +158,7 @@ export function FirstUseTour() {
           <Button type="button" variant="outline" onClick={() => close("dismissed")} className="flex-1 sm:flex-none">
             {copy.tour.skip}
           </Button>
-          <Button type="button" onClick={() => close("started")} className="flex-1 sm:flex-none">
+          <Button type="button" onClick={start} className="flex-1 sm:flex-none">
             {tour.cta}
             <ArrowRight className="h-4 w-4" />
           </Button>

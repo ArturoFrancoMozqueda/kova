@@ -44,6 +44,7 @@ import {
   CalendarDays,
   Gift,
   LifeBuoy,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -60,6 +61,7 @@ import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
+import { matchesSectionQuery, sectionDescription } from "./navigationDiscovery";
 
 type NavItem = {
   to: string;
@@ -133,12 +135,12 @@ const businessNavGroups: {
   { id: "products", label: "Productos e inventario", icon: <Package className="h-4 w-4" />,
     paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
   { id: "commercial", label: "Ventas y atención", icon: <Handshake className="h-4 w-4" />,
-    paths: ["/crm", "/quotes", "/commercial-requests", "/inbox", "/service-cases",
+    paths: ["/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
       "/followups", "/appointments", "/loyalty"] },
   { id: "management", label: "Gestión y ajustes", icon: <Settings className="h-4 w-4" />,
     paths: ["/reports", "/expenses", "/reconciliation", "/operations-queue", "/automations",
       "/assistant", "/settings", "/settings/billing", "/settings/integrations",
-      "/settings/public-catalog", "/settings/channels"] },
+      "/settings/channels"] },
 ];
 
 function businessGroupForPath(pathname: string): BusinessNavGroup | undefined {
@@ -179,6 +181,9 @@ export default function AppShell() {
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
   const [openNavGroups, setOpenNavGroups] = useState(() => readStoredNavGroups(location.pathname));
+  const [navigationQuery, setNavigationQuery] = useState("");
+  const navigationSearchRef = useRef<HTMLInputElement>(null);
+  const focusSearchOnExpand = useRef(false);
   const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { toast } = useToast();
@@ -204,6 +209,7 @@ export default function AppShell() {
   };
 
   useEffect(() => {
+    setNavigationQuery("");
     const active = businessGroupForPath(location.pathname);
     if (active) setOpenNavGroups(current => current[active]
       ? current : { ...current, [active]: true });
@@ -307,6 +313,10 @@ export default function AppShell() {
   const operationNavItems = ["/register", "/dashboard", "/customers", "/orders", "/shifts", "/pedidos"]
     .flatMap(path => filteredNavItems.filter(item => item.to === path));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
+  const searchingSections = !(isDesktop && sidebarCollapsed) && navigationQuery.trim().length > 0;
+  const sectionResults = searchingSections
+    ? [...operationNavItems, ...businessNavItems].filter(item => matchesSectionQuery(item, navigationQuery))
+    : [];
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const drawerOpen = sidebarOpen && !isDesktop;
@@ -359,6 +369,14 @@ export default function AppShell() {
   // The saved collapse preference applies only to the desktop rail.
   const sidebarCompact = isDesktop && sidebarCollapsed;
 
+  useEffect(() => {
+    if (sidebarCompact) setNavigationQuery("");
+    if (!sidebarCompact && focusSearchOnExpand.current) {
+      focusSearchOnExpand.current = false;
+      navigationSearchRef.current?.focus();
+    }
+  }, [sidebarCompact]);
+
   const toggleNavGroup = (id: BusinessNavGroup) => {
     if (sidebarCompact) {
       setSidebarCollapsed(false);
@@ -372,14 +390,15 @@ export default function AppShell() {
     });
   };
 
-  const renderNavItem = (item: NavItem, nested = false) => (
+  const renderNavItem = (item: NavItem, nested = false, describe = false) => (
     <NavLink
       key={item.to}
       to={item.to}
       end={item.to === "/settings"}
       onClick={closeSidebar}
       title={sidebarCompact ? item.label : undefined}
-      aria-label={sidebarCompact ? item.label : undefined}
+      aria-label={sidebarCompact || describe ? item.label : undefined}
+      aria-describedby={describe ? `section-purpose-${item.to.replaceAll("/", "-")}` : undefined}
       className={({ isActive }) => cn(
         "group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
         sidebarCompact ? "justify-center px-2.5" : "px-2.5",
@@ -393,7 +412,8 @@ export default function AppShell() {
         <span aria-hidden={sidebarCompact} className={cn(
           "min-w-0 flex-1 whitespace-normal break-words text-left leading-5 transition-[opacity,transform] duration-panel ease-standard",
           sidebarCompact ? "pointer-events-none absolute left-[42px] translate-x-1 opacity-0" : "translate-x-0 opacity-100",
-        )}>{item.label}</span>
+        )}>{item.label}{describe && <span id={`section-purpose-${item.to.replaceAll("/", "-")}`}
+          className="mt-0.5 block text-xs font-normal leading-4 text-sidebar-muted">{sectionDescription(item.to)}</span>}</span>
       </>}
     </NavLink>
   );
@@ -447,12 +467,40 @@ export default function AppShell() {
         </button>
       </div>
 
+      {filteredNavItems.length > 1 && <div className={cn("border-b border-sidebar-border", sidebarCompact ? "px-2 py-3" : "px-3 py-3")}>
+        {sidebarCompact ? <button type="button" aria-label="Buscar sección" title="Buscar sección"
+          onClick={() => { focusSearchOnExpand.current = true; toggleSidebarCollapsed(); }}
+          className="flex min-h-11 w-full items-center justify-center rounded-kova-md text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+          <Search aria-hidden="true" className="h-4 w-4" />
+        </button> : <div role="search" aria-label="Buscar secciones de Kova" className="relative">
+          <label htmlFor="navigation-section-search" className="sr-only">Buscar sección</label>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-sidebar-muted" />
+          <input id="navigation-section-search" ref={navigationSearchRef} type="search" maxLength={120}
+            placeholder="Buscar sección…" value={navigationQuery} aria-controls="navigation-sections"
+            autoComplete="off" spellCheck={false}
+            onChange={event => setNavigationQuery(event.target.value)}
+            onKeyDown={event => { if (event.key === "Escape" && navigationQuery) { event.preventDefault(); event.stopPropagation(); setNavigationQuery(""); } }}
+            className="min-h-11 w-full rounded-kova-md border border-sidebar-border bg-sidebar-accent/30 py-2 pl-9 pr-10 text-sm text-sidebar-foreground placeholder:text-sidebar-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue-light [&::-webkit-search-cancel-button]:appearance-none" />
+          {navigationQuery && <button type="button" aria-label="Limpiar búsqueda de secciones"
+            onClick={() => { setNavigationQuery(""); navigationSearchRef.current?.focus(); }}
+            className="absolute right-0 top-0 flex h-11 w-10 items-center justify-center rounded-kova-md text-sidebar-muted hover:text-sidebar-foreground">
+            <X aria-hidden="true" className="h-4 w-4" />
+          </button>}
+        </div>}
+      </div>}
+
       {/* Nav */}
       <nav
+        id="navigation-sections"
         className={cn("flex-1 overflow-y-auto py-4", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
-        <div className="space-y-1">
+        {searchingSections ? <div className="space-y-1">
+          <p role="status" className="px-2 pb-2 text-xs text-sidebar-muted">{sectionResults.length
+            ? `${sectionResults.length} ${sectionResults.length === 1 ? "sección encontrada" : "secciones encontradas"}`
+            : "No encontramos esa sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
+          {sectionResults.map(item => renderNavItem(item, false, true))}
+        </div> : <><div className="space-y-1">
           {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Operación</p>}
           {operationNavItems.map(item => renderNavItem(item))}
         </div>
@@ -483,7 +531,7 @@ export default function AppShell() {
               </div>
             </div>;
           })}
-        </div>}
+        </div>}</>}
       </nav>
 
       {/* Footer */}

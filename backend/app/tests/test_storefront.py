@@ -1,7 +1,9 @@
+import io
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
+from PIL import Image
+from sqlalchemy import event, text
 
 from app.auth.models import Membership
 from app.billing.models import Subscription
@@ -28,6 +30,89 @@ def _save(client, products, *, version=0, enabled=True, key=None, **extra):
 
 def _read(client, result):
     return client.get(result["share_path"].replace("/catalogo/", "/api/v1/public/catalog/"))
+
+
+def _upload_photo(client, product):
+    output = io.BytesIO()
+    Image.new("RGB", (6, 4), "red").save(output, "PNG")
+    response = client.post(
+        f"/api/v1/catalog/products/{product['id']}/image",
+        files={"file": ("producto.png", output.getvalue(), "image/png")},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["image_url"], output.getvalue()
+
+
+def test_public_photo_projection_preserves_crop_and_defaults_without_loading_blobs(client, db):
+    _signup_login(client, prefix="catalog-photo")
+    product = _product(client, name="Pan con foto")
+    without_photo = _product(client, name="Pan sin foto")
+    image_url, image_bytes = _upload_photo(client, product)
+    updated = client.patch(f"/api/v1/catalog/products/{product['id']}", headers={
+        "Idempotency-Key": f"crop-{uuid4()}",
+    }, json={
+        "image_position_x": 17, "image_position_y": 82, "image_zoom": 1.75,
+    })
+    assert updated.status_code == 200, updated.text
+    saved = _save(client, [product, without_photo])
+    assert saved.status_code == 200, saved.text
+    client.cookies.clear()
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement.lower())
+
+    engine = db.get_bind()
+    event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        response = _read(client, saved.json())
+    finally:
+        event.remove(engine, "before_cursor_execute", record_statement)
+    assert response.status_code == 200, response.text
+    products = {row["id"]: row for row in response.json()["products"]}
+    assert products[product["id"]] == {
+        "id": product["id"], "name": product["name"], "description": None,
+        "price_amount": product["price_amount"], "availability": "unavailable",
+        "image_url": image_url, "image_position_x": 17, "image_position_y": 82,
+        "image_zoom": 1.75,
+    }
+    plain = products[without_photo["id"]]
+    assert plain["image_url"] is None
+    assert (plain["image_position_x"], plain["image_position_y"], plain["image_zoom"]) == (50, 50, 1.0)
+    assert statements and not any("product_image_files" in sql for sql in statements)
+    image = client.get(products[product["id"]]["image_url"])
+    assert image.status_code == 200
+    assert image.content == image_bytes
+    assert "no-store" in response.headers["Cache-Control"]
+
+
+def test_public_photos_exclude_unpublished_inactive_and_foreign_products(client, db):
+    _signup_login(client, prefix="catalog-photo-scope-a")
+    selected = _product(client, name="Foto publicada")
+    hidden = _product(client, name="Foto privada")
+    inactive = _product(client, name="Foto retirada")
+    selected_image, _ = _upload_photo(client, selected)
+    hidden_image, _ = _upload_photo(client, hidden)
+    inactive_image, _ = _upload_photo(client, inactive)
+    saved = _save(client, [selected, inactive])
+    assert saved.status_code == 200, saved.text
+    deactivated = client.patch(f"/api/v1/catalog/products/{inactive['id']}",
+                               headers={"Idempotency-Key": f"deactivate-{uuid4()}"},
+                               json={"is_active": False})
+    assert deactivated.status_code == 200, deactivated.text
+    client.cookies.clear()
+    _signup_login(client, prefix="catalog-photo-scope-b")
+    foreign = _product(client, name="Foto de otro negocio")
+    foreign_image, _ = _upload_photo(client, foreign)
+    assert _save(client, [foreign]).status_code == 200
+    response = _read(client, saved.json())
+    assert response.status_code == 200, response.text
+    assert [product["id"] for product in response.json()["products"]] == [selected["id"]]
+    assert response.json()["products"][0]["image_url"] == selected_image
+    for private_image in (hidden_image, inactive_image, foreign_image):
+        assert private_image not in response.text
+    for private_field in ("tenant_id", "cost_price", "stock_on_hand", "sku", "bytes_data"):
+        assert private_field not in response.text
 
 
 def test_catalog_is_opt_in_and_only_selected_projection_is_public(client, db):

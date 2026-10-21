@@ -2,18 +2,19 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useOptionalAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { ProductPhoto, type ProductPhotoData } from "./ProductPhoto";
 
 type PublicCatalog = {
   title: string;
   description: string | null;
   whatsapp_phone: string | null;
-  products: {
+  products: (ProductPhotoData & {
     id: string;
     name: string;
     description: string | null;
     price_amount: string;
     availability: "available" | "unavailable";
-  }[];
+  })[];
   checkout_available: boolean;
 };
 const money = (value: string) =>
@@ -77,93 +78,135 @@ export default function StorefrontView() {
         ) : !data ? (
           <p role="status">Cargando catálogo…</p>
         ) : (
-          <>
-            <header className="mb-10 max-w-2xl">
-              <p className="mb-3 text-xs uppercase tracking-widest text-kova-muted">
-                Catálogo del negocio
-              </p>
-              <h1 className="break-words text-4xl font-semibold tracking-tight text-kova-ink sm:text-5xl">
-                {data.title}
-              </h1>
-              {data.description && (
-                <p className="mt-5 break-words text-lg text-kova-muted">
-                  {data.description}
-                </p>
-              )}
-              <p className="mt-4 text-sm text-kova-muted">
-                Precios en MXN. Confirma disponibilidad y condiciones con el
-                negocio antes de comprar.
-              </p>
-            </header>
-            {data.products.length === 0 && (
-              <p>No hay productos publicados por el momento.</p>
-            )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {data.products.map((product) => (
-                <article
-                  key={product.id}
-                  className="flex min-w-0 flex-col rounded-2xl border border-kova-border bg-white p-6"
-                >
-                  <h2 className="break-words text-xl font-semibold">
-                    {product.name}
-                  </h2>
-                  {product.description && (
-                    <p className="mt-3 break-words text-sm text-kova-muted">
-                      {product.description}
-                    </p>
-                  )}
-                  <p className="mt-5 text-2xl font-semibold">
-                    {money(product.price_amount)}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    {product.availability === "available"
-                      ? "Disponible para consultar"
-                      : "Agotado por el momento"}
-                  </p>
-                  {data.whatsapp_phone &&
-                    /^[1-9][0-9]{9,14}$/.test(data.whatsapp_phone) && (
-                      <a
-                        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-kova-ink px-4 py-3 text-center text-sm text-white"
-                        href={`https://wa.me/${data.whatsapp_phone}?text=${encodeURIComponent(`Hola, vi ${product.name} en su catálogo. ¿Me dan información para hacer un pedido?`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Consultar por WhatsApp
-                      </a>
-                    )}
-                </article>
-              ))}
-            </div>
-            <CatalogRequestForm
-              key={token}
-              token={token ?? ""}
-              products={data.products}
-            />
-            <footer className="mt-10 text-sm text-kova-muted">
-              Consulta sin reserva ni cobro automático. Catálogo compartido con
-              Kova.
-            </footer>
-          </>
+          <CatalogContent key={token} token={token ?? ""} data={data} />
         )}
       </div>
     </main>
   );
 }
 
+function CatalogContent({ data, token }: { data: PublicCatalog; token: string }) {
+  const [productIds, setProductIds] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [received, setReceived] = useState(false);
+  const toggleProduct = (id: string) => {
+    if (busy || received) return;
+    setProductIds(ids => ids.includes(id) ? ids.filter(value => value !== id)
+      : ids.length < 20 ? [...ids, id] : ids);
+  };
+  return (
+    <>
+      <header className="mb-10 max-w-2xl">
+        <p className="mb-3 text-xs uppercase tracking-widest text-kova-muted">
+          Catálogo del negocio
+        </p>
+        <h1 className="break-words text-4xl font-semibold tracking-tight text-kova-ink sm:text-5xl">
+          {data.title}
+        </h1>
+        {data.description && (
+          <p className="mt-5 break-words text-lg text-kova-muted">
+            {data.description}
+          </p>
+        )}
+        <p className="mt-5 text-base text-kova-ink">
+          Explora los productos, selecciona los que te interesan y deja tu consulta al negocio.
+        </p>
+        <p className="mt-4 text-sm text-kova-muted">
+          Precios en MXN. Confirma disponibilidad y condiciones con el
+          negocio antes de comprar.
+        </p>
+      </header>
+      {data.products.length === 0 && (
+        <p>No hay productos publicados por el momento.</p>
+      )}
+      {!received && productIds.length > 0 && <div className="sticky top-3 z-10 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-kova-border bg-white p-4 shadow-sm">
+        <p role="status" className="text-sm">{productIds.length} {productIds.length === 1 ? "producto seleccionado" : "productos seleccionados"} para consultar</p>
+        <a href="#solicitud-catalogo" className="inline-flex min-h-11 items-center rounded-xl bg-kova-ink px-4 text-sm text-white">Continuar con mi consulta</a>
+      </div>}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {data.products.map((product) => (
+          <article
+            key={product.id}
+            className="flex min-w-0 flex-col rounded-2xl border border-kova-border bg-white p-6"
+          >
+            <div className="-mx-6 -mt-6 mb-5">
+              <ProductPhoto product={product} />
+            </div>
+            <h2 className="break-words text-xl font-semibold">
+              {product.name}
+            </h2>
+            {product.description && (
+              <p className="mt-3 break-words text-sm text-kova-muted">
+                {product.description}
+              </p>
+            )}
+            <p className="mt-5 text-2xl font-semibold">
+              {money(product.price_amount)}
+            </p>
+            <p className="mt-2 text-sm">
+              {product.availability === "available"
+                ? "Disponible para consultar"
+                : "Agotado por el momento"}
+            </p>
+            <button
+              type="button"
+              aria-pressed={productIds.includes(product.id)}
+              aria-label={`${productIds.includes(product.id) ? "Quitar" : "Seleccionar"} ${product.name} para consultar`}
+              disabled={busy || received || (!productIds.includes(product.id) && productIds.length >= 20)}
+              onClick={() => toggleProduct(product.id)}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-kova-border px-4 py-3 text-sm font-medium text-kova-ink aria-pressed:border-kova-blue aria-pressed:bg-kova-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-kova-blue disabled:opacity-50"
+            >
+              {productIds.includes(product.id) ? "Seleccionado para consultar" : "Me interesa"}
+            </button>
+            {data.whatsapp_phone &&
+              /^[1-9][0-9]{9,14}$/.test(data.whatsapp_phone) && (
+                <a
+                  className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-kova-ink px-4 py-3 text-center text-sm text-white"
+                  href={`https://wa.me/${data.whatsapp_phone}?text=${encodeURIComponent(`Hola, vi ${product.name} en su catálogo. ¿Me dan información para hacer un pedido?`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Consultar por WhatsApp
+                </a>
+              )}
+          </article>
+        ))}
+      </div>
+      <CatalogRequestForm
+        token={token}
+        products={data.products}
+        productIds={productIds}
+        onProductToggle={toggleProduct}
+        busy={busy}
+        setBusy={setBusy}
+        received={received}
+        onReceived={() => setReceived(true)}
+      />
+      <footer className="mt-10 text-sm text-kova-muted">
+        Consulta sin reserva ni cobro automático. Catálogo compartido con
+        Kova.
+      </footer>
+    </>
+  );
+}
+
 function CatalogRequestForm({
   token,
-  products,
+  products, productIds, onProductToggle, busy, setBusy, received, onReceived,
 }: {
   token: string;
   products: PublicCatalog["products"];
+  productIds: string[];
+  onProductToggle: (id: string) => void;
+  busy: boolean;
+  setBusy: (value: boolean) => void;
+  received: boolean;
+  onReceived: () => void;
 }) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
-  const [productIds, setProductIds] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [received, setReceived] = useState(false);
   const command = useRef<{ fingerprint: string; id: string } | null>(null);
   const controller = useRef(new AbortController());
   const lock = useRef(false);
@@ -210,7 +253,7 @@ function CatalogRequestForm({
               ? "Este catálogo ya no está disponible para solicitudes."
               : "No pudimos registrar tu solicitud. Revisa los datos y vuelve a intentar.",
         );
-      if (!controller.current.signal.aborted) setReceived(true);
+      if (!controller.current.signal.aborted) onReceived();
     } catch (e) {
       if (!controller.current.signal.aborted)
         setError(
@@ -225,7 +268,9 @@ function CatalogRequestForm({
     "mt-1 min-h-11 w-full rounded-xl border border-kova-border bg-white p-3";
   return (
     <section
-      className="mt-10 rounded-2xl border border-kova-border bg-white p-6 sm:p-8"
+      id="solicitud-catalogo"
+      tabIndex={-1}
+      className="mt-10 scroll-mt-32 rounded-2xl border border-kova-border bg-white p-6 sm:p-8"
       aria-label="Solicitud al negocio"
     >
       <h2 className="text-2xl font-semibold">Deja tu solicitud al negocio</h2>
@@ -287,6 +332,11 @@ function CatalogRequestForm({
             <legend className="text-sm font-medium">
               Productos de tu consulta (opcional, hasta 20)
             </legend>
+            <p className="mt-2 break-words text-sm text-kova-muted">
+              {productIds.length > 0
+                ? `Tu selección: ${products.filter(product => productIds.includes(product.id)).map(product => product.name).join(", ")}.`
+                : "Puedes seleccionar productos arriba o dejar una consulta general."}
+            </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {products.map((product) => (
                 <label
@@ -297,16 +347,10 @@ function CatalogRequestForm({
                     type="checkbox"
                     checked={productIds.includes(product.id)}
                     disabled={
-                      !productIds.includes(product.id) &&
-                      productIds.length >= 20
+                      busy || (!productIds.includes(product.id) &&
+                      productIds.length >= 20)
                     }
-                    onChange={(event) =>
-                      setProductIds((ids) =>
-                        event.target.checked
-                          ? [...ids, product.id]
-                          : ids.filter((id) => id !== product.id),
-                      )
-                    }
+                    onChange={() => onProductToggle(product.id)}
                   />
                   <span className="break-words">{product.name}</span>
                 </label>

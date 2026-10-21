@@ -218,6 +218,10 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
                 name=p.name,
                 description=p.description,
                 price_amount=p.price_amount,
+                image_url=p.image_url,
+                image_position_x=p.image_position_x,
+                image_position_y=p.image_position_y,
+                image_zoom=p.image_zoom,
                 availability=(
                     "available"
                     if not p.track_inventory or stock.get(p.id, 0) - reserved.get(p.id, 0) > 0

@@ -535,6 +535,10 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
   for (const path of ["/register", "/dashboard", "/reports", "/settings/billing"]) {
     await page.goto(path);
     if (path === "/dashboard") {
+      await expect(page.getByRole("group", { name: "Siguiente paso" })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      // Completed setup steps now live in the expandable checklist.
+      await page.getByText("Ver los demás pasos", { exact: true }).click();
       await expect(page.getByText(/Agrega tu primer producto vendible|Agrega productos vendibles/i)).toBeVisible();
     }
     if (path !== "/settings/billing") {

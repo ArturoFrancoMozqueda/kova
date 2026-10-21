@@ -42,6 +42,76 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("daily links and secondary navigation groups", () => {
+  it("finds an owner's task across closed groups without more requests or changing disclosure preferences", async () => {
+    host();
+    const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    fireEvent.change(search, { target: { value: "compartir productos" } });
+    const result = navigation().getByRole("link", { name: "Catálogo público" });
+    expect(result).toHaveAttribute("href", "/settings/public-catalog");
+    expect(result).toHaveAccessibleDescription("Comparte productos con fotos y recibe solicitudes.");
+    expect(navigation().getAllByRole("link")).toHaveLength(1);
+    expect(navigation().getByRole("status")).toHaveTextContent("1 sección encontrada");
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda de secciones" }));
+    expect(search).toHaveFocus();
+    expect(navigation().getByRole("button", { name: "Ventas y atención" })).toHaveAttribute("aria-expanded", "false");
+    await act(async () => {});
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("kova-sidebar-groups-v1")).toBeNull();
+  });
+
+  it("matches accents and task descriptions, and Escape clears an empty-result search", async () => {
+    host(); const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    fireEvent.change(search, { target: { value: "FACTURACIÓN" } });
+    expect(navigation().getByRole("link", { name: "Facturación e integraciones" })).toHaveAttribute("href", "/settings/integrations");
+    fireEvent.change(search, { target: { value: "¿Qué vendo?" } });
+    expect(navigation().getByRole("link", { name: "Análisis" })).toHaveAttribute("href", "/reports");
+    fireEvent.change(search, { target: { value: "inexistente" } });
+    expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    expect(navigation().getByRole("status")).toHaveTextContent("No encontramos esa sección");
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(search).toHaveValue("");
+    expect(navigation().getByRole("link", { name: "Caja" })).toBeVisible();
+    await act(async () => {});
+  });
+
+  it("clears search after navigation and places the public catalog in the commercial journey", async () => {
+    host(); const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    fireEvent.change(search, { target: { value: "compartir productos" } });
+    fireEvent.click(navigation().getByRole("link", { name: "Catálogo público" }));
+    expect(search).toHaveValue("");
+    expect(navigation().getByRole("button", { name: "Ventas y atención" })).toHaveAttribute("aria-expanded", "true");
+    expect(navigation().getByRole("button", { name: "Gestión y ajustes" })).toHaveAttribute("aria-expanded", "false");
+    expect(navigation().getByRole("link", { name: "Catálogo público" })).toHaveAttribute("aria-current", "page");
+    await act(async () => {});
+  });
+
+  it("expands the compact rail and focuses section search without leaving the current page", async () => {
+    window.localStorage.setItem("kova-sidebar-collapsed", "1"); host();
+    fireEvent.click(screen.getByRole("button", { name: "Buscar sección" }));
+    expect(screen.getByRole("searchbox", { name: "Buscar sección" })).toHaveFocus();
+    expect(navigation().getByRole("link", { name: "Caja" })).toHaveAttribute("aria-current", "page");
+    expect(window.localStorage.getItem("kova-sidebar-collapsed")).toBe("0");
+    await act(async () => {});
+  });
+
+  it("never discovers destinations excluded by permissions, capabilities, feature flags or offline mode", async () => {
+    const view = host(); const search = screen.getByRole("searchbox", { name: "Buscar sección" });
+    for (const query of ["gastos", "asistente"]) {
+      fireEvent.change(search, { target: { value: query } });
+      expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    }
+    view.unmount(); auth.state.user.role = "manager"; const manager = host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "suscripción" } });
+    expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    manager.unmount(); auth.state.user.role = "cashier"; const cashier = host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "compartir productos" } });
+    expect(navigation().queryAllByRole("link")).toHaveLength(0);
+    cashier.unmount(); auth.state.sessionMode = "offline"; host();
+    expect(screen.queryByRole("searchbox", { name: "Buscar sección" })).not.toBeInTheDocument();
+    expect(navigation().getAllByRole("link")).toHaveLength(1);
+    await act(async () => {});
+  });
+
   it("shows five daily links and three closed groups instead of twenty peer links", async () => {
     host(); const nav = navigation();
     expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Panel", "Clientes", "Ventas", "Turnos"]);
