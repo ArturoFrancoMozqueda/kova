@@ -2,20 +2,21 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import CrmView from "./CrmView";
-import type { CrmData, ContactConsent } from "./types";
+import type { CrmData, ContactConsent, Opportunity } from "./types";
 
+const session = vi.hoisted(() => ({ role: "owner", mode: "online", branch: "branch-1" }));
 vi.mock("@/auth/useAuth", () => ({
   useAuth: () => ({
     state: {
       status: "authenticated",
-      user: { id: "user-1", role: "owner" },
+      user: { id: "user-1", role: session.role },
       tenantId: "tenant-1",
-      sessionMode: "online",
+      sessionMode: session.mode,
     },
   }),
 }));
 vi.mock("@/branches/activeBranch", () => ({
-  getActiveBranchId: () => "branch-1",
+  getActiveBranchId: () => session.branch,
 }));
 const fetchMock = vi.fn<typeof fetch>();
 const json = (data: unknown, status = 200) =>
@@ -50,15 +51,16 @@ const consent: ContactConsent = {
   version: 4,
   updated_at: "2026-10-18T12:00:00Z",
 };
-const mount = () =>
+const mount = (path = "/crm") =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <CrmView />
     </MemoryRouter>,
   );
 
 beforeEach(() => {
   vi.clearAllMocks();
+  session.role = "owner"; session.mode = "online"; session.branch = "branch-1";
   Object.defineProperty(navigator, "onLine", {
     configurable: true,
     value: true,
@@ -294,4 +296,62 @@ it("edits the next action with optimistic version protection", async () => {
     next_action: "Confirmar entrega",
     estimated_amount: "1200.00",
   });
+});
+
+const opportunity: Opportunity = {
+  id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", customer_id: customer.id,
+  customer_name: customer.name, title: "Solicitud del catálogo QA", stage: "new",
+  estimated_amount: "0.00", assigned_user_id: null,
+  next_action: "Revisar productos y preparar cotización", due_at: null, note: null,
+  version: 1, created_at: "2026-10-18T12:00:00Z", updated_at: "2026-10-18T12:00:00Z",
+};
+
+it.each(["owner", "manager"])("offers %s a quote preparation link from the exact opportunity without creating anything", async role => {
+  session.role = role;
+  fetchMock.mockImplementation(async url => String(url).includes("/customers?")
+    ? json([customer]) : json({ ...overview(), opportunities: [opportunity] }));
+  mount();
+  const link = await screen.findByRole("link", { name: "Preparar cotización" });
+  expect(link).toHaveAttribute("href", `/quotes?opportunity_id=${opportunity.id}`);
+  expect(link).toHaveClass("min-h-11");
+  link.focus(); expect(link).toHaveFocus();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/quotes"))).toBe(false);
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  fireEvent(window, new Event("offline"));
+  await waitFor(() => expect(screen.queryByRole("link", { name: "Preparar cotización" })).toBeNull());
+});
+
+it("offers quote continuation on a directly linked opportunity outside the overview page", async () => {
+  fetchMock.mockImplementation(async url => String(url) === `/api/v1/crm/opportunities/${opportunity.id}`
+    ? json(opportunity) : String(url).includes("/customers?") ? json([customer]) : json(overview()));
+  mount(`/crm?opportunity_id=${opportunity.id}`);
+  expect(await screen.findByRole("link", { name: "Preparar cotización" })).toHaveAttribute("href", `/quotes?opportunity_id=${opportunity.id}`);
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  const exact = fetchMock.mock.calls.find(([url]) => String(url) === `/api/v1/crm/opportunities/${opportunity.id}`)!;
+  expect(exact[1]?.headers).toMatchObject({ "X-Kova-Branch": "branch-1" });
+});
+
+it("never exposes quote continuation or private reads to cashier or offline sessions", () => {
+  session.role = "cashier";
+  const view = mount();
+  expect(screen.queryByRole("link", { name: "Preparar cotización" })).toBeNull();
+  expect(screen.getByText("Acceso de administración")).toBeVisible();
+  view.unmount(); session.role = "owner"; session.mode = "offline";
+  mount(); expect(screen.queryByRole("link", { name: "Preparar cotización" })).toBeNull();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("removes the previous branch's continuation when the workspace changes", async () => {
+  fetchMock.mockImplementation(async (url, init) => String(url).includes("/customers?") ? json([customer]) : json({
+    ...overview(), opportunities: (init?.headers as Record<string, string>)["X-Kova-Branch"] === "branch-1" ? [opportunity] : [],
+  }));
+  const view = mount();
+  await screen.findByRole("link", { name: "Preparar cotización" });
+  session.branch = "branch-2";
+  view.rerender(<MemoryRouter initialEntries={["/crm"]}><CrmView /></MemoryRouter>);
+  expect(screen.queryByRole("link", { name: "Preparar cotización" })).toBeNull();
+  await screen.findByText("El próximo pedido empieza aquí");
+  expect(fetchMock.mock.calls.some(([, init]) => (init?.headers as Record<string, string>)["X-Kova-Branch"] === "branch-2")).toBe(true);
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
 });

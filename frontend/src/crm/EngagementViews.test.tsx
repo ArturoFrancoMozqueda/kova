@@ -388,3 +388,40 @@ it("reuses the same draft command after an uncertain network outcome", async () 
     ],
   });
 });
+
+it("continues a converted request to its exact opportunity after reload without extra reads or writes", async () => {
+  const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  let converted = false;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("/customers?")) return json([customer]);
+    if (init?.method === "POST") {
+      converted = true;
+      return json({ ...request, status: "converted", opportunity_id: id, customer_id: customer.id });
+    }
+    return json({ requests: [{ ...request, ...(converted ? { status: "converted", opportunity_id: id, customer_id: customer.id } : {}) }], has_more: false });
+  });
+  mount(<CommercialRequestsView />);
+  fireEvent.click(await screen.findByRole("button", { name: "Revisar solicitud de Visitante" }));
+  await screen.findByRole("option", { name: customer.name });
+  fireEvent.change(screen.getByLabelText("Vincular con cliente registrado"), { target: { value: customer.id } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear oportunidad con este cliente" }));
+  const link = await screen.findByRole("link", { name: "Ver oportunidad" });
+  expect(link).toHaveAttribute("href", `/crm?opportunity_id=${id}`);
+  expect(link).toHaveClass("min-h-11");
+  link.focus(); expect(link).toHaveFocus();
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method !== "GET")).toHaveLength(1);
+  expect(fetchMock.mock.calls.every(([url]) => String(url).includes("/customers?") || String(url).includes("/crm/requests"))).toBe(true);
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  fireEvent(window, new Event("offline"));
+  await waitFor(() => expect(screen.queryByRole("link", { name: "Ver oportunidad" })).toBeNull());
+});
+
+it("does not invent an opportunity link for unconverted requests or missing references", async () => {
+  fetchMock.mockImplementation(async url => String(url).includes("/customers?") ? json([customer]) : json({
+    requests: [request, { ...request, id: "missing-reference", status: "converted", opportunity_id: null }], has_more: false,
+  }));
+  mount(<CommercialRequestsView />);
+  await screen.findByText("Oportunidad creada");
+  expect(screen.queryByRole("link", { name: "Ver oportunidad" })).toBeNull();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+});

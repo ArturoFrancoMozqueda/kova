@@ -155,6 +155,14 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               {new Date(row.created_at).toLocaleString("es-MX")} ·{" "}
               {row.product_ids.length} productos consultados
             </p>
+            {row.status === "converted" && row.opportunity_id && panel.online && (
+              <Link
+                to={`/crm?opportunity_id=${encodeURIComponent(row.opportunity_id)}`}
+                className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-kova-blue underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"
+              >
+                Ver oportunidad
+              </Link>
+            )}
             {row.status === "new" && (
               <Button
                 className="h-auto min-h-11 whitespace-normal text-left"
