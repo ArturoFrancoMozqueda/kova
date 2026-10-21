@@ -2,6 +2,7 @@
 // inside the API coordinators, within the Durable Objects Free compute budget.
 import { createHash } from "node:crypto";
 import { cachedPublicImage, publicImageResponse } from "../public-images.mjs";
+import { CONTROLLER_FAILURE_HEADER, fetchWithControllerUpdateRecovery } from "../controller-update-recovery.mjs";
 
 const dashboardChain = new Set([
   "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
@@ -58,6 +59,7 @@ export default {
     }
     return cachedPublicImage(request, async anonymousRequest => {
       const headers = new Headers(anonymousRequest.headers);
+      headers.delete(CONTROLLER_FAILURE_HEADER);
       // This entrypoint is reached through Cloudflare's edge. Never trust a
       // caller-provided forwarding/IP header as a rate-limit identity.
       headers.set("x-kova-client-ip", request.headers.get("cf-connecting-ip") || "unknown");
@@ -69,11 +71,14 @@ export default {
       const shard = env.KOVA_NATIVE_BACKEND === "1" ? 0 : coordinatorShard(headers.get("cookie"), path);
       try {
         const started = performance.now();
-        const response = await env.API.getByName(`api-${shard}`).fetch(
-          new Request(anonymousRequest, { headers }),
-        );
+        const upstream = new Request(anonymousRequest, { headers });
+        const getStub = () => env.API.getByName(`api-${shard}`);
+        const response = env.KOVA_NATIVE_BACKEND === "1"
+          ? await fetchWithControllerUpdateRecovery(upstream, getStub)
+          : await getStub().fetch(upstream);
         const image = publicImageResponse(anonymousRequest, response);
         const result = image || new Response(response.body, response);
+        result.headers.delete(CONTROLLER_FAILURE_HEADER);
         const timings = image ? publicImageTimings(response.headers.get("server-timing")) : [];
         timings.push(`api;dur=${(performance.now() - started).toFixed(1)}`);
         result.headers.set("Server-Timing", timings.join(", "));

@@ -4,6 +4,45 @@ Last updated: 2026-10-21
 
 ## Estado productivo verificado del 21 de octubre
 
+#247 está publicado como `4be82c85cddd7f7909ca99a5bbe2054fd572330d`:
+CI/release `39642218045` aprobó en el primer intento, sin rollback. La aceptación
+posterior pasó 25 contratos sobre el mismo proceso (mediana 190ms, máximo 319ms)
+y una comprobación independiente de los seis contratos públicos confirmó ese SHA.
+Computer Use repitió Caja → desplazamiento → menú → búsqueda → Cotizaciones:
+cinco fotos iniciales a 160px, otras dos al desplazarse y siete en total al salir;
+no reaparecieron las descargas adicionales de 400px. En esta muestra las cinco
+iniciales tardaron 2.44–2.92s y las siguientes 1.82/1.88s, sin prometer que todas
+las cargas sean inferiores a un segundo.
+
+Tras 330s sin probes del verificador, cuatro fotos concurrentes por ancho
+conservaron proceso y bytes, con respuestas 200/MISS. Mediana/máximo:
+160px 774/871ms; 320px 1338/1391ms; 400px 424/513ms. Resize fue cero en 160/320;
+una muestra de 400px tuvo 3.445ms. No se observó una espera de diez segundos por
+inactividad en esa comprobación.
+
+La revisión real detectó un 503 puntual en GET de Cotizaciones (124ms), aunque
+los contratos de salud habían aprobado. La recarga manual de esa lectura dio
+200 en 917ms. Server-Timing `api=60ms` sitúa el 503 en la respuesta del controlador;
+el proceso del contenedor mantuvo su arranque. Registros de KovaApi a las
+17:31:48.412Z contienen el mensaje exacto, obtenido con redacción en memoria:
+`Durable Object reset because its code was updated.` Los cinco registros de la
+misma firma no se cuentan como cinco peticiones independientes. Esto identifica
+un reset de memoria del controlador durante actualización, distinto del arranque
+del proceso nativo. Seguimiento: recuperación de una sola lectura permitida,
+con stub nuevo, cancelación y ventana acotada; las escrituras no se repiten.
+Referencia: https://developers.cloudflare.com/durable-objects/best-practices/error-handling/.
+
+Corrección preparada: un solo reintento con stub nuevo únicamente para siete GET
+permitidos y el reset exacto de actualización; pausa de 50ms dentro de una ventana
+total de 2s desde el primer intento. No acorta una primera lectura normal ni
+repite escrituras, errores genéricos, sobrecarga o respuestas con Set-Cookie.
+El marcador es interno y se elimina antes de responder. Se preservan abortos,
+streaming, cookies y aislamiento. Eventos diagnósticos fijos no incluyen contexto
+privado y sus fallos no afectan la petición. La batería inicial de 50 pruebas
+aprobó, incluida la frontera gateway→DO en workerd; los 39 checks afectados por
+la telemetría final también aprobaron, con dos regresiones rojas antes del cambio.
+Revisión independiente sin bloqueos; publicación de esta corrección pendiente.
+
 #246 se integró y publicó como `7266af61c9f001dbff1e3f7a98d1239535d51fe5`.
 CI/release `39637031484` aprobó todos los controles y aceptó la publicación sin
 rollback. La aceptación posterior comprobó 25 contratos sobre el mismo proceso,
@@ -40,7 +79,7 @@ Retirar únicamente `auto` conserva las medias existentes y evita esas descargas
 pruebas de navegador y 46 unitarias, build/TypeScript y ESLint dirigidos aprueban.
 En escritorio 1366×900/DPR1, nueve fotos cuadradas de 147.33px cargan 320px: el
 size declarado de 200px es una estimación conservadora, no una medición exacta.
-Este seguimiento todavía requiere CI y aceptación productiva propios.
+Este seguimiento se aceptó en #247, según la verificación productiva anterior.
 
 ## Revisión real del dueño y carga de fotografías
 
