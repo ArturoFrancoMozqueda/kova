@@ -16,20 +16,38 @@ la venta. El Panel pasó de $0/0 ventas a $10/1 venta y ticket $10. La devoluci�
 total quedó registrada con recibo neto $0, y se canceló el pedido con nota QA.
 No se abrió ni cerró un turno para esta prueba. La auditoría no se elimina.
 
-Limpieza pendiente de desbloqueo manual del Mac: verificar retorno de stock,
-ajuste de salida de las unidades QA, retirar sólo el producto QA de la
-publicación original de 16 productos, desactivar producto/cliente y comprobar
-reporte neto. No se declara completada esa limpieza ni toda la automatización.
+Limpieza completada tras el desbloqueo manual: se verificó stock de vuelta en
+cinco por la devolución y se retiraron esas cinco unidades con ajuste auditado
+`Otro` y nota `QA-20261021-E2E`, dejando cero. Se desactivaron producto y cliente;
+el cliente reaparece como Inactivo sólo al incluir inactivos y el catálogo volvió
+a 18 productos activos. La publicación guardada y su lectura pública conservan
+los 16 productos originales, título y configuración, sin rotar el enlace; el
+producto QA ya no aparece. La oportunidad quedó Perdida, con cero oportunidades
+abiertas en la vista. La cola consultada no mostró atenciones, oportunidades,
+seguimientos ni recordatorios pendientes. El Panel confirmó neto $0, bruto $10
+y devolución $10. Esos importes históricos se conservan como auditoría; no se
+eliminan ni se declara completa toda la automatización del negocio.
 
 Fricciones observadas: solicitud convertida sin enlace a su oportunidad y
-siguiente paso de cotizar sin acción directa desde CRM. Se preparan enlaces y
-precarga de cliente/oportunidad validados por el recurso autenticado exacto;
+siguiente paso de cotizar sin acción directa desde CRM. Se implementaron enlaces
+y precarga de cliente/oportunidad validados por el recurso autenticado exacto;
 abrir el formulario no crea, comparte ni acepta una cotización.
 Validación local: 41 pruebas de CRM/solicitudes/cotizaciones y siete pruebas
 de navegador aprobadas, incluido el recorrido de enlaces en1440/390/320px sin
 escrituras y con la oportunidad fuera de la primera página. Build, TypeScript,
 ESLint completo y revisión independiente aprobaron. Se revisaron capturas sin
-desbordamiento. CI y publicación pendientes.
+desbordamiento. Publicado en #251 como
+`b8b00c36b9697b9ae1009bd8cad57894d31a340a`: CI/release `39679329676`
+aprobó, 25 contratos sobre el mismo proceso (mediana 186ms, máximo 330ms), sin
+rollback. Los seis contratos públicos posteriores confirmaron ese SHA.
+
+Computer Use posterior con el tenant verificó Solicitudes → Ver oportunidad →
+Preparar cotización: el recurso exacto abrió el formulario con cliente y origen
+correctos; el parámetro se consumió y cerrar no creó otra cotización. La PWA
+mostró la actualización disponible y se aplicó desde el Panel, conservando la
+sesión y los datos. Se cerró la pestaña pública temporal y se restauraron Panel
+y ventana original. Este cierre documental no requiere otra publicación de
+runtime; el SHA productivo permanece en `b8b00c36`.
 
 ## Navegación visible del dueño
 
