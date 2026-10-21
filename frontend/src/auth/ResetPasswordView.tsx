@@ -84,7 +84,7 @@ function ResetPasswordForm({ token }: { token: string }) {
         subtitle={copy.auth.resetTokenMissingBody}
         contentClassName="space-y-3"
       >
-        <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
+        <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-destructive">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>{copy.auth.resetTokenMissingHint}</span>
         </div>
@@ -103,7 +103,7 @@ function ResetPasswordForm({ token }: { token: string }) {
     <AuthLayout title={copy.auth.resetPasswordTitle} subtitle={copy.auth.resetPasswordSubtitle}>
             {state === "success" ? (
               <div className="space-y-3">
-                <div role="status" className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                <div role="status" className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success">
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{copy.auth.resetPasswordSuccess}</span>
                 </div>
@@ -116,7 +116,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 </Link>
               </div>
             ) : (
-              <form onSubmit={(event) => void submit(event)} className="space-y-4">
+              <form onSubmit={(event) => void submit(event)} aria-busy={state === "submitting"} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="password">{copy.auth.resetPasswordNew}</Label>
                   <Input
@@ -126,6 +126,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                     autoComplete="new-password"
                     placeholder={copy.auth.resetPasswordPlaceholder}
                     value={password}
+                    disabled={state === "submitting"}
                     onChange={(event) => setPassword(event.target.value)}
                     aria-invalid={passwordHint ? "true" : undefined}
                     aria-describedby={passwordHint ? "password-hint" : undefined}
@@ -145,6 +146,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                     autoComplete="new-password"
                     placeholder={copy.auth.resetPasswordPlaceholder}
                     value={confirmation}
+                    disabled={state === "submitting"}
                     onChange={(event) => setConfirmation(event.target.value)}
                     aria-invalid={mismatch ? "true" : undefined}
                     aria-describedby={mismatch ? "confirmation-hint" : undefined}
@@ -171,7 +173,7 @@ function ResetPasswordForm({ token }: { token: string }) {
                 </Button>
 
                 {(state === "error" || state === "invalid") && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-destructive animate-fade-in">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     {errorMessage}
                   </div>

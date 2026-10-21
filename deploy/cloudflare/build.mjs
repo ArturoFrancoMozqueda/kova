@@ -1,10 +1,11 @@
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import { cleanBuildOutputDir, getWorkerBundleDir, writeAssets,
   writeRootConfig, writeWorkerConfig, readBuildOutput } from "@cloudflare/build-output-utils";
 import config from "./cloudflare.config.ts";
-import { headerRules, publicPages, securityHeaders } from "./policy.mjs";
+import { headerRules, securityHeaders } from "./policy.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const source = process.env.KOVA_ASSETS_DIR
@@ -20,13 +21,13 @@ await writeRootConfig(root, { accountId: process.env.CLOUDFLARE_ACCOUNT_ID }, { 
 await writeAssets({ root, sourceDirectory: source });
 const bundle = getWorkerBundleDir(root);
 await mkdir(bundle, { recursive: true });
-await cp(resolve(root, "worker.mjs"), resolve(bundle, "worker.mjs"));
-await writeFile(resolve(bundle, "policy.mjs"),
-  `export const publicPages = ${JSON.stringify(publicPages)};\n` +
-  `export const securityHeaders = ${JSON.stringify(securityHeaders)};\n`);
+await build({
+  entryPoints: [resolve(root, "worker.mjs")], outfile: resolve(bundle, "worker.mjs"),
+  bundle: true, format: "esm", platform: "neutral", target: "es2022",
+});
 await writeWorkerConfig({ root, config: config.worker, manifest: {
   type: "complete", mainModule: "worker.mjs",
-  modules: { "worker.mjs": { type: "esm" }, "policy.mjs": { type: "esm" } },
+  modules: { "worker.mjs": { type: "esm" } },
 } });
 
 // Assets served directly never invoke the Worker (and don't consume its quota).

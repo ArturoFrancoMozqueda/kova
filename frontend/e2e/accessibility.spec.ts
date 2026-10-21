@@ -45,6 +45,29 @@ async function expectNoSeriousAxeViolations(page: Page, surface: string) {
 test.describe("axe en Chromium contra el stack real", () => {
   test.skip(!integrationEnabled(), "Requiere docker-compose.test.yml");
 
+  test("avisos públicos de acceso conservan contraste en pantallas pequeñas", async ({ page }) => {
+    const email = `audit-auth-feedback-${Date.now()}@example.com`;
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/reset-password");
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expectNoSeriousAxeViolations(page, `Enlace incompleto ${width}px`);
+
+      await page.goto("/login");
+      await page.getByLabel(/^correo$/i).fill(email);
+      await page.getByLabel(/^contraseña$/i).fill("Wrong-Local-Password-2026");
+      await page.getByRole("button", { name: /^iniciar sesión$/i }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expectNoSeriousAxeViolations(page, `Credenciales incorrectas ${width}px`);
+
+      await page.goto("/forgot-password");
+      await page.getByLabel(/^correo$/i).fill(email);
+      await page.getByRole("button", { name: /enviar instrucciones/i }).click();
+      await expect(page.getByRole("status")).toBeVisible();
+      await expectNoSeriousAxeViolations(page, `Instrucciones de recuperación ${width}px`);
+    }
+  });
+
   test("login y vistas operativas no tienen violaciones críticas/serias", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /iniciar sesi[oó]n/i })).toBeVisible();

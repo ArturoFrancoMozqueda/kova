@@ -1408,7 +1408,9 @@ function RegularRegisterView() {
                           <img
                             src={productImageSrc(product.image_url, 400)}
                             srcSet={productImageSrcSet(product.image_url)}
-                            sizes="(max-width: 640px) 48px, (max-width: 1024px) 33vw, 200px"
+                            sizes="auto, (max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px"
+                            width={400}
+                            height={400}
                             alt=""
                             loading="lazy"
                             decoding="async"

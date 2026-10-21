@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -134,6 +134,22 @@ describe("RegisterView cash-without-shift guard", () => {
     });
     fireEvent.click(addButton);
   }
+
+  it("keeps photographed products sellable while choosing lazy sources from their actual card size", async () => {
+    const imageUrl = "/api/v1/catalog/products/10000000-0000-4000-8000-000000000001/image?v=123";
+    catalogApi.listProducts.mockResolvedValue([{ ...product, image_url: imageUrl }]);
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    const card = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
+    const image = within(card).getByAltText("");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image.getAttribute("sizes")).toMatch(/^auto, .*48px/);
+    expect(image).toHaveAttribute("width", "400");
+    expect(image).toHaveAttribute("height", "400");
+    expect(image.getAttribute("srcset")).toContain(`${imageUrl}&w=160 160w`);
+    fireEvent.click(card);
+    expect(await screen.findByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+  });
 
   it("opens the drawer only after the current cash sale is acknowledged by the server", async () => {
     getOpenShift.mockResolvedValue(openShift);

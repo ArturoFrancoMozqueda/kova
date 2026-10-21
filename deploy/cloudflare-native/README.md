@@ -1,6 +1,6 @@
-# Resident FastAPI candidate on Cloudflare
+# Resident FastAPI on Cloudflare
 
-This directory prepares the native FastAPI API image and a JavaScript Container
+This directory builds the native FastAPI API image and a JavaScript Container
 controller. It keeps the existing `kova-backend` Worker, `KovaApi` namespace,
 `KovaRateLimit` SQLite buckets, public gateway, domain, frontend and private job
 Worker. It does not expose a new HTTP hostname or a public container port.
@@ -18,6 +18,33 @@ Worker; no secret-export endpoint or serialized binding exists. Native runtime
 and privileged database URLs must be separately provisioned before activation.
 The runtime role must pass the application's existing RLS/ownership guards.
 Retired Fly configuration and document ingestion remain disabled.
+
+Production is active with `KOVA_NATIVE_BACKEND=1` after release
+[`39531362675`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39531362675)
+for `6bd525e42c22c2b6d8798638ef4de6f3498d47af`. The one-time database provisioning
+run `39529850894` succeeded; do not repeat `provision_once` after success. It
+intentionally refuses an existing native role or sealed native connection names.
+Current acceptance evidence and remaining QA live in
+[`docs/current-sprint.md`](../../docs/current-sprint.md).
+
+The public-photo exception is narrow: versioned GET product image UUIDs only,
+supported width and raster content type, explicit public origin response, no
+session cookies/private variation. Shared cache freshness is at most 300 seconds
+across all hops. Private API responses and errors stay `no-store`; database
+ownership/activity checks still run on every miss. Browser/edge replacement keys
+use the upload revision, while the 4 MiB native derivative cache keys actual
+content. Original photo bytes remain in Postgres. The native image bounds blob
+admission and decoder concurrency to stay within lite memory.
+
+CI additionally seeds photos only into its isolated local database, then checks
+JPEG EXIF, PNG alpha, derivative reuse, process identity, 3,000 ms latency and the
+same container's memory peak/OOM status. No extra Python app runs in the container
+for this measurement. After publishing, manual `verify_public_images=true` on the
+Resident backend acceptance workflow uses the merged commit's required CI gate
+and a read-only SQL transaction to locate one existing public photo. It verifies
+API/frontend cache HITs and private `no-store` boundaries without creating data,
+logging photo IDs/bodies or exporting database credentials. Keep `provision_once`
+false for that check.
 
 The native process calls `http://rate-limit.kova.internal/allow` and
 `http://jobs.kova.internal/wake`. These virtual hostnames are available only

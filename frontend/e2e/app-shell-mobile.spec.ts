@@ -51,6 +51,7 @@ test("mobile drawer manages focus, traps Tab and restores the trigger on Escape"
 test("drawer can navigate and desktop resize makes the sidebar operable", async ({ page }) => {
   await openShell(page);
   await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+  await page.getByRole("dialog").getByRole("button", { name: "Productos e inventario" }).click();
   await page.getByRole("dialog").getByRole("link", { name: "Catálogo", exact: true }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);

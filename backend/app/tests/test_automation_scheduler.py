@@ -124,3 +124,57 @@ def test_wake_accepts_tuple_assistant_cohort_and_automation_only(jobs_module, mo
     assert asyncio.run(instance.wake(str(allowed))) is True
     assert stored["tenant"] == str(allowed)
     assert isinstance(stored["alarm"], int)
+
+
+@pytest.mark.parametrize("failing", ["automation", "assistant", "both"])
+def test_independent_workloads_progress_before_failure_retains_recovery_alarm(
+    jobs_module, monkeypatch, caplog, failing
+):
+    from app.assistant import access, worker
+    from app.automations import worker as automation_worker
+    from app.workers.context import environment, execution
+
+    tenant_id = uuid4()
+    called, alarms = [], []
+
+    class Storage:
+        async def get(self, key):
+            return str(tenant_id) if key == "tenant" else None
+
+        async def setAlarm(self, value):
+            alarms.append(value)
+
+        async def deleteAlarm(self):
+            alarms.append("deleted")
+
+    def automations(tenant, *, limit):
+        assert tenant == tenant_id and limit == 50
+        called.append("automation")
+        if failing in ("automation", "both"):
+            raise RuntimeError("synthetic-private-automation-error")
+        return 1
+
+    def assistant(**kwargs):
+        assert kwargs == {"workload": "chat", "tenant_id": tenant_id, "maximum_jobs": 1}
+        called.append("assistant")
+        if failing in ("assistant", "both"):
+            raise RuntimeError("synthetic-private-assistant-error")
+        return 1
+
+    monkeypatch.setattr(access, "enabled", lambda tenant: tenant == tenant_id)
+    monkeypatch.setattr(automation_worker, "process_tenant", automations)
+    monkeypatch.setattr(worker, "process_once", assistant)
+    instance = jobs_module.KovaJobs(
+        SimpleNamespace(storage=Storage()),
+        SimpleNamespace(AUTOMATION_TENANT_IDS=str(tenant_id)),
+    )
+    with pytest.raises(RuntimeError, match="Assistant job iteration failed"):
+        asyncio.run(instance.alarm())
+    assert called == ["automation", "assistant"]
+    # The alarm set before processing remains armed for recovery. A partial
+    # success must not erase it or turn a permanent error into a tight loop.
+    assert len(alarms) == 1 and isinstance(alarms[0], int)
+    assert "synthetic-private" not in caplog.text
+    assert str(tenant_id) not in caplog.text
+    assert environment.get() is None
+    assert execution.get() is None

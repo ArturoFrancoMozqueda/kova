@@ -1,5 +1,6 @@
 import { cp, mkdir, readFile, readdir, stat } from "node:fs/promises";
 import { resolve, posix } from "node:path";
+import { build } from "esbuild";
 import { cleanBuildOutputDir, getWorkerBundleDir, writeRootConfig,
   writeWorkerConfig, readBuildOutput } from "@cloudflare/build-output-utils";
 import config, { jobs, gateway } from "./cloudflare.config.ts";
@@ -54,7 +55,10 @@ await writeWorkerConfig({ root, directoryName: "jobs", config: jobs.worker,
   manifest: { type: "complete", mainModule: "entry.py", modules } });
 const publicBundle = getWorkerBundleDir(root, "gateway");
 await mkdir(publicBundle, { recursive: true });
-await cp(resolve(root, "gateway.mjs"), resolve(publicBundle, "gateway.mjs"));
+await build({
+  entryPoints: [resolve(root, "gateway.mjs")], outfile: resolve(publicBundle, "gateway.mjs"),
+  bundle: true, format: "esm", platform: "neutral", target: "es2022", external: ["node:*"],
+});
 await writeWorkerConfig({ root, directoryName: "gateway", config: gateway.worker,
   manifest: { type: "complete", mainModule: "gateway.mjs", modules: {
     "gateway.mjs": { type: "esm" },

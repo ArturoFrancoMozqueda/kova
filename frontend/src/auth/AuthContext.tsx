@@ -323,12 +323,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }), [applyState, refreshInternal]);
 
   useEffect(() => {
+    let pending: { epoch: number; request: Promise<AuthState> } | null = null;
     const revalidate = () => {
       if (stateRef.current.status !== "authenticated") return;
+      // Browsers commonly emit focus, visibilitychange and online together.
+      // Share that verification while it is current; explicit refresh/logout
+      // or a cross-tab identity change still supersedes it through the epoch.
+      if (pending?.epoch === refreshEpoch.current) return;
       // Keep the current form mounted while the probe is pending. Every
       // mutation still carries its expected identity, so the server blocks a
       // stale tab even during this small focus/reconnect window.
-      void refreshInternal(false, true);
+      const request = refreshInternal(false, true);
+      const verification = { epoch: refreshEpoch.current, request };
+      pending = verification;
+      const completed = () => {
+        if (pending === verification) pending = null;
+      };
+      void request.then(completed, completed);
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") revalidate();
@@ -350,17 +361,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const originalFetch = window.fetch.bind(window);
     let refreshPromise: Promise<boolean> | null = null;
 
-    const shouldSkip = (url: string): boolean =>
-      url.includes("/api/v1/auth/login") ||
-      url.includes("/api/v1/auth/refresh") ||
-      url.includes("/api/v1/auth/logout") ||
-      url.includes("/api/v1/auth/session") ||
-      url.includes("/api/v1/auth/signup");
+    const authPaths = new Set([
+      "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
+      "/api/v1/auth/session", "/api/v1/auth/signup",
+    ]);
 
     window.fetch = async (input, init) => {
-      const url = typeof input === "string" ? input : (input as URL | Request).toString();
+      const rawUrl = input instanceof Request ? input.url : input.toString();
+      const url = new URL(rawUrl, document.baseURI);
+      const isApiRequest = url.origin === window.location.origin && url.pathname.startsWith("/api/");
+      const skipAuth = authPaths.has(url.pathname.replace(/\/+$/, ""));
+      // An explicit stream override cannot be reused after fetch consumes it.
+      // Preserve its unauthorized response for the caller instead of replaying
+      // an exhausted stream. Normal JSON/Request bodies remain replayable.
+      const oneShotBody = typeof ReadableStream !== "undefined" && init?.body instanceof ReadableStream;
+      const canRetry = isApiRequest && !skipAuth && !oneShotBody;
       const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-      const unsafeApiRequest = url.includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(method) && !shouldSkip(url);
+      const unsafeApiRequest = isApiRequest && ["POST", "PUT", "PATCH", "DELETE"].includes(method) && !skipAuth;
       let requestInit = init;
       if (unsafeApiRequest) {
         if (identityChangePending.current) {
@@ -382,7 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const activeIdentity = stateRef.current;
-      if (url.includes("/api/v1/") && !url.includes("/auth/") && activeIdentity.status === "authenticated") {
+      if (isApiRequest && url.pathname.startsWith("/api/v1/") && !url.pathname.startsWith("/api/v1/auth/") && activeIdentity.status === "authenticated") {
         const headers = new Headers(input instanceof Request ? input.headers : undefined);
         new Headers(requestInit?.headers).forEach((value, key) => headers.set(key, value));
         if (!headers.has("X-Kova-Branch")) {
@@ -390,9 +407,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         requestInit = { ...requestInit, headers };
       }
+      // fetch consumes a Request's body. Retain a fresh stream for the single
+      // unauthorized retry instead of submitting an already consumed Request.
+      // clone() keeps the original abort signal's propagation semantics.
+      const retryInput = canRetry && input instanceof Request ? input.clone() : input;
       const response = await originalFetch(input, requestInit);
       captureApiRequestId(input, response);
-      if (response.headers.get("X-Kova-Identity-Mismatch") === "true") {
+      if (isApiRequest && response.headers.get("X-Kova-Identity-Mismatch") === "true") {
         identityChangePending.current = true;
         refreshEpoch.current += 1;
         applyState({ status: "loading" });
@@ -402,7 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new TypeError("La sesión cambió. Kova está verificando el negocio activo.");
       }
       if (response.status !== 401) return response;
-      if (!url.includes("/api/") || shouldSkip(url)) return response;
+      if (!canRetry) return response;
 
       // De-dupe concurrent refresh attempts.
       if (!refreshPromise) {
@@ -413,7 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const ok = await refreshPromise;
       if (!ok) return response;
       // Retry the original request once with refreshed cookies.
-      const retriedResponse = await originalFetch(input, requestInit);
+      const retriedResponse = await originalFetch(retryInput, requestInit);
       captureApiRequestId(input, retriedResponse);
       return retriedResponse;
     };

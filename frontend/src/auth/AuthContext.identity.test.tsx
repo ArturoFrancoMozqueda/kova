@@ -450,4 +450,176 @@ describe("AuthProvider identity continuity", () => {
     expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
     expect(billingIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
   });
+
+  it("shares concurrent focus, visible and reconnect probes without dropping a later role change", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    let resolveProbe!: (value: ReturnType<typeof session>) => void;
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveProbe = resolve; }))
+      .mockResolvedValueOnce(session("tenant-a", "user-a", "cashier"));
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("online"));
+    });
+    expect(getSession).toHaveBeenCalledTimes(2);
+    await act(async () => { resolveProbe(session("tenant-a", "user-a")); });
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(3));
+    expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
+    visibility.mockRestore();
+  });
+
+  it("lets a cross-tab identity verification supersede a shared focus probe", async () => {
+    let resolveFocus!: (value: ReturnType<typeof session>) => void;
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveFocus = resolve; }))
+      .mockResolvedValueOnce(session("tenant-b", "user-b"));
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => window.dispatchEvent(new Event("focus")));
+    act(() => coordination.listener?.());
+    await screen.findByText("tenant-b:user-b:online");
+    await act(async () => { resolveFocus(session("tenant-a", "user-a")); });
+    expect(screen.getByText("tenant-b:user-b:online")).toBeVisible();
+    expect(offlineAccess.cache).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves Request bodies, identity, branch and cancellation when retrying after refresh", async () => {
+    const bodies: string[] = [];
+    const signals: AbortSignal[] = [];
+    const networkFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(input).toBeInstanceOf(Request);
+      const request = input as Request;
+      bodies.push(await request.text());
+      signals.push(request.signal);
+      const headers = new Headers(init?.headers);
+      expect(headers.get("X-Kova-Expected-Tenant")).toBe("tenant-a");
+      expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
+      expect(headers.get("X-Kova-Branch")).toBe("tenant-a");
+      expect(headers.get("Idempotency-Key")).toBe("request-body-retry");
+      expect(headers.get("X-CSRF-Token")).toBe("synthetic-csrf");
+      expect(request.method).toBe("POST");
+      expect(request.credentials).toBe("same-origin");
+      return new Response("{}", { status: bodies.length === 1 ? 401 : 200 });
+    });
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    vi.mocked(refreshSession).mockResolvedValueOnce(true);
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const abort = new AbortController();
+    const payload = JSON.stringify({ expected: "synthetic-payload" });
+    const input = new Request(`${window.location.origin}/api/v1/orders`, {
+      method: "POST", body: payload, signal: abort.signal,
+      headers: { "Idempotency-Key": "request-body-retry", "Content-Type": "application/json", "X-CSRF-Token": "synthetic-csrf" },
+    });
+    expect((await window.fetch(input)).status).toBe(200);
+    expect(input.bodyUsed).toBe(true);
+    expect(bodies).toEqual([payload, payload]);
+    expect(refreshSession).toHaveBeenCalledOnce();
+    abort.abort();
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    view.unmount();
+  });
+
+  it("preserves cancellation while a Request waits for its refreshed cookie", async () => {
+    let finishRefresh!: (ok: boolean) => void;
+    const bodies: string[] = [];
+    const networkFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const request = input as Request;
+      if (request.signal.aborted) throw new DOMException("Request aborted", "AbortError");
+      bodies.push(await request.text());
+      return new Response("unauthorized", { status: 401 });
+    });
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    vi.mocked(refreshSession).mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; }));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const abort = new AbortController();
+    const request = window.fetch(new Request(`${window.location.origin}/api/v1/orders`, {
+      method: "POST", body: "synthetic-payload", signal: abort.signal,
+    }));
+    await waitFor(() => expect(refreshSession).toHaveBeenCalledOnce());
+    abort.abort();
+    finishRefresh(true);
+    await expect(request).rejects.toMatchObject({ name: "AbortError" });
+    expect(bodies).toEqual(["synthetic-payload"]);
+    view.unmount();
+  });
+
+  it("keeps Request mutations blocked while a cross-tab cookie identity is being verified", async () => {
+    const networkFetch = vi.fn();
+    window.fetch = networkFetch;
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => coordination.listener?.());
+    const request = new Request(`${window.location.origin}/api/v1/orders`, { method: "POST", body: "{}" });
+    await expect(window.fetch(request)).rejects.toThrow(/verificando el negocio activo/i);
+    expect(networkFetch).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("does not attach tenant headers or refresh an unrelated origin's API requests", async () => {
+    const networkFetch = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    await window.fetch(new Request("https://unrelated.example/api/v1/orders", { method: "POST", body: "{}" }));
+    expect(networkFetch).toHaveBeenCalledOnce();
+    expect(networkFetch.mock.calls[0][1]).toBeUndefined();
+    expect(refreshSession).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("resolves relative URLs against the document base used by fetch", async () => {
+    const networkFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const base = document.createElement("base");
+    base.href = `${window.location.origin}/nested/`;
+    document.head.append(base);
+    try {
+      await window.fetch("api/v1/orders", { method: "POST", body: "{}" });
+      expect(new Headers(networkFetch.mock.calls[0][1]?.headers).has("X-Kova-Expected-Tenant")).toBe(false);
+      base.href = `${window.location.origin}/`;
+      await window.fetch("api/v1/orders", { method: "POST", body: "{}" });
+      expect(new Headers(networkFetch.mock.calls[1][1]?.headers).get("X-Kova-Expected-Tenant")).toBe("tenant-a");
+    } finally {
+      base.remove();
+      view.unmount();
+    }
+  });
+
+  it("does not retry a consumed explicit stream body override", async () => {
+    const networkFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(await new Response(init?.body).text()).toBe("synthetic-stream-body");
+      return new Response("unauthorized", { status: 401 });
+    });
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const stream = new ReadableStream<Uint8Array>({ start(controller) {
+      controller.enqueue(new TextEncoder().encode("synthetic-stream-body"));
+      controller.close();
+    } });
+    const request = new Request(`${window.location.origin}/api/v1/orders`, { method: "POST", body: "original-body" });
+    expect((await window.fetch(request, { body: stream })).status).toBe(401);
+    expect(networkFetch).toHaveBeenCalledOnce();
+    expect(refreshSession).not.toHaveBeenCalled();
+    view.unmount();
+  });
 });

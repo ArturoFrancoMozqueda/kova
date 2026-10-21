@@ -13,6 +13,36 @@ const settings = () => ({
   KOVA_BUILD_SHA: sha,
 });
 
+test("native controller preserves public raster caching only for the narrow versioned image route", async () => {
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { return this.env.testResponse; }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const controller = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  const path = "https://api.test/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123";
+  env.testResponse = new Response("synthetic-image", { headers: {
+    "Content-Type": "image/webp", "Cache-Control": "public, max-age=86400",
+  } });
+  const allowed = await controller.fetch(new Request(path));
+  assert.match(allowed.headers.get("cache-control"), /^public, max-age=[1-9][0-9]{0,2}$/);
+  assert.equal(await allowed.text(), "synthetic-image");
+  for (const [url, headers, status] of [
+    [path, { "Set-Cookie": "session=synthetic" }, 200],
+    [path, { Vary: "Cookie" }, 200],
+    [path, {}, 404],
+    [path.split("?")[0], {}, 200],
+    ["https://api.test/api/v1/auth/session?v=123", {}, 200],
+  ]) {
+    env.testResponse = new Response("not-shared", { status, headers: {
+      "Content-Type": "image/png", "Cache-Control": "public, max-age=86400", ...headers,
+    } });
+    assert.match((await controller.fetch(new Request(url))).headers.get("cache-control"), /no-store/);
+  }
+});
+
 test("runtime projection excludes unrelated secrets/resources/Fly and pins safety flags", () => {
   const env = {
     ...settings(), STRIPE_SECRET_KEY: "synthetic-stripe-value", CLOUDFLARE_API_TOKEN: "do-not-pass",

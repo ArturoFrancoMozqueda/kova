@@ -1,6 +1,7 @@
 // Keep the public HTTP handler small; Python and expensive password work run
 // inside the API coordinators, within the Durable Objects Free compute budget.
 import { createHash } from "node:crypto";
+import { cachedPublicImage, publicImageResponse } from "../public-images.mjs";
 
 const dashboardChain = new Set([
   "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
@@ -27,7 +28,7 @@ export function coordinatorShard(cookie, path) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     if (path !== "/" && !path.startsWith("/api/v1/")
         && path !== "/health" && path !== "/health/"
@@ -38,32 +39,37 @@ export default {
         status: 404, headers: { "Cache-Control": "private, no-store, max-age=0" },
       });
     }
-    const headers = new Headers(request.headers);
-    // This entrypoint is reached through Cloudflare's edge. Never trust a
-    // caller-provided forwarding/IP header as a rate-limit identity.
-    headers.set("x-kova-client-ip", request.headers.get("cf-connecting-ip") || "unknown");
-    for (const name of ["fly-client-ip", "x-forwarded-for", "x-real-ip", "forwarded"]) {
-      headers.delete(name);
-    }
-    // Resident native traffic shares one process. Avoid keeping compatibility
-    // proxy objects awake (and billed) for every former Python shard.
-    const shard = env.KOVA_NATIVE_BACKEND === "1" ? 0 : coordinatorShard(headers.get("cookie"), path);
-    try {
-      const started = performance.now();
-      const response = await env.API.getByName(`api-${shard}`).fetch(
-        new Request(request, { headers }),
-      );
-      const result = new Response(response.body, response);
-      result.headers.set("Server-Timing", `api;dur=${(performance.now() - started).toFixed(1)}`);
-      result.headers.set("Cache-Control", "private, no-store, max-age=0");
-      result.headers.set("CDN-Cache-Control", "no-store");
-      result.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
-      return result;
-    } catch {
-      console.error(JSON.stringify({ event: "backend_unavailable" }));
-      return Response.json({ detail: "El servicio no está disponible temporalmente." }, {
-        status: 503, headers: { "Cache-Control": "private, no-store" },
-      });
-    }
+    return cachedPublicImage(request, async anonymousRequest => {
+      const headers = new Headers(anonymousRequest.headers);
+      // This entrypoint is reached through Cloudflare's edge. Never trust a
+      // caller-provided forwarding/IP header as a rate-limit identity.
+      headers.set("x-kova-client-ip", request.headers.get("cf-connecting-ip") || "unknown");
+      for (const name of ["fly-client-ip", "x-forwarded-for", "x-real-ip", "forwarded"]) {
+        headers.delete(name);
+      }
+      // Resident native traffic shares one process. Avoid keeping compatibility
+      // proxy objects awake (and billed) for every former Python shard.
+      const shard = env.KOVA_NATIVE_BACKEND === "1" ? 0 : coordinatorShard(headers.get("cookie"), path);
+      try {
+        const started = performance.now();
+        const response = await env.API.getByName(`api-${shard}`).fetch(
+          new Request(anonymousRequest, { headers }),
+        );
+        const image = publicImageResponse(anonymousRequest, response);
+        const result = image || new Response(response.body, response);
+        result.headers.set("Server-Timing", `api;dur=${(performance.now() - started).toFixed(1)}`);
+        if (!image) {
+          result.headers.set("Cache-Control", "private, no-store, max-age=0");
+          result.headers.set("CDN-Cache-Control", "no-store");
+          result.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+        }
+        return result;
+      } catch {
+        console.error(JSON.stringify({ event: "backend_unavailable" }));
+        return Response.json({ detail: "El servicio no está disponible temporalmente." }, {
+          status: 503, headers: { "Cache-Control": "private, no-store" },
+        });
+      }
+    }, ctx);
   },
 };

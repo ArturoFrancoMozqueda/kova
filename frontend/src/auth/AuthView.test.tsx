@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -41,6 +41,96 @@ afterEach(() => {
 });
 
 describe("AuthView signup recovery flows", () => {
+  it("opens account creation with a fresh form after a failed login", async () => {
+    mockFetch((input) => new Response(JSON.stringify(
+      String(input).includes("/auth/login") ? { detail: "Invalid credentials" }
+        : { authenticated: false },
+    ), { status: String(input).includes("/auth/login") ? 401 : 200,
+      headers: { "content-type": "application/json" } }));
+    renderAt("/login");
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "Previous123" } });
+    fireEvent.click(screen.getByRole("button", { name: /Iniciar sesión/i }));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("link", { name: "Crear cuenta" }));
+    expect(screen.getByRole("heading", { name: "Crear cuenta de negocio" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Correo/i)).toHaveValue("");
+    expect(screen.getByLabelText(/Contraseña/i)).toHaveValue("");
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+  });
+
+  it.each(["login", "signup"] as const)("locks %s fields and announces pending submission until retry is possible", async (mode) => {
+    let finish!: (response: Response) => void;
+    mockFetch((input) => String(input).includes(`/auth/${mode}`)
+      ? new Promise<Response>(resolve => { finish = resolve; })
+      : new Response(JSON.stringify({ authenticated: false }), { status: 200 }));
+    renderAt(`/${mode}`);
+    if (mode === "signup") {
+      fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), { target: { value: "Negocio local" } });
+      fireEvent.click(screen.getByRole("checkbox"));
+    }
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "Previous123" } });
+    fireEvent.click(screen.getByRole("button", { name: mode === "login" ? "Iniciar sesión" : "Crear cuenta" }));
+    expect(screen.getByLabelText(/Correo/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Contraseña/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Correo/i).closest("form")).toHaveAttribute("aria-busy", "true");
+    if (mode === "signup") {
+      expect(screen.getByLabelText(/Nombre del negocio/i)).toBeDisabled();
+      expect(screen.getByRole("checkbox")).toBeDisabled();
+    }
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    await act(async () => { finish(new Response("Service unavailable", { status: 503 })); });
+    await screen.findByRole("alert");
+    expect(screen.getByLabelText(/Correo/i)).toBeEnabled();
+    expect(screen.getByLabelText(/Contraseña/i)).toBeEnabled();
+    expect(screen.getByLabelText(/Correo/i).closest("form")).toHaveAttribute("aria-busy", "false");
+  });
+
+  it.each([200, 401])("ignores an abandoned login result after switching to signup (status=%s)", async (status) => {
+    let finish!: (response: Response) => void;
+    const fetchMock = mockFetch((input) => String(input).includes("/auth/login")
+      ? new Promise<Response>(resolve => { finish = resolve; })
+      : new Response(JSON.stringify({ authenticated: false }), { status: 200 }));
+    renderAt("/login");
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "Previous123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    const sessionReads = fetchMock.mock.calls.filter(([input]) => String(input).includes("/auth/session")).length;
+    fireEvent.click(screen.getByRole("link", { name: "Crear cuenta" }));
+    await act(async () => { finish(new Response(JSON.stringify({ message: "old result" }), { status })); });
+    expect(screen.getByRole("heading", { name: "Crear cuenta de negocio" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Correo/i)).toHaveValue("");
+    expect(screen.getByLabelText(/Contraseña/i)).toHaveValue("");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/auth/session"))).toHaveLength(sessionReads);
+  });
+
+  it.each([201, 422])("does not auto-login or report abandoned signup validation after switching to login (status=%s)", async (status) => {
+    let finish!: (response: Response) => void;
+    const fetchMock = mockFetch((input) => String(input).includes("/auth/signup")
+      ? new Promise<Response>(resolve => { finish = resolve; })
+      : new Response(JSON.stringify({ authenticated: false }), { status: 200 }));
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), { target: { value: "Negocio local" } });
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "Previous123" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    fireEvent.click(screen.getByRole("link", { name: "Usar cuenta existente" }));
+    await act(async () => { finish(new Response(JSON.stringify(status === 201
+      ? { message: "created", reason: "account_created" }
+      : { detail: [{ loc: ["body", "password"], type: "value_error" }] }), { status })); });
+    expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Contraseña/i)).toHaveValue("");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/auth/login"))).toBe(false);
+    expect(telemetry.trackSignupValidationFailed).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["/login", "Iniciar sesión · Kova"],
     ["/signup", "Crear cuenta de negocio · Kova"],

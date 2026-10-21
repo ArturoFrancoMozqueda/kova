@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import worker, { handleRequest } from "./worker.mjs";
 
 function assets(files = {}) {
@@ -130,4 +132,70 @@ test("non-API writes are rejected instead of being served a successful app shell
     { method: "POST", body: "{}" }), assets());
   assert.equal(response.status, 405);
   assert.equal(response.headers.get("allow"), "GET, HEAD");
+});
+
+test("versioned public product images bypass repeat upstream calls while retaining security policy", async t => {
+  const entries = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    async match(key) {
+      assert.deepEqual([...key.headers], []);
+      return entries.get(key.url)?.clone();
+    },
+    async put(key, response) { entries.set(key.url, response.clone()); },
+  } };
+  t.after(() => { if (before === undefined) delete globalThis.caches; else globalThis.caches = before; });
+  const url = "https://kovasuite.com/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123&w=160";
+  let calls = 0;
+  const fetcher = async request => {
+    calls++;
+    assert.equal(request.headers.has("cookie"), false);
+    assert.equal(request.headers.has("authorization"), false);
+    assert.equal(request.headers.has("x-kova-branch"), false);
+    assert.equal(request.headers.get("cf-connecting-ip"), "192.0.2.20");
+    assert.equal(request.headers.get("x-real-ip"), "192.0.2.20");
+    assert.equal(request.headers.has("x-forwarded-for"), false);
+    assert.equal(request.headers.has("x-kova-client-ip"), false);
+    return new Response("synthetic-image", { headers: {
+      "Content-Type": "image/webp", "Cache-Control": "public, max-age=86400",
+    } });
+  };
+  const first = await handleRequest(new Request(url, { headers: {
+    Cookie: "session=a", Authorization: "Bearer synthetic", "X-Kova-Branch": "synthetic",
+    "CF-Connecting-IP": "192.0.2.20", "X-Real-IP": "198.51.100.99",
+    "X-Forwarded-For": "198.51.100.99", "X-Kova-Client-IP": "198.51.100.99",
+  } }), {}, fetcher);
+  assert.equal(first.headers.get("x-kova-image-cache"), "MISS");
+  const second = await handleRequest(new Request(url, { headers: {
+    Cookie: "session=b", Authorization: "Bearer synthetic", "X-Kova-Branch": "synthetic",
+  } }), {}, fetcher);
+  assert.equal(calls, 1);
+  assert.equal(second.headers.get("x-kova-image-cache"), "HIT");
+  assert.match(second.headers.get("cache-control"), /^public, max-age=[1-9][0-9]{0,2}$/);
+  assert.equal(second.headers.get("x-frame-options"), "DENY");
+  assert.ok(second.headers.get("content-security-policy"));
+  assert.equal(await second.text(), "synthetic-image");
+  const privateResponse = await handleRequest(new Request("https://kovasuite.com/api/v1/auth/session?v=123", {
+    headers: { Cookie: "session=private" },
+  }), {}, async upstream => {
+    assert.equal(upstream.headers.get("cookie"), "session=private");
+    return new Response("must-not-cache", { headers: {
+      "Content-Type": "image/png", "Cache-Control": "public, max-age=86400",
+    } });
+  });
+  assert.match(privateResponse.headers.get("cache-control"), /no-store/);
+  assert.equal(entries.size, 1);
+});
+
+test("the deployable frontend bundle embeds the shared image policy without unresolved local imports", async () => {
+  const result = await build({ entryPoints: [fileURLToPath(new URL("./worker.mjs", import.meta.url))],
+    bundle: true, write: false, format: "esm", platform: "neutral", target: "es2022" });
+  const bundled = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
+  const url = "https://kovasuite.com/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123&w=160";
+  const response = await bundled.handleRequest(new Request(url), {}, async () => new Response("image", {
+    headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=86400" },
+  }));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control"), /^public, max-age=/);
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
 });

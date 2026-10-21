@@ -80,6 +80,32 @@ test("desktop sidebar crossfades labels without losing link names", async ({ pag
   await expect(dashboardLabel).toHaveCSS("opacity", "1");
 });
 
+test("secondary navigation groups work by keyboard and open their active deep link", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", route => route.fulfill({ json: authenticatedOwner }));
+  await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: billingAllowed }));
+  await page.route("**/api/v1/purchasing/suppliers", route => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/purchasing/orders?*", route => route.fulfill({ json: [] }));
+  await page.goto("/dashboard");
+  const nav = page.locator("aside nav");
+  await expect(nav.getByRole("link")).toHaveCount(5);
+  await expect(nav.getByRole("button")).toHaveCount(3);
+  const products = nav.getByRole("button", { name: "Productos e inventario" });
+  await expect(products).toHaveAttribute("aria-expanded", "false");
+  await products.focus();
+  await page.keyboard.press("Enter");
+  await expect(products).toHaveAttribute("aria-expanded", "true");
+  await expect(nav.getByRole("link", { name: "Compras y proveedores", exact: true })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(products).toHaveAttribute("aria-expanded", "false");
+  await expect(nav.getByRole("link", { name: "Compras y proveedores", exact: true })).toHaveCount(0);
+  await page.goto("/purchasing");
+  await expect(products).toHaveAttribute("aria-expanded", "true");
+  await expect(nav.getByRole("link", { name: "Compras y proveedores", exact: true }))
+    .toHaveAttribute("aria-current", "page");
+});
+
 test("catalog owns the desktop product search without a global command bar", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await markFirstUseToursSeen(page);

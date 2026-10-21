@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import gateway, { coordinatorShard } from "../gateway.mjs";
 
 test("dependent dashboard reads reuse the session coordinator with at most four lanes per cookie", () => {
@@ -104,4 +106,54 @@ test("dashboard routes spread one cookie's reads while preserving private respon
     assert.equal(response.headers.get("cloudflare-cdn-cache-control"), "no-store");
     assert.match(response.headers.get("set-cookie"), /csrf_token=synthetic-test/);
   }
+});
+
+test("the public gateway reuses only explicitly public versioned raster images across sessions", async t => {
+  const entries = new Map();
+  const previous = globalThis.caches;
+  globalThis.caches = { default: {
+    async match(key) { assert.deepEqual([...key.headers], []); return entries.get(key.url)?.clone(); },
+    async put(key, response) { entries.set(key.url, response.clone()); },
+  } };
+  t.after(() => { if (previous === undefined) delete globalThis.caches; else globalThis.caches = previous; });
+  let calls = 0;
+  const env = { KOVA_NATIVE_BACKEND: "1", API: { getByName() {
+    return { fetch(request) {
+      calls++;
+      assert.equal(request.headers.has("cookie"), false);
+      assert.equal(request.headers.has("authorization"), false);
+      assert.equal(request.headers.get("x-kova-client-ip"), "192.0.2.20");
+      assert.equal(request.headers.has("x-real-ip"), false);
+      assert.equal(request.headers.has("x-forwarded-for"), false);
+      return new Response("synthetic-image", { headers: {
+        "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400",
+      } });
+    } };
+  } } };
+  const url = "https://api.test/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123";
+  const first = await gateway.fetch(new Request(url, { headers: {
+    Cookie: "session=a", "CF-Connecting-IP": "192.0.2.20",
+    "X-Kova-Client-IP": "198.51.100.99", "X-Real-IP": "198.51.100.99",
+    "X-Forwarded-For": "198.51.100.99",
+  } }), env);
+  const second = await gateway.fetch(new Request(url, { headers: { Cookie: "session=b", Authorization: "Bearer b" } }), env);
+  assert.equal(first.headers.get("x-kova-image-cache"), "MISS");
+  assert.equal(second.headers.get("x-kova-image-cache"), "HIT");
+  assert.equal(calls, 1);
+  assert.equal(await second.text(), "synthetic-image");
+});
+
+test("the deployable gateway bundles its shared policy while retaining the native API binding", async () => {
+  const result = await build({ entryPoints: [fileURLToPath(new URL("../gateway.mjs", import.meta.url))],
+    bundle: true, write: false, format: "esm", platform: "neutral", target: "es2022", external: ["node:*"] });
+  const bundled = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
+  const env = { KOVA_NATIVE_BACKEND: "1", API: { getByName(name) {
+    assert.equal(name, "api-0");
+    return { fetch: () => new Response("image", { headers: {
+      "Content-Type": "image/png", "Cache-Control": "public, max-age=86400",
+    } }) };
+  } } };
+  const response = await bundled.default.fetch(new Request("https://api.test/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123&w=160"), env);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control"), /^public, max-age=/);
 });

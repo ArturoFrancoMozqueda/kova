@@ -2,25 +2,79 @@
 
 Last updated: 2026-10-20
 
-## Backend residente en Cloudflare — implementación en validación
+## Backend residente en Cloudflare — publicado y verificado
 
-Se prepara FastAPI nativo en un único Container `lite`, con proceso residente tras
+FastAPI nativo está publicado en un único Container `lite`, con proceso residente tras
 inactividad, conservando dominios, frontend, R2, jobs y namespaces existentes. El
 gateway dirige este modo directamente a `api-0` para evitar coordinadores intermedios
 y su coste. Las credenciales actuales no se extraen ni rotan: un aprovisionamiento
 explícito de CI crea un login que hereda sólo `kova_app`, conserva RLS y sella las
 conexiones. Rate limiting y avisos de jobs usan bindings privados persistentes.
 
-Aceptación antes del cambio: CI incluye imagen amd64 bajo 256 MiB y 1/16 CPU,
-SHA inmutable, guards de producción, R2 HEAD autenticado sin escrituras, captura de
-Workers e imagen para rollback, API/proxy/DB y misma identidad de proceso tras
-inactividad. Todavía no se declara el runtime nativo publicado. Referencia operativa:
+#232 y #233 quedaron fusionados. CI y publicación `39531362675` aprobaron para
+`6bd525e42c22c2b6d8798638ef4de6f3498d47af`, el 20 de octubre a las 20:22 CDMX.
+El aprovisionamiento aislado `39529850894` creó el login limitado y selló las
+conexiones sin modificar las credenciales anteriores. `KOVA_NATIVE_BACKEND=1`
+activa el corte. La captura conserva Workers e imagen para rollback.
+
+Aceptación productiva: API 25 contratos, mediana 311 ms, máximo 828 ms; proxy del
+frontend 24 contratos, mediana 323 ms, máximo 484 ms. Se verificaron SHA inmutable,
+marcador `native-resident`, proceso estable durante cada muestra, PostgreSQL,
+denegación anónima y binding privado del limitador. El listener sólo abre después
+de los guards de producción y del HEAD autenticado de R2 sin escrituras. Una prueba
+separada tras 330 segundos sin consultas del verificador aprobó 25 contratos con
+el mismo proceso: mediana 331 ms y máximo 515 ms. No se fuerza la ausencia de
+tráfico de otros usuarios ni se promete ausencia de reinicios por mantenimiento.
+Referencia operativa:
 `deploy/cloudflare-native/README.md`.
 
-Validación local: primera suite completa 1,883 aprobada; suite posterior pg8000
-1,937 aprobada, sin fallos/errores/omitidas. Imagen local arm64 con cuota `lite`:
-24 contratos GET, mediana 97 ms, máximo 203 ms y pico 114 MiB; esta medición no
-sustituye aceptación amd64 ni producción. R2 añade memoria y se verifica aparte.
+Validación local: suite completa psycopg 1,938 aprobada y pg8000 1,937 aprobada,
+sin fallos/errores/omitidas. La imagen Linux amd64 del commit publicado aprobó
+en CI con 256 MiB y 1/16 CPU: 24 contratos GET, mediana 197 ms, máximo 298 ms y
+pico de 134,922,240 bytes. Esta medición no sustituye los tiempos productivos.
+### Revisión funcional, fotos de Caja y navegación
+
+Tres agentes implementaron correcciones concretas de funcionalidad/integraciones,
+UX/accesibilidad y rendimiento. Las escrituras de QA se limitan al stack local
+aislado con RLS y correo/cobros desactivados.
+
+- Fotos: el `no-store` general anulaba la caché pública del endpoint de producto.
+  La excepción se limita a GET versionado de imagen UUID, ancho permitido,
+  respuesta raster 200 explícitamente pública, sin cookies ni variación privada.
+  Frontend y gateway usan Cache API durante un máximo de 300 segundos sin extender
+  la frescura entre capas. Errores y toda API privada conservan `no-store`.
+  Las claves y subrequests públicos omiten credenciales; la IP real se conserva
+  separada para rate limiting. Los originales permanecen en PostgreSQL.
+- Miniaturas: JPEG draft antes de decodificar, orientación EXIF correcta,
+  reducción eficiente y caché derivada limitada a 4 MiB. La admisión ocurre antes
+  de cargar blobs y sólo se permite un decodificador simultáneo; se mantiene la
+  ruta original cuando la imagen excede el presupuesto de píxeles. Versiones de
+  carga con microsegundos evitan colisiones de caché al reemplazar una foto.
+  PNG se limita antes de consultar EXIF y WebP antes de crear su canvas; los
+  códecs comunes se preparan antes de abrir el servicio.
+  Caja solicita el tamaño real de la tarjeta y conserva candidatos para DPR2.
+- Navegación: 5–6 accesos diarios y tres grupos plegables: Productos e inventario,
+  Ventas y atención, Gestión y ajustes. Conserva destinos, permisos y flags reales;
+  no se inventan preferencias por giro ni se agregan consultas para el menú.
+  Etiquetas completas, apertura de sección activa, teclado y foco móvil verificados.
+- Sesión: foco/visibilidad/reconexión comparten la comprobación vigente. Requests
+  nativos conservan identidad, sucursal, cuerpos, abortos y un único reintento 401;
+  nunca se adjuntan esos metadatos a otro origen.
+- Formularios: login/registro no comparten contraseñas ni errores; las respuestas
+  abandonadas no navegan a otra pantalla. Estados pendientes y contraste accesible
+  corregidos, preservando el foco en el primer error y la navegación tras login.
+- Jobs: una sucursal fallida revierte su transacción sin bloquear las otras;
+  ambos workloads privados se intentan y el scheduler conserva el reintento.
+
+Validación local: 1,961 pruebas completas de backend aprobadas antes del último
+guard de admisión de imágenes (61 pruebas dirigidas posteriores aprobadas),
+1,147 pruebas frontend, TypeScript, ESLint, build/prerender y 101 contratos de
+release aprobados (un caso exclusivo de Windows omitido en macOS). También 47
+pruebas edge, incluido Cache API real en workerd, y 11 del verificador de fotos.
+Playwright real verificó el recorrido comercial completo, fotos de Caja y
+navegación/contraste a 320/390/768/1440 px. CI exige además las fotos JPEG EXIF y
+PNG RGBA de 8 MP dentro del contenedor amd64 con límites `lite` y 3,000 ms por GET.
+El run de publicación y la aceptación productiva son la fuente del corte final.
 
 ## Arranque por módulo solicitado #231, publicado; latencia todavía abierta
 
