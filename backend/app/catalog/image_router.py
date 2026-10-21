@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 if sys.platform != "emscripten":
     from PIL import Image, ImageOps
+    from PIL import WebPImagePlugin  # noqa: F401 -- register encoder before serving the first photo
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
@@ -24,6 +25,12 @@ from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, not_found
 from app.shared.validation import verify_image_signature
+
+if sys.platform != "emscripten":
+    # OpenAPI prepares native routers before the listener opens. Prepare the
+    # common decoders here too; no customer pays the first WebP/plugin import
+    # cost when entering Caja on a new deployment.
+    Image.preinit()
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 

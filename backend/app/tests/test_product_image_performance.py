@@ -17,6 +17,11 @@ def photo(*, size=(2400, 1800), color="red", mode="RGB", format="JPEG"):
     return output.getvalue()
 
 
+def test_native_image_codecs_are_registered_before_first_photo_request():
+    assert {"JPEG", "PNG", "WEBP"}.issubset(Image.OPEN)
+    assert "WEBP" in Image.SAVE
+
+
 @pytest.fixture(autouse=True)
 def empty_thumbnail_cache():
     with images._image_cache_lock:
