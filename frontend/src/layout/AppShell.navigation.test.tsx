@@ -291,16 +291,19 @@ describe("daily links and secondary navigation groups", () => {
     await act(async () => {});
   });
 
-  it("uses the header search from expanded or compact desktop navigation without a new dialog", async () => {
+  it("keeps desktop content clear and expands the existing compact rail search without a header button", async () => {
     window.localStorage.setItem("kova-sidebar-collapsed", "1");
     host();
-    const trigger = screen.getByRole("button", { name: "Buscar tareas del negocio" });
-    fireEvent.click(trigger);
+    expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
+    expect(document.querySelector("header")).toHaveClass("xl:hidden");
+    fireEvent.click(screen.getByRole("button", { name: "Buscar sección" }));
     const search = screen.getByRole("searchbox", { name: "Buscar sección" });
     expect(search).toHaveFocus();
     expect(window.localStorage.getItem("kova-sidebar-collapsed")).toBe("0");
-    trigger.focus(); fireEvent.click(trigger); expect(search).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Buscar tareas del negocio" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.change(search, { target: { value: "crear producto" } });
+    expect(navigation().getAllByRole("link")[0]).toHaveAttribute("href", "/catalog?new=product");
     await act(async () => {});
   });
 

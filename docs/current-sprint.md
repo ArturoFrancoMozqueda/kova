@@ -6,8 +6,8 @@ Last updated: 2026-10-21
 
 Implementación local del 21 de octubre, pendiente de CI y aceptación productiva:
 
-- Buscar desde el encabezado abre y enfoca el buscador existente en móvil y
-  escritorio. Prioriza tareas concretas y abre Crear producto, Crear pedido y
+- Buscar desde el encabezado móvil abre y enfoca el buscador existente. En
+  escritorio usa el buscador lateral, sin una barra superior adicional. Prioriza tareas concretas y abre Crear producto, Crear pedido y
   ajustes específicos de recibo, perfil, sucursales y equipo según permisos.
   No agrega niveles al menú ni cambia Caja/Pedidos/Panel de la barra inferior.
 - Acciones rápidas aparece una sola vez, antes de métricas y disponible aun
@@ -22,10 +22,11 @@ Implementación local del 21 de octubre, pendiente de CI y aceptación productiv
 
 Validación: 62 pruebas de layout, 45 de dashboard, 20 de catálogo y cuatro de guía inicial aprobadas;
 regresiones rojas antes de corregir continuidad y repetición del formulario.
-Revisión independiente sin bloqueos. Build completo y ESLint aprobaron. Ocho
+Revisión independiente sin bloqueos. Build completo y ESLint aprobaron. Nueve
 pruebas de navegador sobre el build final aprobaron: tareas con reportes
 pendientes/error, búsqueda a formulario repetible y recibo directo en escritorio
-y móvil, más regresión de fotos. Se revisaron capturas sin desbordamiento;
+y móvil, más regresión de fotos y el contrato anterior de escritorio con contenido
+en y=0 sin barra superior adicional, sin modificar esa prueba. Se revisaron capturas sin desbordamiento;
 Cancelar en el formulario móvil requiere su desplazamiento interno existente.
 Publicación pendiente; estas pruebas no equivalen a validar cobros, envíos o
 cuentas externas.

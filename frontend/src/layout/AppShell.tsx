@@ -696,7 +696,7 @@ export default function AppShell() {
         className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
       >
         {/* Mobile top bar */}
-        <header className={cn("flex shrink-0 items-center gap-2 border-b bg-background px-3 py-3", !(isAdminRole(userRole) && !isOfflineSession) && "xl:hidden")}>
+        <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
             type="button"
             onClick={(event) => {
@@ -706,7 +706,7 @@ export default function AppShell() {
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"
-            className="flex h-11 xl:hidden w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -720,7 +720,7 @@ export default function AppShell() {
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tenantName || copy.app.homeTitle}</span>
           {/* Persistent online/offline + queue visibility on mobile, where the
               sidebar footer (its only home before) is hidden during POS. */}
-          {isAdminRole(userRole) && !isOfflineSession ? <button
+          {!isDesktop && isAdminRole(userRole) && !isOfflineSession ? <button
             type="button" aria-label="Buscar tareas del negocio" aria-controls="navigation-sections"
             onClick={event => openNavigationSearch(event.currentTarget)}
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"

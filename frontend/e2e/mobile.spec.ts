@@ -980,6 +980,19 @@ test("shifts fits at 390px with no open shift", async ({ page }) => {
 });
 
 test.describe("owner task discovery without waiting for analytics", () => {
+  async function focusTaskSearch(page: Page, mobile: boolean) {
+    const search = page.getByRole("searchbox", { name: "Buscar sección", exact: true });
+    if (mobile) {
+      await page.getByRole("button", { name: "Buscar tareas del negocio", exact: true }).click();
+    } else {
+      await expect(page.locator("aside")).toBeVisible();
+      if (await search.isVisible()) await search.click();
+      else await page.getByRole("button", { name: "Buscar sección", exact: true }).click();
+    }
+    await expect(search).toBeFocused();
+    return search;
+  }
+
   test("dashboard actions survive a pending and failed overview and open the chosen section", async ({ page }, testInfo) => {
     await markFirstUseToursSeen(page);
     await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
@@ -1014,7 +1027,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("header task search focuses the existing search and opens a product form without saving", async ({ page }, testInfo) => {
+  test("task search focuses the existing search and opens a product form without saving", async ({ page }, testInfo) => {
     await markFirstUseToursSeen(page);
     await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
       ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
@@ -1027,9 +1040,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath("register-owner-header.png"), animations: "disabled" });
-    await page.getByRole("button", { name: "Buscar tareas del negocio", exact: true }).click();
-    const search = page.getByRole("searchbox", { name: "Buscar sección", exact: true });
-    await expect(search).toBeFocused();
+    const search = await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
     await search.fill("crear producto");
     const create = page.getByRole("link", { name: "Crear producto", exact: true });
     await expect(create).toHaveAttribute("href", "/catalog?new=product");
@@ -1046,8 +1057,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await page.screenshot({ path: testInfo.outputPath("product-create-task-form.png"), animations: "disabled" });
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    await page.getByRole("button", { name: "Buscar tareas del negocio", exact: true }).click();
-    await expect(search).toBeFocused();
+    await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
     await search.fill("crear producto");
     await page.getByRole("link", { name: "Crear producto", exact: true }).click();
     await expect(dialog).toBeVisible();
@@ -1057,7 +1067,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("header search opens the receipt settings directly without exploring settings sections", async ({ page }, testInfo) => {
+  test("task search opens the receipt settings directly without exploring settings sections", async ({ page }, testInfo) => {
     await markFirstUseToursSeen(page);
     await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
       ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
@@ -1071,9 +1081,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
       status: "none", requested_at: null, purge_after: null,
     } }));
     await page.goto("/register");
-    await page.getByRole("button", { name: "Buscar tareas del negocio", exact: true }).click();
-    const search = page.getByRole("searchbox", { name: "Buscar sección", exact: true });
-    await expect(search).toBeFocused();
+    const search = await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
     await search.fill("recibo");
     const receipt = page.getByRole("link", { name: "Personalizar recibo", exact: true });
     await expect(receipt).toHaveAttribute("href", "/settings/receipt");
