@@ -1,0 +1,77 @@
+name: Prepare existing product thumbnails
+
+on:
+  workflow_dispatch:
+    inputs:
+      prepare_existing:
+        description: Prepare bounded technical thumbnails for existing active public product photos
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: product-thumbnail-maintenance
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require explicit preparation on main
+        env:
+          PREPARE_EXISTING: ${{ inputs.prepare_existing }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] || [ "$GITHUB_REF" != refs/heads/main ] || [ "$PREPARE_EXISTING" != true ] || [ "$GITHUB_REPOSITORY" != ArturoFrancoMozqueda/kova ]; then
+            echo 'Preparation requires an explicit manual request on the main repository branch.' >&2
+            exit 1
+          fi
+
+  prepare:
+    needs: [guard]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.prepare_existing
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - name: Require latest completed CI for the exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method GET "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" > "$RUNNER_TEMP/kova-thumbnail-checks.json"
+          python - "$RUNNER_TEMP/kova-thumbnail-checks.json" <<'PY'
+          import json, os, re, sys
+          try:
+              sha = os.environ["GITHUB_SHA"]
+              if not re.fullmatch(r"[0-9a-f]{40}", sha):
+                  raise ValueError()
+              with open(sys.argv[1], encoding="utf-8") as source:
+                  checks = json.load(source)["check_runs"]
+              matches = [check for check in checks if check.get("name") == "CI required"
+                         and check.get("head_sha") == sha
+                         and check.get("app", {}).get("slug") == "github-actions"]
+              latest = max(matches, key=lambda check: check["id"])
+              if latest.get("status") != "completed" or latest.get("conclusion") != "success":
+                  raise ValueError()
+          except Exception:
+              raise SystemExit("The exact commit requires its latest completed successful CI gate") from None
+          PY
+      - name: Prepare bounded derived product thumbnails
+        env:
+          APP_ENV: production
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: uv run --project backend --frozen python backend/scripts/prepare_product_thumbnails.py --prepare-existing --sha "$GITHUB_SHA" --limit 100

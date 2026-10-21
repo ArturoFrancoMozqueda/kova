@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveAndParseConfig } from "@cloudflare/config";
 
-test("candidate retains existing namespace contracts and permits exactly one lite process", async () => {
+test("candidate retains existing namespace contracts and permits exactly one basic process", async () => {
   process.env.KOVA_BUILD_SHA = "a".repeat(40);
   const { default: config } = await import("../cloudflare.config.ts");
   const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
@@ -20,7 +20,7 @@ test("candidate retains existing namespace contracts and permits exactly one lit
   assert.equal(worker.env.JOBS.worker, "kova-backend-jobs");
   assert.equal(containers.length, 1);
   assert.equal(containers[0].maxInstances, 1);
-  assert.equal(containers[0].instanceType, "lite");
+  assert.equal(containers[0].instanceType, "basic");
   assert.equal(containers[0].ssh.enabled, false);
   assert.equal(containers[0].image.buildVars.KOVA_RELEASE_SHA, process.env.KOVA_BUILD_SHA);
 });

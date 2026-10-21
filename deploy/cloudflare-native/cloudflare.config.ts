@@ -12,7 +12,7 @@ const api = defineContainer({
     buildContext: "../../backend",
     buildVars: { KOVA_RELEASE_SHA: release },
   },
-  instanceType: "lite",
+  instanceType: "basic",
   maxInstances: 1,
   ssh: { enabled: false },
   observability: { enabled: true, logs: { enabled: true } },

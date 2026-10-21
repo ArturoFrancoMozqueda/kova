@@ -78,6 +78,33 @@ Hallazgo separado: la consola del SDK reportó un DSN de observabilidad inválid
 No se inspeccionaron valores secretos ni se modificó esa configuración; no se
 considera una explicación demostrada de la demora de las imágenes.
 
+### Capacidad mínima y preparación de fotografías anteriores
+
+#241 se publicó correctamente como `ddecf01a3af98d4b9682a8dca3785180761db7c7`
+con CI/release `39575574802`. Aun así, cuatro fotos antiguas sin variante de 160px
+tardaron 4.46–7.17s; las de 320px, 2.24–6.24s. Tras 330s sin consultas del
+verificador, con el mismo proceso y archivos, resize fue cero en las ocho descargas,
+pero 160px tuvo mediana 1938ms y máximo 1988ms; 320px, 1158ms y 1425ms. Todas fueron
+MISS de caché pública y 200. La persistencia evita recomputar tras reinicios;
+estos datos todavía no acreditan resuelta toda la demora interactiva.
+
+Seguimiento: una instancia `basic` (¼ CPU, 1GiB, 4GB, máximo 1) sustituye a `lite`.
+Es la siguiente capacidad mínima documentada; la evidencia de latencia motiva
+este ajuste, pero no demuestra directamente throttling ni promete 4× rapidez.
+RAM/disco residentes agregan aproximadamente USD 5.22 por 720h; CPU activa es variable,
+las inclusiones se comparten y el plan Workers USD 5 existente se cuenta aparte.
+Referencia: https://developers.cloudflare.com/containers/platform/pricing/.
+CI conserva su aceptación más estricta bajo 256MiB y 1⁄16 CPU. La recuperación
+valida exactamente ambas tuplas y restaura el tamaño capturado junto con la imagen.
+
+Un workflow manual separado prepara hasta 100 fotos públicas activas anteriores
+fuera del servidor productivo. Exige main, intención explícita y CI exitoso del
+mismo SHA. Sólo las lecturas de originales usan propietario en transacción de
+sólo lectura; cada escritura asume kova_app, fija tenant validado y usa el CAS
+existente para actualizar únicamente miniaturas sin cambiar fecha, URL u original.
+No crea cuentas, roles o recursos nuevos. La ejecución productiva y la medición
+posterior son gates pendientes de este seguimiento.
+
 ## Backend residente en Cloudflare — publicado y verificado
 
 FastAPI nativo está publicado en un único Container `lite`, con proceso residente tras

@@ -85,8 +85,8 @@ test("expanded or named lite resources reject partial responses, sizing drift an
   ]) {
     const { result, calls } = provider(async args => args[0] === "list" ? [application()]
       : application({ configuration }));
-    await assert.rejects(result.capture(), /exact lite resources/);
-    await assert.rejects(result.restore(snapshot, { workersRestored: true }), /exact lite resources/);
+    await assert.rejects(result.capture(), /exact approved resources/);
+    await assert.rejects(result.restore(snapshot, { workersRestored: true }), /exact approved resources/);
     assert.equal(calls.some(args => ["rollouts", "delete"].includes(args[0])), false);
   }
 });
@@ -101,6 +101,43 @@ test("restoring an existing app rolls out only the captured image and keeps lite
       target_configuration: { image: oldImage, instance_type: "lite" } })]]);
   assert.equal(JSON.stringify(calls).includes("environment"), false);
   assert.equal(JSON.stringify(calls).includes("max-instances"), false);
+});
+
+test("basic capture requires its exact named or expanded resources", async () => {
+  const expected = { ...snapshot, instanceType: "basic" };
+  const expanded = { vcpu: 0.25, memory_mib: 1024, memory: "1GiB",
+    disk: { size_mb: 4000, size: "4GB" } };
+  for (const resources of [{ instance_type: "basic" }, expanded,
+    { ...expanded, instance_type: "basic" }]) {
+    const live = application({ configuration: { image: oldImage, ...resources } });
+    const { result } = provider(async args => args[0] === "list" ? [live] : live);
+    assert.deepEqual(await result.capture(), expected);
+  }
+  for (const resources of [
+    { ...expanded, vcpu: undefined }, { ...expanded, memory_mib: undefined },
+    { ...expanded, disk: undefined }, { ...expanded, instance_type: "lite" },
+    { ...expanded, vcpu: 1 }, { ...expanded, memory: "256MiB" },
+    { ...expanded, instance_type: "basic", memory_mib: 256 },
+    { ...expanded, disk: { size_mb: 2000, size: "4GB" } },
+    { ...expanded, disk: { size_mb: 4000, size: "2GB" } },
+  ]) {
+    const live = application({ configuration: { image: oldImage, ...resources } });
+    const { result, calls } = provider(async args => args[0] === "list" ? [live] : live);
+    await assert.rejects(result.capture(), /exact approved resources/);
+    assert.equal(calls.some(args => ["rollouts", "delete"].includes(args[0])), false);
+  }
+});
+
+test("rollback restores the captured size when moving between lite and basic", async () => {
+  for (const [previous, live] of [["lite", "basic"], ["basic", "lite"]]) {
+    const { result, calls } = provider(async args => args[0] === "get"
+      ? application({ configuration: { image: newImage, instance_type: live } }) : {});
+    await result.restore({ ...snapshot, instanceType: previous }, { workersRestored: true });
+    const rollout = calls.find(args => args[0] === "rollouts");
+    assert.deepEqual(JSON.parse(rollout[4]).target_configuration,
+      { image: oldImage, instance_type: previous });
+    assert.equal(JSON.stringify(rollout).includes("environment"), false);
+  }
 });
 
 test("first-cutover recovery removes only the new approved application after Workers restore", async () => {
@@ -145,7 +182,7 @@ test("artifact validation refuses foreign IDs/images, unsupported sizing and ext
     { ...snapshot, image: `registry.cloudflare.com/${account}/kova-native-api:latest` },
     { ...snapshot, image: "https://untrusted.example/image" },
     { ...snapshot, image: oldImage + "?token=synthetic" },
-    { ...snapshot, instanceType: "basic" }, { ...snapshot, maxInstances: 2 },
+    { ...snapshot, instanceType: "standard-1" }, { ...snapshot, maxInstances: 2 },
     { ...snapshot, environment: "synthetic-secret" }, { ...absent, image: oldImage },
     { ...snapshot, image: null }]) {
     assert.throws(() => validateNativeContainerSnapshot(value));
@@ -158,7 +195,7 @@ test("live application mismatch refuses every rollout and deletion", async () =>
   for (const override of [{ name: "foreign-app" },
     { durable_objects: { namespace_id: "b".repeat(32) } },
     { id: "2ddd6376-e20a-44fb-8491-a8d7216e68f1" }, { max_instances: 2 },
-    { configuration: { image: oldImage, instance_type: "basic" } },
+    { configuration: { image: oldImage, instance_type: "standard-1" } },
     { scheduling_policy: "durable_object" }]) {
     const { result, calls } = provider(async args => args[0] === "list"
       ? [application()] : application(override));

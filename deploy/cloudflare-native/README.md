@@ -6,8 +6,8 @@ controller. It keeps the existing `kova-backend` Worker, `KovaApi` namespace,
 Worker. It does not expose a new HTTP hostname or a public container port.
 
 Only the existing `api-0` object starts a process. Other API shard names forward
-to it. `maxInstances: 1` and `instanceType: lite` prevent accidental horizontal
-replication or a larger instance. The SDK's idle hook deliberately returns
+to it. `maxInstances: 1` and `instanceType: basic` pin one process to the smallest
+instance above lite: 1/4 vCPU, 1 GiB RAM and 4 GB disk. The SDK's idle hook deliberately returns
 without `stop()`/`destroy()` so the Linux process remains resident through idle
 periods. Stops schedule recovery with the SDK scheduler, without replacing its
 alarm handler. Platform maintenance and releases can still restart a process.
@@ -57,9 +57,10 @@ across all hops. Private API responses and errors stay `no-store`; database
 ownership/activity checks still run on every miss. Browser/edge replacement keys
 use the upload revision, while the 4 MiB native derivative cache keys actual
 content. Original photo bytes remain in Postgres. The native image bounds blob
-admission and decoder concurrency to stay within lite memory.
+admission and decoder concurrency retain their stricter lite memory bounds.
 
-CI additionally seeds photos only into its isolated local database, then checks
+CI retains its stricter 1/16-vCPU, 256-MiB lite resource gate: it seeds photos
+only into its isolated local database, then checks
 JPEG EXIF, PNG alpha, derivative reuse, process identity, 3,000 ms latency and the
 same container's memory peak/OOM status. No extra Python app runs in the container
 for this measurement. After publishing, manual `verify_public_images=true` on the
@@ -99,14 +100,24 @@ publish an unverified diagnostic image/version.
 
 Cloudflare's application GET can return expanded sizing rather than the
 `instance_type` label. Rollback capture recognizes only the exact lite tuple
-(`vcpu: 0.0625`, `memory_mib: 256`, `disk.size_mb: 2000`) and stores the same
-canonical `lite` snapshot. Missing, partial, conflicting or larger sizing fails
-closed. Never log or persist the application's environment or full API response.
+(`vcpu: 0.0625`, `memory_mib: 256`, `disk.size_mb: 2000`) or basic tuple
+(`vcpu: 0.25`, `memory_mib: 1024`, `disk.size_mb: 4000`). It captures and restores
+the original named size, so rolling back a basic rollout can restore lite.
+Missing, partial, conflicting or other sizing fails closed. Never log or persist
+the application's environment or full API response.
 
 The official [Container pricing](https://developers.cloudflare.com/containers/platform/pricing/)
-and [idle lifecycle](https://developers.cloudflare.com/containers/api/container-class/#onactivityexpired)
-were checked on 2026-10-20. One lite process running 720 hours provisions
-180 GiB-hours RAM and 1,440 GB-hours disk. After the Workers Paid included
-allowances, those two resources add approximately USD 1.71 to the existing
-USD 5 plan, before actual CPU overages, other account usage, egress and taxes.
+and [instance limits](https://developers.cloudflare.com/containers/platform/limits/)
+were checked on 2026-10-21. Basic provides four times lite's CPU capacity;
+this does not promise four times lower request latency. Production measurements
+showed concurrent uncached photo reads still missing the interaction target on
+lite after derivative reuse; they did not establish CPU throttling as the cause.
+
+At 720 resident hours, basic provisions 720 GiB-hours RAM and 2,880 GB-hours disk.
+If this instance receives all shared Workers Paid allowances (25 GiB-hours RAM
+and 200 GB-hours disk), those resources cost approximately USD 6.93036, compared
+with lite's USD 1.70748: an incremental USD 5.22288 per month. The existing USD 5
+Workers plan is separate. CPU is billed on active usage, not reserved capacity:
+375 vCPU-minutes are included, then USD 0.000020 per vCPU-second. All allowances
+are shared across the account; other usage, egress and taxes remain additional.
 This estimate is not a fixed total-spend cap.

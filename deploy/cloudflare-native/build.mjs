@@ -13,8 +13,8 @@ const parsed = await resolveAndParseConfig(config, context);
 if (!parsed.success) throw new Error("Invalid native deployment configuration");
 const { worker, containers, ...settings } = parsed.data;
 const container = containers[0];
-if (containers.length !== 1 || container.maxInstances !== 1 || container.instanceType !== "lite") {
-  throw new Error("Native deployment must retain one lite instance");
+if (containers.length !== 1 || container.maxInstances !== 1 || container.instanceType !== "basic") {
+  throw new Error("Native deployment must retain one basic instance");
 }
 const release = process.env.KOVA_BUILD_SHA;
 const localImage = process.env.KOVA_NATIVE_IMAGE || `kova-native:${release}`;
@@ -51,4 +51,4 @@ await writeContainerConfig({ root, directoryName: normalizeDirectoryName(contain
   config: { ...container, image: { localReference: localImage } },
 });
 await readBuildOutput(root);
-console.log("Packaged resident API controller and one lite Container; production routes unchanged.");
+console.log("Packaged resident API controller and one basic Container; production routes unchanged.");
