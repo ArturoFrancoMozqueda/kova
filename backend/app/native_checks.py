@@ -27,3 +27,15 @@ def validate_storage_transport() -> None:
     except Exception:
         # Keep credentials, endpoints and provider payloads out of boot errors.
         raise RuntimeError("Native private storage transport is not ready") from None
+
+
+def prepare_native_routes(application) -> None:
+    """Materialize every included route before the resident listener opens.
+
+    FastAPI 0.141 preserves included routers and builds their effective
+    dependency/response graphs lazily. A small always-on CPU must not perform
+    that work during a customer's first visit to a product area. The public
+    OpenAPI generator walks all included routes without invoking endpoints or
+    dependencies. Production docs remain disabled by the existing app config.
+    """
+    application.openapi()

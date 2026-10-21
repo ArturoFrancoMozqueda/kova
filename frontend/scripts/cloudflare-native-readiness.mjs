@@ -1,3 +1,5 @@
+import { URL } from "node:url";
+
 /** Container application rollout follows Worker activation, and the first
  * application may need several minutes to provision. Keep this bounded wait
  * separate from ordinary Workers readiness: only a 503 or a valid previous
@@ -16,12 +18,17 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
       headers: frontendBypassSecret ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} }]),
   ];
   const deadline = now() + 300_000;
+  let directReady = false;
   for (let attempt = 0; attempt < 300 && now() < deadline; attempt++) {
-    const observations = await Promise.all(targets.map(async ({ url, headers }) => {
+    // First boot can exceed a frontend provider's rewrite timeout. Establish
+    // the resident API directly before testing it through that shorter hop.
+    // Both phases share the same deadline and fixed attempt ceiling.
+    const activeTargets = directReady ? targets : targets.slice(0, 1);
+    const observations = await Promise.all(activeTargets.map(async ({ url, headers }) => {
       const remaining = deadline - now();
       if (remaining <= 0) return null;
       const response = await fetcher(url, {
-        signal: globalThis.AbortSignal.timeout(Math.min(30_000, remaining)),
+        signal: globalThis.AbortSignal.timeout(Math.min(190_000, remaining)),
         headers: { "cache-control": "no-cache", ...headers }, redirect: "error",
       });
       if (response.status === 503) {
@@ -46,6 +53,12 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
       if (!/^[a-f0-9]{32}$/.test(process)) throw new Error("Invalid native process identity");
       return process;
     }));
+    if (now() >= deadline) break;
+    if (!directReady && observations[0]) {
+      directReady = true;
+      if (targets.length === 1) return;
+      continue;
+    }
     if (observations.every(value => value && value === observations[0])) return;
     const remaining = deadline - now();
     if (remaining <= 0) break;

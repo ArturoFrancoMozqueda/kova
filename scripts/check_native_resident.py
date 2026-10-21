@@ -67,7 +67,10 @@ def verify(base, *, sha=None, prefix="", idle_seconds=0, max_ms=3000, check_priv
         raise RuntimeError("Resident process restarted during acceptance")
     times = [value[1] for value in results]
     if max(times) >= max_ms:
-        raise RuntimeError(f"Resident latency exceeded {max_ms}ms budget")
+        raise RuntimeError(
+            f"Resident latency exceeded {max_ms}ms budget: "
+            f"median={round(statistics.median(times))}ms max={round(max(times))}ms"
+        )
     result = {"contracts": len(times), "same_process": True,
               "idle_seconds": idle_seconds, "median_ms": round(statistics.median(times)),
               "max_ms": round(max(times))}

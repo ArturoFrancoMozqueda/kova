@@ -17,6 +17,18 @@ export function residentContainerClass(Container) {
       return this.ctx.id.toString() === this.env.API.idFromName(NATIVE_INSTANCE).toString();
     }
 
+    async ensureReady() {
+      if (!this.isResident()) return await this.env.API.getByName(NATIVE_INSTANCE).ensureReady();
+      // A running process may still be importing/compiling the application.
+      // Avoid repeating port probes once healthy, but never let the SDK's
+      // shorter default startup timeout handle an in-progress first boot.
+      if (this.ctx.container.running && (await this.getState()).status === "healthy") return;
+      await this.startAndWaitForPorts({ cancellationOptions: {
+        instanceGetTimeoutMS: 60_000,
+        portReadyTimeoutMS: 120_000,
+      } });
+    }
+
     async fetch(request) {
       if (!publicPath(new URL(request.url).pathname)) {
         return privateResponse(Response.json({ detail: "Not Found" }, { status: 404 }));
@@ -35,7 +47,7 @@ export function residentContainerClass(Container) {
         for (const name of ["x-forwarded-host", "x-forwarded-for", "x-real-ip", "forwarded", "fly-client-ip"]) {
           headers.delete(name);
         }
-        if (!this.ctx.container.running) await this.startAndWaitForPorts();
+        await this.ensureReady();
         return privateResponse(await super.fetch(new Request(request, { headers })));
       } catch {
         console.error(JSON.stringify({ event: "native_backend_unavailable" }));
@@ -57,7 +69,7 @@ export function residentContainerClass(Container) {
     async ensureRunning() {
       if (!this.isResident()) return;
       try {
-        await this.startAndWaitForPorts();
+        await this.ensureReady();
       } catch {
         console.error(JSON.stringify({ event: "native_restart_pending" }));
         await this.schedule(60, "ensureRunning");
@@ -66,7 +78,7 @@ export function residentContainerClass(Container) {
 
     async ready() {
       if (!this.isResident()) return await this.env.API.getByName(NATIVE_INSTANCE).ready();
-      await this.startAndWaitForPorts();
+      await this.ensureReady();
       const response = await this.containerFetch("http://container/health");
       if (!response.ok) throw new Error("Native container failed readiness");
       const body = await response.json();

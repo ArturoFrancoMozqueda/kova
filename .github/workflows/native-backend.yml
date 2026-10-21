@@ -47,7 +47,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.13.1"
+          version: "0.13.4"
       - name: Test controller and prepare native artifact
         run: |
           npm ci --prefix deploy/cloudflare-native
@@ -79,7 +79,10 @@ jobs:
           test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
       - name: Stop synthetic API
         if: always()
-        run: docker rm --force kova-native-acceptance || true
+        run: |
+          docker logs --tail 20 kova-native-acceptance || true
+          docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance || true
+          docker rm --force kova-native-acceptance || true
 
   provision:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.provision_once
@@ -94,7 +97,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.13.1"
+          version: "0.13.4"
       - name: Require the merged commit's CI gate
         run: |
           result="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '.check_runs[] | select(.name == "CI required") | .conclusion')"

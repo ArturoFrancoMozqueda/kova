@@ -5,7 +5,11 @@ import os
 from app.config import settings
 from app.main import app as application
 from app.middleware.resident_identity import ResidentIdentityMiddleware
-from app.native_checks import validate_image_identity, validate_storage_transport
+from app.native_checks import (
+    prepare_native_routes,
+    validate_image_identity,
+    validate_storage_transport,
+)
 
 # Keep native development/import behavior unchanged. The production controller
 # explicitly enables the container flag together with its durable rate limiter.
@@ -15,4 +19,7 @@ if settings.cloudflare_container_mode:
         # Only bind the HTTP listener after the existing app guards AND native
         # private-storage transport are ready. This never writes business data.
         validate_storage_transport()
+    # Compile the complete route/dependency graph once before Uvicorn exposes
+    # its listener. New product areas must not impose first-request CPU stalls.
+    prepare_native_routes(application)
 app = ResidentIdentityMiddleware(application) if settings.cloudflare_container_mode else application

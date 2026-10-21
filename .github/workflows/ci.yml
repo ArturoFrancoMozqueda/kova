@@ -84,7 +84,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - name: Install dependencies
         run: uv sync --frozen
       - name: Lint
@@ -139,7 +139,7 @@ jobs:
           node-version: "24"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.13.1"
+          version: "0.13.4"
       - run: uv sync --project backend --frozen
       - run: uv pip install --python backend/.venv/bin/python pg8000==1.31.5
       - name: Verify full backend suite with the Workers Postgres driver
@@ -324,7 +324,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - run: uv sync --frozen
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
@@ -356,7 +356,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - name: Audit Python runtime dependencies
         run: uv sync --frozen --no-dev && uv run --with pip-audit pip-audit
         working-directory: backend
@@ -490,7 +490,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         if: vars.KOVA_CLOUDFLARE_BACKEND == '1'
         with:
-          version: "0.13.1"
+          version: "0.13.4"
       - name: Prepare locked Cloudflare backend deployment tools
         if: vars.KOVA_CLOUDFLARE_BACKEND == '1'
         run: |

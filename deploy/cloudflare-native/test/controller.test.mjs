@@ -48,6 +48,7 @@ test("only api-0 starts the process; all other existing API objects proxy there"
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
     async startAndWaitForPorts() { starts++; this.ctx.container.running = true; }
+    async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
     async fetch(request) {
       proxiedRequest = request;
       return new Response(await request.text(), { headers: { "Set-Cookie": "session=synthetic; HttpOnly; Secure" } });
@@ -96,7 +97,14 @@ test("idle expiry leaves process resident; restart scheduling uses SDK and readi
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
     async schedule(...args) { schedules.push(args); }
-    async startAndWaitForPorts() { starts++; }
+    async startAndWaitForPorts(options) {
+      assert.deepEqual(options, { cancellationOptions: {
+        instanceGetTimeoutMS: 60_000, portReadyTimeoutMS: 120_000,
+      } });
+      starts++;
+      this.ctx.container.running = true;
+    }
+    async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
     async containerFetch(url) {
       if (url.endsWith("/db")) return new Response(null, { status: databaseOK ? 200 : 503 });
       return Response.json({ status: "ok", release_sha: release });
@@ -106,7 +114,7 @@ test("idle expiry leaves process resident; restart scheduling uses SDK and readi
   }
   const Resident = residentContainerClass(FakeContainer);
   const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
-  const resident = new Resident({ id: { toString: () => "resident" } }, env);
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: false } }, env);
   await resident.onActivityExpired();
   assert.deepEqual(schedules, []);
   await resident.onStop();
@@ -124,6 +132,28 @@ test("idle expiry leaves process resident; restart scheduling uses SDK and readi
   await nonresident.onStop();
   assert.equal(starts, before);
   assert.equal(schedules.length, 1);
+});
+
+test("a running but unready process receives the full startup budget only once", async () => {
+  let starts = 0;
+  let status = "running";
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status }; }
+    async startAndWaitForPorts(options) {
+      assert.deepEqual(options, { cancellationOptions: {
+        instanceGetTimeoutMS: 60_000, portReadyTimeoutMS: 120_000,
+      } });
+      starts++;
+      status = "healthy";
+    }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  await resident.ensureReady();
+  await resident.ensureReady();
+  assert.equal(starts, 1, "steady requests must not repeat startup port checks");
 });
 
 test("scanners and private bridge paths never start the native process through public routing", () => {
