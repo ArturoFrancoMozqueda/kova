@@ -257,6 +257,10 @@ def _pool_options(*, privileged: bool = False) -> dict:
         if privileged else settings.effective_app_database_url
     )
     database_url = make_url(sqlalchemy_database_url(connection_url))
+    if privileged and database_url.drivername == "postgresql+psycopg":
+        # Only explicitly scoped public reads use AUTOCOMMIT below. Ordinary
+        # privileged auth/webhook sessions still roll back their transactions.
+        options["skip_autocommit_rollback"] = True
     if (
         database_url.drivername == "postgresql+psycopg"
         and (database_url.host or "").lower().endswith(".pooler.supabase.com")
@@ -305,6 +309,24 @@ privileged_engine = create_engine(
     future=True,
 )
 PrivilegedSessionLocal = sessionmaker(bind=privileged_engine, autoflush=False, autocommit=False)
+
+
+def prepare_public_asset_read(db: Session) -> None:
+    """Avoid BEGIN/ROLLBACK only for fresh native public-asset reads.
+
+    Reuse the bounded privileged pool; closing the Session restores the driver's
+    default isolation before another request can use the connection. Existing
+    transactions, tenant/user scope and pending ORM changes are never altered.
+    The caller must only execute the public asset's scoped SELECT statements.
+    """
+    if sys.platform == "emscripten":
+        return
+    bind = db.get_bind()
+    if (bind is not privileged_engine or bind.dialect.name != "postgresql"
+            or bind.dialect.driver != "psycopg" or db.in_transaction()
+            or db.info or db.new or db.dirty or db.deleted):
+        return
+    db.connection(execution_options={"isolation_level": "AUTOCOMMIT"})
 
 
 # Wait before entering FastAPI's shared sync worker pool. Otherwise requests

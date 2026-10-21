@@ -33,6 +33,7 @@ export function nativeEnvironment(env) {
     ASSISTANT_INGEST_ON_DEMAND: "false",
     DATABASE_POOL_SIZE: "3",
     DATABASE_MAX_OVERFLOW: "0",
+    DATABASE_POOL_RECYCLE_SECONDS: "1800",
   };
 }
 

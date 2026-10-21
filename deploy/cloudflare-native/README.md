@@ -19,6 +19,22 @@ and privileged database URLs must be separately provisioned before activation.
 The runtime role must pass the application's existing RLS/ownership guards.
 Retired Fly configuration and document ingestion remain disabled.
 
+The resident projection pins database connection recycling to 1,800 seconds,
+while retaining checkout pre-ping and the existing bounded pools. This avoids
+needlessly replacing healthy connections after a five-minute idle interval;
+pre-ping still replaces connections closed by the upstream server. Process
+residency alone does not guarantee connection reuse. The shared Settings default
+remains 300 seconds and Workers continue using Hyperdrive without a local pool.
+This removes a known reconnect trigger; it does not establish how much of any
+observed request time was spent connecting rather than querying or rendering.
+
+Fresh public product-image SELECTs use psycopg AUTOCOMMIT on that same privileged
+pool to avoid unnecessary BEGIN/ROLLBACK commands. Session close restores the
+connection's default isolation before reuse. Existing transactions, scoped
+sessions, other drivers and Workers retain their previous behavior; auth and
+webhook writes still use transactions and rollback normally. This creates no
+additional pool and keeps checkout pre-ping enabled.
+
 `KOVA_RELEASE_SHA` and `KOVA_IMAGE_SHA` are baked together into the API image.
 The Worker never projects either field, including from future Settings entries:
 Worker and image rollouts can overlap different versions. The native boot guard

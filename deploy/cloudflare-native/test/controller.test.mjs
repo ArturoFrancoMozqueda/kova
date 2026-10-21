@@ -52,6 +52,7 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
     ASSISTANT_INGEST_ON_DEMAND: "true", CLOUDFLARE_CONTAINER_MODE: "false",
     TRUSTED_CLIENT_IP_HEADER: "spoofed", KOVA_RELEASE_SHA: "wrong", APP_ENV: "local",
     ASSISTANT_OPEN_ROUTE: "synthetic-legacy-provider-setting",
+    DATABASE_POOL_RECYCLE_SECONDS: "300",
   };
   const result = nativeEnvironment(env);
   assert.equal(result.STRIPE_SECRET_KEY, env.STRIPE_SECRET_KEY);
@@ -66,6 +67,9 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
   assert.equal(result.TRUSTED_CLIENT_IP_HEADER, "x-kova-client-ip");
   assert.equal(result.ASSISTANT_DOCUMENTS_ENABLED, "false");
   assert.equal(result.ASSISTANT_INGEST_ON_DEMAND, "false");
+  assert.equal(result.DATABASE_POOL_RECYCLE_SECONDS, "1800");
+  assert.equal(result.DATABASE_POOL_SIZE, "3");
+  assert.equal(result.DATABASE_MAX_OVERFLOW, "0");
   for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL", "SECRET_KEY", "KOVA_BUILD_SHA"]) {
     const missing = { ...env }; delete missing[name];
     assert.throws(() => nativeEnvironment(missing));

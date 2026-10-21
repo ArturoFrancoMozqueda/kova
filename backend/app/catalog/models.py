@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.orm_metadata import Base
@@ -124,12 +125,22 @@ class ProductImageFile(Base):
     content_type: Mapped[str] = mapped_column(Text, nullable=False)
     bytes_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    thumbnail_variants: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "thumbnail_variants IS NULL OR CASE "
+            "WHEN jsonb_typeof(thumbnail_variants) = 'object' THEN "
+            "(thumbnail_variants - ARRAY['160','320','400','800']::text[]) = '{}'::jsonb "
+            "AND octet_length(thumbnail_variants::text) <= 1048576 ELSE false END",
+            name="ck_product_image_thumbnail_variants",
+        ),
         UniqueConstraint("product_id", name="uq_product_image_files_product_id"),
         ForeignKeyConstraint(
             ["tenant_id", "product_id"],

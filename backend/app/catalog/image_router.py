@@ -1,5 +1,8 @@
+import base64
+import binascii
 import hashlib
 import io
+import logging
 import sys
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -8,10 +11,13 @@ from threading import BoundedSemaphore, Lock
 from time import perf_counter
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import LargeBinary, func, select
+from sqlalchemy import LargeBinary, cast, func, literal, select, text, update
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Session
+from sqlalchemy.types import Text
+from starlette.concurrency import run_in_threadpool
 
 if sys.platform != "emscripten":
     from PIL import (
@@ -23,11 +29,17 @@ if sys.platform != "emscripten":
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
 from app.catalog.models import Product, ProductImageFile
-from app.db import get_db, get_privileged_db
+from app.db import (
+    SessionLocal,
+    get_db,
+    get_privileged_db,
+    prepare_public_asset_read,
+    set_tenant_context,
+)
 from app.middleware.rate_limit import rate_limit
-from app.rbac.permissions import Permission
-from app.shared.dependencies import require_permission
-from app.shared.exceptions import bad_request, not_found
+from app.rbac.permissions import Permission, has_permission
+from app.shared.dependencies import get_current_session, require_permission
+from app.shared.exceptions import bad_request, forbidden, not_found
 from app.shared.validation import verify_image_signature
 
 if sys.platform != "emscripten":
@@ -48,6 +60,9 @@ _resized_image_bytes = 0
 _image_cache_lock = Lock()
 _image_resize_lock = Lock()
 _image_load_slots = BoundedSemaphore(4)
+_thumbnail_write_slots = BoundedSemaphore(1)
+_MAX_PERSISTED_THUMBNAIL_BYTES = 128 * 1024
+logger = logging.getLogger(__name__)
 
 
 def _cached_thumbnail(key: tuple[bytes, str, int]) -> tuple[bytes, str] | None:
@@ -56,6 +71,161 @@ def _cached_thumbnail(key: tuple[bytes, str, int]) -> tuple[bytes, str] | None:
         if cached is not None:
             _resized_images.move_to_end(key)
         return cached
+
+
+def _remember_thumbnail(key, result):
+    global _resized_image_bytes
+    with _image_cache_lock:
+        old = _resized_images.pop(key, None)
+        if old is not None:
+            _resized_image_bytes -= len(old[0])
+        while _resized_images and _resized_image_bytes + len(result[0]) > _RESIZE_CACHE_BYTES:
+            _, evicted = _resized_images.popitem(last=False)
+            _resized_image_bytes -= len(evicted[0])
+        _resized_images[key] = result
+        _resized_image_bytes += len(result[0])
+
+
+def _persisted_metadata_matches(entry, fingerprint: bytes, source_content_type: str):
+    if not isinstance(entry, dict) or set(entry) != {
+        "source_sha256", "source_content_type", "content_type", "body_base64",
+    }:
+        return False
+    if (entry["source_sha256"] != fingerprint.hex()
+            or entry["source_content_type"] != source_content_type
+            or source_content_type not in ALLOWED_CONTENT_TYPES
+            or entry["content_type"] != "image/webp"):
+        return False
+    encoded = entry["body_base64"]
+    return (isinstance(encoded, str) and 0 < len(encoded)
+            <= 4 * ((_MAX_PERSISTED_THUMBNAIL_BYTES + 2) // 3))
+
+
+def _persisted_thumbnail(entry, fingerprint: bytes, source_content_type: str, width: int):
+    if not _persisted_metadata_matches(entry, fingerprint, source_content_type):
+        return None
+    encoded = entry["body_base64"]
+    try:
+        body = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        return None
+    if (len(body) > _MAX_PERSISTED_THUMBNAIL_BYTES or len(body) < 20
+            or body[:4] != b"RIFF" or body[8:12] != b"WEBP"):
+        return None
+    size = _webp_canvas_size(body)
+    if size is None or size[0] != width or size[0] * size[1] > _MAX_DECODED_PIXELS:
+        return None
+    return body, "image/webp"
+
+
+def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
+                       width: int, entry: dict):
+    """Optional derived cache write; own RLS session, no request connection.
+
+    BackgroundTasks runs this sync function after the response body is sent.
+    A busy writer or a failed/obsolete write can safely be dropped: the next
+    request still has the original image and the bounded in-process LRU.
+    """
+    if width not in ALLOWED_RESIZE_WIDTHS:
+        return
+    try:
+        fingerprint = bytes.fromhex(entry["source_sha256"])
+        if (len(fingerprint) != 32 or _persisted_thumbnail(
+                entry, fingerprint, entry["source_content_type"], width) is None):
+            return
+    except (KeyError, TypeError, ValueError):
+        return
+    if not _thumbnail_write_slots.acquire(blocking=False):
+        return
+    db = None
+    try:
+        db = SessionLocal()
+        set_tenant_context(db, tenant_id)
+        db.execute(text("SET LOCAL statement_timeout = '2000ms'"))
+        db.execute(text("SET LOCAL lock_timeout = '250ms'"))
+        active_product = select(Product.id).where(
+            Product.id == product_id, Product.tenant_id == tenant_id,
+            Product.is_active.is_(True),
+        ).exists()
+        db.execute(update(ProductImageFile).where(
+            ProductImageFile.id == image_id,
+            ProductImageFile.product_id == product_id,
+            ProductImageFile.tenant_id == tenant_id,
+            func.encode(func.pg_catalog.sha256(ProductImageFile.bytes_data), "hex")
+            == entry["source_sha256"],
+            ProductImageFile.content_type == entry["source_content_type"],
+            active_product,
+        ).values(
+            thumbnail_variants=func.jsonb_set(
+                func.coalesce(ProductImageFile.thumbnail_variants, cast(literal("{}"), JSONB)),
+                cast([str(width)], ARRAY(Text)), cast(entry, JSONB), True,
+            ),
+            # Derived data must not change the public upload revision.
+            updated_at=ProductImageFile.updated_at,
+        ).execution_options(synchronize_session=False))
+        db.commit()
+    except Exception:
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        logger.warning("product_thumbnail_cache_write_failed")
+    finally:
+        try:
+            if db is not None:
+                db.close()
+        except Exception:
+            logger.warning("product_thumbnail_cache_close_failed")
+        finally:
+            _thumbnail_write_slots.release()
+
+
+def _queue_thumbnail(image_id, tenant_id, product_id, width, fingerprint,
+                     source_content_type, result, background_tasks):
+    if result[1] != "image/webp" or len(result[0]) > _MAX_PERSISTED_THUMBNAIL_BYTES:
+        return
+    entry = {
+        "source_sha256": fingerprint.hex(),
+        "source_content_type": source_content_type,
+        "content_type": result[1],
+        "body_base64": base64.b64encode(result[0]).decode("ascii"),
+    }
+    args = (image_id, tenant_id, product_id, width, entry)
+    if background_tasks is None:
+        _persist_thumbnail(*args)
+    else:
+        background_tasks.add_task(_persist_thumbnail, *args)
+
+
+def _prepare_upload_variants(data: bytes, content_type: str) -> dict | None:
+    if sys.platform == "emscripten":
+        return None
+    fingerprint = hashlib.sha256(data).hexdigest()
+    variants = {}
+    with _image_load_slots:
+        for width in sorted(ALLOWED_RESIZE_WIDTHS):
+            body, actual_type = _resize_to_width(data, content_type, width)
+            if (body is data or actual_type != "image/webp"
+                    or len(body) > _MAX_PERSISTED_THUMBNAIL_BYTES):
+                continue
+            variants[str(width)] = {
+                "source_sha256": fingerprint,
+                "source_content_type": content_type,
+                "content_type": actual_type,
+                "body_base64": base64.b64encode(body).decode("ascii"),
+            }
+    return variants or None
+
+
+def _revalidate_image_upload(request: Request, db: Session, tenant_id: UUID, user_id: UUID,
+                             product_id: UUID):
+    user, membership, _ = get_current_session(request, db)
+    if (membership.tenant_id != tenant_id or user.id != user_id
+            or not has_permission(membership.role, Permission.CATALOG_UPDATE)):
+        raise forbidden()
+    product = _load_product(db, tenant_id=tenant_id, product_id=product_id)
+    return user, membership, product
 
 
 def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
@@ -83,13 +253,7 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
         result = _render_thumbnail(data, content_type, target_width)
         if result[0] is data or len(result[0]) > _RESIZE_CACHE_BYTES:
             return result
-        global _resized_image_bytes
-        with _image_cache_lock:
-            while _resized_images and _resized_image_bytes + len(result[0]) > _RESIZE_CACHE_BYTES:
-                _, evicted = _resized_images.popitem(last=False)
-                _resized_image_bytes -= len(evicted[0])
-            _resized_images[key] = result
-            _resized_image_bytes += len(result[0])
+        _remember_thumbnail(key, result)
         return result
 
 
@@ -271,6 +435,16 @@ async def upload_product_image(
         raise bad_request("Image must be 1 MB or smaller.")
     verify_image_signature(parsed.content_type, parsed.data)
 
+    tenant_id, user_id = membership.tenant_id, user.id
+    # All authentication/product objects below must be fresh after closing
+    # this read transaction. CPU work holds no connection and cannot block
+    # the ASGI event loop. Revalidate revocation/permissions before mutation.
+    db.close()
+    prepared = await run_in_threadpool(_prepare_upload_variants, parsed.data, parsed.content_type)
+    user, membership, product = await run_in_threadpool(
+        _revalidate_image_upload, request, db, tenant_id, user_id, product_id,
+    )
+
     now = datetime.now(UTC)
     image = (
         db.query(ProductImageFile)
@@ -286,6 +460,7 @@ async def upload_product_image(
         db.add(image)
 
     image.content_type = parsed.content_type
+    image.thumbnail_variants = prepared
     image.bytes_data = parsed.data
     image.byte_size = len(parsed.data)
     image.updated_at = now
@@ -356,16 +531,23 @@ def get_product_image(
     # context). Privileged engine (RLS bypass); the query is scoped by id only.
     db: Session = Depends(get_privileged_db),
     w: int | None = Query(default=None, description="Optional resize width (160, 320, 400, 800)"),
+    background_tasks: BackgroundTasks = None,
 ):
     # Admit before loading the original blob, not just before decoding it.
     # Concurrent cold grids must not retain forty 1 MB originals while one
     # bounded decoder is working on the small resident instance.
     with _image_load_slots:
-        return _load_product_image(product_id, db, w)
+        return _load_product_image(product_id, db, w, background_tasks)
 
 
-def _load_product_image(product_id: UUID, db: Session, w: int | None):
-    db_ms = cache_ms = resize_ms = 0.0
+def _load_product_image(product_id: UUID, db: Session, w: int | None,
+                        background_tasks: BackgroundTasks | None = None):
+    started = perf_counter()
+    prepare_public_asset_read(db)
+    # Include checkout/pre-ping here too: changing transaction transport must
+    # not make the database timer appear faster by moving work outside it.
+    db_ms = (perf_counter() - started) * 1000
+    cache_ms = resize_ms = 0.0
     visible_image = (
         select(ProductImageFile.bytes_data, ProductImageFile.content_type)
         .join(Product, Product.id == ProductImageFile.product_id)
@@ -381,32 +563,50 @@ def _load_product_image(product_id: UUID, db: Session, w: int | None):
     # reusing a thumbnail; IDs, timestamps and caller-provided v can all stay
     # unchanged when a stored image is replaced. Workers keep their original
     # no-transform path, and other dialects need no SHA function extension.
-    if (sys.platform != "emscripten" and w in ALLOWED_RESIZE_WIDTHS
-            and db.get_bind().dialect.name == "postgresql"):
+    persistent = (sys.platform != "emscripten" and w in ALLOWED_RESIZE_WIDTHS
+                  and db.get_bind().dialect.name == "postgresql")
+    if persistent:
         started = perf_counter()
         fingerprint_row = db.execute(visible_image.with_only_columns(
             func.pg_catalog.sha256(ProductImageFile.bytes_data, type_=LargeBinary),
-            ProductImageFile.content_type,
+            ProductImageFile.content_type, ProductImageFile.thumbnail_variants[str(w)],
+            ProductImageFile.id, ProductImageFile.tenant_id,
         )).one_or_none()
         db_ms += (perf_counter() - started) * 1000
         if fingerprint_row is None:
             raise not_found("Product image not found")
-        fingerprint, content_type = fingerprint_row
+        fingerprint, content_type, persisted, image_id, tenant_id = fingerprint_row
         started = perf_counter()
-        cached = _cached_thumbnail((bytes(fingerprint), content_type, w))
+        key = (bytes(fingerprint), content_type, w)
+        cached = _cached_thumbnail(key)
+        if cached is None:
+            cached = _persisted_thumbnail(persisted, bytes(fingerprint), content_type, w)
+            if cached is not None:
+                _remember_thumbnail(key, cached)
         cache_ms += (perf_counter() - started) * 1000
         if cached is not None:
             db.close()
+            # A previous optional writer may have been busy. Retry missing
+            # persistence from a verified memory hit without reloading a blob.
+            if not _persisted_metadata_matches(persisted, bytes(fingerprint), content_type):
+                _queue_thumbnail(image_id, tenant_id, product_id, w, bytes(fingerprint),
+                                 content_type, cached, background_tasks)
             return _image_response(*cached, db_ms=db_ms, cache_ms=cache_ms, resize_ms=resize_ms)
 
     started = perf_counter()
-    image_row = db.execute(visible_image).one_or_none()
+    blob_query = (visible_image.add_columns(ProductImageFile.id, ProductImageFile.tenant_id)
+                  if persistent else visible_image)
+    image_row = db.execute(blob_query).one_or_none()
     db_ms += (perf_counter() - started) * 1000
     if image_row is None:
         raise not_found("Product image not found")
 
-    body, media_type = image_row
+    if persistent:
+        body, media_type, image_id, tenant_id = image_row
+    else:
+        body, media_type = image_row
     db.close()
+    original, source_content_type = body, media_type
     if w is not None and w in ALLOWED_RESIZE_WIDTHS:
         started = perf_counter()
         # A replacement between fingerprint and blob reads must be cached
@@ -414,6 +614,10 @@ def _load_product_image(product_id: UUID, db: Session, w: int | None):
         body, media_type = _resize_to_width(body, media_type, w)
         resize_ms += (perf_counter() - started) * 1000
 
+    if (persistent and body is not original and media_type == "image/webp"
+            and len(body) <= _MAX_PERSISTED_THUMBNAIL_BYTES):
+        _queue_thumbnail(image_id, tenant_id, product_id, w, hashlib.sha256(original).digest(),
+                         source_content_type, (body, media_type), background_tasks)
     return _image_response(body, media_type, db_ms=db_ms, cache_ms=cache_ms, resize_ms=resize_ms)
 
 
