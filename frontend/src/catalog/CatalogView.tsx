@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -46,7 +46,7 @@ import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageU
 import { ImagePositionEditor } from "./ImagePositionEditor";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -301,11 +301,20 @@ export default function CatalogView() {
       <ViewHeader
         title={copy.catalog.title}
         meta={copy.catalog.activeProducts(activeProducts.length)}
-        actions={canCreate ? (
-          <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
-            <Plus className="h-4 w-4" />
-            {copy.catalog.newProduct}
-          </Button>
+        actions={canCreate || canUpdate ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canUpdate && (
+              <Link to="/settings/public-catalog" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                Compartir catálogo
+              </Link>
+            )}
+            {canCreate && (
+              <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
+                <Plus className="h-4 w-4" />
+                {copy.catalog.newProduct}
+              </Button>
+            )}
+          </div>
         ) : undefined}
       />
 

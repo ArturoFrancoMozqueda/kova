@@ -11961,6 +11961,32 @@
             "title": "Id",
             "type": "string"
           },
+          "image_position_x": {
+            "default": 50,
+            "title": "Image Position X",
+            "type": "integer"
+          },
+          "image_position_y": {
+            "default": 50,
+            "title": "Image Position Y",
+            "type": "integer"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "image_zoom": {
+            "default": 1.0,
+            "title": "Image Zoom",
+            "type": "number"
+          },
           "name": {
             "title": "Name",
             "type": "string"

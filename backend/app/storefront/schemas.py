@@ -49,6 +49,10 @@ class PublicProduct(BaseModel):
     description: str | None
     price_amount: Decimal
     availability: str
+    image_url: str | None = None
+    image_position_x: int = 50
+    image_position_y: int = 50
+    image_zoom: float = 1.0
 
 
 class PublicCatalogResponse(BaseModel):

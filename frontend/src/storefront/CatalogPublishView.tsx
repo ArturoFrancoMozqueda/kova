@@ -8,9 +8,10 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { ProductPhoto, type ProductPhotoData } from "./ProductPhoto";
 
 type Settings = { enabled: boolean; title: string; description: string | null; whatsapp_phone: string | null; product_ids: string[]; version: number; share_path: string | null };
-type Product = { id: string; name: string; price_amount: string; is_active: boolean };
+type Product = ProductPhotoData & { id: string; name: string; price_amount: string; is_active: boolean };
 const money = (amount: string) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(amount));
 
 export default function CatalogPublishView() {
@@ -28,6 +29,8 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [busy, setBusy] = useState(false);
   const [rotate, setRotate] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const [copyNotice, setCopyNotice] = useState("");
+  const shareInput = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
   const locked = useRef(false);
   const load = useCallback(async () => {
@@ -50,10 +53,22 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     }
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [settings?.share_path, identity.tenantId, identity.userId, identity.branchId]);
+  const copyLink = async () => {
+    if (!settings?.share_path) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(new URL(settings.share_path, window.location.origin).href);
+      if (alive.current) setCopyNotice("Enlace copiado. Ya puedes compartirlo con tus clientes.");
+    } catch {
+      shareInput.current?.focus();
+      shareInput.current?.select();
+      if (alive.current) setCopyNotice("El enlace está seleccionado. Cópialo para compartirlo con tus clientes.");
+    }
+  };
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!settings || locked.current || !online) return;
-    locked.current = true; setBusy(true); setError(""); setNotice("");
+    locked.current = true; setBusy(true); setError(""); setNotice(""); setCopyNotice("");
     try {
       const result = await request<Settings>("/storefront/settings", "PUT", {
         expected_version: settings.version, enabled: settings.enabled, title: settings.title,
@@ -66,7 +81,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   return <ViewLayout className="space-y-6">
     <ViewHeader title="Tu catálogo, listo para compartir" eyebrow="Captación" meta="Publica los productos que elijas con precios y disponibilidad del negocio." />
-    <p className="max-w-2xl text-sm text-kova-muted">El cliente puede consultar y escribirte por WhatsApp. La consulta no reserva existencias ni registra un pedido o pago.</p>
+    <p className="max-w-2xl text-sm text-kova-muted">El cliente puede explorar tus productos, dejar una solicitud o escribirte por WhatsApp si lo agregas. La consulta no reserva existencias ni registra un pedido o pago.</p>
     {!online && <p role="status">Conéctate para publicar cambios.</p>}
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
     {notice && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-900">{notice}</p>}
@@ -82,11 +97,12 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       </fieldset>
       <fieldset disabled={busy || !online} className="rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Productos que quieres mostrar</legend>
-        {products.length === 0 ? <p className="py-3 text-sm">Primero agrega productos activos en <Link to="/catalog" className="underline">Catálogo</Link>.</p> : <div className="grid gap-3 sm:grid-cols-2">{products.map(product => <label key={product.id} className="flex min-w-0 items-start gap-3 rounded-xl border p-3"><input className="mt-1" type="checkbox" checked={settings.product_ids.includes(product.id)} onChange={e => setSettings({ ...settings, product_ids: e.target.checked ? [...settings.product_ids, product.id] : settings.product_ids.filter(id => id !== product.id) })} /><span className="min-w-0 break-words text-sm">{product.name}<span className="block text-kova-muted">{money(product.price_amount)}</span></span></label>)}</div>}
+        <p className="mb-4 text-sm text-kova-muted">Las fotos y precios se toman de <Link to="/catalog" className="text-kova-blue underline">Productos</Link>. Edita ahí las fotografías que verán tus clientes.</p>
+        {products.length === 0 ? <p className="py-3 text-sm">Primero agrega productos activos en <Link to="/catalog" className="underline">Catálogo</Link>.</p> : <div className="grid gap-3 sm:grid-cols-2">{products.map(product => <label key={product.id} className="flex min-w-0 items-start gap-3 rounded-xl border p-3"><input className="mt-1" type="checkbox" checked={settings.product_ids.includes(product.id)} onChange={e => setSettings({ ...settings, product_ids: e.target.checked ? [...settings.product_ids, product.id] : settings.product_ids.filter(id => id !== product.id) })} /><ProductPhoto product={product} compact /><span className="min-w-0 break-words text-sm">{product.name}<span className="block text-kova-muted">{money(product.price_amount)}</span></span></label>)}</div>}
         <p className="mt-4 text-sm text-kova-muted">{settings.product_ids.length} seleccionados. Costos, márgenes y cantidades exactas de inventario permanecen privados.</p>
       </fieldset>
       <Button disabled={busy || !online || !settings.title.trim()} type="submit">{busy ? "Guardando…" : "Guardar publicación"}</Button>
     </form>}
-    {settings?.share_path && <section aria-label="Enlace publicado" className="space-y-3 rounded-2xl border border-kova-border p-5"><h2 className="font-semibold">Enlace para tus clientes</h2><a href={settings.share_path} target="_blank" rel="noreferrer" className="inline-block text-kova-blue underline">Abrir catálogo público</a><p className="break-all text-sm text-kova-muted">{window.location.origin}{settings.share_path}</p>{qr && <div><img src={qr} alt="Código QR del catálogo público" className="h-48 w-48" width={192} height={192} /><a href={qr} download="catalogo-kova.png" className="inline-block py-3 text-sm underline">Descargar código QR</a></div>}</section>}
+    {settings?.share_path && <section aria-label="Enlace publicado" className="space-y-3 rounded-2xl border border-kova-border p-5"><h2 className="font-semibold">Enlace para tus clientes</h2><a href={settings.share_path} target="_blank" rel="noreferrer" className="inline-block text-kova-blue underline">Abrir catálogo público</a><label className="block text-sm" htmlFor="public-catalog-link">Enlace público</label><Input ref={shareInput} id="public-catalog-link" readOnly value={new URL(settings.share_path, window.location.origin).href} /><Button type="button" variant="outline" onClick={() => void copyLink()}>Copiar enlace</Button>{copyNotice && <p role="status" className="text-sm">{copyNotice}</p>}<p className="text-sm text-kova-muted">Cuando alguien deje una consulta, continúa en <Link to="/commercial-requests" className="text-kova-blue underline">Ver solicitudes del catálogo</Link>.</p>{qr && <div><img src={qr} alt="Código QR del catálogo público" className="h-48 w-48" width={192} height={192} /><a href={qr} download="catalogo-kova.png" className="inline-block py-3 text-sm underline">Descargar código QR</a></div>}</section>}
   </ViewLayout>;
 }

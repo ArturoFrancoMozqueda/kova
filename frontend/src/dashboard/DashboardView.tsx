@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { BILLING_VIEW_PERMISSION, permissionsForRole } from "@/auth/permissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   DEFAULT_TIMEZONE,
@@ -45,7 +46,8 @@ import {
   BarChart3,
   Clock,
   CreditCard,
-  Receipt,
+  Share2,
+  ClipboardList,
   AlertCircle,
   CheckCircle2,
   Circle,
@@ -140,11 +142,53 @@ function periodSubtitle(period: Period, timezone: string = DEFAULT_TIMEZONE): st
   return copy.dashboard.subtitleToday(formatted);
 }
 
+function OnboardingStepRow({ step, canViewBilling, primary = false }: {
+  step: { label: string; desc: string; done: boolean; action: string; actionTo: string };
+  primary?: boolean;
+  canViewBilling: boolean;
+}) {
+  const billingRestricted = !canViewBilling && step.actionTo.split(/[?#]/)[0] === "/settings/billing";
+  return (
+    <div
+      role={primary ? "group" : undefined}
+      aria-label={primary ? "Siguiente paso" : undefined}
+      className={cn(
+        "flex flex-wrap items-start gap-3 rounded-lg p-3 transition-colors sm:flex-nowrap",
+        step.done ? "opacity-60" : "bg-background border",
+      )}
+    >
+      {step.done ? (
+        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+      ) : (
+        <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
+      )}
+      <div className="flex-1 min-w-0">
+        {primary && <p className="mb-1 text-xs font-semibold text-primary">Siguiente paso</p>}
+        <p className={cn("text-sm font-medium", step.done && "line-through text-muted-foreground")}>
+          {step.label}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{step.desc}</p>
+      </div>
+      {!step.done && billingRestricted && (
+        <p className="text-xs text-muted-foreground">Este paso lo completa el dueño del negocio.</p>
+      )}
+      {!step.done && step.actionTo && !billingRestricted && (
+        <Link to={step.actionTo} className={primary
+          ? buttonVariants({ size: "sm" })
+          : "shrink-0 text-xs font-medium text-primary hover:underline"}>
+          {step.action} →
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function OnboardingChecklist({
   hasProducts,
   orderCount,
   trackedInventoryCount,
   hasActiveSubscription,
+  canViewBilling,
   onboarding,
   tenantName,
 }: {
@@ -152,6 +196,7 @@ function OnboardingChecklist({
   orderCount: number;
   trackedInventoryCount: number;
   hasActiveSubscription: boolean;
+  canViewBilling: boolean;
   onboarding: OnboardingState | null;
   tenantName: string;
 }) {
@@ -213,6 +258,7 @@ function OnboardingChecklist({
 
   const allDone = steps.every((s) => s.done);
   const doneCount = steps.filter((s) => s.done).length;
+  const nextStepIndex = steps.findIndex((step) => !step.done);
 
   // One-time celebration when the checklist is first completed. The flag is
   // namespaced per business so a shared browser doesn't suppress it for a
@@ -289,38 +335,20 @@ function OnboardingChecklist({
           />
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          {steps.map((step, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex items-start gap-3 rounded-lg p-3 transition-colors",
-                step.done ? "opacity-60" : "bg-background border",
-              )}
-            >
-              {step.done ? (
-                <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              ) : (
-                <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-medium", step.done && "line-through text-muted-foreground")}>
-                  {step.label}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{step.desc}</p>
-              </div>
-              {!step.done && step.actionTo && (
-                <Link
-                  to={step.actionTo}
-                  className="shrink-0 text-xs font-medium text-primary hover:underline"
-                >
-                  {step.action} →
-                </Link>
-              )}
+      <CardContent className="space-y-3 pt-0">
+        {nextStepIndex >= 0 && <OnboardingStepRow step={steps[nextStepIndex]} canViewBilling={canViewBilling} primary />}
+        {steps.length > 1 && (
+          <details>
+            <summary className="cursor-pointer rounded-md py-2 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              Ver los demás pasos
+            </summary>
+            <div className="mt-2 space-y-3">
+              {steps.map((step, index) => index === nextStepIndex ? null : (
+                <OnboardingStepRow key={index} step={step} canViewBilling={canViewBilling} />
+              ))}
             </div>
-          ))}
-        </div>
+          </details>
+        )}
       </CardContent>
     </Card>
   );
@@ -414,6 +442,10 @@ function DashboardExecutiveSummary({
 export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
+  const canManageBusiness = state.status === "authenticated"
+    && (state.user.role === "owner" || state.user.role === "manager");
+  const canViewBilling = state.status === "authenticated"
+    && permissionsForRole(state.user.role).has(BILLING_VIEW_PERMISSION);
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const identity = state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : null;
   const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
@@ -605,6 +637,17 @@ export default function DashboardView() {
 
       {loadState.status === "ready" && (
         <div className="space-y-6">
+          {/* Onboarding checklist — hidden once complete */}
+          <OnboardingChecklist
+            hasProducts={loadState.hasProducts}
+            orderCount={loadState.summary.order_count}
+            trackedInventoryCount={loadState.trackedInventoryCount}
+            hasActiveSubscription={loadState.hasActiveSubscription}
+            canViewBilling={canViewBilling}
+            onboarding={loadState.onboarding}
+            tenantName={tenantName}
+          />
+
           <InsightStrip
             show="banner"
             summary={loadState.summary}
@@ -615,30 +658,10 @@ export default function DashboardView() {
             compareLabel={loadState.compareLabel}
           />
 
-          {/* Onboarding checklist — hidden once complete */}
-          <OnboardingChecklist
-            hasProducts={loadState.hasProducts}
-            orderCount={loadState.summary.order_count}
-            trackedInventoryCount={loadState.trackedInventoryCount}
-            hasActiveSubscription={loadState.hasActiveSubscription}
-            onboarding={loadState.onboarding}
-            tenantName={tenantName}
-          />
-
           <ArcKicker label={copy.dashboard.arcNow} />
           <DashboardExecutiveSummary
             summary={loadState.summary}
             previous={loadState.yesterday}
-            compareLabel={loadState.compareLabel}
-          />
-
-          {/* Salud del negocio */}
-          <ArcKicker label={copy.dashboard.arcHealth} />
-          <BusinessHealthCard
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            payments={loadState.payments}
-            lowStockCount={loadState.lowStockCount}
             compareLabel={loadState.compareLabel}
           />
 
@@ -651,6 +674,16 @@ export default function DashboardView() {
             hourly={loadState.hourly}
             topProducts={loadState.topProducts}
             lowStock={loadState.lowStockItems}
+            compareLabel={loadState.compareLabel}
+          />
+
+          {/* Salud del negocio */}
+          <ArcKicker label={copy.dashboard.arcHealth} />
+          <BusinessHealthCard
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            payments={loadState.payments}
+            lowStockCount={loadState.lowStockCount}
             compareLabel={loadState.compareLabel}
           />
 
@@ -877,46 +910,36 @@ export default function DashboardView() {
             </>
           )}
 
-          {loadState.summary.order_count > 0 && (
-            <Card>
-              <CardHeader>
-                <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[
-                    { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
-                    { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
-                  ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                    <Link key={to} to={to} className="group">
-                      <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{label}</p>
-                          <p className="text-xs text-muted-foreground">{desc}</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
+            </CardHeader>
+            <CardContent>
+              <nav aria-label={copy.dashboard.quickActions} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: "Revisar turnos", desc: "Consulta tus turnos y cortes de caja." },
+                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
+                  ...(canManageBusiness ? [
+                    { to: "/settings/public-catalog", icon: Share2, iconClass: "bg-kova-growth/10 text-kova-growth", label: "Compartir catálogo", desc: "Elige productos y publica tu enlace." },
+                    { to: "/operations-queue", icon: ClipboardList, iconClass: "bg-kova-mist text-kova-ink", label: "Ver pendientes", desc: "Seguimientos, citas y atención al cliente." },
+                  ] : []),
+                ].map(({ to, icon: Icon, iconClass, label, desc }) => (
+                  <Link key={to} to={to} className="group">
+                    <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
+                        <Icon className="h-4 w-4" />
                       </div>
-                    </Link>
-                  ))}
-                  <Link to="/shifts" className="group">
-                    <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
-                        <Receipt className="h-4 w-4" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{copy.dashboard.closedShiftsAction}</p>
-                        <p className="text-xs text-muted-foreground">{copy.dashboard.closedShiftsDesc}</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                   </Link>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
         </div>
       )}
     </ViewLayout>

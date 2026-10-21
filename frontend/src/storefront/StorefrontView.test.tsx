@@ -227,3 +227,69 @@ it("waits for the initial identity check before accepting public form input", as
   );
   expect(await screen.findByLabelText("Tu nombre")).toBeVisible();
 });
+
+it("lets customers select from product cards and sends only the existing public request contract", async () => {
+  fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+    ? json({ receipt_id: "receipt-1", status: "received" }) : json(catalog));
+  render(<MemoryRouter initialEntries={["/catalogo/first"]}><NavigateCatalog /></MemoryRouter>);
+  const select = await screen.findByRole("button", { name: "Seleccionar Pan de nuez para consultar" });
+  fireEvent.click(select);
+  expect(screen.getByRole("button", { name: "Quitar Pan de nuez para consultar" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("checkbox", { name: "Pan de nuez" })).toBeChecked();
+  expect(screen.getByRole("link", { name: "Continuar con mi consulta" })).toHaveAttribute("href", "#solicitud-catalogo");
+  expect(screen.getByText("Tu selección: Pan de nuez.")).toBeVisible();
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  fireEvent.change(screen.getByLabelText("Tu nombre"), { target: { value: "Ana" } });
+  fireEvent.change(screen.getByLabelText("Teléfono o correo para responder"), { target: { value: "ana@example.com" } });
+  fireEvent.change(screen.getByLabelText("¿Qué te gustaría consultar?"), { target: { value: "¿Tienen diez piezas?" } });
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud al negocio" }));
+  await screen.findByText(/Solicitud recibida/);
+  const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+  expect(posts).toHaveLength(1);
+  expect(JSON.parse(String(posts[0][1]?.body))).toEqual({ name: "Ana", contact: "ana@example.com",
+    message: "¿Tienen diez piezas?", product_ids: ["product-1"], submission_id: expect.any(String) });
+  expect(posts[0][1]?.credentials).toBe("omit");
+  expect(screen.getByRole("button", { name: "Quitar Pan de nuez para consultar" })).toBeDisabled();
+});
+
+it("keeps card/form selection synchronized and clears it when the catalog link changes", async () => {
+  fetchMock.mockImplementation(async () => json(catalog));
+  render(<MemoryRouter initialEntries={["/catalogo/first"]}><NavigateCatalog /></MemoryRouter>);
+  await screen.findByRole("heading", { name: "Pan de nuez" });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pan de nuez" }));
+  expect(screen.getByRole("button", { name: "Quitar Pan de nuez para consultar" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Quitar Pan de nuez para consultar" }));
+  expect(screen.getByRole("checkbox", { name: "Pan de nuez" })).not.toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Seleccionar Pan de nuez para consultar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cambiar catálogo" }));
+  expect(await screen.findByRole("button", { name: "Seleccionar Pan de nuez para consultar" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("checkbox", { name: "Pan de nuez" })).not.toBeChecked();
+});
+
+it("enforces the existing twenty-product consultation limit from either selection surface", async () => {
+  fetchMock.mockResolvedValue(json({ ...catalog, products: Array.from({ length: 21 }, (_, index) => ({
+    ...catalog.products[0], id: `product-${index}`, name: `Producto ${index}`,
+  })) }));
+  render(<MemoryRouter initialEntries={["/catalogo/first"]}><NavigateCatalog /></MemoryRouter>);
+  await screen.findByRole("heading", { name: "Producto 0" });
+  for (let index = 0; index < 20; index++) {
+    fireEvent.click(screen.getByRole("button", { name: `Seleccionar Producto ${index} para consultar` }));
+  }
+  expect(screen.getByRole("button", { name: "Seleccionar Producto 20 para consultar" })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Producto 20" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Producto 0" }));
+  expect(screen.getByRole("button", { name: "Seleccionar Producto 20 para consultar" })).toBeEnabled();
+});
+
+it("renders the real photo fields returned by the public catalog without requiring a private product read", async () => {
+  const imageUrl = "/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123";
+  fetchMock.mockImplementation(async () => json({ ...catalog, products: [{ ...catalog.products[0],
+    image_url: imageUrl, image_position_x: 25, image_position_y: 70, image_zoom: 1.2,
+  }] }));
+  render(<MemoryRouter initialEntries={["/catalogo/first"]}><NavigateCatalog /></MemoryRouter>);
+  const photo = await screen.findByRole("img", { name: "Pan de nuez" });
+  expect(photo).toHaveAttribute("src", `${imageUrl}&w=400`);
+  expect(photo).toHaveStyle({ objectPosition: "25% 70%", transform: "scale(1.2)" });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/public/catalog/first");
+});
