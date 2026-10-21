@@ -1,7 +1,10 @@
+import hashlib
 import io
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from threading import BoundedSemaphore, Lock
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -10,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if sys.platform != "emscripten":
-    from PIL import Image
+    from PIL import Image, ImageOps
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
@@ -27,6 +30,13 @@ router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_IMAGE_BYTES = 1024 * 1024  # 1 MB
 ALLOWED_RESIZE_WIDTHS = {160, 320, 400, 800}
+_RESIZE_CACHE_BYTES = 4 * 1024 * 1024
+_MAX_DECODED_PIXELS = 8_000_000
+_resized_images: OrderedDict[tuple[bytes, str, int], tuple[bytes, str]] = OrderedDict()
+_resized_image_bytes = 0
+_image_cache_lock = Lock()
+_image_resize_lock = Lock()
+_image_load_slots = BoundedSemaphore(4)
 
 
 def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
@@ -36,12 +46,45 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
     # image catalog predates the application's decoder security floor.
     if sys.platform == "emscripten":
         return data, content_type
+    # Product photos are already public. Cache only bounded derived bytes,
+    # keyed by their actual contents so replacement/deletion never bypasses
+    # the route's fresh product/activity/ownership query.
+    key = (hashlib.sha256(data).digest(), content_type, target_width)
+    with _image_cache_lock:
+        cached = _resized_images.get(key)
+        if cached is not None:
+            _resized_images.move_to_end(key)
+            return cached
+    # Bound decoder memory and coalesce concurrent misses. Cache hits do not
+    # wait behind an unrelated decode on the small resident instance.
+    with _image_resize_lock:
+        with _image_cache_lock:
+            cached = _resized_images.get(key)
+            if cached is not None:
+                _resized_images.move_to_end(key)
+                return cached
+        result = _render_thumbnail(data, content_type, target_width)
+        if result[0] is data or len(result[0]) > _RESIZE_CACHE_BYTES:
+            return result
+        global _resized_image_bytes
+        with _image_cache_lock:
+            while _resized_images and _resized_image_bytes + len(result[0]) > _RESIZE_CACHE_BYTES:
+                _, evicted = _resized_images.popitem(last=False)
+                _resized_image_bytes -= len(evicted[0])
+            _resized_images[key] = result
+            _resized_image_bytes += len(result[0])
+        return result
+
+
+def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
     try:
         with Image.open(io.BytesIO(data)) as img:
-            if img.width <= target_width:
+            rotated = img.getexif().get(274, 1) in {5, 6, 7, 8}
+            visual_width, visual_height = (img.height, img.width) if rotated else img.size
+            if visual_width <= target_width:
                 return data, content_type
-            ratio = target_width / img.width
-            target_height = max(1, int(img.height * ratio))
+            ratio = target_width / visual_width
+            target_height = max(1, int(visual_height * ratio))
             # WebP supports alpha — preserve transparency for PNG/RGBA/LA/P sources
             # so transparent product photos don't get a black fill.
             if img.mode in ("RGBA", "LA", "P"):
@@ -50,8 +93,18 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
                 mode = "RGB"
             else:
                 mode = "RGBA" if "A" in img.mode else "RGB"
-            resized = img.convert(mode).resize(
-                (target_width, target_height), Image.Resampling.LANCZOS
+            # JPEG draft decodes at a reduced DCT scale before allocating a
+            # full phone-sized bitmap. Other formats keep their decoder path.
+            draft_size = (target_height, target_width) if rotated else (target_width, target_height)
+            img.draft(mode, draft_size)
+            if img.width * img.height > _MAX_DECODED_PIXELS:
+                return data, content_type
+            # Phone orientation must survive stripping metadata into WebP.
+            # Transpose after draft so a JPEG rotates the reduced bitmap.
+            ImageOps.exif_transpose(img, in_place=True)
+            source = img if img.mode == mode else img.convert(mode)
+            resized = source.resize(
+                (target_width, target_height), Image.Resampling.LANCZOS, reducing_gap=3.0,
             )
             buf = io.BytesIO()
             resized.save(buf, format="WEBP", quality=82, method=4)
@@ -117,7 +170,9 @@ async def _parse_image_upload(request: Request) -> ParsedMultipartFile:
 
 
 def _image_url(product_id: UUID, updated_at: datetime) -> str:
-    epoch = int(updated_at.timestamp())
+    # Versions are opaque to clients. Microseconds prevent two photo edits in
+    # the same second from sharing a browser/edge cache key.
+    epoch = int(updated_at.replace(microsecond=0).timestamp()) * 1_000_000 + updated_at.microsecond
     return f"/api/v1/catalog/products/{product_id}/image?v={epoch}"
 
 
@@ -241,6 +296,14 @@ def get_product_image(
     db: Session = Depends(get_privileged_db),
     w: int | None = Query(default=None, description="Optional resize width (160, 320, 400, 800)"),
 ):
+    # Admit before loading the original blob, not just before decoding it.
+    # Concurrent cold grids must not retain forty 1 MB originals while one
+    # bounded decoder is working on the small resident instance.
+    with _image_load_slots:
+        return _load_product_image(product_id, db, w)
+
+
+def _load_product_image(product_id: UUID, db: Session, w: int | None):
     image_row = (
         db.execute(
             select(ProductImageFile.bytes_data, ProductImageFile.content_type)

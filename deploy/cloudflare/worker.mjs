@@ -1,13 +1,15 @@
 import { publicPages, securityHeaders } from "./policy.mjs";
+import { cachedPublicImage, publicImageResponse } from "../public-images.mjs";
 
 const API_ORIGIN = "https://api.kovasuite.com";
 const NO_STORE = "private, no-store, max-age=0";
 
-function secure(response, { api = false, html = false } = {}) {
-  const result = new Response(response.body, response);
+function secure(response, { api = false, html = false, request } = {}) {
+  const image = api && publicImageResponse(request, response);
+  const result = image || new Response(response.body, response);
   for (const [name, value] of Object.entries(securityHeaders)) result.headers.set(name, value);
   if (html) result.headers.set("Cache-Control", "no-cache");
-  if (api) {
+  if (api && !image) {
     result.headers.set("Cache-Control", NO_STORE);
     result.headers.set("CDN-Cache-Control", "no-store");
     result.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
@@ -15,7 +17,7 @@ function secure(response, { api = false, html = false } = {}) {
   return result;
 }
 
-async function proxy(request, path, fetcher) {
+async function proxy(request, path, fetcher, trustedClientIP) {
   const source = new URL(request.url);
   // Construct the destination from a fixed origin; paths can never select a host.
   const destination = new URL(API_ORIGIN);
@@ -24,7 +26,13 @@ async function proxy(request, path, fetcher) {
   const headers = new Headers(request.headers);
   for (const name of ["host", "forwarded", "x-forwarded-for", "x-forwarded-host",
     "x-forwarded-proto", "fly-client-ip", "x-real-ip"]) headers.delete(name);
-  // Fly supplies its own trusted client IP. Do not let a browser forge it.
+  // Cloudflare derives CF-Connecting-IP from X-Real-IP on same-zone
+  // subrequests. An anonymous image miss still needs the edge's original IP
+  // for rate limiting; never recover it from caller forwarding headers.
+  if (trustedClientIP) {
+    headers.set("CF-Connecting-IP", trustedClientIP);
+    headers.set("X-Real-IP", trustedClientIP);
+  }
   headers.set("X-Forwarded-Host", source.host);
   headers.set("X-Forwarded-Proto", source.protocol.slice(0, -1));
   const upstream = new Request(destination, {
@@ -37,7 +45,7 @@ async function proxy(request, path, fetcher) {
   try {
     const response = secure(await fetcher(upstream, {
       cf: { cacheEverything: false, cacheTtl: 0 },
-    }), { api: true });
+    }), { api: true, request });
     const location = response.headers.get("Location");
     if (location) {
       const redirect = new URL(location, destination);
@@ -55,14 +63,17 @@ async function proxy(request, path, fetcher) {
   }
 }
 
-export async function handleRequest(request, env, fetcher = fetch) {
+export async function handleRequest(request, env, fetcher = fetch, ctx) {
   const url = new URL(request.url);
   const path = url.pathname;
   if (path === "/api/health" || path === "/api/health/db") {
     return proxy(request, path.slice(4), fetcher);
   }
   if (path === "/api/v1" || path.startsWith("/api/v1/")) {
-    return proxy(request, path, fetcher);
+    const response = await cachedPublicImage(request, anonymousRequest =>
+      proxy(anonymousRequest, new URL(anonymousRequest.url).pathname, fetcher,
+        anonymousRequest === request ? undefined : request.headers.get("cf-connecting-ip")), ctx);
+    return secure(response, { api: true, request });
   }
   if (path === "/api" || path.startsWith("/api/")) {
     return secure(Response.json({ detail: "Not Found" }, { status: 404 }), { api: true });
@@ -87,4 +98,4 @@ export async function handleRequest(request, env, fetcher = fetch) {
   return shell;
 }
 
-export default { fetch(request, env) { return handleRequest(request, env); } };
+export default { fetch(request, env, ctx) { return handleRequest(request, env, fetch, ctx); } };

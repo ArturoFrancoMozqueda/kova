@@ -117,14 +117,27 @@ class KovaJobs(DurableObject):
                 # the existing leases, session checks and uncertain-call rules.
                 await self.ctx.storage.setAlarm(int(time.time() * 1000) + 60_000)
                 processed = 0
+                failed = False
                 if automation_allowed:
                     from app.automations.worker import process_tenant
 
-                    processed += process_tenant(tenant_id, limit=50)
+                    try:
+                        processed += process_tenant(tenant_id, limit=50)
+                    except Exception:
+                        failed = True
+                        logging.getLogger(__name__).error("Automation workload iteration failed")
                 if assistant_allowed:
-                    processed += process_once(
-                        workload="chat", tenant_id=tenant_id, maximum_jobs=1
-                    )
+                    try:
+                        processed += process_once(
+                            workload="chat", tenant_id=tenant_id, maximum_jobs=1
+                        )
+                    except Exception:
+                        failed = True
+                        logging.getLogger(__name__).error("Assistant workload iteration failed")
+                if failed:
+                    # Independent workloads may commit useful progress, but a
+                    # partial failure must preserve the pre-armed recovery alarm.
+                    raise RuntimeError("Private job workload iteration failed") from None
                 if processed:
                     await self.ctx.storage.setAlarm(int(time.time() * 1000) + 1)
                 else:

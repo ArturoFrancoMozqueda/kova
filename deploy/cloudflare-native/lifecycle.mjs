@@ -48,7 +48,7 @@ export function residentContainerClass(Container) {
           headers.delete(name);
         }
         await this.ensureReady();
-        return privateResponse(await super.fetch(new Request(request, { headers })));
+        return privateResponse(await super.fetch(new Request(request, { headers })), request);
       } catch {
         console.error(JSON.stringify({ event: "native_backend_unavailable" }));
         return unavailable();

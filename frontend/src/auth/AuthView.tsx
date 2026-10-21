@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { login, signup, verifyEmail, ApiError } from "./api";
@@ -114,6 +114,13 @@ function signupValidationFailures(error: ApiError): SignupValidationFailure[] {
 }
 
 export default function AuthView({ mode }: { mode: AuthMode }) {
+  // Switching routes must not carry a login error, password or pending state
+  // into account creation (and vice versa). Explicit login-prefill links still
+  // obtain their email from the new route's query string.
+  return <AuthForm key={mode} mode={mode} />;
+}
+
+function AuthForm({ mode }: { mode: AuthMode }) {
   useDocumentTitle(mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -138,6 +145,22 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   // Cooldown before the verification email can be resent, so a nervous user
   // can't hammer the endpoint (and hit the rate limiter).
   const [resendCountdown, setResendCountdown] = useState(0);
+  const active = useRef(true);
+  const validationFocus = useRef<string | null>(null);
+
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+
+  useEffect(() => {
+    // Server validation arrives while the submitted fields are disabled.
+    // Wait for the error render to unlock them before moving keyboard focus.
+    if (state !== "submitting" && validationFocus.current) {
+      document.getElementById(validationFocus.current)?.focus();
+      validationFocus.current = null;
+    }
+  }, [state, signupFieldErrors]);
 
   useEffect(() => {
     if (resendCountdown <= 0) return;
@@ -201,7 +224,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     const firstFieldId = failures
       .map((failure) => SIGNUP_FIELD_IDS[failure.field])
       .find(Boolean);
-    if (firstFieldId) document.getElementById(firstFieldId)?.focus();
+    validationFocus.current = firstFieldId ?? null;
   };
 
   /** Sign in with the credentials just typed and land in the product.
@@ -213,7 +236,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   const enterProduct = async (): Promise<boolean> => {
     try {
       await login({ email, password });
+      if (!active.current) return false;
       const next = await refresh();
+      // A successful refresh deliberately remounts children at the new auth
+      // identity. That cleanup is not an abandoned form; finish navigation.
       queueFunnelEvent("login");
       const role = next.status === "authenticated" ? next.user.role : "";
       navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
@@ -225,6 +251,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (state === "submitting") return;
     if (mode === "signup" && passwordExceedsByteLimit(password)) {
       setSignupFieldErrors({ password: copy.auth.signupPasswordTooLong });
       setErrorMessage(copy.auth.signupValidationSummary);
@@ -238,6 +265,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     try {
       if (mode === "login") {
         await login({ email, password });
+        if (!active.current) return;
         const next = await refresh();
         // Queue until AppShell mounts authenticated — fills the funnel's login rung.
         queueFunnelEvent("login");
@@ -251,6 +279,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
       });
+      if (!active.current) return;
       if (response.reason === "email_in_use") {
         setState("email_in_use");
         return;
@@ -284,6 +313,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       // rather than losing the fact that the account was created.
       setState("created");
     } catch (err) {
+      if (!active.current) return;
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {
           setErrorMessage(copy.auth.loginInvalidCredentials);
@@ -316,10 +346,12 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
       });
+      if (!active.current) return;
       setVerificationToken(response.dev_verification_token ?? "");
       setState("verification_resent");
       setResendCountdown(30);
     } catch (err) {
+      if (!active.current) return;
       if (err instanceof ApiError && err.status === 422) {
         applySignupValidationFailures(err);
         return;
@@ -337,8 +369,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     setState("submitting");
     try {
       await verifyEmail(verificationToken);
+      if (!active.current) return;
       setState("verified");
     } catch {
+      if (!active.current) return;
       setState("error");
     }
   };
@@ -354,6 +388,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       <form
         onSubmit={(event) => void submit(event)}
         onInvalid={reportClientValidation}
+        aria-busy={state === "submitting"}
         className="space-y-4"
       >
               {mode === "signup" && (
@@ -366,6 +401,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                     autoComplete="organization"
                     placeholder={copy.auth.tenantNamePlaceholder}
                     value={tenantName}
+                    disabled={state === "submitting"}
                     onChange={(event) => {
                       setTenantName(event.target.value);
                       clearSignupFieldError("business");
@@ -389,6 +425,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   autoComplete="email"
                   placeholder={copy.auth.emailPlaceholder}
                   value={email}
+                  disabled={state === "submitting"}
                   onChange={(event) => {
                     setEmail(event.target.value);
                     if (mode === "signup") clearSignupFieldError("email");
@@ -427,6 +464,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   placeholder={mode === "login" ? copy.auth.passwordPlaceholderLogin : copy.auth.passwordPlaceholderSignup}
                   value={password}
+                  disabled={state === "submitting"}
                   minLength={mode === "signup" ? 8 : undefined}
                   maxLength={mode === "signup" ? 128 : undefined}
                   pattern={mode === "signup" ? "(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" : undefined}
@@ -465,6 +503,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                       type="checkbox"
                       required
                       checked={acceptedTerms}
+                      disabled={state === "submitting"}
                       onChange={(event) => {
                         setAcceptedTerms(event.target.checked);
                         clearSignupFieldError("terms");
@@ -544,7 +583,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               <div
                 role="alert"
                 id="auth-error"
-                className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in"
+                className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-destructive animate-fade-in"
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {errorMessage}
@@ -555,7 +594,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               <div className="mt-4 space-y-3 animate-fade-in">
                 <div
                   role="status"
-                  className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success"
+                  className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
@@ -595,7 +634,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             {state === "verified" && (
               <div
                 role="status"
-                className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success animate-fade-in"
+                className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success animate-fade-in"
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {copy.auth.verified}
@@ -638,7 +677,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               <div className="mt-4 space-y-3 animate-fade-in">
                 <div
                   role="status"
-                  className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success"
+                  className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>

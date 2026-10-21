@@ -1,4 +1,5 @@
 import settingsKeys from "./settings-keys.json" with { type: "json" };
+import { publicImageResponse } from "../public-images.mjs";
 
 export const NATIVE_INSTANCE = "api-0";
 export const RATE_LIMIT_HOST = "rate-limit.kova.internal";
@@ -36,7 +37,9 @@ export function publicPath(path) {
     || ["/health", "/health/", "/health/db", "/health/db/"].includes(path);
 }
 
-export function privateResponse(response) {
+export function privateResponse(response, request) {
+  const image = publicImageResponse(request, response);
+  if (image) return image;
   // Constructing from the original Response preserves distinct Set-Cookie
   // headers in Workers, as in the existing public gateway.
   const result = new Response(response.body, response);

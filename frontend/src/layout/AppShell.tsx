@@ -124,6 +124,43 @@ function roleLabel(role: string): string {
 }
 
 const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
+const SIDEBAR_GROUPS_KEY = "kova-sidebar-groups-v1";
+type BusinessNavGroup = "products" | "commercial" | "management";
+type OpenNavGroups = Record<BusinessNavGroup, boolean>;
+const businessNavGroups: {
+  id: BusinessNavGroup; label: string; icon: React.ReactNode; paths: string[];
+}[] = [
+  { id: "products", label: "Productos e inventario", icon: <Package className="h-4 w-4" />,
+    paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
+  { id: "commercial", label: "Ventas y atención", icon: <Handshake className="h-4 w-4" />,
+    paths: ["/crm", "/quotes", "/commercial-requests", "/inbox", "/service-cases",
+      "/followups", "/appointments", "/loyalty"] },
+  { id: "management", label: "Gestión y ajustes", icon: <Settings className="h-4 w-4" />,
+    paths: ["/reports", "/expenses", "/reconciliation", "/operations-queue", "/automations",
+      "/assistant", "/settings", "/settings/billing", "/settings/integrations",
+      "/settings/public-catalog", "/settings/channels"] },
+];
+
+function businessGroupForPath(pathname: string): BusinessNavGroup | undefined {
+  return businessNavGroups.find(group => group.paths.some(path =>
+    pathname === path || pathname.startsWith(`${path}/`)
+  ))?.id;
+}
+
+function readStoredNavGroups(pathname: string): OpenNavGroups {
+  const groups: OpenNavGroups = { products: false, commercial: false, management: false };
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_KEY) ?? "{}");
+    if (stored && typeof stored === "object") {
+      for (const id of Object.keys(groups) as BusinessNavGroup[]) {
+        groups[id] = (stored as Record<string, unknown>)[id] === true;
+      }
+    }
+  } catch { /* Navigation preferences are optional; no account data is stored. */ }
+  const active = businessGroupForPath(pathname);
+  if (active) groups[active] = true;
+  return groups;
+}
 
 function readStoredSidebarCollapsed(): boolean {
   try {
@@ -141,6 +178,7 @@ export default function AppShell() {
   const sidebarRef = useRef<HTMLElement>(null);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+  const [openNavGroups, setOpenNavGroups] = useState(() => readStoredNavGroups(location.pathname));
   const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { toast } = useToast();
@@ -164,6 +202,12 @@ export default function AppShell() {
       return next;
     });
   };
+
+  useEffect(() => {
+    const active = businessGroupForPath(location.pathname);
+    if (active) setOpenNavGroups(current => current[active]
+      ? current : { ...current, [active]: true });
+  }, [location.pathname]);
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
   const tenantName = formatTenantName(tenantNameRaw);
@@ -260,7 +304,8 @@ export default function AppShell() {
     if (item.feature === "customer_orders" && !customerOrdersEnabled) return false;
     return true;
   });
-  const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");
+  const operationNavItems = ["/register", "/dashboard", "/customers", "/orders", "/shifts", "/pedidos"]
+    .flatMap(path => filteredNavItems.filter(item => item.to === path));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -313,6 +358,45 @@ export default function AppShell() {
 
   // The saved collapse preference applies only to the desktop rail.
   const sidebarCompact = isDesktop && sidebarCollapsed;
+
+  const toggleNavGroup = (id: BusinessNavGroup) => {
+    if (sidebarCompact) {
+      setSidebarCollapsed(false);
+      try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, "0"); } catch { /* Optional UI preference. */ }
+    }
+    setOpenNavGroups(current => {
+      const next = { ...current, [id]: sidebarCompact || !current[id] };
+      try { window.localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next)); }
+      catch { /* Optional UI preference; navigation still works. */ }
+      return next;
+    });
+  };
+
+  const renderNavItem = (item: NavItem, nested = false) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.to === "/settings"}
+      onClick={closeSidebar}
+      title={sidebarCompact ? item.label : undefined}
+      aria-label={sidebarCompact ? item.label : undefined}
+      className={({ isActive }) => cn(
+        "group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
+        sidebarCompact ? "justify-center px-2.5" : "px-2.5",
+        nested && "text-[13px]",
+        isActive ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+          : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+      )}
+    >
+      {({ isActive }) => <>
+        <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
+        <span aria-hidden={sidebarCompact} className={cn(
+          "min-w-0 flex-1 whitespace-normal break-words text-left leading-5 transition-[opacity,transform] duration-panel ease-standard",
+          sidebarCompact ? "pointer-events-none absolute left-[42px] translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+        )}>{item.label}</span>
+      </>}
+    </NavLink>
+  );
 
   const SidebarContent = (
     <>
@@ -368,57 +452,38 @@ export default function AppShell() {
         className={cn("flex-1 overflow-y-auto py-4", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
-        {[
-          { id: "operation", label: "Operación", items: operationNavItems },
-          { id: "business", label: "Negocio", items: businessNavItems },
-        ].map((section) => section.items.length > 0 ? (
-          <div key={section.id} className={cn("space-y-1", section.id === "business" && "mt-5")}>
-            {!sidebarCompact && (
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">
-                {section.label}
-              </p>
-            )}
-            {section.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={closeSidebar}
-                title={sidebarCompact ? item.label : undefined}
-                className={({ isActive }) =>
-                  cn(
-                    "group relative flex h-10 items-center overflow-hidden rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:origin-center before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light before:transition-transform before:duration-quick before:ease-entrance",
-                    sidebarCompact ? "justify-center px-2.5" : "px-2.5",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
-                      : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
-                    <span
-                      aria-hidden={sidebarCompact}
-                      className={cn(
-                        "absolute left-[42px] right-8 truncate transition-[opacity,transform] duration-panel ease-standard",
-                        sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                    <ChevronRight
-                      aria-hidden
-                      className={cn(
-                        "absolute right-3 h-3.5 w-3.5 transition-opacity duration-quick",
-                        sidebarCompact ? "opacity-0" : "opacity-0 group-hover:opacity-60",
-                      )}
-                    />
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </div>
-        ) : null)}
+        <div className="space-y-1">
+          {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Operación</p>}
+          {operationNavItems.map(item => renderNavItem(item))}
+        </div>
+        {businessNavItems.length > 0 && <div className="mt-5 space-y-1">
+          {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Tu negocio</p>}
+          {businessNavGroups.map(group => {
+            // The same reviewed role/feature/capability filters run before
+            // grouping. No unavailable feature is introduced by a disclosure.
+            const items = group.paths.flatMap(path => businessNavItems.filter(item => item.to === path));
+            if (!items.length) return null;
+            const expanded = !sidebarCompact && openNavGroups[group.id];
+            const active = businessGroupForPath(location.pathname) === group.id;
+            return <div key={group.id}>
+              <button type="button" aria-expanded={expanded}
+                aria-controls={`nav-group-${group.id}`} aria-label={group.label}
+                title={sidebarCompact ? group.label : undefined}
+                onClick={() => toggleNavGroup(group.id)}
+                className={cn("flex min-h-11 w-full items-center gap-3 rounded-kova-md px-2.5 py-2.5 text-left text-sm font-medium transition-colors hover:bg-sidebar-accent/50",
+                  sidebarCompact && "justify-center", active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/80")}>
+                <span aria-hidden="true" className="shrink-0">{group.icon}</span>
+                {!sidebarCompact && <>
+                  <span className="min-w-0 flex-1 whitespace-normal leading-5">{group.label}</span>
+                  <ChevronRight aria-hidden="true" className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-quick", expanded && "rotate-90")} />
+                </>}
+              </button>
+              <div id={`nav-group-${group.id}`} hidden={!expanded} className="ml-4 space-y-1 border-l border-sidebar-border pl-2">
+                {items.map(item => renderNavItem(item, true))}
+              </div>
+            </div>;
+          })}
+        </div>}
       </nav>
 
       {/* Footer */}

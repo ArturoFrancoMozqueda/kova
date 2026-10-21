@@ -1,5 +1,9 @@
 # Backend on Cloudflare Workers
 
+The public API now uses the [resident native backend](../cloudflare-native/README.md).
+The Python coordinators described below remain the validated rollback path;
+private jobs and rate limiting continue using their existing Workers resources.
+
 The public frontend and API use Cloudflare Workers Paid. Current acceptance,
 automatic publication and recovery status live in
 [`docs/current-sprint.md`](../../docs/current-sprint.md).
