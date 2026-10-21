@@ -186,6 +186,83 @@ test("a running but unready process receives the full startup budget only once",
   assert.equal(starts, 1, "steady requests must not repeat startup port checks");
 });
 
+test("SDK transport responses become redacted 503s and force the next port probe without replaying writes", async t => {
+  const logs = [];
+  const originalLog = console.error;
+  console.error = value => logs.push(value);
+  t.after(() => { console.error = originalLog; });
+  for (const message of ["Failed to start container: synthetic-private-detail",
+    "Container suddenly disconnected, try again",
+    "Error proxying request to container: synthetic-private-detail"]) {
+    let probes = 0;
+    const calls = [];
+    let failed = true;
+    class FakeContainer {
+      constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+      async getState() { return { status: "healthy" }; }
+      async startAndWaitForPorts(options) {
+        probes++;
+        assert.equal(options.cancellationOptions.portReadyTimeoutMS, 120_000);
+      }
+      async fetch(request) {
+        calls.push({ method: request.method, body: await request.text() });
+        return failed ? new Response(message, { status: 500 })
+          : Response.json({ status: "ok", release_sha: sha }, {
+            headers: { "X-Kova-Runtime": "native-resident", "X-Kova-Process-Id": "b".repeat(32) },
+          });
+      }
+    }
+    const Resident = residentContainerClass(FakeContainer);
+    const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+    const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+    const unavailable = await resident.fetch(new Request("https://api.test/api/v1/orders", {
+      method: "POST", body: "synthetic-write",
+    }));
+    assert.equal(unavailable.status, 503);
+    assert.match(unavailable.headers.get("cache-control"), /no-store/);
+    assert.equal((await unavailable.text()).includes(message), false);
+    assert.deepEqual(calls, [{ method: "POST", body: "synthetic-write" }]);
+    assert.equal(probes, 0);
+    failed = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const healthy = await resident.fetch(new Request("https://api.test/health"));
+      assert.equal(healthy.status, 200);
+      assert.equal(healthy.headers.get("x-kova-runtime"), "native-resident");
+    }
+    assert.equal(probes, 1, "the next request refreshes readiness; later healthy requests reuse it");
+    assert.equal(calls.length, 3, "a failed write is never automatically replayed");
+  }
+  assert.equal(logs.length, 3);
+  assert.ok(logs.every(value => value === JSON.stringify({ event: "native_backend_unavailable" })));
+});
+
+test("real application errors and unrecognized 500 responses stay failures without being reclassified", async () => {
+  let probes = 0;
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async startAndWaitForPorts() { probes++; }
+    async fetch() { return this.env.response; }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  const sdkMessage = "Container suddenly disconnected, try again";
+  for (const [body, headers] of [
+    [sdkMessage, { "X-Kova-Runtime": "native-resident" }],
+    [sdkMessage, { "X-Kova-Process-Id": "b".repeat(32) }],
+    [sdkMessage, { "Content-Type": "application/json" }],
+    ["Unrecognized application error".repeat(100), {}],
+  ]) {
+    env.response = new Response(body, { status: 500, headers });
+    const response = await resident.fetch(new Request("https://api.test/health"));
+    assert.equal(response.status, 500);
+    assert.equal(await response.text(), body);
+    assert.match(response.headers.get("cache-control"), /no-store/);
+  }
+  assert.equal(probes, 0);
+});
+
 test("scanners and private bridge paths never start the native process through public routing", () => {
   for (const path of ["/.env", "/allow", "/ready", "/docs", "/api/v10/auth/login"]) {
     assert.equal(publicPath(path), false);
