@@ -424,3 +424,105 @@ test("private job wake preserves tenant routing, scheduler cohort refusal and bo
   env.JOBS.getByName = () => { throw new Error("synthetic scheduler outage"); };
   assert.equal((await jobsBridge(request(), env)).status, 503);
 });
+
+function diagnosticResident({ running = true, ready = Promise.resolve(), response,
+  resident = true, forwarded } = {}) {
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async startAndWaitForPorts() { await ready; this.ctx.container.running = true; }
+    async fetch(request) { return typeof response === "function" ? response(request) : await response; }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  return new Resident({ id: { toString: () => resident ? "resident" : "proxy" }, container: { running } }, {
+    ...settings(), API: { idFromName: () => ({ toString: () => "resident" }),
+      getByName: () => ({ fetch: forwarded ?? (() => Response.json({ ok: true })) }) },
+  });
+}
+
+function captureDiagnostic(t) {
+  const events = [];
+  t.mock.method(console, "info", value => events.push(JSON.parse(value)));
+  return events;
+}
+
+const diagnosticRequest = (path = "/health", init = {}) => new Request(`https://api.test${path}`, {
+  ...init, headers: { "X-Kova-Resident-Diagnostic": "1", ...init.headers },
+});
+
+test("acceptance diagnostics locate blocked readiness versus blocked upstream without altering responses", async t => {
+  const events = captureDiagnostic(t);
+  let ready, headers;
+  const readyPromise = new Promise(resolve => { ready = resolve; });
+  const responsePromise = new Promise(resolve => { headers = resolve; });
+  const controller = diagnosticResident({ running: false, ready: readyPromise, response: responsePromise });
+  const pending = controller.fetch(diagnosticRequest());
+  assert.deepEqual(events.map(event => event.phase), ["ensure_ready"]);
+  ready();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events.map(event => event.phase), ["ensure_ready", "start_fetch"]);
+  headers(new Response("unchanged", { status: 200 }));
+  const result = await pending;
+  assert.equal(await result.text(), "unchanged");
+  assert.match(result.headers.get("cache-control"), /no-store/);
+  assert.deepEqual(events.map(event => event.phase), ["ensure_ready", "start_fetch", "response"]);
+  for (const event of events) {
+    assert.equal(event.event, "resident_acceptance_stage");
+    assert.equal(event.route, "health");
+    assert.ok(Number.isFinite(event.elapsed_ms) && event.elapsed_ms >= 0 && event.elapsed_ms <= 300000);
+    assert.deepEqual(Object.keys(event).sort(), (event.phase === "response"
+      ? ["event", "route", "phase", "elapsed_ms", "status"]
+      : ["event", "route", "phase", "elapsed_ms"]).sort());
+  }
+  assert.equal(events.at(-1).status, 200);
+});
+
+test("acceptance diagnostic marker only traces the exact known contract method and path", async t => {
+  const events = captureDiagnostic(t);
+  const controller = diagnosticResident({ response: () => Response.json({ ok: true }) });
+  for (const request of [new Request("https://api.test/health"),
+    diagnosticRequest("/health", { headers: { "X-Kova-Resident-Diagnostic": "synthetic-private" } }),
+    diagnosticRequest("/health", { method: "POST" }), diagnosticRequest("/health?secret=synthetic-private"),
+    diagnosticRequest("/api/v1/orders/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"),
+  ]) await controller.fetch(request);
+  const proxy = diagnosticResident({ resident: false });
+  await proxy.fetch(diagnosticRequest());
+  assert.deepEqual(events, []);
+  for (const [method, path, route] of [["GET", "/health", "health"],
+    ["GET", "/health/db", "database_health"], ["GET", "/api/v1/auth/session", "session"],
+    ["GET", "/api/v1/catalog/products", "catalog"], ["GET", "/api/v1/reports/dashboard", "dashboard"],
+    ["GET", "/api/v1/purchasing/orders", "purchasing"], ["POST", "/api/v1/auth/login", "login_validation"],
+  ]) {
+    await controller.fetch(diagnosticRequest(path, { method }));
+    assert.equal(events.at(-1).route, route);
+  }
+  assert.equal(events.length, 21);
+  assert.doesNotMatch(JSON.stringify(events), /synthetic-private|secret|aaaaaaaa|https:/);
+});
+
+test("acceptance diagnostics cap events per resident and never expose failures or change application errors", async t => {
+  const events = captureDiagnostic(t);
+  t.mock.method(console, "error", () => {});
+  const controller = diagnosticResident({ response: () => new Response("synthetic-private-body", {
+    status: 500, headers: { "X-Kova-Runtime": "native-resident", "X-Kova-Process-Id": "synthetic-process" },
+  }) });
+  for (let index = 0; index < 100; index++) {
+    const result = await controller.fetch(diagnosticRequest());
+    assert.equal(result.status, 500);
+    assert.equal(await result.text(), "synthetic-private-body");
+  }
+  assert.equal(events.length, 256);
+  assert.doesNotMatch(JSON.stringify(events), /synthetic-private|synthetic-process/);
+  const failed = diagnosticResident({ response: () => { throw new Error("synthetic-private-exception"); } });
+  assert.equal((await failed.fetch(diagnosticRequest())).status, 503);
+  assert.equal(events.at(-1).phase, "failed");
+  assert.doesNotMatch(JSON.stringify(events), /synthetic-private/);
+});
+
+test("diagnostic logging failure cannot change a normal application response", async t => {
+  t.mock.method(console, "info", () => { throw new Error("synthetic-logger-failure"); });
+  const controller = diagnosticResident({ response: () => new Response("unchanged", { status: 200 }) });
+  const response = await controller.fetch(diagnosticRequest());
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "unchanged");
+});

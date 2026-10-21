@@ -176,7 +176,7 @@ esta corrección; no se promete resolver todos los motivos de cierre de sesión.
 La instrucción del dueño es completar tareas, no recorrer carpetas. Cambios
 acotados: Pendientes como entrada diaria, Clientes conservado en el grupo
 comercial, un solo grupo de menú abierto y búsqueda por intención (nuevo pedido,
-crear cotización, nuevo cliente). Máximo dos acciones contextuales conectan
+crear cotización, nuevo cliente). Máximo dos acciones contextuales al final del contenido conectan
 secciones; Crear pedido usa la ruta existente y exige su permiso y función.
 No se muestran en Caja/Panel/Turnos ni en formularios, edición o detalles;
 se preservan permisos, flags, offline, enlaces y todas las capacidades/datos.
@@ -187,8 +187,38 @@ producto: Tab/ShiftTab permanecen dentro, Escape cierra y restaura el foco.
 Validación integrada tras restaurar npm ci desde package-lock: 146 pruebas de
 auth/navegación/cotizaciones aprobadas; contratos de release 123 y una omisión
 prevista de Windows. TypeScript, build SSR/prerender, lint y escaneo de bundle
-aprobaron. Revisión independiente de auth y UX sin bloqueos. CI y aceptación
-productiva del siguiente corte siguen siendo gates pendientes.
+aprobaron. Revisión independiente de auth y UX sin bloqueos.
+
+#244 corrigió además una regresión real de espacio móvil detectada por CI: la
+franja contextual desplazaba el primer producto debajo de la navegación inferior.
+Se reprodujo antes en ambos proyectos y se movió después del contenido, sin
+cambiar las aserciones E2E. El build final aprobó 256 escenarios de navegador,
+con 11 omisiones existentes de stack real. CI `39622421630` aprobó completamente
+y se fusionó como `278d0ad6ed4685555b005b88fdbf330a02fa7ad6`.
+
+La ejecución main `39624669749` pasó todos los gates, pero release falló en fase
+`candidate`, antes de promover el frontend. La salud inicial y su identidad nueva
+habían aprobado; una de las 24 consultas GET concurrentes agotó 15s antes de
+recibir estado HTTP. El verificador anterior no registraba qué ruta fue.
+`RELEASE_FAILED_RECOVERED (candidate)` confirma la recuperación: 25 contratos,
+mismo proceso, mediana 146ms y máximo 854ms. La comprobación independiente
+posterior devolvió frontend/API 909919950261… con 200, API residente en 303ms.
+Los cambios de #243/#244 continúan pendientes de publicación.
+
+La telemetría acotada registra apagado a 15:30:56, startup a 15:31:40 y listener
+listo a 15:32:22 UTC. Las tres invocaciones muestreadas del Worker anterior son
+previas al listener; no demuestran la causa del timeout posterior a readiness.
+Backend y controlador son idénticos entre 90991995 y 278d0ad6, salvo la identidad
+horneada; no hay evidencia para cambiar auth, SDK, RLS o ampliar presupuestos.
+
+El siguiente corte añade diagnóstico exclusivo del verificador: marcador fijo,
+rutas/métodos permitidos y etapas enumeradas en el controlador, con presupuesto
+de eventos acotado por instancia. El cliente informa endpoint permitido, método,
+tiempo y categoría de fallo de transporte sin revelar URL, cuerpo, cookies,
+cabeceras arbitrarias o causa original. Se conservan 15s de timeout, 3000ms de
+aceptación, las mismas consultas, SHA/PID estrictos y cero reintentos. Esta
+instrumentación identifica el atasco del siguiente candidato; no se presenta
+como una corrección causal del runtime ni como publicación exitosa.
 
 ## Backend residente en Cloudflare — publicado y verificado
 
