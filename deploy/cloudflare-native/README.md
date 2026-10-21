@@ -74,6 +74,12 @@ auth contracts, cookies and resident process identity after idle. Container
 readiness RPC checks the full release SHA and database reachability. Do not
 publish an unverified diagnostic image/version.
 
+Cloudflare's application GET can return expanded sizing rather than the
+`instance_type` label. Rollback capture recognizes only the exact lite tuple
+(`vcpu: 0.0625`, `memory_mib: 256`, `disk.size_mb: 2000`) and stores the same
+canonical `lite` snapshot. Missing, partial, conflicting or larger sizing fails
+closed. Never log or persist the application's environment or full API response.
+
 The official [Container pricing](https://developers.cloudflare.com/containers/platform/pricing/)
 and [idle lifecycle](https://developers.cloudflare.com/containers/api/container-class/#onactivityexpired)
 were checked on 2026-10-20. One lite process running 720 hours provisions
