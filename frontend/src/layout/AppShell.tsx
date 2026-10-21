@@ -31,7 +31,6 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
-  ChevronRight,
   Menu,
   X,
   ChevronsLeft,
@@ -129,46 +128,19 @@ function roleLabel(role: string): string {
 }
 
 const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
-const SIDEBAR_GROUPS_KEY = "kova-sidebar-groups-v1";
-type BusinessNavGroup = "products" | "commercial" | "management";
-type OpenNavGroups = Record<BusinessNavGroup, boolean>;
 const businessNavGroups: {
-  id: BusinessNavGroup; label: string; icon: React.ReactNode; paths: string[];
+  id: string; label: string; paths: string[];
 }[] = [
-  { id: "products", label: "Productos e inventario", icon: <Package className="h-4 w-4" />,
+  { id: "products", label: "Productos e inventario",
     paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
-  { id: "commercial", label: "Ventas y atención", icon: <Handshake className="h-4 w-4" />,
+  { id: "commercial", label: "Ventas y atención",
     paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
       "/followups", "/appointments", "/loyalty"] },
-  { id: "management", label: "Gestión y ajustes", icon: <Settings className="h-4 w-4" />,
+  { id: "management", label: "Gestión y ajustes",
     paths: ["/reports", "/expenses", "/reconciliation", "/automations",
       "/assistant", "/settings", "/settings/billing", "/settings/integrations",
       "/settings/channels"] },
 ];
-
-function businessGroupForPath(pathname: string): BusinessNavGroup | undefined {
-  return businessNavGroups.find(group => group.paths.some(path =>
-    pathname === path || pathname.startsWith(`${path}/`)
-  ))?.id;
-}
-
-function onlyOpenGroup(active?: BusinessNavGroup): OpenNavGroups {
-  return { products: active === "products", commercial: active === "commercial", management: active === "management" };
-}
-
-function readStoredNavGroups(pathname: string): OpenNavGroups {
-  const groups: OpenNavGroups = { products: false, commercial: false, management: false };
-  try {
-    const stored: unknown = JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_KEY) ?? "{}");
-    if (stored && typeof stored === "object") {
-      for (const id of Object.keys(groups) as BusinessNavGroup[]) {
-        groups[id] = (stored as Record<string, unknown>)[id] === true;
-      }
-    }
-  } catch { /* Navigation preferences are optional; no account data is stored. */ }
-  const active = businessGroupForPath(pathname);
-  return onlyOpenGroup(active ?? (Object.keys(groups) as BusinessNavGroup[]).find(id => groups[id]));
-}
 
 function readStoredSidebarCollapsed(): boolean {
   try {
@@ -186,7 +158,6 @@ export default function AppShell() {
   const sidebarRef = useRef<HTMLElement>(null);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
-  const [openNavGroups, setOpenNavGroups] = useState(() => readStoredNavGroups(location.pathname));
   const [navigationQuery, setNavigationQuery] = useState("");
   const navigationSearchRef = useRef<HTMLInputElement>(null);
   const focusSearchOnExpand = useRef(false);
@@ -216,9 +187,6 @@ export default function AppShell() {
 
   useEffect(() => {
     setNavigationQuery("");
-    const active = businessGroupForPath(location.pathname);
-    if (active) setOpenNavGroups(current => current[active]
-      ? current : onlyOpenGroup(active));
   }, [location.pathname]);
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
@@ -412,19 +380,6 @@ export default function AppShell() {
     else setSidebarOpen(true);
   };
 
-  const toggleNavGroup = (id: BusinessNavGroup) => {
-    if (sidebarCompact) {
-      setSidebarCollapsed(false);
-      try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, "0"); } catch { /* Optional UI preference. */ }
-    }
-    setOpenNavGroups(current => {
-      const next = onlyOpenGroup(sidebarCompact || !current[id] ? id : undefined);
-      try { window.localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next)); }
-      catch { /* Optional UI preference; navigation still works. */ }
-      return next;
-    });
-  };
-
   const renderNavItem = (item: NavItem, nested = false, describe = false) => (
     <NavLink
       key={item.to}
@@ -540,29 +495,15 @@ export default function AppShell() {
           {operationNavItems.map(item => renderNavItem(item))}
         </div>
         {businessNavItems.length > 0 && <div className="mt-5 space-y-1">
-          {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Tu negocio</p>}
           {businessNavGroups.map(group => {
-            // The same reviewed role/feature/capability filters run before
-            // grouping. No unavailable feature is introduced by a disclosure.
             const items = group.paths.flatMap(path => businessNavItems.filter(item => item.to === path));
             if (!items.length) return null;
-            const expanded = !sidebarCompact && openNavGroups[group.id];
-            const active = businessGroupForPath(location.pathname) === group.id;
-            return <div key={group.id}>
-              <button type="button" aria-expanded={expanded}
-                aria-controls={`nav-group-${group.id}`} aria-label={group.label}
-                title={sidebarCompact ? group.label : undefined}
-                onClick={() => toggleNavGroup(group.id)}
-                className={cn("flex min-h-11 w-full items-center gap-3 rounded-kova-md px-2.5 py-2.5 text-left text-sm font-medium transition-colors hover:bg-sidebar-accent/50",
-                  sidebarCompact && "justify-center", active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/80")}>
-                <span aria-hidden="true" className="shrink-0">{group.icon}</span>
-                {!sidebarCompact && <>
-                  <span className="min-w-0 flex-1 whitespace-normal leading-5">{group.label}</span>
-                  <ChevronRight aria-hidden="true" className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-quick", expanded && "rotate-90")} />
-                </>}
-              </button>
-              <div id={`nav-group-${group.id}`} hidden={!expanded} className="ml-4 space-y-1 border-l border-sidebar-border pl-2">
-                {items.map(item => renderNavItem(item, true))}
+            return <div key={group.id} className={cn("mt-4", sidebarCompact && "border-t border-sidebar-border pt-2")}>
+              {!sidebarCompact && <h2 className="px-2 pb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-sidebar-muted">
+                {group.label}
+              </h2>}
+              <div className="space-y-1">
+                {items.map(item => renderNavItem(item, !sidebarCompact))}
               </div>
             </div>;
           })}
