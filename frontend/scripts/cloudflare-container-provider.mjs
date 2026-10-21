@@ -15,6 +15,10 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const image = new RegExp(`^registry\\.cloudflare\\.com/${nativeContainerIdentity.accountId}`
   + "/kova-native-api(?:@sha256:[a-f0-9]{64}|:[a-f0-9]{8,64})$");
 const snapshotKeys = ["name", "namespaceId", "applicationId", "image", "instanceType", "maxInstances"];
+const approvedResources = Object.freeze({
+  lite: { cpu: 0.0625, memoryMiB: 256, memory: "256MiB", diskMB: 2000, disk: "2GB" },
+  basic: { cpu: 0.25, memoryMiB: 1024, memory: "1GiB", diskMB: 4000, disk: "4GB" },
+});
 
 export function validateNativeContainerSnapshot(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)
@@ -22,7 +26,7 @@ export function validateNativeContainerSnapshot(input) {
       || !snapshotKeys.every(key => Object.hasOwn(input, key))
       || input.name !== nativeContainerIdentity.name
       || input.namespaceId !== nativeContainerIdentity.namespaceId
-      || input.instanceType !== "lite" || input.maxInstances !== 1
+      || !Object.hasOwn(approvedResources, input.instanceType) || input.maxInstances !== 1
       || (input.applicationId === null ? input.image !== null
         : !uuid.test(input.applicationId ?? "") || !image.test(input.image ?? ""))) {
     throw new Error("Invalid native Container rollback identity or configuration");
@@ -36,22 +40,27 @@ function absentSnapshot() {
     image: null, instanceType: "lite", maxInstances: 1 });
 }
 
-function hasExactLiteResources(configuration) {
-  if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) return false;
+function exactResourceType(configuration) {
+  if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) return undefined;
   const declared = configuration.instance_type;
-  if (declared !== undefined && declared !== "lite") return false;
+  if (declared !== undefined && !Object.hasOwn(approvedResources, declared)) return undefined;
   // The applications API can return expanded resources instead of the named
-  // instance type. Accept only the observed lite tuple, including consistent
+  // instance type. Accept only either approved tuple, including consistent
   // human-readable aliases; never infer sizing from a partial response.
   const { vcpu, memory_mib: memoryMiB, memory, disk } = configuration;
-  if ((vcpu !== undefined && vcpu !== 0.0625)
-      || (memoryMiB !== undefined && memoryMiB !== 256)
-      || (memory !== undefined && memory !== "256MiB")) return false;
-  if (disk !== undefined && (!disk || typeof disk !== "object" || Array.isArray(disk)
-      || (disk.size_mb !== undefined && disk.size_mb !== 2000)
-      || (disk.size !== undefined && disk.size !== "2GB"))) return false;
-  return declared === "lite"
-    || (vcpu === 0.0625 && memoryMiB === 256 && disk?.size_mb === 2000);
+  for (const [name, expected] of Object.entries(approvedResources)) {
+    if (declared !== undefined && declared !== name) continue;
+    if ((vcpu !== undefined && vcpu !== expected.cpu)
+        || (memoryMiB !== undefined && memoryMiB !== expected.memoryMiB)
+        || (memory !== undefined && memory !== expected.memory)) continue;
+    if (disk !== undefined && (!disk || typeof disk !== "object" || Array.isArray(disk)
+        || (disk.size_mb !== undefined && disk.size_mb !== expected.diskMB)
+        || (disk.size !== undefined && disk.size !== expected.disk))) continue;
+    if (declared === name
+        || (vcpu === expected.cpu && memoryMiB === expected.memoryMiB
+          && disk?.size_mb === expected.diskMB)) return name;
+  }
+  return undefined;
 }
 
 function applicationSnapshot(application) {
@@ -60,13 +69,14 @@ function applicationSnapshot(application) {
   if (application?.scheduling_policy !== "default") {
     throw new Error("Native Container rollback requires the default scheduling policy");
   }
-  if (!hasExactLiteResources(application.configuration)) {
-    throw new Error("Native Container rollback requires exact lite resources");
+  const instanceType = exactResourceType(application.configuration);
+  if (!instanceType) {
+    throw new Error("Native Container rollback requires exact approved resources (lite or basic)");
   }
   return validateNativeContainerSnapshot({ name: application.name,
     namespaceId: application.durable_objects?.namespace_id,
     applicationId: application.id, image: application.configuration?.image,
-    instanceType: "lite",
+    instanceType,
     maxInstances: application.max_instances });
 }
 
@@ -116,7 +126,7 @@ export function cloudflareContainerProvider({ run, env }) {
       if (previous.applicationId === null) {
         const current = await find();
         if (current.applicationId === null) return;
-        // The exact name, namespace, account, image repository and lite/1
+        // The exact name, namespace, account, image repository and approved size/1
         // configuration were checked immediately before this deletion.
         await cf(["delete", current.applicationId, "--force"]);
         const remaining = await find();
@@ -135,7 +145,7 @@ export function cloudflareContainerProvider({ run, env }) {
       await cf(["rollouts", "create", previous.applicationId, "--body", JSON.stringify({
         description: "Restore captured Kova native API image",
         strategy: "rolling", kind: "full_auto", step_percentage: 100,
-        target_configuration: { image: previous.image, instance_type: "lite" },
+        target_configuration: { image: previous.image, instance_type: previous.instanceType },
       })]);
       // A rollout response acknowledges initiation. The release recovery path
       // must subsequently verify health, runtime and exact original release SHA.

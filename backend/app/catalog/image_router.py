@@ -119,7 +119,7 @@ def _persisted_thumbnail(entry, fingerprint: bytes, source_content_type: str, wi
 
 
 def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
-                       width: int, entry: dict):
+                       width: int, entry: dict, *, session_factory=None) -> bool:
     """Optional derived cache write; own RLS session, no request connection.
 
     BackgroundTasks runs this sync function after the response body is sent.
@@ -127,19 +127,19 @@ def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
     request still has the original image and the bounded in-process LRU.
     """
     if width not in ALLOWED_RESIZE_WIDTHS:
-        return
+        return False
     try:
         fingerprint = bytes.fromhex(entry["source_sha256"])
         if (len(fingerprint) != 32 or _persisted_thumbnail(
                 entry, fingerprint, entry["source_content_type"], width) is None):
-            return
+            return False
     except (KeyError, TypeError, ValueError):
-        return
+        return False
     if not _thumbnail_write_slots.acquire(blocking=False):
-        return
+        return False
     db = None
     try:
-        db = SessionLocal()
+        db = (session_factory or SessionLocal)()
         set_tenant_context(db, tenant_id)
         db.execute(text("SET LOCAL statement_timeout = '2000ms'"))
         db.execute(text("SET LOCAL lock_timeout = '250ms'"))
@@ -147,7 +147,7 @@ def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
             Product.id == product_id, Product.tenant_id == tenant_id,
             Product.is_active.is_(True),
         ).exists()
-        db.execute(update(ProductImageFile).where(
+        result = db.execute(update(ProductImageFile).where(
             ProductImageFile.id == image_id,
             ProductImageFile.product_id == product_id,
             ProductImageFile.tenant_id == tenant_id,
@@ -164,6 +164,7 @@ def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
             updated_at=ProductImageFile.updated_at,
         ).execution_options(synchronize_session=False))
         db.commit()
+        return result.rowcount == 1
     except Exception:
         if db is not None:
             try:
@@ -171,6 +172,7 @@ def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
             except Exception:
                 pass
         logger.warning("product_thumbnail_cache_write_failed")
+        return False
     finally:
         try:
             if db is not None:
@@ -198,13 +200,15 @@ def _queue_thumbnail(image_id, tenant_id, product_id, width, fingerprint,
         background_tasks.add_task(_persist_thumbnail, *args)
 
 
-def _prepare_upload_variants(data: bytes, content_type: str) -> dict | None:
+def _prepare_upload_variants(data: bytes, content_type: str,
+                             widths: set[int] | None = None) -> dict | None:
     if sys.platform == "emscripten":
         return None
     fingerprint = hashlib.sha256(data).hexdigest()
     variants = {}
     with _image_load_slots:
-        for width in sorted(ALLOWED_RESIZE_WIDTHS):
+        for width in sorted(ALLOWED_RESIZE_WIDTHS if widths is None
+                            else ALLOWED_RESIZE_WIDTHS.intersection(widths)):
             body, actual_type = _resize_to_width(data, content_type, width)
             if (body is data or actual_type != "image/webp"
                     or len(body) > _MAX_PERSISTED_THUMBNAIL_BYTES):
