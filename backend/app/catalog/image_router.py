@@ -86,9 +86,48 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
         return result
 
 
+def _webp_canvas_size(data: bytes) -> tuple[int, int] | None:
+    """Read the first RIFF image header without creating libwebp's canvas.
+
+    VP8X dimensions are 24-bit values minus one; VP8L packs two 14-bit
+    values minus one; VP8 keyframes store two 14-bit dimensions directly.
+    Malformed/unknown containers retain the original-file fallback.
+    """
+    if len(data) < 20 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        return None
+    size = int.from_bytes(data[4:8], "little") + 8
+    chunk_size = int.from_bytes(data[16:20], "little")
+    if size > len(data) or size < 20 + chunk_size + (chunk_size & 1):
+        return None
+    chunk = data[12:16]
+    if chunk == b"VP8X" and chunk_size == 10:
+        return int.from_bytes(data[24:27], "little") + 1, int.from_bytes(data[27:30], "little") + 1
+    if chunk == b"VP8L" and chunk_size >= 5 and data[20] == 0x2F:
+        bits = int.from_bytes(data[21:25], "little")
+        if bits >> 29 == 0:  # Version 0 is the defined lossless bitstream.
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    if (chunk == b"VP8 " and chunk_size >= 10 and not data[20] & 1
+            and data[23:26] == b"\x9d\x01\x2a"):
+        width = int.from_bytes(data[26:28], "little") & 0x3FFF
+        height = int.from_bytes(data[28:30], "little") & 0x3FFF
+        if width and height:
+            return width, height
+    return None
+
+
 def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
     try:
+        # WebP allocates its canvas inside Image.open(), before Pillow exposes
+        # dimensions. Preflight the actual bytes rather than the declared MIME.
+        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            size = _webp_canvas_size(data)
+            if size is None or size[0] * size[1] > _MAX_DECODED_PIXELS:
+                return data, content_type
         with Image.open(io.BytesIO(data)) as img:
+            # PNG.getexif() can load the full bitmap. Check first, except JPEG
+            # which can reduce its decode dimensions with draft() below.
+            if img.format != "JPEG" and img.width * img.height > _MAX_DECODED_PIXELS:
+                return data, content_type
             rotated = img.getexif().get(274, 1) in {5, 6, 7, 8}
             visual_width, visual_height = (img.height, img.width) if rotated else img.size
             if visual_width <= target_width:

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from PIL import Image
+from PIL import Image, PngImagePlugin, WebPImagePlugin
 
 from app.catalog import image_router as images
 
@@ -116,6 +116,88 @@ def test_oversized_decode_keeps_existing_original_fallback(monkeypatch):
     monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 100)
     assert images._resize_to_width(source, "image/png", 160) == (source, "image/png")
     assert not images._resized_images
+
+
+def test_oversized_png_never_loads_pixels_while_reading_exif(monkeypatch):
+    source = photo(size=(800, 600), mode="RGBA", color=(20, 40, 80, 0), format="PNG")
+    monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 100)
+    loads = []
+    original = PngImagePlugin.PngImageFile.load
+
+    def counted(image, *args, **kwargs):
+        loads.append(image.size)
+        return original(image, *args, **kwargs)
+
+    monkeypatch.setattr(PngImagePlugin.PngImageFile, "load", counted)
+    assert images._resize_to_width(source, "image/png", 160) == (source, "image/png")
+    assert loads == []
+
+
+@pytest.mark.parametrize("chunk,mode,lossless", [
+    (b"VP8 ", "RGB", False), (b"VP8L", "RGB", True), (b"VP8X", "RGBA", False),
+])
+def test_webp_canvas_is_bounded_before_decoder_allocation(monkeypatch, chunk, mode, lossless):
+    encoded = io.BytesIO()
+    image = Image.new(mode, (800, 600), (20, 40, 80, 0) if mode == "RGBA" else "red")
+    image.save(encoded, "WEBP", lossless=lossless)
+    source = encoded.getvalue()
+    assert source[12:16] == chunk
+    assert images._webp_canvas_size(source) == (800, 600)
+    monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 100)
+    decoders = []
+    original = WebPImagePlugin._webp.WebPAnimDecoder
+
+    def counted(*args):
+        decoders.append(True)
+        return original(*args)
+
+    monkeypatch.setattr(WebPImagePlugin._webp, "WebPAnimDecoder", counted)
+    assert images._resize_to_width(source, "image/webp", 160) == (source, "image/webp")
+    assert decoders == []
+    monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 800 * 600)
+    result, media_type = images._resize_to_width(source, "image/webp", 160)
+    assert media_type == "image/webp"
+    assert decoders == [True]
+    with Image.open(io.BytesIO(result)) as thumbnail:
+        assert thumbnail.size == (160, 120)
+        if mode == "RGBA":
+            assert thumbnail.convert("RGBA").getpixel((0, 0))[3] == 0
+
+
+def test_malformed_webp_headers_fall_back_without_constructing_decoder(monkeypatch):
+    encoded = io.BytesIO()
+    Image.new("RGB", (800, 600), "red").save(encoded, "WEBP", lossless=True)
+    source = encoded.getvalue()
+    assert source[12:16] == b"VP8L"
+    opened = []
+    original = Image.open
+
+    def counted(*args, **kwargs):
+        opened.append(True)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(Image, "open", counted)
+    malformed = [
+        source[:12], source[:24],  # Missing/truncated chunk headers/payload.
+        source[:4] + (len(source) + 100).to_bytes(4, "little") + source[8:],
+        source[:16] + len(source).to_bytes(4, "little") + source[20:],
+        source[:12] + b"JUNK" + source[16:],
+        source[:20] + b"\x00" + source[21:],  # Lossless signature.
+        source[:24] + bytes([source[24] | 0xE0]) + source[25:],  # Reserved version.
+    ]
+    for data in malformed:
+        assert images._webp_canvas_size(data) is None
+        assert images._resize_to_width(data, "image/webp", 160) == (data, "image/webp")
+    assert opened == []
+
+
+def test_large_jpeg_still_uses_draft_before_pixel_limit(monkeypatch):
+    source = photo(size=(2400, 1800))
+    monkeypatch.setattr(images, "_MAX_DECODED_PIXELS", 500_000)
+    result, media_type = images._resize_to_width(source, "image/jpeg", 400)
+    assert media_type == "image/webp"
+    with Image.open(io.BytesIO(result)) as thumbnail:
+        assert thumbnail.size == (400, 300)
 
 
 def test_corrupt_and_small_images_preserve_original_bytes():

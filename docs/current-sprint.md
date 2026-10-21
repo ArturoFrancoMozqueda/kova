@@ -50,6 +50,8 @@ aislado con RLS y correo/cobros desactivados.
   de cargar blobs y sólo se permite un decodificador simultáneo; se mantiene la
   ruta original cuando la imagen excede el presupuesto de píxeles. Versiones de
   carga con microsegundos evitan colisiones de caché al reemplazar una foto.
+  PNG se limita antes de consultar EXIF y WebP antes de crear su canvas; los
+  códecs comunes se preparan antes de abrir el servicio.
   Caja solicita el tamaño real de la tarjeta y conserva candidatos para DPR2.
 - Navegación: 5–6 accesos diarios y tres grupos plegables: Productos e inventario,
   Ventas y atención, Gestión y ajustes. Conserva destinos, permisos y flags reales;

@@ -71,6 +71,7 @@ for (const width of [1280, 320]) {
       await page.getByRole("button", { name: /abrir men/i }).first().click();
       await expect(page.getByRole("button", { name: "Abrir asistente Kova" })).toBeHidden();
     }
+    await page.getByRole("navigation").getByRole("button", { name: "Productos e inventario" }).click();
     await page.locator('a[href="/catalog"]:visible').first().click();
     await expect(page).toHaveURL(/\/catalog$/);
     await page.getByRole("button", { name: "Abrir asistente Kova" }).click();
