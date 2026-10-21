@@ -851,6 +851,58 @@ test("catalog fits at 390px with category and product visible", async ({ page })
   await expectNoHorizontalOverflow(page);
 });
 
+test.describe("catalog thumbnails on a high-density phone", () => {
+  test.use({ deviceScaleFactor: 3 });
+
+  test("shows products above navigation for an active business and recovers a failed small photo", async ({ page }) => {
+    // Match the active tenant reviewed through computer use. Trial and blocked
+    // banners retain their own viewport scenarios above.
+    await mockCommon(page, {
+      viewport: { width: 393, height: 852 },
+      billingAccess: { ...ACTIVE_ACCESS, reason: "active", trialing: false, trial_ends_at: null },
+    });
+    const names = ["Café caliente", "Bebidas frías", "Pan dulce", "Alimentos"];
+    await page.route("**/api/v1/catalog/categories", route => route.fulfill({ json: names.map((name, index) => ({
+      id: `cat-${index}`, tenant_id: "tenant-1", name, description: null, sort_order: index, is_active: true,
+    })) }));
+    const imagePath = "/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123";
+    await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: [{
+      ...PRODUCT, category_id: "cat-3", image_url: imagePath,
+      image_position_x: 50, image_position_y: 50, image_zoom: 1,
+    }] }));
+    await page.route("**/api/v1/catalog/modifier-groups", route => route.fulfill({ json: [] }));
+    const photoRequests: string[] = [];
+    await page.route("**/api/v1/catalog/products/*/image?**", async route => {
+      photoRequests.push(route.request().url());
+      if (photoRequests.length === 1) await route.fulfill({ status: 503, body: "" });
+      else await route.fulfill({ contentType: "image/png", path: "public/showcase/products/alfajores.png" });
+    });
+
+    await page.goto("/catalog");
+    const retry = page.getByRole("button", { name: "Volver a cargar la foto de Concha" });
+    await expect(retry).toBeVisible();
+    const productBox = await page.getByRole("heading", { name: "Concha", exact: true }).boundingBox();
+    const navigationBox = await page.getByRole("navigation", { name: /navegaci/i }).last().boundingBox();
+    expect(productBox).not.toBeNull();
+    expect(navigationBox).not.toBeNull();
+    expect(productBox!.y + productBox!.height).toBeLessThan(navigationBox!.y);
+    expect(new URL(photoRequests[0]).searchParams.get("w")).toBe("160");
+
+    await retry.click();
+    const image = page.getByRole("img", { name: "Imagen de Concha" });
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    expect(photoRequests).toHaveLength(2);
+    expect(photoRequests[1]).toBe(photoRequests[0]);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(retry).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Alimentos", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Alimentos", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: "Concha", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
 test("inventory fits at 390px with empty state", async ({ page }) => {
   await mockCommon(page);
   await page.route("**/api/v1/inventory/movements**", (route) => route.fulfill({ json: [] }));

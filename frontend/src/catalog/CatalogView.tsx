@@ -42,7 +42,7 @@ import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
-import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageUrl";
+import { ProductThumbnail } from "./ProductThumbnail";
 import { ImagePositionEditor } from "./ImagePositionEditor";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 
@@ -434,13 +434,13 @@ export default function CatalogView() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2 pt-0">
+          <CardContent className="flex flex-nowrap gap-2 overflow-x-auto pt-0 sm:flex-wrap">
             {/* All products filter */}
             <button
               type="button"
               aria-pressed={selectedCategoryId === null}
               className={cn(
-                "flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors text-left",
+                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors text-left",
                 selectedCategoryId === null
                   ? "border-kova-ink bg-kova-ink text-white"
                   : "border-kova-border bg-white text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -455,7 +455,7 @@ export default function CatalogView() {
               <div
                 key={cat.id}
                 className={cn(
-                  "group flex items-center overflow-hidden rounded-full border transition-colors",
+                  "group flex shrink-0 items-center overflow-hidden rounded-full border transition-colors",
                   selectedCategoryId === cat.id
                     ? "border-kova-ink bg-kova-ink"
                     : "border-kova-border bg-white hover:bg-accent",
@@ -666,22 +666,7 @@ export default function CatalogView() {
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist lg:h-11 lg:w-11">
-                      {product.image_url ? (
-                        <img
-                          src={productImageSrc(product.image_url, 400)}
-                          srcSet={productImageSrcSet(product.image_url)}
-                          sizes="64px"
-                          alt={copy.catalog.productImageAlt(product.name)}
-                          className="h-full w-full"
-                          style={productImageStyle(product)}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <Package className="h-8 w-8 text-muted-foreground/60" />
-                      )}
-                    </div>
+                    <ProductThumbnail product={product} />
                     <div className="min-w-0">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm truncate">{product.name}</h3>

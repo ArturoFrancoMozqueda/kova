@@ -5,11 +5,12 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import BoundedSemaphore, Lock
+from time import perf_counter
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import LargeBinary, func, select
 from sqlalchemy.orm import Session
 
 if sys.platform != "emscripten":
@@ -49,6 +50,14 @@ _image_resize_lock = Lock()
 _image_load_slots = BoundedSemaphore(4)
 
 
+def _cached_thumbnail(key: tuple[bytes, str, int]) -> tuple[bytes, str] | None:
+    with _image_cache_lock:
+        cached = _resized_images.get(key)
+        if cached is not None:
+            _resized_images.move_to_end(key)
+        return cached
+
+
 def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
     """Resize image to target_width preserving aspect ratio, output as WebP.
     Returns original bytes if image is already smaller, or on any error."""
@@ -60,11 +69,9 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
     # keyed by their actual contents so replacement/deletion never bypasses
     # the route's fresh product/activity/ownership query.
     key = (hashlib.sha256(data).digest(), content_type, target_width)
-    with _image_cache_lock:
-        cached = _resized_images.get(key)
-        if cached is not None:
-            _resized_images.move_to_end(key)
-            return cached
+    cached = _cached_thumbnail(key)
+    if cached is not None:
+        return cached
     # Bound decoder memory and coalesce concurrent misses. Cache hits do not
     # wait behind an unrelated decode on the small resident instance.
     with _image_resize_lock:
@@ -358,28 +365,67 @@ def get_product_image(
 
 
 def _load_product_image(product_id: UUID, db: Session, w: int | None):
-    image_row = (
-        db.execute(
-            select(ProductImageFile.bytes_data, ProductImageFile.content_type)
-            .join(Product, Product.id == ProductImageFile.product_id)
-            .where(
-                ProductImageFile.product_id == product_id,
-                ProductImageFile.tenant_id == Product.tenant_id,
-                Product.is_active.is_(True),
-            )
+    db_ms = cache_ms = resize_ms = 0.0
+    visible_image = (
+        select(ProductImageFile.bytes_data, ProductImageFile.content_type)
+        .join(Product, Product.id == ProductImageFile.product_id)
+        .where(
+            ProductImageFile.product_id == product_id,
+            ProductImageFile.tenant_id == Product.tenant_id,
+            Product.is_active.is_(True),
         )
-        .one_or_none()
     )
+
+    # PostgreSQL's built-in bytea SHA-256 returns only 32 bytes. Recheck the
+    # current public visibility and actual contents on every request before
+    # reusing a thumbnail; IDs, timestamps and caller-provided v can all stay
+    # unchanged when a stored image is replaced. Workers keep their original
+    # no-transform path, and other dialects need no SHA function extension.
+    if (sys.platform != "emscripten" and w in ALLOWED_RESIZE_WIDTHS
+            and db.get_bind().dialect.name == "postgresql"):
+        started = perf_counter()
+        fingerprint_row = db.execute(visible_image.with_only_columns(
+            func.pg_catalog.sha256(ProductImageFile.bytes_data, type_=LargeBinary),
+            ProductImageFile.content_type,
+        )).one_or_none()
+        db_ms += (perf_counter() - started) * 1000
+        if fingerprint_row is None:
+            raise not_found("Product image not found")
+        fingerprint, content_type = fingerprint_row
+        started = perf_counter()
+        cached = _cached_thumbnail((bytes(fingerprint), content_type, w))
+        cache_ms += (perf_counter() - started) * 1000
+        if cached is not None:
+            db.close()
+            return _image_response(*cached, db_ms=db_ms, cache_ms=cache_ms, resize_ms=resize_ms)
+
+    started = perf_counter()
+    image_row = db.execute(visible_image).one_or_none()
+    db_ms += (perf_counter() - started) * 1000
     if image_row is None:
         raise not_found("Product image not found")
 
     body, media_type = image_row
     db.close()
     if w is not None and w in ALLOWED_RESIZE_WIDTHS:
+        started = perf_counter()
+        # A replacement between fingerprint and blob reads must be cached
+        # under the actual bytes just fetched, never the earlier fingerprint.
         body, media_type = _resize_to_width(body, media_type, w)
+        resize_ms += (perf_counter() - started) * 1000
 
+    return _image_response(body, media_type, db_ms=db_ms, cache_ms=cache_ms, resize_ms=resize_ms)
+
+
+def _image_response(body, media_type, *, db_ms, cache_ms, resize_ms):
     return Response(
         content=body,
         media_type=media_type,
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Server-Timing": (
+                f"image-db;dur={db_ms:.3f}, image-cache;dur={cache_ms:.3f}, "
+                f"image-resize;dur={resize_ms:.3f}"
+            ),
+        },
     )

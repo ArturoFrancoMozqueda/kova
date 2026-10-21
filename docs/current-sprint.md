@@ -1,6 +1,52 @@
 # Current Sprint
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
+
+## Revisión real del dueño y carga de fotografías
+
+Se recorrió el tenant de prueba autorizado mediante Computer Use en Edge, con
+sesión de propietario y vista de teléfono de 393×852 y DPR3. No se efectuaron
+cobros, envíos ni cambios en datos del negocio. Se comprobaron login, Panel,
+navegación, Catálogo, publicación existente, catálogo público, selección de un
+producto sin enviar la consulta, solicitudes vacías, pendientes y Análisis en
+Hoy/30 días. El bloqueo del Mac interrumpió el resto del recorrido; esta muestra
+no equivale a probar Safari real, otros roles ni todos los módulos.
+
+Las 12 fotos observadas de 320px devolvieron 200 en 187–215ms. Después de 362
+segundos, con la caché del navegador desactivada y sin cambiar versiones/URLs,
+nueve descargas observadas tardaron 1.30–2.38s. No se observaron 429/503. Esto
+documenta una demora de fotografías; no demuestra un reinicio del backend ni
+atribuye todo el tiempo a SQL o decodificación. Las cabeceras anteriores no
+separaban esas fases.
+
+Correcciones derivadas de esa evidencia:
+
+- PostgreSQL comprueba SHA-256 del contenido actual y visibilidad antes del HIT
+  de miniatura, evitando transferir el original que ya está representado en el
+  LRU. Se conserva la clave por contenido, MIME y ancho, los filtros de tenant y
+  producto activo, los cuatro slots, un decoder y 4MiB de derivados. El primer
+  MISS real todavía descarga y transforma; no se agrega almacenamiento externo.
+- Las miniaturas del Catálogo declaran sus 44/48px reales, de modo que 160px
+  alcanza para DPR3 en vez del candidato de 320px elegido con el antiguo sizes
+  de 64px. Se distinguen carga/fallo/sin fotografía y el reintento explícito
+  conserva URL y revisión, sin abrir el editor. Categorías se desplaza en una
+  fila en teléfono, conservando filtros y acciones.
+- Análisis conserva tickets en bloques con neto cero/negativo, explica que la
+  tasa de devolución corresponde a importe y evita comparar una sucursal
+  consigo misma. Pocas cancelaciones usan copy neutral; no cambian métricas,
+  denominadores, datos ni umbrales.
+- Diagnóstico numérico de SQL/caché/resize en imágenes públicas; el gateway
+  conserva sólo las métricas autorizadas y añade el tiempo total del hop.
+
+Validación dirigida: 48 pruebas de imágenes con psycopg y otras 48 con pg8000;
+20 de gateway/caché/workerd; 163 de Reports/Branch; 16 de miniaturas/Catálogo;
+cuatro escenarios de navegador móvil, incluidos DPR3, fallo503 simulado local,
+recuperación sin cachebuster y filtro de categoría fuera del primer tramo.
+CI completo y comparación posterior al despliegue son los gates de publicación.
+
+Hallazgo separado: la consola del SDK reportó un DSN de observabilidad inválido.
+No se inspeccionaron valores secretos ni se modificó esa configuración; no se
+considera una explicación demostrada de la demora de las imágenes.
 
 ## Backend residente en Cloudflare — publicado y verificado
 
