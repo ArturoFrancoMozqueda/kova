@@ -46,6 +46,51 @@ test("first cutover captures explicit absence instead of inventing an image", as
   assert.deepEqual(await result.capture(), absent);
 });
 
+test("expanded live lite resources capture canonically and restore only the image and named size", async () => {
+  const expanded = application({ configuration: { image: oldImage, vcpu: 0.0625,
+    memory_mib: 256, memory: "256MiB", disk: { size_mb: 2000, size: "2GB" },
+    environment_variables: [{ name: "DO_NOT_CAPTURE", value: "synthetic-secret-value" }] } });
+  const { result, calls } = provider(async args => args[0] === "list" ? [expanded] : expanded);
+  const captured = await result.capture();
+  assert.deepEqual(captured, snapshot);
+  await result.restore(captured, { workersRestored: true });
+  const rollout = calls.find(args => args[0] === "rollouts");
+  assert.deepEqual(JSON.parse(rollout[4]).target_configuration,
+    { image: oldImage, instance_type: "lite" });
+  assert.equal(JSON.stringify(captured).includes("synthetic-secret"), false);
+  assert.equal(JSON.stringify(rollout).includes("environment"), false);
+  for (const resources of [
+    { vcpu: 0.0625, memory_mib: 256, disk: { size_mb: 2000 } },
+    { ...expanded.configuration, instance_type: "lite" },
+  ]) {
+    const { result: exact } = provider(async args => args[0] === "list" ? [application()]
+      : application({ configuration: { image: oldImage, ...resources } }));
+    assert.deepEqual(await exact.capture(), snapshot);
+  }
+});
+
+test("expanded or named lite resources reject partial responses, sizing drift and conflicting aliases", async () => {
+  const lite = { image: oldImage, vcpu: 0.0625, memory_mib: 256,
+    memory: "256MiB", disk: { size_mb: 2000, size: "2GB" } };
+  for (const configuration of [
+    { ...lite, vcpu: undefined }, { ...lite, memory_mib: undefined }, { ...lite, disk: undefined },
+    { ...lite, vcpu: 0.25 }, { ...lite, vcpu: "0.0625" },
+    { ...lite, memory_mib: 512 }, { ...lite, memory_mib: "256" },
+    { ...lite, memory: "512MiB" }, { ...lite, disk: { size_mb: 4000, size: "2GB" } },
+    { ...lite, disk: { size_mb: "2000" } }, { ...lite, disk: { size_mb: 2000, size: "4GB" } },
+    { ...lite, disk: "2GB" }, { ...lite, instance_type: "basic" },
+    { ...lite, instance_type: "lite", vcpu: 0.25 },
+    { ...lite, instance_type: "lite", memory: "512MiB" },
+    { ...lite, instance_type: "lite", disk: { size_mb: 4000 } },
+  ]) {
+    const { result, calls } = provider(async args => args[0] === "list" ? [application()]
+      : application({ configuration }));
+    await assert.rejects(result.capture(), /exact lite resources/);
+    await assert.rejects(result.restore(snapshot, { workersRestored: true }), /exact lite resources/);
+    assert.equal(calls.some(args => ["rollouts", "delete"].includes(args[0])), false);
+  }
+});
+
 test("restoring an existing app rolls out only the captured image and keeps lite/one", async () => {
   const { result, calls } = provider(async args => args[0] === "get"
     ? application({ configuration: { image: newImage, instance_type: "lite" } }) : {});

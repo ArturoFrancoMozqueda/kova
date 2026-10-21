@@ -36,16 +36,37 @@ function absentSnapshot() {
     image: null, instanceType: "lite", maxInstances: 1 });
 }
 
+function hasExactLiteResources(configuration) {
+  if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) return false;
+  const declared = configuration.instance_type;
+  if (declared !== undefined && declared !== "lite") return false;
+  // The applications API can return expanded resources instead of the named
+  // instance type. Accept only the observed lite tuple, including consistent
+  // human-readable aliases; never infer sizing from a partial response.
+  const { vcpu, memory_mib: memoryMiB, memory, disk } = configuration;
+  if ((vcpu !== undefined && vcpu !== 0.0625)
+      || (memoryMiB !== undefined && memoryMiB !== 256)
+      || (memory !== undefined && memory !== "256MiB")) return false;
+  if (disk !== undefined && (!disk || typeof disk !== "object" || Array.isArray(disk)
+      || (disk.size_mb !== undefined && disk.size_mb !== 2000)
+      || (disk.size !== undefined && disk.size !== "2GB"))) return false;
+  return declared === "lite"
+    || (vcpu === 0.0625 && memoryMiB === 256 && disk?.size_mb === 2000);
+}
+
 function applicationSnapshot(application) {
   // Select only non-secret configuration. In particular, never persist the
   // API's environment_variables, registry credentials, command or entrypoint.
   if (application?.scheduling_policy !== "default") {
     throw new Error("Native Container rollback requires the default scheduling policy");
   }
+  if (!hasExactLiteResources(application.configuration)) {
+    throw new Error("Native Container rollback requires exact lite resources");
+  }
   return validateNativeContainerSnapshot({ name: application.name,
     namespaceId: application.durable_objects?.namespace_id,
     applicationId: application.id, image: application.configuration?.image,
-    instanceType: application.configuration?.instance_type,
+    instanceType: "lite",
     maxInstances: application.max_instances });
 }
 
