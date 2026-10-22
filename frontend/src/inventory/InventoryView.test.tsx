@@ -59,6 +59,28 @@ beforeEach(() => {
 });
 
 describe("inventory write safety", () => {
+  it("opens an adjustment without an error and previews the resulting stock", async () => {
+    const dialog = await openModal();
+    const amount = within(dialog).getByLabelText(copy.inventoryModal.quantityDelta);
+    expect(amount).toHaveValue(null);
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(dialog).getByText(copy.inventoryModal.adjustHint)).toBeVisible();
+
+    fireEvent.change(amount, { target: { value: "3" } });
+    expect(within(dialog).getByText(copy.inventoryModal.resultingStock(10, 13))).toBeVisible();
+    fireEvent.change(amount, { target: { value: "-4" } });
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reasonCode), { target: { value: "caducidad" } });
+    expect(within(dialog).getByText(copy.inventoryModal.resultingStock(10, 6))).toBeVisible();
+  });
+
+  it("explains a missing quantity once the owner tries to save", async () => {
+    const dialog = await openModal();
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(copy.inventoryModal.amountRequired);
+    expect(adjustStock).not.toHaveBeenCalled();
+  });
+
   it.each(["0", "1.5", "9007199254740992", "-11", "2147483648", "-2147483649", "2147483638"])("blocks an invalid adjustment of %s before calling the API", async (amount) => {
     const dialog = await openModal();
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: amount } });

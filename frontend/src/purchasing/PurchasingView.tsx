@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ViewEmpty, ViewPermissionDenied } from "@/components/ui/view-states";
+import { Truck } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatMoney } from "@/orders/format";
 import { cancelPurchase, createPurchase, createSupplier, listPurchases, listSuppliers, receivePurchase, type Purchase, type Supplier } from "./api";
@@ -75,11 +78,11 @@ export default function PurchasingView() {
     void mutate({ supplierId, notes, lines }, key => createPurchase(supplierId, notes, lines, key), () => { setNotes(""); setLines([{ product_id: "", quantity: 1, unit_cost: "0.00" }]); });
   }
   const disabled = busy || !online;
-  if (!allowed) return <ViewLayout><ViewHeader title="Compras y proveedores" /><p className="mt-6">Necesitas permiso para administrar inventario.</p></ViewLayout>;
+  if (!allowed) return <ViewPermissionDenied title="Compras y proveedores" description="Necesitas permiso para administrar inventario." />;
   return <ViewLayout className="space-y-6">
     <ViewHeader title="Compras y proveedores" meta="Pide mercancía, recibe lo que llegó y conserva el costo de cada compra." />
-    {!online && <p role="status" className="rounded-lg bg-amber-50 p-4">Conéctate a internet para crear compras y recibir mercancía.</p>}
-    {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">{error}<Button variant="outline" className="ml-3" onClick={() => void load()}>Actualizar</Button></div>}
+    {!online && <p role="status" className="rounded-kova-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">Conéctate a internet para crear compras y recibir mercancía.</p>}
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button></div>}
     <div className="grid gap-6 lg:grid-cols-3">
       <Card><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>
         <form onSubmit={submitSupplier} className="space-y-3">
@@ -107,18 +110,18 @@ export default function PurchasingView() {
           </div>)}
           <Button type="button" variant="outline" disabled={disabled || lines.length >= 200 || lines.length >= products.length} onClick={() => setLines(rows => [...rows, { product_id: "", quantity: 1, unit_cost: "0.00" }])}>Agregar producto</Button>
           <div><Label htmlFor="purchase-notes">Referencia o notas (opcional)</Label><Input id="purchase-notes" maxLength={500} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-          <p>Total de la compra: <strong>{formatPurchaseTotal(lines)}</strong></p>
+          <p className="flex items-baseline justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">Total de la compra <strong className="text-lg text-kova-ink tabular-nums">{formatPurchaseTotal(lines)}</strong></p>
           <Button type="submit" disabled={disabled || products.length === 0 || suppliers.length === 0}>Crear compra pendiente</Button>
         </form>
       </CardContent></Card>
     </div>
     <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
-      {loading && <p role="status">Cargando compras…</p>}
-      {!loading && !error && purchases.length === 0 && <p>No hay compras en esta página.</p>}
+      {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
+      {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
       {purchases.map(purchase => <Card key={purchase.id}><CardContent className="space-y-3 pt-6">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span>{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
+        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
         <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>
-        <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: {item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</li>)}</ul>
+        <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
         {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
       </CardContent></Card>)}
       <div className="flex gap-3"><Button variant="outline" disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 100))}>Anteriores</Button><Button variant="outline" disabled={loading || purchases.length < 100} onClick={() => setOffset(value => value + 100)}>Más compras</Button></div>

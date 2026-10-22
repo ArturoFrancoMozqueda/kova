@@ -84,7 +84,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     <p className="max-w-2xl text-sm text-kova-muted">El cliente puede explorar tus productos, dejar una solicitud o escribirte por WhatsApp si lo agregas. La consulta no reserva existencias ni registra un pedido o pago.</p>
     {!online && <p role="status">Conéctate para publicar cambios.</p>}
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
-    {notice && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-900">{notice}</p>}
+    {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice}</p>}
     {!settings && !error && <p role="status">Cargando publicación…</p>}
     {settings && <form onSubmit={event => void save(event)} className="space-y-6">
       <fieldset disabled={busy || !online} className="space-y-5 rounded-2xl border border-kova-border bg-white p-5 sm:p-7">

@@ -21,6 +21,9 @@ import {
   LayoutGrid,
   ClipboardList,
   ClipboardCheck,
+  HeartHandshake,
+  ListChecks,
+  Receipt,
   Package,
   Clock,
   BarChart3,
@@ -84,18 +87,18 @@ const adminNavItems: NavItem[] = [
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
   { to: "/purchasing", label: "Compras y proveedores", icon: <Truck className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
-  { to: "/settings/integrations", label: "Facturación e integraciones", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/integrations", label: "Facturación e integraciones", icon: <Receipt className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
-  { to: "/operations-queue", label: "Pendientes", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/operations-queue", label: "Pendientes", icon: <ListChecks className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/service-cases", label: "Atención postventa", icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
   { to: "/appointments", label: "Agenda", icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
   { to: "/loyalty", label: "Lealtad de clientes", icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inbox", label: "Bandeja de atención", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
   { to: "/commercial-requests", label: "Solicitudes del catálogo", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/followups", label: "Postventa y seguimiento", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/followups", label: "Postventa y seguimiento", icon: <HeartHandshake className="h-4.5 w-4.5" />, group: "business" },
   { to: "/crm", label: "Seguimiento comercial", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
   { to: "/quotes", label: "Cotizaciones", icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
   { to: "/automations", label: "Automatizaciones", icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
@@ -555,7 +558,7 @@ export default function AppShell() {
           onClick={() => void handleLogout()}
           title={sidebarCompact ? copy.register.logout : undefined}
           className={cn(
-            "relative flex w-full items-center justify-start rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "relative flex min-h-10 w-full items-center justify-start rounded-kova-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
             sidebarCompact && "px-2",
           )}
           type="button"

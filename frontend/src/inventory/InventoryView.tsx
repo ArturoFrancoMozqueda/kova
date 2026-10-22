@@ -172,7 +172,7 @@ export default function InventoryView() {
 
   if (loadState.status === "loading") {
     return (
-      <ViewLayout width="standard" className="space-y-6" aria-busy="true">
+      <ViewLayout width="wide" className="space-y-6" aria-busy="true">
         <ViewHeader title={copy.inventoryView.title} meta={copy.inventoryView.loading} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -185,7 +185,7 @@ export default function InventoryView() {
 
   if (loadState.status === "error") {
     return (
-      <ViewLayout width="standard">
+      <ViewLayout width="wide">
         <ViewError
           message={copy.inventoryView.loadError}
           onRetry={() => void load()}
@@ -607,8 +607,8 @@ function StockCard({
                         className={cn(
                           "shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] uppercase",
                           m.quantity_delta > 0
-                            ? "bg-kova-growth/10 text-emerald-700"
-                            : "bg-destructive/10 text-red-700",
+                            ? "bg-kova-growth/10 text-kova-growth-strong"
+                            : "bg-destructive/10 text-destructive-strong",
                         )}
                       >
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
@@ -654,9 +654,14 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); });
     return () => { alive = false; };
   }, [modal.item.product_id, modal.item.track_lots, modal.type]);
+  // An adjustment starts empty: a prefilled "0" was itself invalid, so the
+  // dialog opened already showing an error the owner hadn't caused.
   const [amount, setAmount] = useState(
-    modal.type === "threshold" ? String(modal.item.low_stock_threshold ?? "") : "0",
+    modal.type === "threshold"
+      ? String(modal.item.low_stock_threshold ?? "")
+      : modal.type === "adjust" ? "" : "0",
   );
+  const [amountTouched, setAmountTouched] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonCode, setReasonCode] = useState<InventoryReasonCode | "">("");
   const title =
@@ -681,16 +686,14 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   if (amountMissing) {
     validationError = copy.inventoryModal.amountRequired;
   } else if (!Number.isSafeInteger(numeric)) {
-    validationError = "Ingresa una cantidad entera válida.";
+    validationError = copy.inventoryModal.wholeNumber;
   } else if (numeric > INVENTORY_QUANTITY_MAX || numeric < INVENTORY_QUANTITY_MIN) {
-    validationError = modal.type === "adjust"
-      ? "La cantidad supera el límite permitido. Ingresa un valor entre -2,147,483,648 y 2,147,483,647."
-      : "La cantidad supera el límite permitido. Ingresa un valor entre 0 y 2,147,483,647.";
+    validationError = copy.inventoryModal.overLimit;
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
-    if (numeric === 0) validationError = "Ingresa una cantidad distinta de 0 para ajustar el stock.";
+    if (numeric === 0) validationError = copy.inventoryModal.zeroAdjustment;
     else if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
-    else if (resulting > INVENTORY_QUANTITY_MAX) validationError = "Este ajuste superaría el stock máximo de 2,147,483,647 unidades. Reduce la cantidad a agregar.";
+    else if (resulting > INVENTORY_QUANTITY_MAX) validationError = copy.inventoryModal.overMaxStock;
     else if (numeric < 0 && !reasonCode) validationError = copy.inventoryModal.reasonCodeRequired;
   } else if (modal.type === "stockTake" && numeric < 0) {
     validationError = copy.inventoryModal.negativeCount;
@@ -703,8 +706,16 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     ? "Escribe el motivo del movimiento."
     : null;
 
+  // Errors appear once the owner typed a quantity or tried to save — not on open.
+  const showAmountError = validationError !== null && (amountTouched || !amountMissing);
+  const adjustPreview =
+    modal.type === "adjust" && !validationError && !amountMissing
+      ? copy.inventoryModal.resultingStock(modal.item.stock_on_hand, modal.item.stock_on_hand + numeric)
+      : null;
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    setAmountTouched(true);
     if (pending || validationError || reasonError) return;
     void onSubmit({
       amount: numeric,
@@ -734,19 +745,28 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             disabled={pending}
             value={modal.item.track_lots && modal.type === "stockTake" ? Object.values(lotCounts).reduce((sum, q) => sum + q, 0) : amount}
               readOnly={Boolean(modal.item.track_lots && modal.type === "stockTake")}
-            onChange={(event) => setAmount(event.target.value)}
-            aria-invalid={validationError ? true : undefined}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              setAmountTouched(true);
+            }}
+            aria-invalid={showAmountError ? true : undefined}
             aria-describedby={
-              validationError ? "inv-amount-error" : modal.type === "threshold" ? "inv-amount-help" : undefined
+              showAmountError
+                ? "inv-amount-error"
+                : modal.type === "threshold" || modal.type === "adjust" ? "inv-amount-help" : undefined
             }
           />
-          {validationError ? (
+          {showAmountError ? (
             <p id="inv-amount-error" role="alert" className="text-xs font-medium text-destructive">
               {validationError}
             </p>
           ) : modal.type === "threshold" ? (
             <p id="inv-amount-help" className="text-xs text-muted-foreground">
               {copy.inventoryModal.thresholdHint}
+            </p>
+          ) : modal.type === "adjust" ? (
+            <p id="inv-amount-help" className="text-xs text-muted-foreground tabular-nums">
+              {adjustPreview ?? copy.inventoryModal.adjustHint}
             </p>
           ) : null}
         </div>

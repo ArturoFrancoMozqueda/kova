@@ -406,7 +406,7 @@ export default function SettingsView() {
 
   if (loadState === "loading" || loadedScope !== loadScope) {
     return (
-      <ViewLayout width="focused" className="space-y-4">
+      <ViewLayout width="standard" className="space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
       </ViewLayout>
@@ -415,7 +415,7 @@ export default function SettingsView() {
 
   if (loadState === "error") {
     return (
-      <ViewLayout width="focused">
+      <ViewLayout width="standard">
         <Card>
           <CardContent className="p-6">
             <p role="alert" className="font-medium">{copy.settings.loadError}</p>
@@ -712,11 +712,11 @@ export default function SettingsView() {
                 </Button>
               </div>
 
-              <div className="rounded-kova-md border border-red-200 bg-red-50/40 p-4">
-                <p className="font-medium text-red-900">{copy.settings.accountDeletionTitle}</p>
+              <div className="rounded-kova-md border border-destructive/30 bg-destructive/10 p-4">
+                <p className="font-medium text-destructive-strong">{copy.settings.accountDeletionTitle}</p>
                 {deletionStatus?.status === "pending" ? (
                   <div className="mt-2 space-y-3">
-                    <p className="text-sm leading-6 text-red-800">
+                    <p className="text-sm leading-6 text-destructive-strong">
                       {copy.settings.accountDeletionPending(
                         deletionStatus.purge_after
                           ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(
@@ -731,7 +731,7 @@ export default function SettingsView() {
                   </div>
                 ) : (
                   <form className="mt-2 grid max-w-xl gap-4" onSubmit={submitDeletion}>
-                    <p className="text-sm leading-6 text-red-800">
+                    <p className="text-sm leading-6 text-destructive-strong">
                       {copy.settings.accountDeletionHint}
                     </p>
                     <Field

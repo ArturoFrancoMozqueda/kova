@@ -344,7 +344,7 @@ export default function ShiftView() {
                       label={copy.shiftView.totalCashIn}
                       value={
                         <span className="tabular-nums">
-                          <span className="text-emerald-700">+{formatMoney(cashIn)}</span>
+                          <span className="text-kova-growth-strong">+{formatMoney(cashIn)}</span>
                           {" / "}
                           <span className="text-destructive">−{formatMoney(cashOut)}</span>
                         </span>

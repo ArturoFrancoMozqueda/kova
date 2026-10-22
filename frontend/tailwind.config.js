@@ -20,6 +20,7 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          strong: "hsl(var(--destructive-strong))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -62,6 +63,7 @@ export default {
           ink: "var(--kova-ink)",
           mist: "var(--kova-mist)",
           growth: "var(--kova-growth)",
+          "growth-strong": "var(--kova-growth-strong)",
           muted: "var(--kova-muted)",
           tertiary: "var(--kova-tertiary)",
           border: "var(--kova-border)",

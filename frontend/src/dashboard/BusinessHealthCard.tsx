@@ -205,7 +205,7 @@ export function BusinessHealthCard({
 
   const ringClass =
     band === "healthy"
-      ? "text-emerald-700"
+      ? "text-kova-growth-strong"
       : band === "watch"
         ? "text-warning-foreground"
         : band === "setup"
@@ -276,7 +276,7 @@ export function BusinessHealthCard({
             const Icon = f.icon;
             const tone =
               f.status === "up" || f.status === "ok"
-                ? "text-emerald-700"
+                ? "text-kova-growth-strong"
                 : f.status === "down" || f.status === "warn"
                   ? "text-destructive"
                   : "text-kova-muted";

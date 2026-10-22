@@ -74,7 +74,7 @@ export default function ExpensesView() {
 
   if (!enabled) {
     return (
-      <ViewLayout width="focused">
+      <ViewLayout width="standard">
         <ViewEmpty
           icon={<BarChart3 className="h-6 w-6" />}
           title={copy.expenses.unavailableTitle}

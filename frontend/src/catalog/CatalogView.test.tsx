@@ -292,3 +292,31 @@ describe("ProductCostEditor", () => {
     ]);
   });
 });
+
+describe("ProductForm required fields", () => {
+  it("says what is missing while Guardar is disabled", () => {
+    render(
+      <ToastProvider>
+        <ProductForm
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={vi.fn(async () => undefined)}
+        />
+      </ToastProvider>,
+    );
+
+    const save = screen.getByRole("button", { name: "Guardar producto" });
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription("Para guardar falta: nombre del producto y precio.");
+
+    fireEvent.change(screen.getByLabelText("Nombre del producto"), { target: { value: "Concha" } });
+    expect(save).toHaveAccessibleDescription("Para guardar falta: precio.");
+
+    fireEvent.change(screen.getByLabelText("Precio"), { target: { value: "18.50" } });
+    expect(save).toBeEnabled();
+    expect(screen.queryByText(/Para guardar falta/)).not.toBeInTheDocument();
+  });
+});

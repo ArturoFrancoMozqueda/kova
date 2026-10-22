@@ -1642,7 +1642,7 @@ function RegularRegisterView() {
                               type="button"
                               onClick={() => removeItem(cartKey)}
                               aria-label={copy.register.removeItem(item.product.name)}
-                              className="flex h-11 w-11 items-center justify-center rounded-kova-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="flex h-11 w-11 items-center justify-center rounded-kova-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive-strong transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1828,7 +1828,7 @@ function RegularRegisterView() {
                           {copy.register.splitCashShort}
                         </p>
                       ) : splitHasPayment ? (
-                        <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+                        <p className="flex items-center gap-1.5 text-xs text-kova-growth-strong">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                           {copy.register.splitBalanced}
                         </p>
@@ -2001,7 +2001,7 @@ function RegularRegisterView() {
                       "flex items-start gap-2 rounded-lg border p-3 text-xs sm:text-sm",
                       cashShiftLoading
                         ? "border-border bg-muted/40 text-muted-foreground"
-                        : "border-destructive/30 bg-destructive/10 text-destructive",
+                        : "border-destructive/30 bg-destructive/10 text-destructive-strong",
                     )}
                   >
                     {cashShiftLoading
@@ -2090,7 +2090,7 @@ function RegularRegisterView() {
                     <p
                       className={cn(
                         "font-semibold",
-                        isPendingSync ? "text-warning-foreground" : "text-emerald-700",
+                        isPendingSync ? "text-warning-foreground" : "text-kova-growth-strong",
                       )}
                     >
                       {isPendingSync

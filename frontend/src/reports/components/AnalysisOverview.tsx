@@ -276,8 +276,8 @@ export function AnalysisOverview({
                 className={cn(
                   "inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold tabular-nums",
                   comparison.positive
-                    ? "bg-kova-growth/10 text-emerald-700"
-                    : "bg-destructive/10 text-destructive",
+                    ? "bg-kova-growth/10 text-kova-growth-strong"
+                    : "bg-destructive/10 text-destructive-strong",
                 )}
               >
                 {comparison.growthLabel}
