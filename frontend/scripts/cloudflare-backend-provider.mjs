@@ -77,7 +77,8 @@ export function cloudflareBackendProvider({ run, env }) {
     ...(containers ? { captureNative: containers.capture } : {}),
     async waitForPublicBackend(input) {
       const nativeRuntime = native && input.nativeRuntime !== false;
-      await (nativeRuntime ? waitForNativeBackendRelease : waitForBackendRelease)(input);
+      if (nativeRuntime) await waitForNativeBackendRelease({ ...input, rollout: true });
+      else await waitForBackendRelease(input);
       if (nativeRuntime) {
         // A Python and a native publication can share the same commit. Prove
         // the runtime as well as the SHA before accepting/promoting the site.
