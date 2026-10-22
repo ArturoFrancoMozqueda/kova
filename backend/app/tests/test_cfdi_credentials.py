@@ -1,4 +1,5 @@
-from uuid import uuid4
+import base64
+from uuid import UUID, uuid4
 
 import pytest
 from cryptography.fernet import Fernet
@@ -11,6 +12,25 @@ from app.cfdi.credentials import (
     storage_available,
 )
 from app.config import settings
+
+
+def test_valid_ciphertext_can_contain_a_provider_prefix_without_exposing_the_key(monkeypatch):
+    from app.cfdi import credentials
+
+    root = base64.urlsafe_b64encode(bytes(range(32)))
+    monkeypatch.setattr(settings, "kova_cfdi_credentials_key", SecretStr(root.decode()))
+    cipher = Fernet(root)
+    # Fixed test-only IV/time reproduce a legitimate Base64 prefix collision.
+    monkeypatch.setattr(cipher, "encrypt", lambda data: cipher._encrypt_from_parts(
+        data, 1700000000, (1750).to_bytes(16, "big"),
+    ))
+    monkeypatch.setattr(credentials, "_cipher", lambda: cipher)
+    scope = dict(tenant_id=UUID(int=1), environment="test", organization_id="org-id")
+    key = "sk_test_synthetic_only"
+    encrypted = encrypt_key(**scope, api_key=key)
+    assert "sk_" in encrypted
+    assert key not in encrypted
+    assert decrypt_key(**scope, encrypted_key=encrypted) == key
 
 
 def test_provider_key_requires_dedicated_root_and_enabled_storage(monkeypatch):

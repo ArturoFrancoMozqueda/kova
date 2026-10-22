@@ -359,7 +359,9 @@ def test_activation_persists_scoped_encrypted_keys_and_replay_never_duplicates(c
             encrypted_key=connection.encrypted_api_key,
         )
         assert key == f"sk_{connection.environment}_synthetic_{row.organization_id}"
-        assert "sk_" not in connection.encrypted_api_key and key not in response.text
+        # Fernet's random URL-safe Base64 may legitimately contain "sk_".
+        # Check the complete plaintext credential, not a three-character prefix.
+        assert key not in connection.encrypted_api_key and key not in response.text
         with pytest.raises(credentials.CredentialStorageUnavailable):
             credentials.decrypt_key(
                 tenant_id=uuid4(),
