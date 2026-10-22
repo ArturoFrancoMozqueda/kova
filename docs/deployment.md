@@ -190,6 +190,26 @@ the ledger entry automatically because that would create misleading accounting h
 
 ## Rollback
 
+### Interrupted release on 2026-10-22
+
+Run `39709835800` stopped after publishing backend `443fa3fc84bf` and before
+frontend promotion. Its exact `release-rollback-443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca`
+artifact captures the prior coherent release `b8b00c36b9697b9ae1009bd8cad57894d31a340a`.
+The manual `recover-interrupted-release.yml` workflow restores that backend using
+the existing candidate-phase recovery, then verifies the public site, direct
+backend/database and frontend API proxy. It never downgrades the database.
+
+After explicit operator approval, merge the recovery workflow and dispatch it
+from `main` with `approve_recovery=true`. It shares the normal release concurrency
+queue, uses the `production` environment, checks the exact downloaded artifact's
+SHA-256 and rejects a changed incident state before provider mutations. A failed
+or expired artifact check blocks recovery; never replace the snapshot with guessed
+versions. Retrying after partial recovery requires inspecting provider state.
+Only after successful recovery, rerun the latest `main` CI workflow to publish
+the tested UX changes. Confirm `/health` and `/version.json` match that run's SHA.
+On 2026-10-21 (Mexico City), the environment API reported no protection rules;
+the workflow's explicit approval input does not replace required reviewers.
+
 - **Coordinated release:** use the `release-rollback-<sha>` artifact from the failed workflow and the
   phase-aware recovery job. A missing artifact is a blocking incident, not permission to infer a
   target from “latest”.

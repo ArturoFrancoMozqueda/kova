@@ -1,0 +1,85 @@
+name: Recover interrupted October 22 release
+
+on:
+  workflow_dispatch:
+    inputs:
+      approve_recovery:
+        description: Restore the captured backend for run 39709835800 (no database rollback)
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+# Share the normal release queue. Recovery must never race publication.
+concurrency:
+  group: CI and release-refs/heads/main
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.ref == 'refs/heads/main' && inputs.approve_recovery
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - name: Download the exact incident artifact
+        run: |
+          set -euo pipefail
+          gh run download 39709835800 --repo "$GITHUB_REPOSITORY" \
+            --name release-rollback-443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca \
+            --dir "$RUNNER_TEMP/kova-recovery"
+          cd "$RUNNER_TEMP/kova-recovery"
+          echo 'e64de5ed0b12af78d67e9ba3447ffa5f00826caa7ea8a908a91a0ac47f0d92ff  release-rollback.json' | sha256sum --check --strict
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Validate snapshot and unchanged incident state before recovery
+        run: |
+          set -euo pipefail
+          test "$KOVA_CLOUDFLARE_BACKEND" = "1"
+          test "$KOVA_NATIVE_BACKEND" = "1"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import { validateRollbackArtifact } from './frontend/scripts/release-recovery.mjs';
+          const artifact = validateRollbackArtifact(JSON.parse(fs.readFileSync(
+            `${process.env.RUNNER_TEMP}/kova-recovery/release-rollback.json`, 'utf8')));
+          assert.equal(artifact.releaseSha, 'b8b00c36b9697b9ae1009bd8cad57894d31a340a');
+          assert.equal(artifact.frontendUrl, 'https://kovasuite.com');
+          assert.equal(artifact.backendUrl, 'https://api.kovasuite.com');
+          for (const [url, key, expected] of [
+            [`${artifact.backendUrl}/health`, 'release_sha', '443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca'],
+            [`${artifact.frontendUrl}/version.json`, 'hash', artifact.releaseSha.slice(0, 12)],
+          ]) {
+            const response = await fetch(url, { signal: AbortSignal.timeout(20_000),
+              headers: { 'cache-control': 'no-cache' }, redirect: 'error' });
+            assert.equal(response.status, 200);
+            assert.equal((await response.json())[key], expected, 'Incident changed; inspect before retrying');
+          }
+          NODE
+        env:
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+      - name: Install locked recovery tools without production credentials
+        run: npm ci --prefix deploy/cloudflare-backend
+      - name: Restore captured backend and verify site, database and API proxy
+        run: >-
+          node frontend/scripts/release-recovery.mjs
+          --artifact "$RUNNER_TEMP/kova-recovery/release-rollback.json"
+          --phase candidate
+          --failed-sha 443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca
+        env:
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
