@@ -42,3 +42,19 @@ class PublicCatalogItem(Base):
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     catalog_id: Mapped[UUID] = mapped_column(nullable=False)
     product_id: Mapped[UUID] = mapped_column(nullable=False)
+
+
+class PublicCatalogLink(Base):
+    """Immutable routing metadata; never grants access to unpublished catalog data."""
+
+    __tablename__ = "public_catalog_links"
+    __table_args__ = (
+        UniqueConstraint("catalog_id", "link_version", name="uq_catalog_link_version"),
+        ForeignKeyConstraint(
+            ["tenant_id", "catalog_id"], ["public_catalogs.tenant_id", "public_catalogs.id"]
+        ),
+    )
+    slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    catalog_id: Mapped[UUID] = mapped_column(nullable=False)
+    link_version: Mapped[int] = mapped_column(Integer, nullable=False)

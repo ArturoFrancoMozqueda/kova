@@ -253,3 +253,117 @@ def test_publication_tables_enforce_rls_under_runtime_role(
             )
         ).one()
         assert tuple(flags) == (True, True)
+
+
+def test_readable_business_name_is_stable_and_revoked_names_are_reserved(client, db):
+    from app.tenants.models import Tenant
+
+    first_tenant = _signup_login(client, prefix="readable-a")
+    db.query(Tenant).filter_by(id=first_tenant).one().name = "Cafetería Sweet Home"
+    db.commit()
+    product = _product(client)
+    first = _save(client, [product]).json()
+    assert first["share_path"] == "/catalogo/cafeteria-sweet-home"
+    updated = _save(client, [product], version=1, title="Otro título").json()
+    assert updated["share_path"] == first["share_path"]
+    rotated = _save(client, [product], version=2, rotate_link=True).json()
+    assert rotated["share_path"] == "/catalogo/cafeteria-sweet-home-2"
+    assert _read(client, first).status_code == 404
+    client.cookies.clear()
+    second_tenant = _signup_login(client, prefix="readable-b")
+    db.query(Tenant).filter_by(id=second_tenant).one().name = "Cafetería Sweet Home"
+    db.commit()
+    second = _save(client, [_product(client)]).json()
+    assert second["share_path"] == "/catalogo/cafeteria-sweet-home-3"
+    assert _read(client, first).status_code == 404
+    assert _read(client, rotated).status_code == 200
+    assert _read(client, second).status_code == 200
+
+
+def test_legacy_printed_capability_survives_until_rotation(client, db):
+    import jwt
+
+    from app.config import settings
+
+    tenant_id = _signup_login(client, prefix="legacy-link")
+    product = _product(client)
+    current = _save(client, [product]).json()
+    catalog = db.query(PublicCatalog).filter_by(tenant_id=tenant_id).one()
+    token = jwt.encode({"aud": "kova-public-catalog", "tenant": str(tenant_id),
+                        "branch": str(catalog.branch_id), "catalog": str(catalog.id),
+                        "version": catalog.link_version}, settings.secret_key, algorithm="HS256")
+    assert client.get(f"/api/v1/public/catalog/{token}").status_code == 200
+    assert _save(client, [product], version=current["version"], rotate_link=True).status_code == 200
+    assert client.get(f"/api/v1/public/catalog/{token}").status_code == 404
+
+
+def test_readable_lookup_uses_runtime_rls_and_cannot_enumerate_or_modify(client, db, kova_app_engine):
+    from app.db import set_tenant_context
+    from app.storefront.links import lookup_link
+    from app.storefront.models import PublicCatalogLink
+    from app.storefront.router import resolve_public_catalog
+
+    tenant_id = _signup_login(client, prefix="route-rls")
+    current = _save(client, [_product(client)]).json()
+    slug = current["share_path"].split("/")[-1]
+    db.execute(text("SET LOCAL ROLE kova_app"))
+    try:
+        set_tenant_context(db, uuid4())
+        assert db.query(PublicCatalogLink).count() == 0
+        assert lookup_link(db, "unknown-business") is None
+        assert lookup_link(db, slug).tenant_id == tenant_id
+        assert db.query(PublicCatalogLink).count() == 0  # lookup context was cleared
+        assert db.query(PublicCatalog).count() == 0
+        assert db.query(Product).count() == 0
+        assert db.execute(text("SELECT has_table_privilege(current_user, 'public_catalog_links', 'UPDATE')")).scalar() is False
+        assert db.execute(text("SELECT has_table_privilege(current_user, 'public_catalog_links', 'DELETE')")).scalar() is False
+        assert resolve_public_catalog(db, slug).tenant_id == tenant_id
+    finally:
+        db.execute(text("RESET ROLE"))
+
+
+def test_concurrent_businesses_reserve_distinct_readable_names(owner_engine, kova_app_engine):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from types import SimpleNamespace
+
+    from sqlalchemy.orm import Session
+
+    from app.db import set_tenant_context
+    from app.storefront.links import allocate_link
+
+    tenants = [uuid4(), uuid4()]
+    catalogs = [uuid4(), uuid4()]
+    name = f"Concurrent {uuid4().hex}"
+    with owner_engine.begin() as conn:
+        for tenant, catalog in zip(tenants, catalogs, strict=True):
+            conn.execute(text("INSERT INTO tenants(id,name,slug) VALUES(:id,:name,:slug)"),
+                         {"id": tenant, "name": name, "slug": str(tenant)})
+            conn.execute(text("""INSERT INTO public_catalogs
+                (id,tenant_id,branch_id,title,enabled,version,link_version,updated_at)
+                VALUES(:id,:tenant,:tenant,'Concurrent',true,1,1,now())"""),
+                         {"id": catalog, "tenant": tenant})
+    barrier = Barrier(2)
+
+    def reserve(pair):
+        tenant, catalog = pair
+        with Session(kova_app_engine) as session:
+            set_tenant_context(session, tenant)
+            barrier.wait(timeout=10)
+            slug = allocate_link(session, SimpleNamespace(
+                id=catalog, tenant_id=tenant, link_version=1,
+            ), name)
+            session.commit()
+            return slug
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            slugs = set(executor.map(reserve, zip(tenants, catalogs, strict=True)))
+        base = name.lower().replace(" ", "-")
+        assert slugs == {base, f"{base}-2"}
+    finally:
+        with owner_engine.begin() as conn:
+            for tenant in tenants:
+                for table in ("public_catalog_links", "public_catalogs", "branches"):
+                    conn.execute(text(f"DELETE FROM {table} WHERE tenant_id=:tenant"), {"tenant": tenant})
+                conn.execute(text("DELETE FROM tenants WHERE id=:tenant"), {"tenant": tenant})

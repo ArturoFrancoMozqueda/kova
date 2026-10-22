@@ -46,6 +46,7 @@ TENANT_SCOPED_TABLES = (
     "customer_quote_items",
     "public_catalogs",
     "public_catalog_items",
+    "public_catalog_links",
     "reconciliation_import_batches",
     "reconciliation_matches",
     "settlement_entries",
@@ -188,6 +189,10 @@ EXPECTED_RLS_POLICY_SPECS.update(
     }
 )
 EXPECTED_ADDITIONAL_RLS_POLICY_SPECS = {
+    "public_catalog_links": (
+        "exact_public_catalog_route", True, "r", (0,), True, False,
+        "slug::text=current_setting'app.public_catalog_slug'::text,true",
+    ),
     "tenants": (
         "current_tenant_name_update",
         True,
