@@ -355,15 +355,37 @@
    the sheet actually is instead of restarting.
    Asymmetric by direction — 280ms arriving, 180ms leaving — which a single
    keyframe could not express.
-   The closed state translates DOWN past the viewport bottom, leaving exactly the
-   5rem handle: a full-height sheet translated upward would swallow taps meant for
-   the product grid. */
+   The closed state translates DOWN, leaving exactly the 5rem handle above the
+   bottom nav (the clip-path below hides the part that would otherwise slide
+   over the nav): a full-height sheet translated upward would swallow taps meant
+   for the product grid. */
 .kv-cart-sheet {
-  transition: transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
+  transition:
+    transform var(--kova-dur-modal-exit) var(--kova-ease-exit),
+    clip-path var(--kova-dur-modal-exit) var(--kova-ease-exit);
 }
 
 .kv-cart-sheet[data-open="true"] {
-  transition: transform var(--kova-dur-modal) var(--kova-ease-entrance);
+  transition:
+    transform var(--kova-dur-modal) var(--kova-ease-entrance),
+    clip-path var(--kova-dur-modal) var(--kova-ease-entrance);
+}
+
+/* The sheet is anchored above the bottom nav (bottom-14), so translating it
+   down by (100% - 5rem) pushed its body over the nav: z-40 beats the nav's
+   z-30, and on /register Caja/Pedidos/Panel/Más were hidden under an empty
+   cart card. Clipping the same (100% - 5rem) off the bottom, on the same
+   duration and easing, keeps the visible bottom edge pinned to the top of the
+   nav throughout the slide. The negative insets leave room for the sheet's top
+   shadow. Below xl only; on desktop the sheet is a plain sidebar column. */
+@media (max-width: 1279.98px) {
+  .kv-cart-sheet {
+    clip-path: inset(-48px -48px 0 -48px);
+  }
+
+  .kv-cart-sheet[data-open="false"] {
+    clip-path: inset(-48px -48px calc(100% - 5rem) -48px);
+  }
 }
 
 /* Defence in depth. The sheet is a SIBLING of the success overlay that holds
@@ -373,6 +395,7 @@
 @media print {
   .kv-cart-sheet {
     transform: none !important;
+    clip-path: none !important;
   }
 }
 
@@ -422,27 +445,36 @@
   }
 }
 
-.kv-report-stagger > * {
+/* .kv-stagger is the same sequence for any other view whose sections arrive
+   together from one load (Panel). Same rule: it plays when a new result set
+   mounts, never on local interaction. */
+.kv-report-stagger > *,
+.kv-stagger > * {
   animation: kv-report-enter var(--kova-dur-panel) var(--kova-ease-entrance) both;
 }
 
-.kv-report-stagger > :nth-child(2) {
+.kv-report-stagger > :nth-child(2),
+.kv-stagger > :nth-child(2) {
   animation-delay: 40ms;
 }
 
-.kv-report-stagger > :nth-child(3) {
+.kv-report-stagger > :nth-child(3),
+.kv-stagger > :nth-child(3) {
   animation-delay: 80ms;
 }
 
-.kv-report-stagger > :nth-child(4) {
+.kv-report-stagger > :nth-child(4),
+.kv-stagger > :nth-child(4) {
   animation-delay: 120ms;
 }
 
-.kv-report-stagger > :nth-child(5) {
+.kv-report-stagger > :nth-child(5),
+.kv-stagger > :nth-child(5) {
   animation-delay: 160ms;
 }
 
-.kv-report-stagger > :nth-child(n + 6) {
+.kv-report-stagger > :nth-child(n + 6),
+.kv-stagger > :nth-child(n + 6) {
   animation-delay: 200ms;
 }
 

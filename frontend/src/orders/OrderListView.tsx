@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewEmpty } from "@/components/ui/view-states";
-import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban } from "lucide-react";
+import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban, ChevronDown, SlidersHorizontal } from "lucide-react";
 
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
@@ -45,6 +45,9 @@ export default function OrderListView() {
   const [startDate, setStartDate] = useState(initialPeriod.start);
   const [endDate, setEndDate] = useState(initialPeriod.end);
   const [sortOrder, setSortOrder] = useState<OrderSort>("created_desc");
+  // Phones only: the custom range and sort fold behind one toggle so the
+  // first sale isn't pushed below the fold by five rows of controls.
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "";
 
@@ -175,6 +178,28 @@ export default function OrderListView() {
           ))}
         </div>
 
+        <button
+          type="button"
+          onClick={() => setShowMoreFilters((open) => !open)}
+          aria-expanded={showMoreFilters}
+          aria-controls="orders-more-filters"
+          className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-kova-md px-1 text-sm font-medium text-kova-blue sm:hidden"
+        >
+          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          {showMoreFilters ? copy.orderList.fewerFilters : copy.orderList.moreFilters}
+          <ChevronDown
+            className={cn("h-4 w-4 transition-transform duration-quick ease-standard", showMoreFilters && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+
+        <div
+          id="orders-more-filters"
+          className={cn(
+            "flex-col gap-3 sm:contents",
+            showMoreFilters ? "flex animate-fade-in" : "hidden",
+          )}
+        >
         {/* Date range */}
         <div className="flex items-end gap-2 flex-1">
           <div className="space-y-1 flex-1 min-w-0">
@@ -218,6 +243,7 @@ export default function OrderListView() {
             <option value="amount_asc">{copy.orderList.sortAmountAsc}</option>
           </Select>
         </div>
+        </div>
 
         {/* Clear */}
         {hasActiveFilter && (
@@ -225,7 +251,7 @@ export default function OrderListView() {
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="shrink-0 gap-1.5 text-muted-foreground"
+            className="shrink-0 gap-1.5 self-start text-muted-foreground sm:self-auto"
           >
             <X className="h-3.5 w-3.5" />
             {copy.orderList.clearFilters}

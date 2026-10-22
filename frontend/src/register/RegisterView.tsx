@@ -1218,10 +1218,10 @@ function RegularRegisterView() {
             void drawer.open("sale", "", result.order.id);
           }
           void refreshStock();
-          // Toast is retained as the accessible status announcement
-          // (aria-live region) for screen readers — visual de-duplication with
-          // the success card is left for a future polish pass.
-          toast(copy.register.saleComplete, "success");
+          // Announced for screen readers only: the success card already says
+          // "Venta completada" on screen, and on phones the visual toast landed
+          // right on top of the overlay's check mark.
+          toast(copy.register.saleComplete, { variant: "success", srOnly: true });
         } else if (result.status === "failed" && activeSaleClientUuidRef.current === queueItem.client_uuid) {
           // The payment already has a durable queue identity. Restoring this
           // cart would let checkout create another UUID while the original
@@ -2015,7 +2015,13 @@ function RegularRegisterView() {
                 )}
 
                 {/* Submit — kova-growth: cobrar es la accion que lleva al
-                    estado de exito, que ya usa ese mismo verde. */}
+                    estado de exito, que ya usa ese mismo verde.
+                    In the mobile sheet it sticks to the bottom of the scroller:
+                    with cash keypad, quick amounts and split payment above it,
+                    "Cobrar" otherwise sat below the fold on every phone sale.
+                    Solid surface, no backdrop-filter (a filter would make this a
+                    containing block — see docs/claude/motion-system.md). */}
+                <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-kova-border bg-card px-4 pb-4 pt-3 xl:static xl:m-0 xl:border-0 xl:bg-transparent xl:p-0">
                 <Button
                   type="submit"
                   disabled={!canSubmitSale && !cashPaymentNeedsAmount}
@@ -2049,6 +2055,7 @@ function RegularRegisterView() {
                     </>
                   )}
                 </Button>
+                </div>
                 <p className="hidden items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex xl:flex-wrap">
                   <ShortcutHint keys={[MOD_KEY_LABEL, "Enter"]} label={copy.register.shortcutCharge} />
                   <ShortcutHint keys={["/"]} label={copy.register.shortcutSearch} />

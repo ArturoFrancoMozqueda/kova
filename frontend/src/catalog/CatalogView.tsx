@@ -482,12 +482,17 @@ export default function CatalogView() {
                 >
                   {cat.name}
                 </button>
-                  <div className="flex items-center gap-0.5 pr-1 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
+                {/* Edit/deactivate ride on the selected chip only. Shown on every
+                    chip they made each one ~3× wider on a phone (two 44px targets
+                    per category) and left invisible gaps on desktop. Select a
+                    category to manage it. */}
+                {selectedCategoryId === cat.id && (canUpdate || canDelete) ? (
+                <div className="flex animate-fade-in items-center gap-0.5 pr-1">
                   {canUpdate && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn("h-11 w-11 lg:h-8 lg:w-8", selectedCategoryId === cat.id && "text-white hover:text-white")}
+                      className="h-11 w-11 text-white hover:bg-white/10 hover:text-white lg:h-8 lg:w-8"
                       aria-label={`Editar ${cat.name}`}
                       onClick={() => setModal({ type: "category-edit", category: cat })}
                     >
@@ -498,7 +503,7 @@ export default function CatalogView() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-11 w-11 text-destructive hover:text-destructive lg:h-8 lg:w-8"
+                      className="h-11 w-11 text-white/80 hover:bg-white/10 hover:text-white lg:h-8 lg:w-8"
                       aria-label={`Desactivar ${cat.name}`}
                       onClick={() =>
                         setConfirmRequest({
@@ -525,6 +530,7 @@ export default function CatalogView() {
                     </Button>
                   )}
                 </div>
+                ) : null}
               </div>
             ))}
 
@@ -538,12 +544,14 @@ export default function CatalogView() {
 
         {/* ---- Products grid ---- */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          {/* Wraps as a whole: on a phone the two tools drop under the title as
+              one row instead of stacking into a ragged right-aligned column. */}
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
             <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Tag className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.products}
             </h2>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-2">
               {canUpdate && visibleProducts.length > 0 && (
                 <Button
                   size="sm"

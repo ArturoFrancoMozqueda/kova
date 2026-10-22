@@ -252,18 +252,21 @@ export default function InventoryView() {
         </div>
       ) : null}
 
-      <div className="mb-6 grid overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card sm:grid-cols-3">
-        <div className="border-b border-kova-border px-5 py-4 sm:border-b-0 sm:border-r">
-          <p className="text-sm text-muted-foreground">En existencia</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{healthyStockCount}</p>
+      {/* Three columns at every width: on a phone the stacked version cost
+          ~270px before the first actionable product. Zero counts stay neutral
+          so an empty "Agotados" doesn't read as an alarm. */}
+      <div className="mb-6 grid grid-cols-3 divide-x divide-kova-border overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card">
+        <div className="px-3 py-3 sm:px-5 sm:py-4">
+          <p className="text-xs text-muted-foreground sm:text-sm">En existencia</p>
+          <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{healthyStockCount}</p>
         </div>
-        <div className="border-b border-kova-border px-5 py-4 sm:border-b-0 sm:border-r">
-          <p className="text-sm text-muted-foreground">{copy.inventoryView.lowStock}</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight text-warning-foreground tabular-nums">{lowStockCount}</p>
+        <div className="px-3 py-3 sm:px-5 sm:py-4">
+          <p className="text-xs text-muted-foreground sm:text-sm">{copy.inventoryView.lowStock}</p>
+          <p className={cn("mt-1 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl", lowStockCount > 0 ? "text-warning-foreground" : "text-kova-muted")}>{lowStockCount}</p>
         </div>
-        <div className="px-5 py-4">
-          <p className="text-sm text-muted-foreground">Agotados</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight text-destructive tabular-nums">{outOfStockCount}</p>
+        <div className="px-3 py-3 sm:px-5 sm:py-4">
+          <p className="text-xs text-muted-foreground sm:text-sm">Agotados</p>
+          <p className={cn("mt-1 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl", outOfStockCount > 0 ? "text-destructive" : "text-kova-muted")}>{outOfStockCount}</p>
         </div>
       </div>
 

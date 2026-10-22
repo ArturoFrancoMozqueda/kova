@@ -640,7 +640,9 @@ export default function DashboardView() {
             <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
           </CardHeader>
           <CardContent>
-            <nav aria-label={copy.dashboard.quickActions} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Two across on phones (descriptions hidden) so the shortcuts cost
+                two short rows instead of four tall ones above "Tu día". */}
+            <nav aria-label={copy.dashboard.quickActions} className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
               {[
                 ...(canManageBusiness ? [
                   { to: "/operations-queue", icon: ClipboardList, iconClass: "bg-kova-mist text-kova-ink", label: "Ver pendientes", desc: "Seguimientos, citas y atención al cliente." },
@@ -651,16 +653,16 @@ export default function DashboardView() {
                   { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: "Ver análisis", desc: copy.dashboard.viewReportsDesc },
                 ] : []),
               ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                <Link key={to} to={to} className="group">
-                  <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
+                <Link key={to} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
+                  <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow,transform] duration-hover ease-standard hover:-translate-y-px hover:border-kova-blue/50 hover:shadow-kova-card-hover active:translate-y-0 active:duration-press">
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0 transition-transform duration-hover ease-standard group-hover:scale-105`}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{label}</p>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
+                      <p className="text-sm font-medium leading-tight">{label}</p>
+                      <p className="hidden text-xs text-muted-foreground sm:block">{desc}</p>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    <ArrowRight className="hidden h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[opacity,transform] duration-hover ease-standard group-hover:translate-x-0 group-hover:opacity-100 sm:block" />
                   </div>
                 </Link>
               ))}
@@ -725,7 +727,9 @@ export default function DashboardView() {
       )}
 
       {loadState.status === "ready" && (
-        <div className="space-y-6">
+        // Sections settle in reading order once per resolved period (same
+        // capped CSS sequence as Análisis; numbers never tween).
+        <div className="kv-stagger space-y-6">
           <InsightStrip
             show="banner"
             summary={loadState.summary}

@@ -157,24 +157,36 @@ export function BillingBanner() {
         ? ({ "aria-hidden": true, inert: "" } as HTMLAttributes<HTMLDivElement>)
         : {})}
       className={cn(
-        "mx-4 mt-4 flex flex-col gap-2 rounded-[var(--radius-lg)] border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3",
+        // An info (trial) banner is one compact row even on a phone — title,
+        // CTA and dismiss fit in 390px — so it costs ~56px instead of ~110px
+        // above the register. Warnings/blocks keep the stacked layout.
+        "mx-4 mt-4 flex gap-2 rounded-[var(--radius-lg)] border px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3",
+        dismissible ? "flex-row items-center justify-between" : "flex-col py-2.5",
         toneStyles[content.tone],
         presence.exiting ? "pointer-events-none animate-fade-out" : "animate-fade-in",
       )}
     >
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0">{toneIcon[content.tone]}</span>
+      <div className={cn("flex min-w-0 gap-3", dismissible ? "items-center sm:items-start" : "items-start")}>
+        <span className={cn("shrink-0", !dismissible && "mt-0.5", dismissible && "sm:mt-0.5")}>{toneIcon[content.tone]}</span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">{content.title}</p>
+          <p className={cn("text-sm font-semibold", dismissible && "whitespace-nowrap")}>{content.title}</p>
           <p className="hidden text-xs opacity-90 sm:block">{content.body}</p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
         <Link
           to={displayedAccess.recovery_path || "/settings/billing"}
-          className="rounded-[var(--radius-md)] border border-current/30 bg-white/60 px-3 py-1.5 text-xs font-semibold hover:bg-white"
+          aria-label={copy.billingBanner.manageCta}
+          className="whitespace-nowrap rounded-[var(--radius-md)] border border-current/30 bg-white/60 px-3 py-1.5 text-xs font-semibold transition-colors duration-hover ease-standard hover:bg-white"
         >
-          {copy.billingBanner.manageCta}
+          {dismissible ? (
+            <>
+              {copy.billingBanner.manageCtaShort}
+              <span className="hidden sm:inline">{copy.billingBanner.manageCtaRest}</span>
+            </>
+          ) : (
+            copy.billingBanner.manageCta
+          )}
         </Link>
         {dismissible ? (
           <button
@@ -184,7 +196,7 @@ export function BillingBanner() {
               writeDismissed(displayedAccess.reason);
               setDismissedReason(displayedAccess.reason);
             }}
-            className="rounded-[var(--radius-md)] p-1.5 text-current/70 hover:bg-white/60 hover:text-current"
+            className="-my-1 flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-current/70 transition-colors duration-hover ease-standard hover:bg-white/60 hover:text-current"
           >
             <X className="h-4 w-4" />
           </button>

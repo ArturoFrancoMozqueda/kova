@@ -222,6 +222,18 @@ route delay shorter than a perceived pause: it exists only to suppress cached
 lazy-chunk flashes, while slow loads still expose an honest `role="status"`
 skeleton.
 
+Panel reuses the same capped section sequence as Análisis through
+`.kv-stagger` (an alias of `.kv-report-stagger`): it plays once per resolved
+period, and the numbers themselves never tween. Its quick-action tiles lift
+1px with the card hover shadow on hover and settle at `duration-press` on
+`:active`.
+
+The mobile cart sheet clips its own bottom (`clip-path: inset(...)`) on the
+same duration and easing as its translate. The sheet is anchored above the
+bottom nav, so translating it down without the clip slid its body over
+Caja/Pedidos/Panel/Más. The clip is reset in `@media print` next to the
+transform reset.
+
 Reports use the shared `Disclosure` primitive for methodological notes,
 priority evidence and the action-plan checklist. It adapts the accessibility
 model of ddoemonn's 21st.dev Accordion (labelled region, inert exit, chevron
