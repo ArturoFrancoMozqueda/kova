@@ -637,16 +637,6 @@ export default function CatalogView() {
                       <Plus className="h-4 w-4" />
                       {copy.catalog.newProduct}
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={presetApplying}
-                      onClick={() => void handleApplyPreset("cafe")}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      {copy.catalog.emptyProductsPreset}
-                    </Button>
                   </div>
                 ) : null}
               </div>

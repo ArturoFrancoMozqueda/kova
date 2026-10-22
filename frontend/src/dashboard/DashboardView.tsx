@@ -142,12 +142,16 @@ function periodSubtitle(period: Period, timezone: string = DEFAULT_TIMEZONE): st
   return copy.dashboard.subtitleToday(formatted);
 }
 
+function isBillingStep(actionTo: string): boolean {
+  return actionTo.split(/[?#]/)[0] === "/settings/billing";
+}
+
 function OnboardingStepRow({ step, canViewBilling, primary = false }: {
   step: { label: string; desc: string; done: boolean; action: string; actionTo: string };
   primary?: boolean;
   canViewBilling: boolean;
 }) {
-  const billingRestricted = !canViewBilling && step.actionTo.split(/[?#]/)[0] === "/settings/billing";
+  const billingRestricted = !canViewBilling && isBillingStep(step.actionTo);
   return (
     <div
       role={primary ? "group" : undefined}
@@ -175,7 +179,7 @@ function OnboardingStepRow({ step, canViewBilling, primary = false }: {
       {!step.done && step.actionTo && !billingRestricted && (
         <Link to={step.actionTo} className={primary
           ? buttonVariants({ size: "sm" })
-          : "shrink-0 text-xs font-medium text-primary hover:underline"}>
+          : "inline-flex min-h-11 shrink-0 items-center rounded-kova-md px-2 text-sm font-medium text-primary hover:underline"}>
           {step.action} →
         </Link>
       )}
@@ -256,9 +260,31 @@ function OnboardingChecklist({
       })
     : fallbackSteps;
 
-  const allDone = steps.every((s) => s.done);
+  // Activating the plan is tracked by the billing banner and trial chip; it
+  // shouldn't keep the setup checklist open once the business can sell.
+  const setupSteps = steps.filter((step) => !isBillingStep(step.actionTo));
+  const allDone = (setupSteps.length > 0 ? setupSteps : steps).every((s) => s.done);
   const doneCount = steps.filter((s) => s.done).length;
   const nextStepIndex = steps.findIndex((step) => !step.done);
+
+  // Owners can hide the checklist; it's a UI preference only (no auth data),
+  // namespaced per business like the celebration flag.
+  const hiddenKey = `kova-onboarding-hidden:${tenantName || "default"}`;
+  const [hidden, setHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(hiddenKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const hideChecklist = () => {
+    setHidden(true);
+    try {
+      localStorage.setItem(hiddenKey, "1");
+    } catch {
+      // ignore — it stays hidden until reload
+    }
+  };
 
   // One-time celebration when the checklist is first completed. The flag is
   // namespaced per business so a shared browser doesn't suppress it for a
@@ -317,14 +343,25 @@ function OnboardingChecklist({
     );
   }
 
+  if (hidden) return null;
+
   return (
     <Card className="border-kova-blue/20 bg-kova-blue/[0.04] animate-fade-in">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold leading-none tracking-tight">{copy.dashboard.onboardingTitle}</h2>
-          <span className="text-xs text-muted-foreground">
-            {doneCount}/{steps.length}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {doneCount}/{steps.length}
+            </span>
+            <button
+              type="button"
+              onClick={hideChecklist}
+              className="inline-flex min-h-11 items-center rounded-kova-md px-2 text-sm font-medium text-kova-muted transition-colors hover:text-kova-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {copy.dashboard.onboardingHide}
+            </button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">{copy.dashboard.onboardingSubtitle}</p>
         {/* Progress bar */}
@@ -706,8 +743,9 @@ export default function DashboardView() {
             compareLabel={loadState.compareLabel}
           />
 
-          {/* Qué hacer ahora */}
-          <ArcKicker label={copy.dashboard.arcActions} />
+          {/* Qué hacer ahora — the actions card carries its own heading and
+              renders nothing when there's nothing to do, so no kicker here
+              (it repeated the same title and could be left orphaned). */}
           <InsightStrip
             show="actions"
             summary={loadState.summary}
