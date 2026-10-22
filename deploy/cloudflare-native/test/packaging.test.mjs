@@ -86,6 +86,23 @@ test("real cf strict comparator accepts only the equivalent unset remote DO envi
     assert.equal(compare(variants[1], descriptor, { limits: { cpu_ms: 100 } }).nonDestructive, false);
     assert.equal(compare(variants[1], descriptor, { vars: { TENANT: "different" } }).nonDestructive, false);
     assert.equal(compare(variants[1], descriptor, { unsafe: { bindings: [{ type: "secret_text", name: "SYNTHETIC_SECRET" }] } }).nonDestructive, false);
+
+    // Dashboard saves omit the current Worker's name on its local namespaces.
+    // Binding order is incidental; namespace identity and environment are not.
+    const own = { name: "API", class_name: "KovaApi", script_name: "backend-test" };
+    const external = { name: "JOBS", class_name: "KovaJobs", script_name: "jobs-test" };
+    const native = { ...local, name: "backend-test", durable_objects: { bindings: [own, external] } };
+    const dashboard = { ...native, durable_objects: { bindings: [external, { name: "API", class_name: "KovaApi" }] } };
+    const remoteBefore = structuredClone(dashboard);
+    assert.equal(variants[1].remoteDiffForTest(dashboard, native).diff, null);
+    assert.deepEqual(dashboard, remoteBefore, "comparison must not mutate the remote metadata");
+    for (const change of [{ script_name: "foreign-worker" }, { script_name: null },
+      { class_name: "OtherApi" }, { name: "OTHER" }, { environment: "production" }]) {
+      const remote = { ...dashboard, durable_objects: { bindings: [external, { name: "API", class_name: "KovaApi", ...change }] } };
+      assert.equal(variants[1].remoteDiffForTest(remote, native).nonDestructive, false);
+    }
+    const missingExternalWorker = { ...dashboard, durable_objects: { bindings: [own, { name: "JOBS", class_name: "KovaJobs" }] } };
+    assert.equal(variants[1].remoteDiffForTest(missingExternalWorker, native).nonDestructive, false);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

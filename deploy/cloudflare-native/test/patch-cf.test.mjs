@@ -90,6 +90,7 @@ test("all pinned patches validate before writing and registry diagnostics are id
     const originalBuilder = 'ct=/* @__PURE__ */ P((e,t,n)=>tt(e,t)?nt(n.url,n.response,n.responseHeader,n.responseBody):{url:n.url,ok:n.response.ok,status:n.response.status,statusText:n.response.statusText,body:n.responseHeader??n.responseBody},`buildApiResult`)';
     const baseline = catchBaseline.slice(0, buildStart) + originalBuilder + catchBaseline.slice(buildEnd);
     const inputs = [
+      ["containers-BtcOgwm5.mjs", 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);'],
       ["deploy-input-fixture.mjs", 'm.push({name:`./${o}`,filePath:l'],
       ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1`'],
       [moduleName, baseline],
@@ -101,16 +102,28 @@ test("all pinned patches validate before writing and registry diagnostics are id
     reset();
     execFileSync(process.execPath, [script], { stdio: "pipe" });
     const once = inputs.map(([name]) => readFileSync(join(target, name), "utf8"));
-    assert.ok(once[2] !== baseline, "registry diagnostic patch must be applied");
+    assert.ok(once[3] !== baseline, "registry diagnostic patch must be applied");
     execFileSync(process.execPath, [script], { stdio: "pipe" });
     assert.deepEqual(inputs.map(([name]) => readFileSync(join(target, name), "utf8")), once);
-    for (const [version, source] of [["1.0.0-beta.19", baseline], ["1.0.0-beta.18", "upstream changed"], ["1.0.0-beta.18", baseline.replace(originalBuilder, "changed builder")], ["1.0.0-beta.18", baseline + original], ["1.0.0-beta.18", once[2] + original]]) {
+    for (const [version, source] of [["1.0.0-beta.19", baseline], ["1.0.0-beta.18", "upstream changed"], ["1.0.0-beta.18", baseline.replace(originalBuilder, "changed builder")], ["1.0.0-beta.18", baseline + original], ["1.0.0-beta.18", once[3] + original]]) {
       reset();
       writeFileSync(packagePath, JSON.stringify({ version }));
       writeFileSync(join(target, moduleName), source);
       assert.throws(() => execFileSync(process.execPath, [script], { stdio: "pipe" }));
-      assert.equal(readFileSync(join(target, inputs[0][0]), "utf8"), inputs[0][1], "must not partially apply earlier patches");
+      for (const [name, originalSource] of inputs.slice(0, -1)) {
+        assert.equal(readFileSync(join(target, name), "utf8"), originalSource, "must not partially apply earlier patches");
+      }
       assert.equal(readFileSync(join(target, moduleName), "utf8"), source);
+    }
+    for (const source of ["changed comparator", inputs[0][1] + inputs[0][1], once[0] + inputs[0][1]]) {
+      reset();
+      writeFileSync(packagePath, JSON.stringify({ version: "1.0.0-beta.18" }));
+      writeFileSync(join(target, inputs[0][0]), source);
+      assert.throws(() => execFileSync(process.execPath, [script], { stdio: "pipe" }));
+      assert.equal(readFileSync(join(target, inputs[0][0]), "utf8"), source);
+      for (const [name, originalSource] of inputs.slice(1)) {
+        assert.equal(readFileSync(join(target, name), "utf8"), originalSource);
+      }
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 });
