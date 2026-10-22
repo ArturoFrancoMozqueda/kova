@@ -102,13 +102,13 @@ describe("owner dashboard journey", () => {
     for (const legacy of [getBusinessStory, getSalesByHour, getSalesSummary]) expect(legacy).not.toHaveBeenCalled();
   });
 
-  it("keeps onboarding first, then one task block before the sales metrics", async () => {
+  it("leads with sales results while retaining onboarding and one task block", async () => {
     host();
     const next = await screen.findByRole("group", { name: "Siguiente paso" });
     const actions = screen.getByRole("navigation", { name: copy.dashboard.quickActions });
     const metrics = screen.getByTestId("net-sales");
     expect(next.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(actions.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(metrics.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
   });
 
@@ -142,11 +142,33 @@ describe("owner dashboard journey", () => {
     expect((await axe(container, { runOnly: ["heading-order", "link-name", "aria-allowed-attr"] })).violations).toEqual([]);
   });
 
-  it("places the next onboarding step before the sales story banner", async () => {
+  it("places the sales interpretation before the still-accessible next setup step", async () => {
     host();
     const next = await screen.findByRole("group", { name: "Siguiente paso" });
     const banner = screen.getByText(copy.dashboard.storyBannerEmpty);
-    expect(next.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(banner.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows current operational counts with their scope for an owner outside a trial", async () => {
+    vi.mocked(getDashboardOverview).mockResolvedValue(overview({
+      active_catalog_count: 12, tracked_inventory_count: 7, closed_shift_count: 50,
+    }));
+    host();
+    const recap = await screen.findByRole("region", { name: copy.dashboard.activityTitle });
+    expect(within(recap).getByText("12")).toBeVisible();
+    expect(within(recap).getByText("7")).toBeVisible();
+    expect(within(recap).getByText("50")).toBeVisible();
+    expect(within(recap).getByText(`${copy.dashboard.activityCurrentScope} ${copy.dashboard.activityShiftsScope}`)).toBeVisible();
+    expect(within(recap).getAllByRole("link").map(link => link.getAttribute("href")))
+      .toEqual(["/catalog", "/inventory", "/shifts"]);
+    expect(getDashboardOverview).toHaveBeenCalledOnce();
+  });
+
+  it("does not expose the management recap to a cashier", async () => {
+    auth.state.user.role = "cashier";
+    host();
+    await screen.findByTestId("net-sales");
+    expect(screen.queryByRole("region", { name: copy.dashboard.activityTitle })).not.toBeInTheDocument();
   });
 
   it.each(["owner", "manager"])("offers the billing onboarding action only with billing permission for a %s", async role => {
@@ -242,6 +264,7 @@ describe("owner dashboard journey", () => {
     expect(screen.getByText("0/4")).toBeVisible();
     expect(within(screen.getByRole("navigation", { name: copy.dashboard.quickActions })).getAllByRole("link")).toHaveLength(4);
     expect(screen.getByTestId("net-sales")).toHaveTextContent(/^0$/);
+    expect(screen.queryByRole("region", { name: copy.dashboard.activityTitle })).not.toBeInTheDocument();
   });
 
   it("keeps completion celebration and dismissal instead of showing a fabricated next step", async () => {

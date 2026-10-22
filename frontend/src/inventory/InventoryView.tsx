@@ -25,6 +25,7 @@ import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown } from "lucide-react";
 import { inventoryVelocityAttention, isActionableInventoryVelocity } from "./attention";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { ActionDisclosure } from "@/components/ui/action-disclosure";
 import { listProducts } from "@/catalog/api";
 import type { Product } from "@/catalog/types";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
@@ -271,16 +272,16 @@ export default function InventoryView() {
       </div>
 
       {(attentionStock.length > 0 || attentionVelocity.some(isActionableInventoryVelocity)) && (
-        <Card className="border-warning/30 bg-warning/5 mb-6">
-          <CardHeader className="pb-3">
+        <Card className="mb-5 border-warning/30 bg-warning/5 lg:border-l-[3px]">
+          <CardHeader className="px-4 pb-2 pt-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold leading-none tracking-tight">
               <AlertTriangle className="h-4 w-4 text-warning-strong" />
               {copy.inventoryView.attentionTitle}
             </h2>
-            <p className="text-sm text-muted-foreground">{copy.inventoryView.attentionBody}</p>
+            <p className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.attentionBody}</p>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <CardContent className="px-4 pb-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-0 lg:divide-y lg:divide-warning/20">
               {[
                 ...attentionStock.map((item) => ({
                   id: `low-${item.product_id}`,
@@ -311,7 +312,7 @@ export default function InventoryView() {
                 .filter((item, index, items) => items.findIndex((candidate) => candidate.productId === item.productId) === index)
                 .slice(0, 3)
                 .map((item) => (
-                  <div key={item.id} className="rounded-kova-md border border-kova-border bg-kova-mist/60 p-3">
+                  <div key={item.id} className="rounded-kova-md border border-kova-border bg-kova-mist/60 p-3 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-0 lg:py-2">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold">{item.title}</p>
                       <Badge
@@ -321,15 +322,17 @@ export default function InventoryView() {
                         {item.id.startsWith("velocity-") ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}
                       </Badge>
                     </div>
-                    <p className="mt-1 flex items-center gap-1 text-xs leading-5 text-muted-foreground">
-                      {item.id.startsWith("velocity-") && <TrendingDown className="h-3 w-3 shrink-0 text-kova-blue" />}
-                      {item.detail}
-                    </p>
-                    {item.id.startsWith("velocity-") && (
-                      <p className="mt-1 text-[11px] text-muted-foreground/70">{copy.inventoryView.velocityBasis}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">{copy.inventoryView.reorderSuggestion}</p>
+                    <div>
+                      <p className="mt-1 flex items-center gap-1 text-xs leading-5 text-muted-foreground lg:mt-0">
+                        {item.id.startsWith("velocity-") && <TrendingDown className="h-3 w-3 shrink-0 text-kova-blue" />}
+                        {item.detail}
+                      </p>
+                      {item.id.startsWith("velocity-") && (
+                        <p className="mt-1 text-xs text-muted-foreground">{copy.inventoryView.velocityBasis}</p>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 lg:mt-0 lg:justify-end">
+                      <p className="text-xs text-muted-foreground lg:hidden">{copy.inventoryView.reorderSuggestion}</p>
                       {canAdjust && item.stockItem ? (
                         <Button
                           type="button"
@@ -362,7 +365,7 @@ export default function InventoryView() {
       ) : (
         <>
           <h2 className="sr-only">{copy.inventoryView.stockSectionTitle}</h2>
-          <div className="mb-5 grid gap-3 rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card md:grid-cols-[minmax(0,1fr)_180px_220px]">
+          <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_220px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Label className="sr-only" htmlFor="inventory-search">
@@ -419,8 +422,8 @@ export default function InventoryView() {
               </CardContent>
             </Card>
           ) : (
-            <div role="region" aria-label={copy.inventoryView.stockSectionTitle} className="overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card">
-              <div className="hidden grid-cols-[minmax(240px,2fr)_120px_120px_minmax(280px,1fr)] items-center gap-4 bg-kova-blue/[0.075] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid">
+            <div role="region" aria-label={copy.inventoryView.stockSectionTitle} className="rounded-kova-lg border border-kova-border bg-white">
+              <div className="hidden grid-cols-[minmax(180px,1fr)_88px_88px_270px] items-center gap-4 rounded-t-kova-lg border-b border-kova-border bg-kova-mist/60 px-4 py-3 text-xs font-medium text-kova-muted lg:grid">
                 <span>Producto</span>
                 <span className="text-right">Stock</span>
                 <span className="text-right">Mínimo</span>
@@ -510,7 +513,7 @@ function StockCard({
         isLow && "border-l-4 border-l-warning",
       )}
     >
-      <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(240px,2fr)_120px_120px_minmax(280px,1fr)] lg:items-center lg:gap-4">
+      <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(180px,1fr)_88px_88px_270px] lg:items-center lg:gap-4 lg:py-3">
         <div className="flex items-start justify-between gap-3 lg:items-center">
           <div className="flex min-w-0 items-center gap-3">
             {product?.image_url ? (
@@ -559,12 +562,6 @@ function StockCard({
                 <Pencil className="h-3 w-3" />
                 {copy.inventoryView.adjust}
               </Button>
-              <Button variant="outline" size="sm" aria-label={copy.inventoryView.stockTake} onClick={() => onModal({ type: "stockTake", item })}>
-                <ClipboardCheck className="h-3 w-3" />
-              </Button>
-              <Button variant="outline" size="sm" aria-label={copy.inventoryView.setThreshold} onClick={() => onModal({ type: "threshold", item })}>
-                <Settings2 className="h-3 w-3" />
-              </Button>
             </>
           )}
           <Button
@@ -577,6 +574,12 @@ function StockCard({
             {historyOpen ? copy.inventoryView.hideHistory : copy.inventoryView.viewHistory}
             <ChevronDown className={cn("h-3 w-3 transition-transform", historyOpen && "rotate-180")} />
           </Button>
+          {canAdjust && (
+            <ActionDisclosure label={copy.inventoryView.moreActions(item.product_name)} actions={[
+              { label: copy.inventoryView.stockTake, icon: <ClipboardCheck />, onSelect: () => onModal({ type: "stockTake", item }) },
+              { label: copy.inventoryView.setThreshold, icon: <Settings2 />, onSelect: () => onModal({ type: "threshold", item }) },
+            ]} />
+          )}
         </div>
 
         {item.track_lots && <div className="lg:col-span-full"><LotsPanel productId={item.product_id} canAdjust={canAdjust} /></div>}

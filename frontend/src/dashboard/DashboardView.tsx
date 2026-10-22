@@ -25,6 +25,7 @@ import { formatHourRange, topHoursByNetSales, totalNetSales } from "@/reports/ho
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
+import { BusinessActivityRecap } from "./BusinessActivityRecap";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -73,6 +74,7 @@ type LoadState =
       activeCatalogCount: number;
       activeEmployeeCount: number;
       closedShiftCount: number;
+      activitySnapshotAvailable: boolean;
       hasActiveSubscription: boolean;
       billing: BillingSubscription | null;
       onboarding: OnboardingState | null;
@@ -312,7 +314,7 @@ function OnboardingChecklist({
     if (celebrationDismissed) return null;
     return (
       <Card className="border-kova-growth/30 bg-kova-growth/5 animate-fade-in">
-        <CardContent className="flex items-start gap-4 p-5">
+        <CardContent className="flex flex-wrap items-center gap-3 px-5 py-3 sm:flex-nowrap">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kova-growth/15 text-kova-growth">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -320,12 +322,12 @@ function OnboardingChecklist({
             <p className="text-base font-semibold text-kova-ink">
               {copy.dashboard.onboardingDoneTitle}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground lg:hidden">
               {copy.dashboard.onboardingDoneBody}
             </p>
             <Link
               to="/reports"
-              className={cn("mt-3", buttonVariants({ size: "sm" }))}
+              className="mt-1 inline-flex min-h-9 items-center text-sm font-medium text-kova-blue hover:underline"
             >
               {copy.dashboard.onboardingDoneCta}
             </Link>
@@ -404,9 +406,6 @@ function DashboardExecutiveSummary({
   const previousNet = previous ? Number(previous.net_sales) : null;
   const avgTicket = summary.order_count > 0 ? currentNet / summary.order_count : 0;
   const growth = calculateSafeGrowth(currentNet, previousNet, { minBase: MIN_MONEY_BASE });
-  const scaleMax = Math.max(currentNet, previousNet ?? 0, 1) * 1.12;
-  const currentWidth = Math.min(100, Math.max(currentNet > 0 ? 4 : 0, (currentNet / scaleMax) * 100));
-  const previousMarker = previousNet === null ? null : Math.min(100, Math.max(0, (previousNet / scaleMax) * 100));
   const secondaryMetrics = [
     {
       label: copy.dashboard.orders,
@@ -428,36 +427,26 @@ function DashboardExecutiveSummary({
   ];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-0 ring-1 ring-kova-border">
       <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.75fr)]">
-        <div className="border-b border-kova-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-kova-tertiary">
+        <div className="min-w-0 bg-kova-ink p-5 text-kova-on-ink sm:p-7">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-kova-on-ink/80">
             {copy.dashboard.netSales}
           </p>
           <div className="mt-3 flex flex-wrap items-baseline gap-3">
-            <p className="text-4xl font-bold tracking-[-0.04em] text-kova-ink sm:text-5xl">
+            <p className="break-all text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
               <CountUp value={currentNet} format={(value) => formatMoney(value)} />
             </p>
-            <DeltaChip growth={growth} current={currentNet} previous={previousNet ?? 0} format="money" compareLabel={compareLabel} />
+            <div className="rounded-kova-sm bg-white px-2.5 py-1.5">
+              <DeltaChip growth={growth} current={currentNet} previous={previousNet ?? 0} format="money" compareLabel={compareLabel} />
+            </div>
           </div>
-          <p className="mt-2 text-sm text-kova-muted tabular-nums">
+          <p className="mt-2 text-sm text-kova-on-ink/80 tabular-nums">
             {copy.dashboard.grossSuffix(formatMoney(summary.gross_sales))}
           </p>
-          <div className="mt-7">
-            <div className="relative h-2 rounded-full bg-kova-mist">
-              <div className="h-full rounded-full bg-kova-growth transition-[width] duration-500" style={{ width: `${currentWidth}%` }} />
-              {previousMarker !== null ? (
-                <span className="absolute top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-kova-ink" style={{ left: `${previousMarker}%` }} aria-hidden="true" />
-              ) : null}
-            </div>
-            <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-kova-tertiary">
-              <span>Avance del periodo</span>
-              {previousNet !== null ? (
-                <span className="tabular-nums">Periodo anterior · {formatMoney(previousNet)}</span>
-              ) : (
-                <span>Sin comparación todavía</span>
-              )}
-            </div>
+          <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/20 pt-4 text-sm">
+            <span className="text-kova-on-ink/80">{copy.dashboard.previousPeriod}</span>
+            <span className="font-medium tabular-nums">{previousNet !== null ? formatMoney(previousNet) : copy.dashboard.noComparison}</span>
           </div>
         </div>
         <dl className="divide-y divide-kova-border">
@@ -516,6 +505,7 @@ export default function DashboardView() {
           activeCatalogCount: overview.active_catalog_count,
           activeEmployeeCount: overview.active_employee_count ?? 0,
           closedShiftCount: overview.closed_shift_count,
+          activitySnapshotAvailable: true,
           hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
           billing: overview.billing, onboarding: overview.onboarding,
           timezone: overview.timezone,
@@ -575,6 +565,9 @@ export default function DashboardView() {
         activeCatalogCount: productsResult.filter((p) => p.is_active).length,
         activeEmployeeCount: employees.filter((employee) => employee.is_active).length,
         closedShiftCount: closedShifts.length,
+        // Legacy optional reads can fail independently. Do not advertise their
+        // fallback empty arrays as a verified operational snapshot.
+        activitySnapshotAvailable: false,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
         billing,
         onboarding,
@@ -621,6 +614,38 @@ export default function DashboardView() {
       </div>
 
       {loadState.status === "ready" && (
+        <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-4">
+          <ArcKicker label={copy.dashboard.arcNow} />
+          <DashboardExecutiveSummary
+            summary={loadState.summary}
+            previous={loadState.yesterday}
+            compareLabel={loadState.compareLabel}
+          />
+
+          <InsightStrip
+            show="banner"
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            hourly={loadState.hourly}
+            topProducts={loadState.topProducts}
+            lowStock={loadState.lowStockItems}
+            compareLabel={loadState.compareLabel}
+          />
+
+          {/* Priorities follow the evidence; no empty heading when all is clear. */}
+          <InsightStrip
+            show="actions"
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            hourly={loadState.hourly}
+            topProducts={loadState.topProducts}
+            lowStock={loadState.lowStockItems}
+            compareLabel={loadState.compareLabel}
+          />
+        </section>
+      )}
+
+      {loadState.status === "ready" && (
         <div className="mb-6 empty:hidden">
           <OnboardingChecklist
             hasProducts={loadState.hasProducts}
@@ -635,14 +660,12 @@ export default function DashboardView() {
       )}
 
       {canUseTaskActions && (
-        <Card className="mb-6">
-          <CardHeader>
-            <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
-          </CardHeader>
-          <CardContent>
+        <section className="mb-6 border-y border-kova-border py-3">
+          <h2 className="sr-only">{copy.dashboard.quickActions}</h2>
+          <div>
             {/* Two across on phones (descriptions hidden) so the shortcuts cost
-                two short rows instead of four tall ones above "Tu día". */}
-            <nav aria-label={copy.dashboard.quickActions} className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                two short rows instead of four tall ones. */}
+            <nav aria-label={copy.dashboard.quickActions} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
               {[
                 ...(canManageBusiness ? [
                   { to: "/operations-queue", icon: ClipboardList, iconClass: "bg-kova-mist text-kova-ink", label: "Ver pendientes", desc: "Seguimientos, citas y atención al cliente." },
@@ -654,21 +677,21 @@ export default function DashboardView() {
                 ] : []),
               ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                 <Link key={to} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
-                  <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow,transform] duration-hover ease-standard hover:-translate-y-px hover:border-kova-blue/50 hover:shadow-kova-card-hover active:translate-y-0 active:duration-press">
+                  <div className="flex h-full items-center gap-3 rounded-kova-md px-2 py-2 transition-colors duration-hover ease-standard hover:bg-white active:bg-kova-blue/5">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0 transition-transform duration-hover ease-standard group-hover:scale-105`}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium leading-tight">{label}</p>
-                      <p className="hidden text-xs text-muted-foreground sm:block">{desc}</p>
+                      <p className="hidden text-xs text-muted-foreground">{desc}</p>
                     </div>
                     <ArrowRight className="hidden h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[opacity,transform] duration-hover ease-standard group-hover:translate-x-0 group-hover:opacity-100 sm:block" />
                   </div>
                 </Link>
               ))}
             </nav>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
 
       {loadState.status === "loading" && (
@@ -730,36 +753,6 @@ export default function DashboardView() {
         // Sections settle in reading order once per resolved period (same
         // capped CSS sequence as Análisis; numbers never tween).
         <div className="kv-stagger space-y-6">
-          <InsightStrip
-            show="banner"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
-
-          <ArcKicker label={copy.dashboard.arcNow} />
-          <DashboardExecutiveSummary
-            summary={loadState.summary}
-            previous={loadState.yesterday}
-            compareLabel={loadState.compareLabel}
-          />
-
-          {/* Qué hacer ahora — the actions card carries its own heading and
-              renders nothing when there's nothing to do, so no kicker here
-              (it repeated the same title and could be left orphaned). */}
-          <InsightStrip
-            show="actions"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
-
           {/* Salud del negocio */}
           <ArcKicker label={copy.dashboard.arcHealth} />
           <BusinessHealthCard
@@ -769,6 +762,14 @@ export default function DashboardView() {
             lowStockCount={loadState.lowStockCount}
             compareLabel={loadState.compareLabel}
           />
+
+          {canManageBusiness && loadState.activitySnapshotAvailable && (
+            <BusinessActivityRecap
+              activeCatalogCount={loadState.activeCatalogCount}
+              trackedInventoryCount={loadState.trackedInventoryCount}
+              closedShiftCount={loadState.closedShiftCount}
+            />
+          )}
 
           <TrialValueRecap
             billing={loadState.billing}

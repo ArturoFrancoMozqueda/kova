@@ -424,9 +424,9 @@ export default function CatalogView() {
       </div>}
 
       <div className="space-y-4">
-        {/* ---- Categories sidebar ---- */}
-        <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        {/* Categories remain directly selectable in a compact, unframed strip. */}
+        <section aria-label={copy.catalog.categories} className="border-y border-kova-border py-3 lg:flex lg:items-center lg:gap-4">
+          <div className="mb-2 flex shrink-0 items-center justify-between gap-3 lg:mb-0">
             <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.categories}
@@ -441,8 +441,8 @@ export default function CatalogView() {
                 <Plus className="h-4 w-4" />
               </Button>
             )}
-          </CardHeader>
-          <CardContent className="flex flex-nowrap gap-2 overflow-x-auto pt-0 sm:flex-wrap">
+          </div>
+          <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto py-1 sm:flex-wrap">
             {/* All products filter */}
             <button
               type="button"
@@ -535,12 +535,12 @@ export default function CatalogView() {
             ))}
 
             {categories.length === 0 && !modal && (
-              <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+              <p className="px-2 py-2 text-sm text-muted-foreground">
                 {copy.catalog.emptyCategories}
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* ---- Products grid ---- */}
         <Card>
@@ -551,7 +551,7 @@ export default function CatalogView() {
               <Tag className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.products}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {canUpdate && visibleProducts.length > 0 && (
                 <Button
                   size="sm"
@@ -602,7 +602,7 @@ export default function CatalogView() {
                 }}
               />
             )}
-            <div className="mb-5 grid gap-3 rounded-kova-md border border-kova-border bg-kova-mist/35 p-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Label className="sr-only" htmlFor="catalog-product-search">
@@ -650,8 +650,8 @@ export default function CatalogView() {
                 ) : null}
               </div>
             ) : (
-              <div className="overflow-hidden rounded-kova-lg border border-kova-border bg-white">
-                <div className="hidden grid-cols-[64px_minmax(180px,2fr)_minmax(120px,1fr)_120px_130px_88px] items-center gap-3 bg-kova-blue/[0.075] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid">
+              <div className="-mx-5 overflow-hidden border-t border-kova-border bg-white">
+                <div className="hidden grid-cols-[64px_minmax(180px,2fr)_minmax(120px,1fr)_120px_130px_88px] items-center gap-3 border-b border-kova-border bg-kova-mist/60 px-4 py-3 text-xs font-medium text-kova-muted lg:grid">
                   <span aria-hidden="true" />
                   <span>{copy.catalog.products}</span>
                   <span>{copy.catalog.categories}</span>
@@ -735,7 +735,7 @@ export default function CatalogView() {
       {/* ---- Modifier Groups section ---- */}
       {canCreate && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Layers className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.modifiers}

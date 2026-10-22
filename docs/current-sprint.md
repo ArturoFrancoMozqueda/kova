@@ -2,6 +2,20 @@
 
 Last updated: 2026-10-22
 
+## Escritorio: resultados y valor visible — implementación local
+
+Pase autorizado de Panel, Caja, Catálogo e Inventario: resultados y prioridades
+antes de configuración, comparación explícita, atajos compactos, enlaces
+contextuales, instantánea operativa con alcance real y checkout integrado con
+total y cobro accesibles. No agrega consultas ni cambia contratos, cálculos,
+sesiones o permisos. [Alcance, archivos y QA](audits/KOVA-DESKTOP-VALUE-2026-10-22.md).
+Suite de frontend: 1,326 pruebas aprobadas y revalidaciones focales finales;
+build/SSR/prerender, TypeScript, ESLint y 49 recorridos de navegador del build
+final aprobados, incluidos 320–1920 px y regresiones de cobro/offline/recibo.
+Los recorridos usan datos de pruebas con APIs interceptadas. Publicación y
+aceptación autenticada en producción pendientes; no se cambia el estado del
+release productivo por esta validación local.
+
 ## Auditoría funcional y enlaces legibles — pendiente de publicación
 
 Revisión de lectura autenticada de las secciones del dueño, contrastada con contratos,
