@@ -220,6 +220,14 @@ for tooling, publication and recovery; the incident recovery job allows 25.
 Foreign SHAs, application errors and failed database/proxy checks still block.
 Inspect the active rollout before retrying a `RECOVERY_BLOCKED` run. A completed
 provider rollout must pass the full deployment verifier before normal CI resumes.
+The initial rolling recovery subsequently reported the captured image in
+application configuration while the public resident process still served
+`443fa3fc84bf`. Recovery now uses the API's `new_instances` version sync with an
+explicit 100% target to reconcile existing placements, including DO-bound
+placements whose runtime status lags behind `running`. The captured image,
+application/namespace identity and instance size remain mandatory; provider
+completion never substitutes for public SHA, process, database and proxy checks.
+See the [rollout API](https://developers.cloudflare.com/api/resources/containers/subresources/applications/subresources/rollouts/methods/create/).
 
 - **Coordinated release:** use the `release-rollback-<sha>` artifact from the failed workflow and the
   phase-aware recovery job. A missing artifact is a blocking incident, not permission to infer a

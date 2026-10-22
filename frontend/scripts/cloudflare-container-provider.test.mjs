@@ -91,13 +91,13 @@ test("expanded or named lite resources reject partial responses, sizing drift an
   }
 });
 
-test("restoring an existing app rolls out only the captured image and keeps lite/one", async () => {
+test("recovery reconciles all existing placements to the captured image and keeps lite/one", async () => {
   const { result, calls } = provider(async args => args[0] === "get"
     ? application({ configuration: { image: newImage, instance_type: "lite" } }) : {});
   await result.restore(snapshot, { workersRestored: true });
   assert.deepEqual(calls, [["get", appId], ["rollouts", "create", appId, "--body",
     JSON.stringify({ description: "Restore captured Kova native API image",
-      strategy: "rolling", kind: "full_auto", step_percentage: 100,
+      strategy: "new_instances", kind: "full_manual", percentage: 100,
       target_configuration: { image: oldImage, instance_type: "lite" } })]]);
   assert.equal(JSON.stringify(calls).includes("environment"), false);
   assert.equal(JSON.stringify(calls).includes("max-instances"), false);

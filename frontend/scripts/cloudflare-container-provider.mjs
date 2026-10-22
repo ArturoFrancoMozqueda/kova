@@ -136,15 +136,20 @@ export function cloudflareContainerProvider({ run, env }) {
         return;
       }
       await get(previous.applicationId);
-      // Cloudflare's verified API applies image changes through rollouts,
+      // Cloudflare's API applies image changes through rollouts,
       // not an application PATCH. Pass only the captured image plus the same
       // size; never replay unreviewed environment/entrypoint configuration.
       // cf's individual flags default observability.logs.enabled to false.
       // A complete --body was verified with --dry-run to preserve omitted
       // configuration rather than silently switching application logs off.
+      // Reconcile every DO-bound instance to the captured version. A rolling
+      // rollout can finish its count-based steps while a serving placement's
+      // runtime status still lags behind "running". Version sync actively
+      // replaces instances to match this explicit 100% target; public readiness
+      // below remains mandatory and is never inferred from provider status.
       await cf(["rollouts", "create", previous.applicationId, "--body", JSON.stringify({
         description: "Restore captured Kova native API image",
-        strategy: "rolling", kind: "full_auto", step_percentage: 100,
+        strategy: "new_instances", kind: "full_manual", percentage: 100,
         target_configuration: { image: previous.image, instance_type: previous.instanceType },
       })]);
       // A rollout response acknowledges initiation. The release recovery path
