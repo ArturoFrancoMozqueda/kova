@@ -64,11 +64,27 @@ it("shows provider setup from the backend without claiming an active connection"
   expect(
     screen.getByText(/No se envían ni reciben mensajes automáticos/),
   ).toBeVisible();
+  expect(
+    screen.getByText(/todavía no comprueba la configuración de tu cuenta ni guarda avances/),
+  ).toBeVisible();
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/messaging/readiness");
   expect(fetchMock.mock.calls.some(([, init]) => init?.method !== "GET")).toBe(
     false,
   );
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+});
+
+it("consults the preparation requirements again without activating or changing a channel", async () => {
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Volver a consultar requisitos" }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  for (const [url, init] of fetchMock.mock.calls) {
+    expect(url).toBe("/api/v1/messaging/readiness");
+    expect(init?.method).toBe("GET");
+    expect(init?.body).toBeUndefined();
+  }
+  expect(screen.getByText("Sin conectar")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /activar|conectar/i })).not.toBeInTheDocument();
 });
 
 it("recovers a failed readiness check through an explicit retry", async () => {

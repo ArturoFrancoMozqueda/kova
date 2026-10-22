@@ -1,5 +1,5 @@
 import { getActiveBranchId } from "@/branches/activeBranch";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, CloudOff, PackageCheck, Plus, Search } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
@@ -61,13 +61,17 @@ export default function CustomerOrderListView() {
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current;
     if (!tenantId) return;
     setLoading(true);
     setError(false);
     if (!isOnline) {
       const cached = await readCustomerOrderCache(tenantId, branchId);
+      if (!isCurrent()) return;
       setData(cached?.list ?? null);
       setCachedAt(cached?.cached_at ?? null);
       setError(!cached);
@@ -84,31 +88,42 @@ export default function CustomerOrderListView() {
         limit: PAGE_SIZE,
         offset,
       });
+      if (!isCurrent()) return;
       setData(result);
       setCachedAt(null);
       await saveCustomerOrderList(tenantId, result, branchId);
     } catch {
+      if (!isCurrent()) return;
       const cached = await readCustomerOrderCache(tenantId, branchId);
+      if (!isCurrent()) return;
       setData(cached?.list ?? null);
       setCachedAt(cached?.cached_at ?? null);
       setError(!cached);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [branchId, fulfillmentType, isOnline, offset, paymentStatus, promisedDate, status, submittedSearch, tenantId]);
 
   useEffect(() => {
     void load();
+    return () => { loadGeneration.current += 1; };
   }, [load]);
 
   if (!enabled) return <Navigate to="/register" replace />;
 
+  const promisedBounds = promisedRange(promisedDate);
+  const promisedFrom = promisedBounds.promised_from ? new Date(promisedBounds.promised_from).getTime() : NaN;
+  const promisedTo = promisedBounds.promised_to ? new Date(promisedBounds.promised_to).getTime() : NaN;
   const visibleItems = cachedAt
     ? (data?.items ?? []).filter((item) => {
         const statusMatches = !status || item.status === status;
         const paymentMatches = !paymentStatus || item.payment_status === paymentStatus;
         const fulfillmentMatches = !fulfillmentType || item.fulfillment_type === fulfillmentType;
-        const promisedMatches = !promisedDate || item.promised_at?.slice(0, 10) === promisedDate;
+        // Match the inclusive API range using instants, not the UTC date text.
+        const promisedAt = item.promised_at ? new Date(item.promised_at).getTime() : NaN;
+        const promisedMatches = !promisedDate || (
+          promisedAt >= promisedFrom && promisedAt <= promisedTo
+        );
         const query = submittedSearch.toLocaleLowerCase("es-MX");
         const searchMatches =
           !query ||
@@ -166,6 +181,7 @@ export default function CustomerOrderListView() {
           onSubmit={(event) => {
             event.preventDefault();
             setSubmittedSearch(search.trim());
+            setOffset(0);
           }}
         >
           <div className="relative flex-1">
@@ -198,7 +214,7 @@ export default function CustomerOrderListView() {
           {[1, 2, 3].map((key) => <Skeleton key={key} className="h-28 w-full rounded-kova-lg" />)}
         </div>
       ) : error ? (
-        <ViewError message="No hay pedidos guardados para consultar sin conexión." onRetry={() => void load()} retryLabel="Reintentar" />
+        <ViewError message={isOnline ? "No pudimos consultar los pedidos. Intenta de nuevo." : "No hay pedidos guardados para consultar sin conexión."} onRetry={() => void load()} retryLabel="Reintentar" />
       ) : visibleItems.length === 0 ? (
         <ViewEmpty
           icon={<ClipboardList className="h-6 w-6" />}
