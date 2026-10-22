@@ -29,8 +29,22 @@ function isGroupSatisfied(group: ModifierGroup, selections: Map<string, string[]
   return selected.length >= group.min_selections;
 }
 
+/**
+ * Required single-choice groups (size, milk…) start on their first option so
+ * the usual order is one tap; the cashier only changes what differs.
+ */
+function initialSelections(groups: ModifierGroup[]): Map<string, string[]> {
+  const selections = new Map<string, string[]>();
+  for (const group of groups) {
+    if (!group.is_required || group.max_selections !== 1) continue;
+    const first = group.options.find((option) => option.is_active !== false);
+    if (first) selections.set(group.id, [first.id]);
+  }
+  return selections;
+}
+
 export function ModifierSelectionModal({ productName, modifierGroups, onConfirm, onCancel }: Props) {
-  const [selections, setSelections] = useState<Map<string, string[]>>(new Map());
+  const [selections, setSelections] = useState<Map<string, string[]>>(() => initialSelections(modifierGroups));
 
   const toggle = (group: ModifierGroup, option: ModifierOption) => {
     setSelections((prev) => {
@@ -49,7 +63,8 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
     });
   };
 
-  const allRequiredSatisfied = modifierGroups.every((g) => isGroupSatisfied(g, selections));
+  const missingGroups = modifierGroups.filter((g) => !isGroupSatisfied(g, selections));
+  const allRequiredSatisfied = missingGroups.length === 0;
 
   const handleConfirm = () => {
     const result: SelectedModifier[] = [];
@@ -137,11 +152,21 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
         })}
       </div>
 
+      {!allRequiredSatisfied && (
+        <p id="modifier-missing" role="status" className="mt-4 text-sm font-medium text-warning-foreground">
+          {copy.modifierModal.missingRequired(missingGroups.map((g) => g.name).join(", "))}
+        </p>
+      )}
+
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
           {copy.modifierModal.cancel}
         </Button>
-        <Button disabled={!allRequiredSatisfied} onClick={handleConfirm}>
+        <Button
+          disabled={!allRequiredSatisfied}
+          aria-describedby={allRequiredSatisfied ? undefined : "modifier-missing"}
+          onClick={handleConfirm}
+        >
           {copy.modifierModal.addToCart}
         </Button>
       </DialogFooter>
