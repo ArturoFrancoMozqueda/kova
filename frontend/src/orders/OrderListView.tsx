@@ -94,7 +94,7 @@ export default function OrderListView() {
 
   if (isPending) {
     return (
-      <ViewLayout width="focused">
+      <ViewLayout width="wide">
         <Skeleton className="h-8 w-48 mb-6" />
         <Skeleton className="h-12 w-full mb-4" />
         <Card>
@@ -110,7 +110,7 @@ export default function OrderListView() {
 
   if (isError) {
     return (
-      <ViewLayout width="focused">
+      <ViewLayout width="wide">
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">
             <AlertCircle className="h-8 w-8 text-destructive shrink-0" />

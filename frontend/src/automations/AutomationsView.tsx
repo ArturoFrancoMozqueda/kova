@@ -165,7 +165,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       {notice && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+          className="rounded-xl border border-kova-growth/30 bg-kova-growth/10 p-4 text-sm text-kova-growth-strong"
         >
           {notice}
         </p>
@@ -221,7 +221,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${rule.enabled ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground"}`}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${rule.enabled ? "bg-kova-growth/10 text-kova-growth-strong" : "bg-muted text-muted-foreground"}`}
                     >
                       {rule.enabled ? "Activa" : "Pausada"}
                     </span>

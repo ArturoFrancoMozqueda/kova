@@ -121,7 +121,7 @@ export function CfdiDocumentsPanel({
                 key={document.id}
                 className="rounded-xl border p-3 space-y-2 min-w-0"
               >
-                <p className="font-medium">
+                <p className="font-medium tabular-nums">
                   {document.environment === "test"
                     ? "Test · Sin validez fiscal"
                     : "Live · Producción fiscal"}{" "}

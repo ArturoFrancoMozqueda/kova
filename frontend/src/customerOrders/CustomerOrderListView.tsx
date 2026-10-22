@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ViewHeader } from "@/components/ui/view-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -194,7 +195,7 @@ export default function CustomerOrderListView() {
 
       {loading ? (
         <div className="grid gap-3">
-          {[1, 2, 3].map((key) => <div key={key} className="h-28 animate-pulse rounded-xl bg-muted" />)}
+          {[1, 2, 3].map((key) => <Skeleton key={key} className="h-28 w-full rounded-kova-lg" />)}
         </div>
       ) : error ? (
         <ViewError message="No hay pedidos guardados para consultar sin conexión." onRetry={() => void load()} retryLabel="Reintentar" />

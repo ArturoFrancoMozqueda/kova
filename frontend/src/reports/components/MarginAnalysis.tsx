@@ -60,9 +60,9 @@ export function MarginAnalysis({ story }: { story: BusinessStoryReport }) {
               </div>
             </>
           ) : (
-            <div className="rounded-kova-md border border-amber-200 bg-amber-50 p-4">
+            <div className="rounded-kova-md border border-warning/30 bg-warning/10 p-4">
               <div className="flex items-start gap-3">
-                <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" />
                 <div>
                   <p className="font-semibold text-kova-ink">{copy.reportsView.marginUnavailable}</p>
                   <p className="mt-1 text-sm text-kova-muted">

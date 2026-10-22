@@ -172,7 +172,7 @@ export default function InventoryView() {
 
   if (loadState.status === "loading") {
     return (
-      <ViewLayout width="standard" className="space-y-6" aria-busy="true">
+      <ViewLayout width="wide" className="space-y-6" aria-busy="true">
         <ViewHeader title={copy.inventoryView.title} meta={copy.inventoryView.loading} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -185,7 +185,7 @@ export default function InventoryView() {
 
   if (loadState.status === "error") {
     return (
-      <ViewLayout width="standard">
+      <ViewLayout width="wide">
         <ViewError
           message={copy.inventoryView.loadError}
           onRetry={() => void load()}
@@ -607,8 +607,8 @@ function StockCard({
                         className={cn(
                           "shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] uppercase",
                           m.quantity_delta > 0
-                            ? "bg-kova-growth/10 text-emerald-700"
-                            : "bg-destructive/10 text-red-700",
+                            ? "bg-kova-growth/10 text-kova-growth-strong"
+                            : "bg-destructive/10 text-destructive-strong",
                         )}
                       >
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}

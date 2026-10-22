@@ -226,7 +226,7 @@ export function CfdiPreparationPanel({
             Emisor de la solicitud: {context.issuer.legal_name} ·{" "}
             {context.issuer.rfc}
           </p>
-          <p className="font-medium">
+          <p className="font-medium tabular-nums">
             Total cobrado: {formatMoney(context.total_amount)} · Descuento:{" "}
             {formatMoney(context.discount_amount)}
           </p>
@@ -337,7 +337,7 @@ export function CfdiPreparationPanel({
                     <legend className="px-1 font-medium break-words">
                       {original.product_name} · {original.quantity} unidades
                     </legend>
-                    <p className="text-sm">
+                    <p className="text-sm tabular-nums">
                       Importe histórico:{" "}
                       {formatMoney(original.line_total_amount)} · Impuesto
                       adicional cobrado: {formatMoney(original.tax_amount)}
@@ -467,7 +467,7 @@ export function CfdiPreparationPanel({
                   {preview.recipient_snapshot.cfdi_use}
                 </p>
               )}
-              <ul className="space-y-2 text-sm">
+              <ul className="space-y-2 text-sm tabular-nums">
                 {preview.lines.map((line) => (
                   <li key={line.order_item_id} className="break-words">
                     {line.product_name} · SAT {line.product_key} /{" "}
@@ -477,7 +477,7 @@ export function CfdiPreparationPanel({
                   </li>
                 ))}
               </ul>
-              <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dl className="grid grid-cols-2 gap-2 text-sm tabular-nums">
                 <dt>Subtotal</dt>
                 <dd>{formatMoney(preview.subtotal_amount)}</dd>
                 <dt>Descuento</dt>

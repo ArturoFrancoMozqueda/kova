@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ViewHeader } from "@/components/ui/view-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -79,7 +80,7 @@ export default function CustomerOrderDetailView() {
   }, [load]);
 
   if (!enabled) return <Navigate to="/register" replace />;
-  if (loading) return <ViewLayout width="focused"><div className="h-96 animate-pulse rounded-xl bg-muted" /></ViewLayout>;
+  if (loading) return <ViewLayout width="focused"><Skeleton className="h-96 w-full rounded-kova-lg" /></ViewLayout>;
   if (!order) return <ViewLayout width="focused"><ViewError message={error ?? "Pedido no encontrado"} onRetry={() => void load()} retryLabel="Reintentar" /></ViewLayout>;
 
   const writable = isOnline && !cachedAt;

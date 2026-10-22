@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TicketPaper } from "@/components/ui/ticket";
 import { ViewHeader } from "@/components/ui/view-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { centsToMoney, moneyToCents } from "@/lib/money";
@@ -157,8 +158,8 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
     }
   };
 
-  if (loading) return <ViewLayout width="wide"><div className="h-96 animate-pulse rounded-xl bg-muted" /></ViewLayout>;
-  if (!order) return <ViewLayout width="focused"><div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-destructive">{error}</div></ViewLayout>;
+  if (loading) return <ViewLayout width="wide" aria-busy="true"><Skeleton className="h-96 w-full rounded-kova-lg" /></ViewLayout>;
+  if (!order) return <ViewLayout width="focused"><div role="alert" className="rounded-kova-md border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive-strong">{error}</div></ViewLayout>;
 
   if (completedSaleOrderId) {
     return (
@@ -237,7 +238,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
             })}
           </div>
           {split ? <Button variant="outline" className="w-full" disabled={remainingCents <= 0} onClick={() => { checkoutKeyRef.current = null; setPayments((current) => [...current, { id: crypto.randomUUID(), method: "bank_transfer", amount: centsToMoney(Math.max(remainingCents, 0)), tendered: "", reference: "" }]); }}><Plus className="mr-2 h-4 w-4" /> Agregar pago</Button> : null}
-          <div className="rounded-lg bg-muted/60 p-3 text-sm"><div className="flex justify-between"><span>Asignado</span><span>{formatMoney(centsToMoney(assignedCents))}</span></div><div className="mt-1 flex justify-between font-semibold"><span>Restante</span><span className={remainingCents === 0 ? "text-emerald-700" : "text-destructive"}>{formatMoney(centsToMoney(Math.abs(remainingCents)))}</span></div></div>
+          <div className="rounded-lg bg-muted/60 p-3 text-sm tabular-nums"><div className="flex justify-between"><span>Asignado</span><span>{formatMoney(centsToMoney(assignedCents))}</span></div><div className="mt-1 flex justify-between font-semibold"><span>Restante</span><span className={remainingCents === 0 ? "text-kova-growth-strong" : "text-destructive"}>{formatMoney(centsToMoney(Math.abs(remainingCents)))}</span></div></div>
           {cashBlocked ? <p className="text-sm text-destructive" role="alert">{openShift === false ? "Abre un turno para cobrar en efectivo." : "No se pudo comprobar el turno para este cobro en efectivo."}</p> : null}
           <Button className="w-full" size="lg" disabled={!valid || submitting} onClick={() => void submit()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />} Cobrar {formatMoney(order.total_amount)}</Button>
         </CardContent></Card>

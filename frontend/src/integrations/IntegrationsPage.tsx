@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { ViewPermissionDenied } from "@/components/ui/view-states";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -178,7 +180,7 @@ export function IntegrationContents({
         meta="Prepara los datos de tu negocio y registra solicitudes de factura."
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-2xl border border-border p-5">
+        <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
           <h2 className="font-semibold">
             Facturación CFDI · {connectionLabel}
           </h2>
@@ -192,7 +194,7 @@ export function IntegrationContents({
             requiere revisar los conceptos y confirmar el envío al proveedor.
           </p>
         </section>
-        <section className="rounded-2xl border border-border p-5">
+        <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
           <h2 className="font-semibold">Terminal bancaria · Sin conectar</h2>
           <p className="mt-2 text-sm">
             Para cobrar desde Kova se requiere un proveedor y una terminal
@@ -202,16 +204,31 @@ export function IntegrationContents({
         </section>
       </div>
       {error && (
-        <p role="alert" className="text-red-600">
+        <p
+          role="alert"
+          className="rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"
+        >
           {error}
         </p>
       )}
-      {message && <p role="status">{message}</p>}
+      {message && (
+        <p
+          role="status"
+          className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/10 px-4 py-3 text-sm text-kova-growth-strong"
+        >
+          {message}
+        </p>
+      )}
       {loading ? (
-        <p role="status">Cargando datos fiscales…</p>
+        <div aria-busy="true" className="space-y-3 rounded-kova-lg border border-kova-border p-5">
+          <p role="status" className="sr-only">Cargando datos fiscales…</p>
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-11 w-full" />
+        </div>
       ) : (
         <>
-          <section className="rounded-2xl border border-border p-5">
+          <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
             <h2 className="mb-3 font-semibold">Datos fiscales del negocio</h2>
             <p className="mb-4 text-sm text-muted-foreground">
               Se revisa el formato de los datos. No se consulta ni valida tu
@@ -260,7 +277,7 @@ export function IntegrationContents({
             />
           )}
           {canManage && (
-            <section className="rounded-2xl border border-border p-5">
+            <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
               <h2 className="mb-3 font-semibold">
                 Registrar solicitud de factura
               </h2>
@@ -371,7 +388,7 @@ export function IntegrationContents({
             </section>
           )}
           {canManage && (
-            <section className="rounded-2xl border border-border p-5">
+            <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
               <h2 className="mb-3 font-semibold">Solicitudes recientes</h2>
               {requests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -420,10 +437,10 @@ export function IntegrationsPage() {
   const user = state.status === "authenticated" ? state.user : null;
   if (user?.role !== "owner" && user?.role !== "manager")
     return (
-      <ViewLayout>
-        <ViewHeader title="Facturación e integraciones" />
-        <p>No tienes permiso para consultar esta sección.</p>
-      </ViewLayout>
+      <ViewPermissionDenied
+        title="Facturación e integraciones"
+        description="No tienes permiso para consultar esta sección."
+      />
     );
   return (
     <IntegrationContents

@@ -459,7 +459,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       {notice && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+          className="rounded-xl border border-kova-growth/30 bg-kova-growth/10 p-4 text-sm text-kova-growth-strong"
         >
           {notice}
         </p>
