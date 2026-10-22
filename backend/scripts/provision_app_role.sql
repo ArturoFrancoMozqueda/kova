@@ -144,6 +144,7 @@ BEGIN
             ('customer_contact_consents', 'SELECT, INSERT, UPDATE'),
             ('public_catalogs', 'SELECT, INSERT, UPDATE'),
             ('public_catalog_items', 'SELECT, INSERT, DELETE'),
+            ('public_catalog_links', 'SELECT, INSERT'),
             ('reconciliation_import_batches', 'SELECT, INSERT'),
             ('settlement_entries', 'SELECT, INSERT'),
             ('reconciliation_matches', 'SELECT, INSERT'),

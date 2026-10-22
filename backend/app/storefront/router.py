@@ -1,5 +1,6 @@
 import hashlib
 import io
+import re
 import sys
 from datetime import UTC, datetime
 from uuid import UUID
@@ -22,7 +23,8 @@ from app.inventory.repository import stock_on_hand_for_products
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, conflict, not_found
-from app.storefront.models import PublicCatalog, PublicCatalogItem
+from app.storefront.links import allocate_link, lookup_link
+from app.storefront.models import PublicCatalog, PublicCatalogItem, PublicCatalogLink
 from app.storefront.schemas import (
     CatalogSettings,
     CatalogWrite,
@@ -52,7 +54,10 @@ def _settings(db, row):
             version=0,
             share_path=None,
         )
-    token = jwt.encode(
+    link = db.query(PublicCatalogLink).filter_by(
+        tenant_id=row.tenant_id, catalog_id=row.id, link_version=row.link_version,
+    ).first()
+    token = link.slug if link else jwt.encode(
         {
             "aud": "kova-public-catalog",
             "tenant": str(row.tenant_id),
@@ -137,6 +142,13 @@ def save_settings(
     row.version += 1
     row.updated_at = datetime.now(UTC)
     db.flush()
+    if not db.query(PublicCatalogLink).filter_by(
+        tenant_id=tenant_id, catalog_id=row.id, link_version=row.link_version,
+    ).first():
+        from app.tenants.models import Tenant
+
+        business_name = db.query(Tenant.name).filter_by(id=tenant_id).scalar()
+        allocate_link(db, row, business_name)
     db.query(PublicCatalogItem).filter_by(tenant_id=tenant_id, catalog_id=row.id).delete()
     for product_id in body.product_ids:
         db.add(PublicCatalogItem(tenant_id=tenant_id, catalog_id=row.id, product_id=product_id))
@@ -264,29 +276,37 @@ def resolve_public_catalog(db, token):
     try:
         if len(token) > 1500:
             raise ValueError
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            audience="kova-public-catalog",
-            options={"require": ["tenant", "branch", "catalog", "version", "aud"]},
-        )
-        tenant_id, branch_id, catalog_id = (
-            UUID(payload[field]) for field in ("tenant", "branch", "catalog")
-        )
+        if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", token) and len(token) <= 100:
+            link = lookup_link(db, token)
+            if link is None:
+                raise ValueError
+            tenant_id, catalog_id, version = link.tenant_id, link.catalog_id, link.link_version
+            branch_id = None
+        else:
+            # Previously printed QR codes keep working until explicitly revoked.
+            payload = jwt.decode(
+                token,
+                settings.secret_key,
+                algorithms=["HS256"],
+                audience="kova-public-catalog",
+                options={"require": ["tenant", "branch", "catalog", "version", "aud"]},
+            )
+            tenant_id, branch_id, catalog_id = (
+                UUID(payload[field]) for field in ("tenant", "branch", "catalog")
+            )
+            version = payload["version"]
     except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
         raise not_found("Catálogo no disponible") from None
-    # A signed, narrowly scoped publication capability authorizes ONLY this projection.
+    # The public route authorizes ONLY this projection, after publication/billing checks.
     # No owner connection and no session or generic tenant-resource access is granted.
     set_tenant_context(db, tenant_id)
     row = (
         db.query(PublicCatalog)
         .filter_by(
             tenant_id=tenant_id,
-            branch_id=branch_id,
             id=catalog_id,
             enabled=True,
-            link_version=payload["version"],
+            link_version=version,
         )
         .first()
     )
@@ -295,11 +315,12 @@ def resolve_public_catalog(db, token):
     active_tenant = db.query(Tenant.id).filter_by(id=tenant_id, is_active=True).first()
     if (
         row is None
+        or (branch_id is not None and row.branch_id != branch_id)
         or active_tenant is None
         or not get_billing_access_status(db, tenant_id=tenant_id).allowed
     ):
         raise not_found("Catálogo no disponible")
-    bind_branch(db, tenant_id=tenant_id, branch_id=branch_id)
+    bind_branch(db, tenant_id=tenant_id, branch_id=row.branch_id)
     return row
 
 

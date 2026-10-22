@@ -116,6 +116,7 @@ _EXPORT_TABLES = (
                  "link_version updated_at"),
     ),
     ExportTable("public_catalog_items", _columns("id tenant_id catalog_id product_id")),
+    ExportTable("public_catalog_links", _columns("slug tenant_id catalog_id link_version")),
     ExportTable("customer_quotes", _columns(
         "id tenant_id branch_id customer_id opportunity_id folio customer_name customer_phone "
         "status total_amount "
@@ -512,6 +513,7 @@ _TENANT_DELETE_ORDER = (
     "crm_opportunities",
     "customer_contact_consents",
     "public_catalog_items",
+    "public_catalog_links",
     "public_catalogs",
     "drawer_commands",
     "drawer_devices",

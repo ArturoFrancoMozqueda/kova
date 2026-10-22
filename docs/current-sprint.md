@@ -1,6 +1,17 @@
 # Current Sprint
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
+
+## Auditoría funcional y enlaces legibles — pendiente de publicación
+
+Revisión de lectura autenticada de las secciones del dueño, contrastada con contratos,
+implementación y QA previa: [matriz de estado y prioridades](audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md).
+El núcleo POS está respaldado por aceptación previa; los canales externos no quedan
+certificados por CI. No se realizaron nuevas ventas ni conexiones durante esta auditoría.
+El propietario eligió enlaces del catálogo con nombre del negocio sin código aleatorio.
+La rama incorpora rutas legibles con colisiones numéricas, compatibilidad de QR anteriores
+y revocación por versión; migración aditiva y metadatos de routing con RLS por slug exacto.
+Publicación y aceptación de la URL real pendientes del release protegido.
 
 ## Prueba real del circuito comercial y continuidad
 
