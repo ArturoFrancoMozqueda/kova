@@ -276,4 +276,44 @@ describe("owner dashboard journey", () => {
     expect(screen.getByTestId("net-sales")).toHaveTextContent("222");
     expect(screen.queryByText("1/4")).not.toBeInTheDocument();
   });
+  it("lets the owner hide the setup checklist and remembers it for this business", async () => {
+    const first = host();
+    await screen.findByRole("group", { name: "Siguiente paso" });
+    fireEvent.click(screen.getByRole("button", { name: copy.dashboard.onboardingHide }));
+    expect(screen.queryByRole("group", { name: "Siguiente paso" })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("kova-onboarding-hidden:Negocio propietario")).toBe("1");
+
+    first.unmount();
+    host();
+    await screen.findByTestId("net-sales");
+    expect(screen.queryByRole("group", { name: "Siguiente paso" })).not.toBeInTheDocument();
+  });
+
+  it("treats setup as complete when only activating the plan is pending", async () => {
+    const onlyBilling: OnboardingState = { tenant_id: "tenant-owner", completed_count: 1, total_count: 2,
+      steps: [
+        { key: "business_profile", label: "Negocio", completed: true, action_path: "/settings/business-profile" },
+        { key: "activate_plan", label: "Plan", completed: false, action_path: "/settings/billing" },
+      ] };
+    vi.mocked(getDashboardOverview).mockResolvedValue(overview({ onboarding: onlyBilling }));
+    host();
+    expect(await screen.findByText(copy.dashboard.onboardingDoneTitle)).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Siguiente paso" })).not.toBeInTheDocument();
+  });
+
+  it("labels the actions section once and leaves no heading behind when there is nothing to do", async () => {
+    // A steady day with sales, no refunds, no low stock and no growth: nothing to act on.
+    const steady = makeStory();
+    vi.mocked(getDashboardOverview).mockResolvedValue(overview({ story: steady, previous_summary: summaryFromStory(steady) }));
+    const quiet = host();
+    await screen.findByTestId("net-sales");
+    expect(screen.queryByText(copy.dashboard.nextActionsTitle)).not.toBeInTheDocument();
+    quiet.unmount();
+
+    // No sales yet: the first-sale action appears under a single heading.
+    vi.mocked(getDashboardOverview).mockResolvedValue(overview());
+    host();
+    expect(await screen.findByRole("heading", { name: copy.dashboard.nextActionsTitle })).toBeVisible();
+    expect(screen.getAllByText(copy.dashboard.nextActionsTitle)).toHaveLength(1);
+  });
 });

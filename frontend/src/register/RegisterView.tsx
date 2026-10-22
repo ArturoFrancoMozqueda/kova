@@ -1463,7 +1463,7 @@ function RegularRegisterView() {
                 }
                 secondaryCta={
                   canManageCatalog
-                    ? { label: copy.register.loadCafePreset, to: "/catalog" }
+                    ? { label: copy.register.loadCatalogTemplate, to: "/catalog" }
                     : undefined
                 }
               />
