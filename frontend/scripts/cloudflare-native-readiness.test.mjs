@@ -87,6 +87,46 @@ test("persistent503 is bounded by five minutes and fixed attempt ceiling", async
   assert.equal(calls, 300, "clock anomalies must not create an unbounded loop");
 });
 
+test("rollout waits through observed provider propagation and still verifies both endpoints", async () => {
+  let time = 0;
+  let calls = 0;
+  const targets = [];
+  await waitForNativeBackendRelease({ ...options, rollout: true,
+    frontendUrl: "https://candidate.example.test", now: () => time,
+    wait: async ms => { time += ms; },
+    fetcher: async url => {
+      targets.push(url.pathname);
+      if (++calls === 1) { time += 1_500_000; return ready(previousSha); }
+      return ready();
+    },
+  });
+  assert.equal(time, 1_501_000);
+  assert.deepEqual(targets, ["/health", "/health", "/health", "/api/health"]);
+});
+
+test("rollout deadline and attempt ceiling remain bounded even with a frozen clock", async () => {
+  for (const advancing of [true, false]) {
+    let time = 0;
+    let calls = 0;
+    await assert.rejects(waitForNativeBackendRelease({ ...options, rollout: true,
+      now: () => time, wait: async ms => { if (advancing) time += ms; },
+      fetcher: async () => { calls++; return ready(previousSha); },
+    }), /within thirty minutes/);
+    assert.equal(calls, 1800);
+    assert.equal(time, advancing ? 1_800_000 : 0);
+  }
+});
+
+test("rollout budget never retries a foreign image or an application error", async () => {
+  for (const response of [ready("d".repeat(40)), new globalThis.Response(null, { status: 500 })]) {
+    let calls = 0;
+    await assert.rejects(waitForNativeBackendRelease({ ...options, rollout: true,
+      fetcher: async () => { calls++; return response; }, wait: assert.fail,
+    }));
+    assert.equal(calls, 1);
+  }
+});
+
 test("initial provisioning reaches the direct native process before probing the frontend rewrite", async () => {
   let time = 0;
   let directCalls = 0;
@@ -359,7 +399,10 @@ test("candidate and recovery readiness share the native provider helper with unc
     await provider.waitForPublicBackend({ ...options, nativeRuntime: true,
       sha: targetSha, previousSha: phase === "candidate" ? previousSha : sha,
       now: () => time, wait: async ms => { time += ms; },
-      fetcher: async () => ++calls === 1 ? sdkProxyFailure() : ready(targetSha),
+      fetcher: async () => {
+        if (++calls === 1) { time += 360_000; return sdkProxyFailure(); }
+        return ready(targetSha);
+      },
     });
     assert.equal(calls, 2);
   }

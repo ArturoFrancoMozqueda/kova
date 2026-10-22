@@ -79,7 +79,7 @@ function describeDiagnostic({ target, content, runtime, process, signature, read
  * text with no native identity; application/foreign/malformed errors fail closed.
  */
 export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
-  frontendBypassSecret, fetcher = globalThis.fetch,
+  frontendBypassSecret, rollout = false, fetcher = globalThis.fetch,
   wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
   if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
       || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
@@ -90,10 +90,17 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
     ...(frontendUrl === undefined ? [] : [{ target: "proxy", url: new URL("/api/health", frontendUrl),
       headers: frontendBypassSecret ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} }]),
   ];
-  const deadline = now() + 300_000;
+  // Application-wide rollouts may drain the old process for up to 15 minutes
+  // before force-stopping it. Keep five minutes for cold provisioning, but allow
+  // that drain, provider propagation and startup during publication/recovery.
+  // The October 22 recovery took about 25 minutes to converge. Neither mode accepts
+  // a previous image as readiness or changes the strict identity checks below.
+  const budgetMs = rollout ? 1_800_000 : 300_000;
+  const attempts = budgetMs / 1000;
+  const deadline = now() + budgetMs;
   let directReady = false;
   let lastFailure;
-  for (let attempt = 0; attempt < 300 && now() < deadline; attempt++) {
+  for (let attempt = 0; attempt < attempts && now() < deadline; attempt++) {
     // First boot can exceed a frontend provider's rewrite timeout. Establish
     // the resident API directly before testing it through that shorter hop.
     // Both phases share the same deadline and fixed attempt ceiling.
@@ -149,6 +156,6 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
     if (remaining <= 0) break;
     await wait(Math.min(1000, remaining));
   }
-  throw new Error("Native container publication did not finish within five minutes"
+  throw new Error(`Native container publication did not finish within ${rollout ? "thirty" : "five"} minutes`
     + (lastFailure ? ` ${lastFailure}` : ""));
 }

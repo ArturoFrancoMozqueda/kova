@@ -27,6 +27,12 @@ class InterruptedReleaseRecoveryTests(unittest.TestCase):
         self.assertIn(f"group: {name}-refs/heads/main", self.source)
         self.assertIn("cancel-in-progress: false", self.source)
 
+    def test_job_budgets_cover_native_rollout_and_release_recovery(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text()
+        release = ci.split("  release:\n", 1)[1]
+        self.assertIn("timeout-minutes: 90", release)
+        self.assertIn("timeout-minutes: 35", self.source)
+
     def test_exact_artifact_and_incident_are_required_before_mutation(self):
         download = self.source.index("gh run download 39709835800")
         checksum = self.source.index("sha256sum --check --strict")

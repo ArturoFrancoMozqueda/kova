@@ -210,6 +210,25 @@ the tested UX changes. Confirm `/health` and `/version.json` match that run's SH
 On 2026-10-21 (Mexico City), the environment API reported no protection rules;
 the workflow's explicit approval input does not replace required reviewers.
 
+Recovery run `39809193983` restored the captured Worker versions and started the
+exact captured Container image rollout, but its five-minute readiness budget
+expired before the image converged. Cloudflare's [replacement sequence](https://developers.cloudflare.com/containers/configuration/rollouts/#how-a-container-instance-is-replaced)
+allows up to 15 minutes to drain an old process. Native publication and recovery
+therefore allow 30 minutes for strict image/runtime/process readiness, covering
+both draining and provider propagation: this recovery took about 25 minutes
+before public convergence. Standalone cold provisioning keeps its five-minute
+budget. The release job allows 90 minutes for tooling, publication and recovery;
+the incident recovery job allows 35.
+Foreign SHAs, application errors and failed database/proxy checks still block.
+Inspect the active rollout before retrying a `RECOVERY_BLOCKED` run. A completed
+provider rollout must pass the full deployment verifier before normal CI resumes.
+On 2026-10-22 at 16:19 UTC, public verification confirmed the original captured
+release `b8b00c36b969` on frontend, backend, database and proxy. Resident acceptance
+passed 25 contracts with one process (median 251 ms, maximum 768 ms). The provider
+reported the restored application image before the running process converged;
+provider completion therefore never substitutes for public acceptance. The
+existing rolling strategy and exact captured artifact remain unchanged.
+
 - **Coordinated release:** use the `release-rollback-<sha>` artifact from the failed workflow and the
   phase-aware recovery job. A missing artifact is a blocking incident, not permission to infer a
   target from “latest”.
