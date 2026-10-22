@@ -69,9 +69,9 @@ export function cloudflareBackendProvider({ run, env }) {
     { cwd: directory, env, capture, label: "Cloudflare backend" });
   const native = env.KOVA_NATIVE_BACKEND === "1";
   const containers = native ? cloudflareContainerProvider({ run, env }) : undefined;
-  const nativeCf = (args, capture = false) => run(process.execPath,
+  const nativeCf = (args, capture = false, commandEnv = env) => run(process.execPath,
     [path.join(nativeDirectory, "node_modules/cf/bin/cf"), ...args],
-    { cwd: nativeDirectory, env, capture, label: "Cloudflare resident backend" });
+    { cwd: nativeDirectory, env: commandEnv, capture, label: "Cloudflare resident backend" });
   return {
     requiresNativeContainer: native,
     ...(containers ? { captureNative: containers.capture } : {}),
@@ -100,8 +100,13 @@ export function cloudflareBackendProvider({ run, env }) {
       }
       return validateBackendVersions(captured);
     },
-    async publish(sha) {
+    async publish(sha, previousSha) {
       if (!/^[a-f0-9]{40}$/i.test(sha)) throw new Error("Full backend release SHA is required");
+      if (native && !/^[a-f0-9]{40}$/i.test(previousSha ?? "")) {
+        throw new Error("Native publication requires the captured previous release SHA");
+      }
+      const publicationEnv = { ...env, KOVA_NATIVE_DEPLOY_SHA: sha,
+        KOVA_NATIVE_PREVIOUS_SHA: previousSha };
       if (!env.KOVA_HYPERDRIVE_APP_ID || !env.KOVA_HYPERDRIVE_PRIVILEGED_ID || !env.KOVA_WORKERS_PACKAGES) {
         throw new Error("Backend build requires both Hyperdrive IDs and locked Python packages");
       }
@@ -129,15 +134,16 @@ export function cloudflareBackendProvider({ run, env }) {
         await run(process.execPath, [path.join(nativeDirectory, "build.mjs")], {
           cwd: nativeDirectory, env: artifactEnv, label: "Cloudflare resident artifact",
         });
-        await nativeCf(["deploy", "--prebuilt", "--worker", "kova-backend", "--dry-run"]);
+        await nativeCf(["deploy", "--prebuilt", "--worker", "kova-backend", "--dry-run"], false, publicationEnv);
       }
       const pythonWorkers = backendWorkers.filter(name => !native || name !== "kova-backend");
       for (const name of pythonWorkers) await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"]);
       // Build identity is a versioned text binding, not a rotated secret.
       // Keep existing credential bindings sealed and preserve rollback checks.
       for (const name of backendWorkers) {
-        await (native && name === "kova-backend" ? nativeCf : cf)(
-          ["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)]);
+        const args = ["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)];
+        if (native && name === "kova-backend") await nativeCf(args, false, publicationEnv);
+        else await cf(args);
       }
     },
     async restore(input, nativeSnapshot) {

@@ -43,7 +43,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
-    await provider.deployBackend(sha);
+    await provider.deployBackend(sha, artifact.releaseSha);
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
         sha, previousSha: artifact.releaseSha,
@@ -106,8 +106,8 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
       await vercel(["build", "--prod"]);
       return vercel(["deploy", "--prebuilt", "--prod", "--skip-domain", "--yes"], true);
     },
-    async deployBackend(sha) {
-      return backend.publish(sha);
+    async deployBackend(sha, previousSha) {
+      return backend.publish(sha, previousSha);
     },
     async promote(url, frontendUrl) {
       const hostname = productionHostname(frontendUrl);

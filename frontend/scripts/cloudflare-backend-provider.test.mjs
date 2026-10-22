@@ -152,7 +152,7 @@ test("resident release refuses missing sealed runtime credentials before migrati
   const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
     CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
     run: async (_command, args) => { calls.push(args); return JSON.stringify([{ name: "MIGRATION_DATABASE_URL" }]); } });
-  await assert.rejects(provider.publish(sha), /provisioned APP_DATABASE_URL/);
+  await assert.rejects(provider.publish(sha, "b".repeat(40)), /provisioned APP_DATABASE_URL/);
   assert.equal(calls.length, 1);
   assert.ok(calls[0].includes("list"));
 });
@@ -172,13 +172,25 @@ test("resident release replaces only API artifact and preserves rollback workers
       }
       assert.equal(args.join(" ").includes(env.SUPABASE_DB_URL), false);
     } });
-  await provider.publish(sha);
+  await provider.publish(sha, "b".repeat(40));
   const deploys = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
   assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]), backendWorkers);
   assert.ok(deploys[1].options.cwd.endsWith("/deploy/cloudflare-native"));
   assert.ok(deploys[0].options.cwd.endsWith("/deploy/cloudflare-backend"));
   assert.ok(deploys[2].options.cwd.endsWith("/deploy/cloudflare-backend"));
   assert.equal(calls.some(call => call.args.includes("put")), false);
+  for (const call of calls.filter(call => call.options.cwd.endsWith("/deploy/cloudflare-native") && call.args.includes("deploy"))) {
+    assert.equal(call.options.env.KOVA_NATIVE_PREVIOUS_SHA, "b".repeat(40));
+    assert.equal(call.options.env.KOVA_NATIVE_DEPLOY_SHA, sha);
+  }
+});
+
+test("resident publication rejects absent or malformed previous identities before any command", async () => {
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId }, run: assert.fail });
+  for (const previousSha of [undefined, "", "short", "g".repeat(40)]) {
+    await assert.rejects(provider.publish(sha, previousSha), /captured previous release SHA/);
+  }
 });
 
 const absentContainer = { name: nativeContainerIdentity.name, namespaceId: nativeContainerIdentity.namespaceId,

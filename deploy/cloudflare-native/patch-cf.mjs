@@ -33,9 +33,11 @@ const fixes = [
   // Dashboard uploads omit script_name for this Worker's own DO namespaces.
   // Normalize only that equivalent representation before the strict diff;
   // explicit foreign workers, classes and environments still fail closed.
+  // Permit the public build SHA transition only for the captured previous SHA
+  // and requested target passed by the protected release, never arbitrary vars.
   prepareFix(/^containers-BtcOgwm5\.mjs$/,
     'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);',
-    'function xE(e,t){let n=SE(t);e=structuredClone(e);for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;let r=_E(DE(e,n),n);', "same-worker DO metadata"),
+    'function xE(e,t){let n=SE(t);e=structuredClone(e);for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;let i=process.env.KOVA_NATIVE_PREVIOUS_SHA,a=process.env.KOVA_NATIVE_DEPLOY_SHA;if(n.name===`kova-backend`&&/^[a-f0-9]{40}$/i.test(i??``)&&/^[a-f0-9]{40}$/i.test(a??``)&&e.vars?.KOVA_BUILD_SHA===i&&n.vars?.KOVA_BUILD_SHA===a)e.vars.KOVA_BUILD_SHA=a;let r=_E(DE(e,n),n);', "same-worker DO metadata and captured release identity"),
   // The generated registry client discards the useful HTTP status in its
   // generic error message. Preserve failure behavior and expose only numeric
   // diagnostics for the managed registry credential operation, never its body.

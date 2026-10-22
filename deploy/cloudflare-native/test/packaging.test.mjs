@@ -103,6 +103,35 @@ test("real cf strict comparator accepts only the equivalent unset remote DO envi
     }
     const missingExternalWorker = { ...dashboard, durable_objects: { bindings: [own, { name: "JOBS", class_name: "KovaJobs" }] } };
     assert.equal(variants[1].remoteDiffForTest(missingExternalWorker, native).nonDestructive, false);
+    const previousSha = "a".repeat(40), targetSha = "b".repeat(40);
+    const releaseLocal = { ...local, name: "kova-backend", vars: { KOVA_BUILD_SHA: targetSha, KEEP: "unchanged" } };
+    const releaseRemote = { ...structuredClone(releaseLocal), vars: { KOVA_BUILD_SHA: previousSha, KEEP: "unchanged" } };
+    const saved = [process.env.KOVA_NATIVE_PREVIOUS_SHA, process.env.KOVA_NATIVE_DEPLOY_SHA];
+    try {
+      delete process.env.KOVA_NATIVE_PREVIOUS_SHA;
+      delete process.env.KOVA_NATIVE_DEPLOY_SHA;
+      assert.equal(variants[1].remoteDiffForTest(releaseRemote, releaseLocal).nonDestructive, false);
+      process.env.KOVA_NATIVE_PREVIOUS_SHA = previousSha;
+      process.env.KOVA_NATIVE_DEPLOY_SHA = targetSha;
+      assert.equal(variants[1].remoteDiffForTest(releaseRemote, releaseLocal).diff, null);
+      assert.equal(releaseRemote.vars.KOVA_BUILD_SHA, previousSha);
+      for (const remote of [
+        { ...releaseRemote, vars: { ...releaseRemote.vars, KOVA_BUILD_SHA: "c".repeat(40) } },
+        { ...releaseRemote, vars: { ...releaseRemote.vars, KEEP: "different" } },
+      ]) assert.equal(variants[1].remoteDiffForTest(remote, releaseLocal).nonDestructive, false);
+      // Upstream permits new variables; an absent identity must still appear
+      // in the diff rather than being normalized as a captured transition.
+      assert.notEqual(variants[1].remoteDiffForTest({ ...releaseRemote, vars: { KEEP: "unchanged" } }, releaseLocal).diff, null);
+      assert.equal(variants[1].remoteDiffForTest(releaseRemote, { ...releaseLocal, name: "other-worker" }).nonDestructive, false);
+      assert.equal(variants[1].remoteDiffForTest(releaseRemote, { ...releaseLocal, vars: { KOVA_BUILD_SHA: "d".repeat(40), KEEP: "unchanged" } }).nonDestructive, false);
+      process.env.KOVA_NATIVE_PREVIOUS_SHA = "short";
+      assert.equal(variants[1].remoteDiffForTest(releaseRemote, releaseLocal).nonDestructive, false);
+    } finally {
+      for (const [index, name] of ["KOVA_NATIVE_PREVIOUS_SHA", "KOVA_NATIVE_DEPLOY_SHA"].entries()) {
+        if (saved[index] === undefined) delete process.env[name];
+        else process.env[name] = saved[index];
+      }
+    }
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
