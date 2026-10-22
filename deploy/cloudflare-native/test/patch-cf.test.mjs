@@ -92,7 +92,7 @@ test("all pinned patches validate before writing and registry diagnostics are id
     const inputs = [
       ["containers-BtcOgwm5.mjs", 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);'],
       ["deploy-input-fixture.mjs", 'm.push({name:`./${o}`,filePath:l'],
-      ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1`'],
+      ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1` bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`'],
       [moduleName, baseline],
     ];
     const script = join(scratch, "patch-cf.mjs");
@@ -114,6 +114,18 @@ test("all pinned patches validate before writing and registry diagnostics are id
         assert.equal(readFileSync(join(target, name), "utf8"), originalSource, "must not partially apply earlier patches");
       }
       assert.equal(readFileSync(join(target, moduleName), "utf8"), source);
+    }
+    const r2Marker = 'bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`';
+    for (const source of [inputs[2][1].replace(r2Marker, "changed R2 mapper"), inputs[2][1] + r2Marker,
+      once[2] + r2Marker]) {
+      reset();
+      writeFileSync(packagePath, JSON.stringify({ version: "1.0.0-beta.18" }));
+      writeFileSync(join(target, inputs[2][0]), source);
+      assert.throws(() => execFileSync(process.execPath, [script], { stdio: "pipe" }));
+      for (const [name, originalSource] of inputs) {
+        assert.equal(readFileSync(join(target, name), "utf8"), name === inputs[2][0] ? source : originalSource,
+          "R2 mapper drift must refuse every write");
+      }
     }
     for (const source of ["changed comparator", inputs[0][1] + inputs[0][1], once[0] + inputs[0][1]]) {
       reset();
