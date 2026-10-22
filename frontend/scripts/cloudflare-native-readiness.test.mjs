@@ -118,7 +118,7 @@ test("rollout deadline and attempt ceiling remain bounded even with a frozen clo
 });
 
 test("rollout budget never retries a foreign image or an application error", async () => {
-  for (const response of [ready("d".repeat(40)), new Response(null, { status: 500 })]) {
+  for (const response of [ready("d".repeat(40)), new globalThis.Response(null, { status: 500 })]) {
     let calls = 0;
     await assert.rejects(waitForNativeBackendRelease({ ...options, rollout: true,
       fetcher: async () => { calls++; return response; }, wait: assert.fail,
