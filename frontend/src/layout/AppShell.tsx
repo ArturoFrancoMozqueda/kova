@@ -78,7 +78,7 @@ type NavItem = {
 };
 
 const adminNavItems: NavItem[] = [
-  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "business", permission: CUSTOMERS_VIEW_PERMISSION },
+  { to: "/customers", label: copy.nav.customers, icon: <Users className="h-4.5 w-4.5" />, group: "business", permission: CUSTOMERS_VIEW_PERMISSION },
 
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
@@ -86,32 +86,32 @@ const adminNavItems: NavItem[] = [
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/purchasing", label: "Compras y proveedores", icon: <Truck className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
-  { to: "/settings/integrations", label: "Facturación e integraciones", icon: <Receipt className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/purchasing", label: copy.nav.purchasing, icon: <Truck className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
+  { to: "/settings/integrations", label: copy.nav.integrations, icon: <Receipt className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
-  { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
-  { to: "/operations-queue", label: "Pendientes", icon: <ListChecks className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/service-cases", label: "Atención postventa", icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/appointments", label: "Agenda", icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/loyalty", label: "Lealtad de clientes", icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/inbox", label: "Bandeja de atención", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/commercial-requests", label: "Solicitudes del catálogo", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/followups", label: "Postventa y seguimiento", icon: <HeartHandshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/crm", label: "Seguimiento comercial", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/quotes", label: "Cotizaciones", icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/automations", label: "Automatizaciones", icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/settings/public-catalog", label: "Catálogo público", icon: <Store className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/settings/channels", label: "Canales", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/reconciliation", label: "Conciliación", icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/replenishment", label: "Reposición", icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
+  { to: "/assistant", label: copy.nav.assistant, icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/operations-queue", label: copy.nav.operationsQueue, icon: <ListChecks className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/service-cases", label: copy.nav.serviceCases, icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/loyalty", label: copy.nav.loyalty, icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/inbox", label: copy.nav.inbox, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/commercial-requests", label: copy.nav.commercialRequests, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/followups", label: copy.nav.followups, icon: <HeartHandshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/crm", label: copy.nav.crm, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/quotes", label: copy.nav.quotes, icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/automations", label: copy.nav.automations, icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/public-catalog", label: copy.nav.publicCatalog, icon: <Store className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/channels", label: copy.nav.channels, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/reconciliation", label: copy.nav.reconciliation, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/replenishment", label: copy.nav.replenishment, icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
 ];
 
 const cashierNavItems: NavItem[] = [
-  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
+  { to: "/customers", label: copy.nav.customers, icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
 
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
@@ -134,12 +134,12 @@ const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
 const businessNavGroups: {
   id: string; label: string; paths: string[];
 }[] = [
-  { id: "products", label: "Productos e inventario",
+  { id: "products", label: copy.nav.groupProducts,
     paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
-  { id: "commercial", label: "Ventas y atención",
+  { id: "commercial", label: copy.nav.groupSales,
     paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
       "/followups", "/appointments", "/loyalty"] },
-  { id: "management", label: "Gestión y ajustes",
+  { id: "management", label: copy.nav.groupManagement,
     paths: ["/reports", "/expenses", "/reconciliation", "/automations",
       "/assistant", "/settings", "/settings/billing", "/settings/integrations",
       "/settings/channels"] },
@@ -297,10 +297,10 @@ export default function AppShell() {
   if (isAdminRole(userRole) && !isOfflineSession) {
     const hasDestination = (path: string) => filteredNavItems.some(item => item.to === path);
     if (hasDestination("/pedidos") && canCreateCustomerOrders) searchDestinations.push({
-      to: "/pedidos/nuevo", label: "Crear pedido", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business",
+      to: "/pedidos/nuevo", label: copy.nav.createOrder, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business",
     });
     if (hasDestination("/catalog") && canCreateProducts) searchDestinations.push({
-      to: "/catalog?new=product", label: "Crear producto", icon: <Package className="h-4.5 w-4.5" />, group: "business",
+      to: "/catalog?new=product", label: copy.nav.createProduct, icon: <Package className="h-4.5 w-4.5" />, group: "business",
     });
     if (hasDestination("/settings")) {
       for (const [to, label] of [
