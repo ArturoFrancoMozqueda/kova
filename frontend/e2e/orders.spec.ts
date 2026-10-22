@@ -58,6 +58,12 @@ test("orders support status filters and amount sorting at mobile width", async (
   await expect(page.locator("a[href='/orders/order-3']")).not.toBeVisible();
 
   await page.getByRole("button", { name: /todas/i }).click();
+  // At phone width the custom range and sort fold behind one toggle so the
+  // first sale stays above the fold.
+  await expect(page.getByLabel(/ordenar ventas/i)).toBeHidden();
+  const moreFilters = page.getByRole("button", { name: /fechas y orden/i });
+  await moreFilters.click();
+  await expect(moreFilters).toHaveAttribute("aria-expanded", "true");
   await page.getByLabel(/ordenar ventas/i).selectOption("amount_asc");
   await expect(page.locator("a[href='/orders/order-2']").first()).toContainText("18.50");
   await expect(page.locator("a[href='/orders/order-1']").first()).toContainText("42.00");

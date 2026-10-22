@@ -101,3 +101,27 @@ describe("toast announcement politeness", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+describe("srOnly toasts", () => {
+  function SilentTrigger() {
+    const { toast } = useToast();
+    return (
+      <button onClick={() => toast("Venta lista", { variant: "success", srOnly: true })}>
+        anunciar
+      </button>
+    );
+  }
+
+  it("announce through a polite live region without painting a dismissible toast", () => {
+    render(
+      <ToastProvider>
+        <SilentTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByText("anunciar"));
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Venta lista");
+    expect(status).toHaveClass("sr-only");
+    expect(screen.queryByRole("button", { name: "Cerrar aviso" })).not.toBeInTheDocument();
+  });
+});

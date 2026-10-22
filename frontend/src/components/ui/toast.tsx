@@ -24,6 +24,9 @@ interface ToastOptions {
   variant?: ToastVariant;
   action?: ToastAction;
   durationMs?: number;
+  /** Announce through the live region without painting a toast — for moments
+   * the screen already shows on its own (the register's success card). */
+  srOnly?: boolean;
 }
 
 interface Toast {
@@ -32,6 +35,7 @@ interface Toast {
   variant: ToastVariant;
   action?: ToastAction;
   exiting?: boolean;
+  srOnly?: boolean;
 }
 
 interface ToastContextValue {
@@ -82,7 +86,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = toastId;
       setToasts((prev) => [
         ...prev.filter((item) => item.message !== message || item.variant !== variant),
-        { id, message, variant, action: opts.action },
+        { id, message, variant, action: opts.action, srOnly: opts.srOnly },
       ]);
       setTimeout(() => dismissToast(id), duration);
     },
@@ -122,7 +126,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           "lg:top-[max(1rem,env(safe-area-inset-top))]",
         )}
       >
-        {toasts.map((t) => (
+        {toasts.map((t) => t.srOnly ? (
+          <div key={t.id} role="status" aria-live="polite" className="sr-only">
+            {t.message}
+          </div>
+        ) : (
           <div
             key={t.id}
             // Errors interrupt the screen reader (assertive); other variants

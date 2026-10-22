@@ -309,11 +309,15 @@ export default function ShiftView() {
                 </p>
               );
             })()}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Two columns on phones: the four tiles stacked one per row pushed the
+                movement list below the fold. The date/time and the expected cash
+                (the number the cashier counts against) keep a full row. */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <StatTile
                 label={copy.shiftView.openedAt}
                 value={formatShiftDateTime(currentShift.opened_at)}
                 icon={<Clock className="h-4 w-4" />}
+                className="col-span-2 sm:col-span-1"
               />
               {currentShift.opening_cash_amount && (
                 <StatTile
@@ -343,11 +347,15 @@ export default function ShiftView() {
                     <StatTile
                       label={copy.shiftView.totalCashIn}
                       value={
-                        <span className="tabular-nums">
-                          <span className="text-kova-growth-strong">+{formatMoney(cashIn)}</span>
-                          {" / "}
-                          <span className="text-destructive">−{formatMoney(cashOut)}</span>
-                        </span>
+                        cashIn === 0 && cashOut === 0 ? (
+                          <span className="tabular-nums text-kova-muted">{formatMoney(0)}</span>
+                        ) : (
+                          <span className="tabular-nums">
+                            <span className="text-kova-growth-strong">+{formatMoney(cashIn)}</span>
+                            {" / "}
+                            <span className="text-destructive">−{formatMoney(cashOut)}</span>
+                          </span>
+                        )
                       }
                       icon={<ArrowUpCircle className="h-4 w-4" />}
                       className="bg-kova-grad-mint"
@@ -356,7 +364,10 @@ export default function ShiftView() {
                       label={copy.shiftView.expectedCashShort}
                       value={formatMoney(expected)}
                       icon={<Banknote className="h-4 w-4" />}
-                      className="bg-kova-grad-blue"
+                      className={cn(
+                        "bg-kova-grad-blue",
+                        currentShift.opening_cash_amount && "col-span-2 sm:col-span-1",
+                      )}
                     />
                   </>
                 );

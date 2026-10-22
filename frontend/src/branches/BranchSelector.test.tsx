@@ -59,3 +59,14 @@ it("exposes branch selection as a named landmark outside the page content", asyn
   const region = screen.getByRole("region", { name: "Selección de sucursal" });
   expect(within(region).getByRole("combobox", { name: "Sucursal activa" })).toHaveValue("principal");
 });
+
+it("stays out of the way when the business has a single location", async () => {
+  vi.mocked(listBranches).mockResolvedValue([
+    { id: "principal", name: "Matriz", address: null, created_at: "2026-10-04" },
+  ]);
+  render(<BranchSelector />);
+  await vi.waitFor(() => expect(listBranches).toHaveBeenCalled());
+  await Promise.resolve();
+  expect(screen.queryByRole("region", { name: "Selección de sucursal" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Sucursal activa")).not.toBeInTheDocument();
+});

@@ -14,6 +14,7 @@ export function BranchSelector() {
     state.status === "authenticated" && state.sessionMode === "offline";
   const active = getActiveBranchId(tenantId, userId);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -25,6 +26,7 @@ export function BranchSelector() {
         if (alive) {
           setBranches(rows);
           setError("");
+          setLoaded(true);
         }
       })
       .catch(() => {
@@ -40,6 +42,12 @@ export function BranchSelector() {
     return () => window.removeEventListener("kova-branches-updated", update);
   }, []);
   if (!tenantId) return null;
+  // A single-location business has nothing to choose: the bar only cost a full
+  // row (two on a phone) above every view. Online, it stays hidden until the
+  // list resolves so it never flashes in and shoves the page down; offline it
+  // still renders (disabled) because the list can't be checked.
+  const nothingToChoose = !offline && !error && (!loaded || (branches.length <= 1 && branches.every((branch) => branch.id === active)));
+  if (nothingToChoose) return null;
   const change = () => {
     if (!pending || offline || !navigator.onLine) return;
     try {
@@ -53,15 +61,15 @@ export function BranchSelector() {
     }
   };
   return (
-    <section aria-label="Selección de sucursal" className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-3">
-      <label htmlFor={id} className="text-sm font-medium">
+    <section aria-label="Selección de sucursal" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background px-4 py-2.5">
+      <label htmlFor={id} className="shrink-0 text-sm font-medium">
         Sucursal activa
       </label>
       <Select
         id={id}
         value={active}
         disabled={offline || branches.length === 0}
-        className="w-full sm:max-w-xs"
+        className="h-10 min-w-0 flex-1 sm:max-w-xs sm:flex-none"
         onChange={(event) => setPending(event.target.value)}
       >
         {!branches.some((branch) => branch.id === active) ? (

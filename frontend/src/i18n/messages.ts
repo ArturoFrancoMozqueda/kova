@@ -2093,6 +2093,8 @@ export const copy = {
     filterLabel: "Filtrar ventas",
     periodLabel: "Periodo de ventas",
     sortLabel: "Ordenar ventas",
+    moreFilters: "Fechas y orden",
+    fewerFilters: "Ocultar fechas y orden",
     sortNewest: "Más recientes",
     sortOldest: "Más antiguas",
     sortAmountDesc: "Mayor monto",
@@ -2557,9 +2559,16 @@ export const copy = {
   },
   billingBanner: {
     manageCta: "Administrar suscripción",
+    // Phone label for the compact trial row; the link keeps manageCta as its
+    // accessible name.
+    manageCtaShort: "Administrar",
+    manageCtaRest: " suscripción",
     dismissCta: "Descartar",
     trialActive: "Prueba activa",
-    trialActiveBody: `Prueba activa por ${BILLING_TRIAL_LABEL}. Activa el ${STANDARD_PLAN.name} para conservar la operación al terminar.`,
+    // The title already says "Prueba activa" and TrialChip counts the days
+    // left, so the body only carries the next step (a fixed "por 7 días" read
+    // wrong from day two on).
+    trialActiveBody: `Activa el ${STANDARD_PLAN.name} antes de que termine para seguir vendiendo sin interrupciones.`,
     trialingActive: "Prueba activa",
     trialingActiveBody: `Tu suscripción está en prueba. Activa el ${STANDARD_PLAN.name} por ${STANDARD_PLAN_PRICE_LABEL} para seguir vendiendo cuando termine.`,
     pastDueGrace: "Pago vencido",
