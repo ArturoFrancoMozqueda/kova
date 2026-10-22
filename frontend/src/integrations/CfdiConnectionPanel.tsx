@@ -94,7 +94,7 @@ export function CfdiConnectionPanel({
         .
       </p>
       {!status.storage_available && (
-        <p role="status" className="text-amber-700">
+        <p role="status" className="text-warning-strong">
           La conexión fiscal requiere configuración del servidor. Puedes guardar
           solicitudes mientras el administrador habilita el almacenamiento
           seguro.

@@ -205,7 +205,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
         </button>
 
         {error && (
-          <div role="alert" className="flex gap-2 rounded-kova-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div role="alert" className="flex gap-2 rounded-kova-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive-strong">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -238,7 +238,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
                     </Badge>
                   </div>
                   {row.errors.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-xs text-red-700">
+                    <ul className="mt-2 space-y-1 text-xs text-destructive-strong">
                       {row.errors.map((message) => <li key={message}>• {message}</li>)}
                     </ul>
                   )}
@@ -246,7 +246,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
               ))}
             </div>
             {preview.error_rows === 0 && preview.valid_rows > 0 && (
-              <div className="flex gap-2 rounded-kova-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              <div className="flex gap-2 rounded-kova-lg border border-kova-growth/30 bg-kova-growth/10 p-3 text-sm text-kova-growth-strong">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{copy.catalog.importReadyBody(preview.valid_rows)}</span>
               </div>
@@ -267,7 +267,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
 }
 
 function ImportCount({ label, value, tone = "default" }: { label: string; value: number; tone?: "default" | "success" | "error" }) {
-  const toneClass = tone === "success" ? "text-emerald-700" : tone === "error" ? "text-red-700" : "text-kova-ink";
+  const toneClass = tone === "success" ? "text-kova-growth-strong" : tone === "error" ? "text-destructive-strong" : "text-kova-ink";
   return (
     <div className="rounded-kova-lg border border-kova-border bg-white p-3 text-center">
       <p className={`text-xl font-bold tabular-nums ${toneClass}`}>{value}</p>

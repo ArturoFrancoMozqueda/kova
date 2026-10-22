@@ -318,7 +318,7 @@ export function FiscalGlobalDraftsPanel({
     <div className="space-y-6">
       {!isOnline ? (
         <div
-          className="flex items-start gap-3 rounded-kova-md border border-amber-200 bg-amber-50 p-4 text-amber-950"
+          className="flex items-start gap-3 rounded-kova-md border border-warning/30 bg-warning/10 p-4 text-warning-foreground"
           role="status"
         >
           <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />

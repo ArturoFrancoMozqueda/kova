@@ -4,6 +4,8 @@ import { Link as RouterLink } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 
 /**
  * Shared, copy-agnostic states for a data view — error, empty, and permission
@@ -112,7 +114,10 @@ function CtaButton({ cta, variant }: { cta: ViewEmptyCta; variant: "default" | "
   );
 }
 
-/** Full-view "you don't have access" panel with a title and explanation. */
+/**
+ * Full-view "you don't have access" panel. Uses the same frame and header as
+ * every other view so a denied tab doesn't look like a different product.
+ */
 export function ViewPermissionDenied({
   title,
   description,
@@ -121,14 +126,16 @@ export function ViewPermissionDenied({
   description: string;
 }) {
   return (
-    <main className="flex-1 p-6">
-      <div className="mb-6 flex items-center gap-3">
-        <ShieldOff className="h-6 w-6 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-    </main>
+    <ViewLayout width="standard" className="space-y-6">
+      <ViewHeader title={title} />
+      <Card className="animate-fade-in">
+        <CardContent className="flex items-start gap-4 p-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-kova-md bg-kova-mist text-kova-muted">
+            <ShieldOff className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        </CardContent>
+      </Card>
+    </ViewLayout>
   );
 }

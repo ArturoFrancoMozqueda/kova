@@ -79,7 +79,7 @@ export function PriorityActionCard({
         {recommendation.tone !== "good_signal" ? (
           <Button variant="ghost" size="sm" className="-mr-2 -mt-1.5 h-7 px-2 text-xs" onClick={onToggleDone}>
             {done ? (
-              <span className="flex items-center gap-1 text-emerald-700">
+              <span className="flex items-center gap-1 text-kova-growth-strong">
                 <Check className="h-3.5 w-3.5" /> {copy.reportsView.planDone}
               </span>
             ) : (

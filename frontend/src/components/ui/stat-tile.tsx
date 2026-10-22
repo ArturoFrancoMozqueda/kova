@@ -32,7 +32,7 @@ export function StatTile({
     // ahora"; from `sm` up it's the full tile.
     <div
       className={cn(
-        "rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:p-5",
+        "rounded-kova-lg border-[0.5px] border-kova-border bg-white p-4 shadow-kova-card sm:p-5",
         className,
       )}
     >
@@ -105,7 +105,7 @@ export function DeltaChip({
     <span
       className={cn(
         "flex items-center gap-1 text-xs font-medium",
-        good ? "text-emerald-700" : "text-destructive",
+        good ? "text-kova-growth-strong" : "text-destructive",
       )}
     >
       {tone === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

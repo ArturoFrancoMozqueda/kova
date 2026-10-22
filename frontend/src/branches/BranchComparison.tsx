@@ -107,7 +107,7 @@ export function BranchComparison({
                     ? `Hay un empate entre ${leaders.map((branch) => branch.branch_name).join(", ")}.`
                     : `${leaders[0]?.branch_name} tiene las mayores ventas netas.`}
                 </p>
-                <p className="mt-1 text-sm">
+                <p className="mt-1 text-sm tabular-nums">
                   {singleBranch ? "Total de esta sucursal" : "Total del negocio"}: {formatMoney(visibleData.total_net_sales)}
                 </p>
               </div>
@@ -144,7 +144,7 @@ export function BranchComparison({
                       <dt className="text-muted-foreground">
                         Ticket promedio neto
                       </dt>
-                      <dd>{formatMoney(branch.average_ticket)}</dd>
+                      <dd className="tabular-nums">{formatMoney(branch.average_ticket)}</dd>
                     </div>
                   </dl>
                   <h4 className="mb-2 text-sm font-medium">

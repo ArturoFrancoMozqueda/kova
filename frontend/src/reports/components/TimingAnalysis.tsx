@@ -35,7 +35,7 @@ function DaypartDelta({ current, previous }: { current: DaypartRow; previous: Da
     <span
       className={cn(
         "text-xs font-medium tabular-nums",
-        growth.value > 0 ? "text-emerald-700" : "text-destructive",
+        growth.value > 0 ? "text-kova-growth-strong" : "text-destructive",
       )}
     >
       {formatSignedPercent(growth.value)} {copy.reportsView.deltaVsPrevious}

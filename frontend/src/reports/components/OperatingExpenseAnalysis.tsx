@@ -20,7 +20,7 @@ export function OperatingExpenseAnalysis({ story }: { story: BusinessStoryReport
       <CardContent className="grid gap-5 pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-kova-tertiary">{copy.reportsView.approximateOperatingProfit}</p>
-          {available ? <p className="mt-1 text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(report.approximate_operating_profit!)}</p> : <div className="mt-2 flex items-start gap-3 rounded-kova-md border border-amber-200 bg-amber-50 p-4"><TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><p className="text-sm text-kova-muted">{copy.reportsView.operatingUnavailable}</p></div>}
+          {available ? <p className="mt-1 text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(report.approximate_operating_profit!)}</p> : <div className="mt-2 flex items-start gap-3 rounded-kova-md border border-warning/30 bg-warning/10 p-4"><TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" /><p className="text-sm text-kova-muted">{copy.reportsView.operatingUnavailable}</p></div>}
           <p className="mt-3 text-xs text-kova-muted">{copy.reportsView.operatingMethodNote}</p>
           <Link className="mt-3 inline-flex text-sm font-semibold text-kova-blue hover:underline" to="/expenses">{report.expense_count > 0 ? copy.reportsView.manageExpenses : copy.reportsView.addFirstExpense}</Link>
         </div>

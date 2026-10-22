@@ -1,14 +1,20 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Search, Users } from "lucide-react";
 import {
   usePermission,
   CUSTOMERS_MANAGE_PERMISSION,
   CUSTOMERS_HISTORY_PERMISSION,
 } from "@/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { ViewEmpty } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { copy } from "@/i18n/messages";
 import {
   customerHistory,
   listCustomers,
@@ -17,12 +23,14 @@ import {
   type CustomerHistory,
 } from "./api";
 
+const t = copy.customersView;
+
 const money = (amount: string) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
     Number(amount),
   );
 export function CustomersView() {
-  useDocumentTitle("Clientes");
+  useDocumentTitle(t.title);
   const canManage = usePermission(CUSTOMERS_MANAGE_PERMISSION);
   const canHistory = usePermission(CUSTOMERS_HISTORY_PERMISSION);
   const [q, setQ] = useState("");
@@ -54,11 +62,7 @@ export function CustomersView() {
         })
         .catch((e: unknown) => {
           if (active)
-            setError(
-              e instanceof Error
-                ? e.message
-                : "No pudimos cargar los clientes.",
-            );
+            setError(e instanceof Error ? e.message : t.loadError);
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -93,9 +97,7 @@ export function CustomersView() {
       setEditing(undefined);
       setRevision((n) => n + 1);
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No pudimos guardar el cliente.",
-      );
+      setError(e instanceof Error ? e.message : t.saveError);
     } finally {
       setSaving(false);
     }
@@ -106,9 +108,7 @@ export function CustomersView() {
     try {
       setHistory(await customerHistory(id, historyOffset));
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No pudimos cargar el historial.",
-      );
+      setError(e instanceof Error ? e.message : t.historyError);
     } finally {
       setHistoryLoading(false);
     }
@@ -127,100 +127,106 @@ export function CustomersView() {
       );
       setRevision((n) => n + 1);
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No pudimos actualizar el cliente.",
-      );
+      setError(e instanceof Error ? e.message : t.updateError);
     } finally {
       setSaving(false);
     }
   };
   return (
-    <ViewLayout className="max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Clientes</h1>
-          <p className="text-muted-foreground">
-            Identifica a tus clientes y consulta sus compras registradas.
-          </p>
-        </div>
-        {canManage && <Button onClick={() => edit(null)}>Nuevo cliente</Button>}
-      </div>
+    <ViewLayout width="standard" className="space-y-6">
+      <ViewHeader
+        title={t.title}
+        meta={t.subtitle}
+        actions={canManage ? <Button onClick={() => edit(null)}>{t.newCustomer}</Button> : undefined}
+      />
       {error && (
-        <p role="alert" className="text-destructive">
+        <p
+          role="alert"
+          className="rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"
+        >
           {error}
         </p>
       )}
       {editing !== undefined && canManage && (
-        <form
-          onSubmit={(e) => void submit(e)}
-          className="rounded-xl border bg-card p-5 space-y-4"
-          aria-label="Formulario de cliente"
-        >
-          <h2 className="font-semibold">
-            {editing ? "Editar cliente" : "Nuevo cliente"}
-          </h2>
-          <div>
-            <Label htmlFor="customer-name">Nombre</Label>
-            <Input
-              id="customer-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={160}
-            />
-          </div>
-          <div>
-            <Label htmlFor="customer-email">Correo (opcional)</Label>
-            <Input
-              id="customer-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              maxLength={254}
-            />
-          </div>
-          <div>
-            <Label htmlFor="customer-phone">Teléfono (opcional)</Label>
-            <Input
-              id="customer-phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              maxLength={30}
-              pattern="[+0-9 ()-]+"
-            />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Registra únicamente los datos que el cliente comparta para sus
-            compras.
-          </p>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={saving || !name.trim()}>
-              {saving ? "Guardando…" : "Guardar cliente"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={() => setEditing(undefined)}
+        <Card>
+          <CardContent className="p-5">
+            <form
+              onSubmit={(e) => void submit(e)}
+              className="space-y-4"
+              aria-label={t.form}
             >
-              Cancelar
-            </Button>
-          </div>
-        </form>
+              <h2 className="text-lg font-semibold">
+                {editing ? t.editCustomer : t.newCustomer}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer-name">{t.name}</Label>
+                  <Input
+                    id="customer-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    maxLength={160}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer-email">{t.email}</Label>
+                  <Input
+                    id="customer-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    maxLength={254}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer-phone">{t.phone}</Label>
+                  <Input
+                    id="customer-phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    maxLength={30}
+                    pattern="[+0-9 ()-]+"
+                  />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">{t.privacyNote}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={saving || !name.trim()}>
+                  {saving ? t.saving : t.save}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => setEditing(undefined)}
+                >
+                  {t.cancel}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          aria-label="Buscar clientes"
-          placeholder="Buscar por nombre, correo o teléfono"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setOffset(0);
-          }}
-          className="max-w-md"
-        />
-        <Label className="flex gap-2 items-center">
+        <div className="relative w-full max-w-md">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            aria-label={t.search}
+            placeholder={t.searchPlaceholder}
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setOffset(0);
+            }}
+            className="pl-9"
+          />
+        </div>
+        <Label className="flex min-h-11 items-center gap-2">
           <input
             type="checkbox"
             checked={inactive}
@@ -228,160 +234,178 @@ export function CustomersView() {
               setInactive(e.target.checked);
               setOffset(0);
             }}
+            className="h-4 w-4"
           />
-          Incluir inactivos
+          {t.includeInactive}
         </Label>
       </div>
       {loading ? (
-        <p role="status">Cargando clientes…</p>
-      ) : rows.length === 0 ? (
-        <p className="rounded-xl border p-8 text-muted-foreground">
-          {q
-            ? "No encontramos clientes con esa búsqueda."
-            : "Todavía no hay clientes registrados."}
-        </p>
-      ) : (
-        <ul className="divide-y rounded-xl border bg-card">
-          {rows.map((customer) => (
-            <li
-              key={customer.id}
-              className="flex flex-wrap justify-between gap-3 p-4"
-            >
-              <div>
-                <p className="font-medium">
-                  {customer.name}
-                  {!customer.is_active && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      Inactivo
-                    </span>
-                  )}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {[customer.email, customer.phone]
-                    .filter(Boolean)
-                    .join(" · ") || "Sin datos de contacto"}
-                </p>
+        <Card aria-busy="true">
+          <p role="status" className="sr-only">{t.loading}</p>
+          <CardContent className="divide-y p-0">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 p-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+                <Skeleton className="h-9 w-28" />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {canHistory && (
-                  <Button
-                    variant="outline"
-                    disabled={historyLoading}
-                    onClick={() => void showHistory(customer.id)}
-                  >
-                    Ver compras
-                  </Button>
-                )}
-                {canManage && (
-                  <>
+            ))}
+          </CardContent>
+        </Card>
+      ) : rows.length === 0 ? (
+        <ViewEmpty
+          icon={q ? <Search className="h-6 w-6" /> : <Users className="h-6 w-6" />}
+          title={q ? t.noResultsTitle : t.emptyTitle}
+          body={q ? t.noResultsBody : t.emptyBody}
+          primaryCta={!q && canManage ? { label: t.newCustomer, onClick: () => edit(null) } : undefined}
+        />
+      ) : (
+        <Card>
+          <ul className="divide-y">
+            {rows.map((customer) => (
+              <li
+                key={customer.id}
+                className="flex flex-wrap items-center justify-between gap-3 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-kova-ink">
+                    {customer.name}
+                    {!customer.is_active && (
+                      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {t.inactive}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {[customer.email, customer.phone]
+                      .filter(Boolean)
+                      .join(" · ") || t.noContact}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {canHistory && (
                     <Button
                       variant="outline"
-                      disabled={saving}
-                      onClick={() => edit(customer)}
+                      size="sm"
+                      disabled={historyLoading}
+                      onClick={() => void showHistory(customer.id)}
                     >
-                      Editar
+                      {t.viewPurchases}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={saving}
-                      onClick={() => void toggleActive(customer)}
-                    >
-                      {customer.is_active ? "Desactivar" : "Reactivar"}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  )}
+                  {canManage && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => edit(customer)}
+                      >
+                        {t.edit}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => void toggleActive(customer)}
+                      >
+                        {customer.is_active ? t.deactivate : t.reactivate}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          disabled={offset === 0 || loading}
-          onClick={() => setOffset((n) => Math.max(0, n - 100))}
-        >
-          Anterior
-        </Button>
-        <Button
-          variant="outline"
-          disabled={rows.length < 100 || loading}
-          onClick={() => setOffset((n) => n + 100)}
-        >
-          Siguiente
-        </Button>
-      </div>
+      {(offset > 0 || rows.length >= 100) && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={offset === 0 || loading}
+            onClick={() => setOffset((n) => Math.max(0, n - 100))}
+          >
+            {t.previous}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={rows.length < 100 || loading}
+            onClick={() => setOffset((n) => n + 100)}
+          >
+            {t.next}
+          </Button>
+        </div>
+      )}
       {history && (
-        <section
-          className="rounded-xl border bg-card p-5 space-y-3"
-          aria-label="Historial de compras"
-        >
-          <div className="flex justify-between gap-3">
-            <h2 className="font-semibold">
-              Compras de {history.customer.name}
-            </h2>
-            <Button variant="ghost" onClick={() => setHistory(null)}>
-              Cerrar
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Ventas asociadas al cliente en la sucursal seleccionada. Las
-            devoluciones se muestran por separado.
-          </p>
-          {history.purchases.length === 0 ? (
-            <p>Este cliente todavía no tiene compras registradas.</p>
-          ) : (
-            <ul className="divide-y">
-              {history.purchases.map((sale) => (
-                <li key={sale.id} className="py-3 flex justify-between gap-3">
-                  <div>
-                    <p>{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {sale.status === "voided"
-                        ? "Venta anulada"
-                        : "Venta completada"}{" "}
-                      · {sale.id.slice(0, 8)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p>{money(sale.total_amount)}</p>
-                    {Number(sale.refunded_amount) > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        Devuelto: {money(sale.refunded_amount)}
+        <Card>
+          <section className="space-y-3 p-5" aria-label={t.history}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-semibold">
+                {t.historyTitle(history.customer.name)}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={() => setHistory(null)}>
+                {t.close}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">{t.historyHint}</p>
+            {history.purchases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.historyEmpty}</p>
+            ) : (
+              <ul className="divide-y">
+                {history.purchases.map((sale) => (
+                  <li key={sale.id} className="flex justify-between gap-3 py-3">
+                    <div>
+                      <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}{" "}
+                        · {sale.id.slice(0, 8)}
                       </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={history.offset === 0 || historyLoading}
-              onClick={() =>
-                void showHistory(
-                  history.customer.id,
-                  Math.max(0, history.offset - history.limit),
-                )
-              }
-            >
-              Compras anteriores
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!history.has_more || historyLoading}
-              onClick={() =>
-                void showHistory(
-                  history.customer.id,
-                  history.offset + history.limit,
-                )
-              }
-            >
-              Más compras
-            </Button>
-          </div>
-        </section>
+                    </div>
+                    <div className="text-right tabular-nums">
+                      <p className="font-medium">{money(sale.total_amount)}</p>
+                      {Number(sale.refunded_amount) > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {t.refunded(money(sale.refunded_amount))}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(history.offset > 0 || history.has_more) && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={history.offset === 0 || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      Math.max(0, history.offset - history.limit),
+                    )
+                  }
+                >
+                  {t.olderPurchases}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!history.has_more || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      history.offset + history.limit,
+                    )
+                  }
+                >
+                  {t.morePurchases}
+                </Button>
+              </div>
+            )}
+          </section>
+        </Card>
       )}
     </ViewLayout>
   );

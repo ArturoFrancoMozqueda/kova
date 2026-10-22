@@ -32,7 +32,7 @@ const BANNER_TONES = {
   success: "border-kova-growth/30 bg-kova-growth/10 [&_svg]:text-kova-growth",
   info: "border-kova-blue/20 bg-kova-blue/10 [&_svg]:text-kova-blue",
   warning: "bg-warning/20 border-warning/30 [&_svg]:text-warning-strong",
-  destructive: "border-destructive/30 bg-destructive/10 [&_svg]:text-destructive",
+  destructive: "border-destructive/30 bg-destructive/10 [&_svg]:text-destructive-strong",
 } as const;
 
 function BillingStatusBanner({
@@ -309,7 +309,7 @@ export default function BillingView() {
 
   if (!canViewBilling) {
     return (
-      <ViewLayout width="focused" className="max-w-4xl">
+      <ViewLayout width="focused">
         <div className="mb-4">
           <ViewHeader title={copy.billingView.title} />
         </div>
@@ -324,7 +324,7 @@ export default function BillingView() {
   }
 
   return (
-    <ViewLayout width="standard" className="max-w-6xl animate-fade-in">
+    <ViewLayout width="focused" className="animate-fade-in">
       <div className="mb-6">
         <ViewHeader title={copy.billingView.title} meta={copy.billingView.subtitle} />
       </div>

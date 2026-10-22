@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,10 +81,16 @@ export function BranchesSettings() {
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {loading ? <p role="status">Cargando sucursales…</p> : null}
+          {loading ? (
+            <div aria-busy="true" className="space-y-3">
+              <p role="status" className="sr-only">Cargando sucursales…</p>
+              <Skeleton className="h-14 w-full rounded-kova-md" />
+              <Skeleton className="h-14 w-full rounded-kova-md" />
+            </div>
+          ) : null}
           {error ? (
-            <div role="alert">
-              <p className="text-destructive">{error}</p>
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3">
+              <p className="text-sm text-destructive-strong">{error}</p>
               <Button
                 variant="outline"
                 onClick={() => setAttempt((value) => value + 1)}
