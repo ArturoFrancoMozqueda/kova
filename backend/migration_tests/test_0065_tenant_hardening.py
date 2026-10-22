@@ -34,6 +34,38 @@ USER_A = uuid.UUID("a0000000-0000-0000-0000-000000000065")
 USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
+    # Service cases add two private relations; only workflow columns are mutable.
+    "service_cases": {"SELECT", "INSERT"},
+    "service_case_events": {"SELECT", "INSERT"},
+    # New agenda/loyalty tables extend the exact private verb matrix. Their
+    # immutable snapshots and ledgers retain no table-level UPDATE or DELETE.
+    "appointment_resources": {"SELECT", "INSERT"},
+    "appointments": {"SELECT", "INSERT"},
+    "appointment_history": {"SELECT", "INSERT"},
+    "appointment_reminders": {"SELECT", "INSERT"},
+    "loyalty_policy_revisions": {"SELECT", "INSERT"},
+    "loyalty_entries": {"SELECT", "INSERT"},
+    # New E2E domains remain private to FastAPI's runtime role. Snapshot and
+    # ledger mutations are deliberately column-scoped below, not full UPDATE.
+    "automation_rules": {"SELECT", "INSERT"},
+    "automation_runs": {"SELECT", "INSERT"},
+    "business_events": {"SELECT", "INSERT"},
+    "crm_opportunities": {"SELECT", "INSERT", "UPDATE"},
+    "crm_catalog_requests": {"SELECT", "INSERT"},
+    "crm_followup_policies": {"SELECT", "INSERT"},
+    "crm_followup_tasks": {"SELECT", "INSERT"},
+    "messaging_channel_bindings": {"SELECT"},
+    "messaging_conversations": {"SELECT", "INSERT"},
+    "messaging_messages": {"SELECT", "INSERT"},
+    "messaging_channel_events": {"SELECT", "INSERT"},
+    "customer_contact_consents": {"SELECT", "INSERT", "UPDATE"},
+    "public_catalogs": {"SELECT", "INSERT", "UPDATE"},
+    "public_catalog_items": {"SELECT", "INSERT", "DELETE"},
+    "reconciliation_import_batches": {"SELECT", "INSERT"},
+    "settlement_entries": {"SELECT", "INSERT"},
+    "reconciliation_matches": {"SELECT", "INSERT"},
+    "customer_quotes": {"SELECT", "INSERT"},
+    "customer_quote_items": {"SELECT", "INSERT"},
     **{
         table: {"SELECT", "INSERT", "UPDATE", "DELETE"}
         for table in (
@@ -118,6 +150,41 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "service_cases": {
+        "status", "assigned_user_id", "due_at", "version", "updated_at", "resolved_at",
+    },
+    "appointment_resources": {"name", "is_active", "version", "updated_at"},
+    "appointments": {"starts_at", "ends_at", "note", "status", "version", "updated_at"},
+    "appointment_reminders": {"status", "version", "resolved_at"},
+    "crm_catalog_requests": {"status", "customer_id", "opportunity_id", "version", "resolved_at"},
+    "crm_followup_policies": {
+        "enabled", "review_delay_days", "rebuy_delay_days", "version",
+        "authorized_by_user_id", "enabled_since", "updated_at",
+    },
+    "crm_followup_tasks": {
+        "status", "note", "due_at", "assigned_user_id", "version", "resolved_at",
+    },
+    "messaging_conversations": {
+        "customer_id", "status", "automation_paused", "assigned_user_id", "last_inbound_at",
+        "version", "updated_at",
+    },
+    "messaging_messages": {
+        "state", "binding_id", "provider_message_id", "contact_fingerprint", "version",
+        "error_code", "updated_at",
+    },
+    "automation_rules": {
+        "enabled", "version", "authorized_by_user_id", "enabled_since", "updated_at",
+    },
+    "automation_runs": {"status", "version", "resolved_at"},
+    "business_events": {"processed_at"},
+    "reconciliation_matches": {
+        "matched_amount", "status", "version", "reasons", "confirmed_by_user_id",
+        "reversal_reason", "updated_at",
+    },
+    "customer_quotes": {
+        "status", "shared_at", "accepted_at", "customer_order_id",
+        "updated_by_user_id", "version", "updated_at",
+    },
     "cfdi_enrollments": {
         "organization_id", "issuer_snapshot", "state", "operation_id", "creation_rejected",
         "last_error_code", "updated_at",
@@ -250,6 +317,35 @@ _SEMANTIC_INSERT_ORDER = (
     "customer_order_item_modifiers",
     "assistant_records",
     "assistant_chunks",
+    # Every new protected table participates in the same real two-tenant verb
+    # tests. Parents precede children so FK failures cannot mask RLS behavior.
+    "business_events",
+    "automation_rules",
+    "automation_runs",
+    "crm_opportunities",
+    "customer_contact_consents",
+    "public_catalogs",
+    "public_catalog_items",
+    "reconciliation_import_batches",
+    "settlement_entries",
+    "reconciliation_matches",
+    "customer_quotes",
+    "customer_quote_items",
+    "crm_catalog_requests",
+    "crm_followup_policies",
+    "crm_followup_tasks",
+    "messaging_channel_bindings",
+    "messaging_conversations",
+    "messaging_messages",
+    "messaging_channel_events",
+    "appointment_resources",
+    "appointments",
+    "appointment_history",
+    "appointment_reminders",
+    "loyalty_policy_revisions",
+    "loyalty_entries",
+    "service_cases",
+    "service_case_events",
 )
 
 
@@ -263,6 +359,26 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if table.name in {"service_cases", "service_case_events"}:
+        if name == "status":
+            return "open"
+        if table.name == "service_case_events" and name == "kind":
+            return "created"
+    if table.name in {"appointments", "appointment_history"}:
+        if name == "starts_at":
+            return datetime(2026, 10, 20, 10, tzinfo=UTC) + timedelta(days=variant)
+        if name == "ends_at":
+            return datetime(2026, 10, 20, 11, tzinfo=UTC) + timedelta(days=variant)
+        if name == "status":
+            return "scheduled"
+        if table.name == "appointment_history" and name == "action":
+            return "created"
+    if table.name == "appointment_reminders" and name == "status":
+        return "pending"
+    if table.name == "loyalty_entries" and name == "kind":
+        return "accrual"
+    if table.name == "loyalty_policy_revisions" and name == "version":
+        return variant + 1
     if table.name == "assistant_records" and name == "kind":
         return "document"
     if table.name == "drawer_commands" and name == "kind":
@@ -273,11 +389,23 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         return _semantic_uuid("destination_branch", tenant)
     if name == "id":
         return ids[(table.name, tenant, variant)]
+    if table.name == "messaging_conversations" and name == "origin":
+        return "manual"
+    if table.name == "messaging_messages" and name == "direction":
+        return "outbound"
+    if table.name == "messaging_channel_events" and name == "kind":
+        return "status"
+    if table.name == "crm_followup_tasks" and name == "kind":
+        return "incident"
+    if table.name == "crm_followup_policies" and name == "rebuy_delay_days":
+        return 30
 
     for foreign_key in column.foreign_keys:
         parent = foreign_key.column.table.name
         parent_column = foreign_key.column.name
         if parent == "users" and parent_column == "id":
+            return USER_A if tenant == TENANT_A else USER_B
+        if parent == "memberships" and parent_column == "user_id":
             return USER_A if tenant == TENANT_A else USER_B
         if parent == "tenants" and parent_column == "id":
             return tenant
@@ -288,11 +416,14 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "action": "semantic_test",
         "adjustment_type": "late_inclusion",
         "category": "renta",
+        "channel": "whatsapp",
         "client_id": f"client-{token}",
         "currency": "MXN",
         "direction": "transfer",
         "document_kind": "operational_draft",
         "event_name": "landing_viewed",
+        "event_type": "customer_order.ready",
+        "entity_type": "customer_order",
         "environment": "test" if variant == 0 else "live",
         "factor_type": "rate",
         "fiscal_status": "not_issued",
@@ -302,12 +433,19 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "individual_fiscal_status": "none",
         "method": "cash",
         "movement_type": "adjustment",
+        "payment_method": "bank_transfer",
         "processing_status": "received",
         "refund_payment_method": "cash",
         "role": "owner",
+        "purpose": "transactional",
+        "source": "owner_recorded",
+        "source_type": "manual_csv",
+        "stage": "new",
+        "template_key": "order_ready",
         "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
-        "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured"}
+        "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured",
+                   "messaging_messages": "draft"}
                   .get(table.name, "active")),
         "status": {
             "account_deletion_requests": "pending",
@@ -322,6 +460,12 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             "subscriptions": "incomplete",
             "purchase_orders": "pending",
             "invoice_requests": "pending_provider",
+            "automation_runs": "pending",
+            "customer_quotes": "draft",
+            "crm_catalog_requests": "new",
+            "crm_followup_tasks": "pending",
+            "messaging_conversations": "open",
+            "reconciliation_matches": "suggested",
         }.get(table.name, "active"),
         "tax_code": "002",
         "tax_calculation_status": "not_calculated",
@@ -329,8 +473,19 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     }
     if name in named_values:
         return named_values[name]
-    if name in {"user_id", "created_by_user_id", "invited_by_user_id"}:
+    if name in {
+        "user_id", "created_by_user_id", "invited_by_user_id", "updated_by_user_id",
+        "recorded_by_user_id", "confirmed_by_user_id", "authorized_by_user_id",
+    }:
         return USER_A if tenant == TENANT_A else USER_B
+    if table.name in {"business_events", "automation_runs"} and name == "entity_id":
+        return ids[("customer_orders", tenant, variant)]
+    if table.name == "customer_quotes" and name == "expires_at":
+        return datetime.now(UTC) + timedelta(days=2)
+    if name in {"content_sha256", "row_fingerprint"}:
+        return _semantic_uuid(f"{table.name}.{name}", tenant, variant).hex * 2
+    if table.name == "settlement_entries" and name == "fee_amount":
+        return Decimal("0")
     if name in {"batch_id", "original_batch_id"}:
         return ids[("fiscal_global_draft_batches", tenant, variant)]
     if name == "order_id":
@@ -402,7 +557,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     if python_type is bytes or isinstance(column.type, LargeBinary):
         return b"x"
     if python_type in {dict, list} or isinstance(column.type, JSON):
-        return [] if name == "data_quality_warnings" else {}
+        return [] if name in {"data_quality_warnings", "reasons"} else {}
     if python_type is uuid.UUID:
         return _semantic_uuid(f"{table.name}.{name}", tenant, variant)
     raise AssertionError(f"no semantic fixture value for {table.name}.{name}: {column.type}")
@@ -437,6 +592,18 @@ def _semantic_payloads(engine):
                         )
                 if "tenant_id" in table.c:
                     values["tenant_id"] = tenant
+                if table.name == "service_case_events":
+                    # Created events require the original immutable note even
+                    # though later workflow events legitimately have no note.
+                    values["note"] = "Semantic customer service note"
+                if table.name == "loyalty_entries":
+                    # Accruals require real immutable sale+policy evidence even
+                    # though those FK columns are nullable for redemptions.
+                    values["sale_order_id"] = ids[("orders", tenant, variant)]
+                    values["policy_revision_id"] = ids[
+                        ("loyalty_policy_revisions", tenant, variant)
+                    ]
+                    values["source_id"] = ids[("orders", tenant, variant)]
                 payloads[(table.name, tenant, variant)] = values
     return metadata, payloads
 

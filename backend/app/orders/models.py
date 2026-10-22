@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.branches.scope import BranchScoped
-from app.db import Base
+from app.orm_metadata import Base
 
 
 def _now() -> datetime:
@@ -128,6 +128,7 @@ class OrderItem(Base):
 class Payment(Base):
     __tablename__ = "payments"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "order_id", "id", name="uq_payments_tenant_order_id_id"),
         ForeignKeyConstraint(
             ["tenant_id", "order_id"],
             ["orders.tenant_id", "orders.id"],

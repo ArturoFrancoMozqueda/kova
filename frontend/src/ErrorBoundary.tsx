@@ -1,9 +1,10 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { reportError } from "./observability/errorReporting";
-import { isStaleAssetError, requestPwaReload } from "./pwaUpdate";
+import { isStaleAssetError, reportUnexpectedPwaError } from "./pwaUpdate";
+import { recoverStaleAsset, reloadStaleAssets } from "./staleAssetRecovery";
 
 type Props = { children: ReactNode };
-type State = { hasError: boolean };
+type State = { hasError: boolean; staleAsset: boolean };
 
 // Inline styles on purpose: the boundary must render even if app CSS or other
 // modules failed to load.
@@ -31,16 +32,14 @@ const button: React.CSSProperties = {
 };
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = { hasError: false, staleAsset: false };
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: unknown): State {
+    return { hasError: true, staleAsset: isStaleAssetError(error) };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (isStaleAssetError(error)) {
-      if (requestPwaReload()) return;
-    }
+    if (recoverStaleAsset(error)) return;
 
     // Report render crashes to Sentry (no-op when DSN is unset) with the
     // component stack so production errors are visible, not just console-only.
@@ -53,14 +52,27 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div role="alert" style={wrap}>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#0F1117" }}>
-            Algo salió mal
+          <h1
+            style={{ fontSize: "1.25rem", fontWeight: 600, color: "#0F1117" }}
+          >
+            {this.state.staleAsset
+              ? "Actualiza Kova para continuar"
+              : "Algo salió mal"}
           </h1>
           <p style={{ color: "#6B7A99", maxWidth: "28rem", lineHeight: 1.5 }}>
-            Tuvimos un problema al mostrar esta pantalla. Recarga para continuar;
-            si vuelve a pasar, inténtalo de nuevo en un momento.
+            {this.state.staleAsset
+              ? "No pudimos cargar esta versión de la pantalla. Revisa tu conexión y recarga para continuar. Los datos guardados se conservan."
+              : "Tuvimos un problema al mostrar esta pantalla. Recarga para continuar; si vuelve a pasar, inténtalo de nuevo en un momento."}
           </p>
-          <button type="button" style={button} onClick={() => window.location.reload()}>
+          <button
+            type="button"
+            style={button}
+            onClick={() => {
+              if (this.state.staleAsset)
+                void reloadStaleAssets().catch(reportUnexpectedPwaError);
+              else window.location.reload();
+            }}
+          >
             Recargar
           </button>
         </div>

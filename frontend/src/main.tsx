@@ -20,8 +20,9 @@ import "./styles.css";
 // Independent acquisition and real-user performance sources. The project has
 // both products enabled in Vercel; the official packages receive Vercel's
 // deployment-specific endpoints at build time and follow SPA navigation. Keep
-// local development and tests free of observability traffic.
-if (import.meta.env.PROD) {
+// local development and tests free of observability traffic. Cloudflare builds
+// use the existing zone's Web Analytics beacon instead of Vercel-only endpoints.
+if (import.meta.env.PROD && import.meta.env.VITE_HOSTING_PROVIDER !== "cloudflare") {
   injectAnalytics({ framework: "vite" });
   injectSpeedInsights({ framework: "vite" });
 }

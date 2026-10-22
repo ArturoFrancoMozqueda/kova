@@ -536,6 +536,7 @@ export const copy = {
     noVoidsToday: "Sin cancelaciones en el periodo",
     voidedCount: (n: number) => `${n} cancelada${n === 1 ? "" : "s"}`,
     paymentBreakdown: "Cómo te pagaron",
+    paymentBreakdownBasis: "Cobros antes de devoluciones",
     noPaymentsToday: "Sin pagos en el periodo",
     topProducts: "Productos top",
     noSalesToday: "Sin ventas en el periodo",
@@ -585,10 +586,10 @@ export const copy = {
     arcNow: "Tu día",
     arcActions: "Qué hacer ahora",
     arcHealth: "Salud del negocio",
-    onboardingTitle: "Deja tu cafetería lista para vender",
-    onboardingSubtitle: "Sigue este camino corto: datos del negocio, recibo, menú, inventario y primera venta.",
-    onboardingDoneTitle: "Tu negocio ya está bajo control",
-    onboardingDoneBody: "Listo: caja, menú, inventario y análisis están conectados. A partir de aquí, Kova te muestra qué pasa en tu negocio en tiempo real.",
+    onboardingTitle: "Prepara tu negocio para vender",
+    onboardingSubtitle: "Continúa con el siguiente paso. Puedes consultar el resto de tu configuración cuando lo necesites.",
+    onboardingDoneTitle: "Tu configuración inicial está lista",
+    onboardingDoneBody: "Continúa con las ventas del día y revisa los resultados de tu negocio en Análisis.",
     onboardingDoneCta: "Ver mi análisis",
     onboardingDoneDismiss: "Entendido",
     onboardingStep1Label: `Activa el ${STANDARD_PLAN.name}`,
@@ -605,7 +606,7 @@ export const copy = {
     onboardingStep4Action: "Abrir caja",
     onboardingStepLabel: (key: string) =>
       ({
-        business_profile: "Confirma los datos de tu cafetería",
+        business_profile: "Confirma los datos de tu negocio",
         receipt_settings: "Prepara el recibo del cliente",
         first_product: "Agrega tu primer producto vendible",
         inventory: "Controla stock donde se agota",
@@ -617,8 +618,8 @@ export const copy = {
       ({
         business_profile: "Revisa nombre público, contacto, zona horaria y moneda antes de vender.",
         receipt_settings: "Define cómo saldrá tu nombre, contacto y agradecimiento en cada recibo.",
-        first_product: "Crea algo real del menú, por ejemplo Americano chico, Latte o Croissant.",
-        inventory: "Activa stock bajo para productos de vitrina, cold brew o botellas.",
+        first_product: "Agrega un producto con nombre y precio; puedes incluir su fotografía.",
+        inventory: "Activa el control de existencias y sus alertas en los productos que necesitas reponer.",
         open_shift: "Abre caja para separar el efectivo del día y poder cerrar turno.",
         first_sale: "Cobra una venta real o una venta controlada de prueba con importe bajo.",
         billing: `Activa el plan de ${STANDARD_PLAN_PRICE_LABEL} para seguir vendiendo sin interrupciones.`,
@@ -667,13 +668,13 @@ export const copy = {
     storyBannerRestockTail: (name: string, units: number) =>
       units <= 0
         ? `Ya se agotó ${name} — reabastece.`
-        : `Te quedan ${units} de ${name}: buen momento para reabastecer.`,
+        : `Te ${units === 1 ? "queda" : "quedan"} ${units} de ${name}: buen momento para reabastecer.`,
     healthTitle: "Lectura del periodo",
     healthScoreLabel: "Puntaje",
     healthHowSummary: "¿Cómo se calcula?",
     healthHowIntro: "El puntaje combina cuatro señales del periodo. Mientras más alto, mejor va tu negocio:",
     healthHowSales: "Ventas vs. el periodo anterior — la señal de mayor peso.",
-    healthHowRefunds: "Devoluciones — entre menos, mejor.",
+    healthHowRefunds: "Eventos de devolución por orden — una orden puede tener varias devoluciones parciales; entre menos, mejor.",
     healthHowPayments: "Pagos que no son en efectivo — más tarjeta y transferencia suman.",
     healthHowInventory: "Productos en stock bajo — entre menos, mejor.",
     healthHowWeight: (pct: number) => `${pct}% del puntaje`,
@@ -690,8 +691,8 @@ export const copy = {
     healthSummarySalesDown: (pct: number, label: string) => `Ventas ${pct}% abajo ${label}; revisa qué cambió.`,
     healthSummarySalesFlat: (label: string) => `Ventas estables ${label}.`,
     healthSummarySalesNoData: "Aún no hay periodo para comparar tus ventas.",
-    healthSummaryRefundsRate: (pct: number) =>
-      `Las devoluciones llegaron a ${pct}% de las órdenes; conviene revisarlas.`,
+    healthSummaryRefundsRate: (eventsPerHundredOrders: number) =>
+      `Se registraron ${eventsPerHundredOrders} eventos de devolución por cada 100 órdenes; conviene revisarlos.`,
     healthSummaryRefundsClean: "Sin devoluciones en el periodo — buena señal.",
     healthSummaryInventoryLow: (n: number) =>
       `${n} producto${n === 1 ? "" : "s"} en stock bajo; reabastece antes de perder ventas.`,
@@ -704,8 +705,8 @@ export const copy = {
     healthFactorSalesDown: (pct: number, label: string) => `-${pct}% ${label}`,
     healthFactorSalesFlat: (label: string) => `Estable ${label}`,
     healthFactorSalesNoData: "Sin comparación todavía",
-    healthFactorRefunds: "Tasa de devoluciones",
-    healthFactorRefundsRate: (pct: number) => `${pct}% de las órdenes`,
+    healthFactorRefunds: "Frecuencia de devoluciones",
+    healthFactorRefundsRate: (eventsPerHundredOrders: number) => `${eventsPerHundredOrders} eventos por cada 100 órdenes`,
     healthFactorRefundsClean: "Sin devoluciones en el periodo",
     healthFactorInventory: "Inventario",
     healthFactorInventoryOk: "Sin stock bajo",
@@ -1296,7 +1297,11 @@ export const copy = {
     movementTypeStockTake: "Conteo",
     movementTypeRefund: "Devolución",
     movementTypeVoid: "Cancelación",
+    movementTypePurchase: "Compra",
+    movementTypeTransferIn: "Traspaso de entrada",
+    movementTypeTransferOut: "Traspaso de salida",
     movementTypeUnknown: "Movimiento",
+    stockSectionTitle: "Productos con inventario",
     stockAfter: "Stock después",
     viewHistory: "Historial",
     hideHistory: "Ocultar",
@@ -1529,6 +1534,8 @@ export const copy = {
     paymentOperationsTitle: "¿Cómo me están pagando?",
     grossVsNetNote:
       "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",
+    paymentReconciliation: (gross: string, refunds: string, net: string) =>
+      `Ventas brutas: ${gross} · Devoluciones: ${refunds} · Ventas netas: ${net}.`,
     restockAlertsTitle: "Alertas de reabasto",
     restockSeverityCritical: "Crítica",
     restockSeverityWarning: "Atención",
@@ -1730,6 +1737,8 @@ export const copy = {
       `${previous} vs. periodo anterior · ${difference >= 0 ? "+" : "−"}${differenceLabel} de diferencia`,
     overviewPreviousAverage: (amount: string) =>
       `La línea es el promedio diario del periodo anterior · ${amount}`,
+    overviewDailyTrend: (start: string, end: string, days: number) =>
+      `Ventas diarias · ${start} – ${end} (${days} ${days === 1 ? "día" : "días"}).`,
     deltaNoPrevious: "Sin datos suficientes para comparar",
     deltaEmptyPrevious: "Sin ventas en el periodo anterior",
     deltaVsPrevious: "vs. periodo anterior",
@@ -2163,6 +2172,7 @@ export const copy = {
     noShiftWarning: "No hay turno abierto. Los cobros en efectivo están bloqueados hasta que abras uno.",
     cashRequiresShift: "Para cobrar en efectivo, abre un turno de caja primero.",
     cashShiftUnknown: "No pudimos comprobar el turno. Reconecta o vuelve a intentarlo antes de cobrar en efectivo.",
+    cashShiftLoading: "Comprobando el turno de caja antes de habilitar efectivo…",
     openShift: "Abrir turno",
     openOrder: "Abrir orden",
     newSale: "Nueva venta",

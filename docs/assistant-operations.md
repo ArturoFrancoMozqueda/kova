@@ -5,7 +5,38 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
-## Preparación vigente — 2026-10-08
+## Regresión detectada en QA real — 2026-10-10
+
+La revisión posterior a PR #187 encontró `inference_ready=false` con consentimiento
+OpenRouter/Mistral vigente. Dos cambios de texto en `reports/service.py` alteraron
+el perfil aprobado; no se perdió el consentimiento ni se verificó una pérdida de clave.
+El perfil incluye el código completo de reportes que consume el motor. La corrección
+preserva sus bytes evaluados y mueve la presentación española al borde HTTP de reportes.
+No cambia proveedor, precio, privacidad, límite mensual, flags, clave ni aprobación.
+
+Una corrección de interfaz que no cambia el motor debe permanecer fuera de
+`PROFILE_FILES`. Cualquier cambio real del motor exige evaluar y aprobar el perfil
+nuevo según el procedimiento existente; no actualizar el hash sólo para abrir el gate.
+La revisión del agente no sustituye revisión humana. PR #190 publicó el motor
+preservado en `29dd9c4b1c4cc1c27384ea2655484d883a5750bf`, con aceptación pública
+correcta. La consulta libre posterior completó en modo grounded: netas 0.00,
+brutas/devoluciones 72.88, cinco órdenes, siete eventos de devolución y dos
+cancelaciones, conciliados con los reportes reales. Conversación
+`7719cfb9-0ad2-49e2-acac-d5f8fc414bc9`, run
+`5683e891-d1c6-4d34-a89f-366406720a18`. Consentimiento OpenRouter/Mistral vigente;
+uso agregado 1,566→3,126 tokens de 50,000 diarios, disponible. No acredita un
+importe mensual de facturación ni una nueva evaluación/revisión humana.
+PR #191 añade los conteos a la tarjeta completa y corrige encabezados de respuestas;
+la publicación `826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f` y aceptación pública
+aprobaron. La misma respuesta completa conservó sus seis métricas correctas
+tras recarga e historial en Chromium 1440/WebKit 390, sin fallos de WCAG/heading/
+region, desbordamiento ni errores de página. Uso 3,126→3,126, sin nueva inferencia.
+El companion vacío y su foco se verificaron live; el estado compacto poblado
+queda cubierto por prueba automatizada. Se preservó la sesión original.
+Evidencia fechada en
+[la aceptación de Sweet Home](audits/KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md).
+
+## Preparación del 2026-10-08 (evidencia histórica)
 
 El operador autorizó desplegar el estado evaluado sin esperar la revisión detallada
 de las diez respuestas. Esa instrucción no se registra como revisión humana realizada.
@@ -64,6 +95,64 @@ en **iad**, daemon Docker privado, scanner actualizado cada día y parsers sin r
 Una actualización fallida de firmas bloquea ingesta. Las citas numéricas se copian literalmente
 del archivo; el modelo no redacta esas cifras. Las citas provenientes de OCR advierten que el
 operador debe cotejarlas con el original.
+
+### Ingesta bajo demanda (implementación del 2026-10-12; activación pendiente)
+
+`ASSISTANT_INGEST_ON_DEMAND` permanece falso hasta configurar y verificar el arranque.
+Con el modo activo, el API revisa cada 30 segundos **solo metadatos** de documentos bajo
+el rol runtime, tenant, propietario, cohorte, membresía y acceso comercial vigentes. Un hilo
+dedicado y un pool runtime independiente de una conexión por proceso API evitan ocupar
+el threadpool y pool de solicitudes (dos conexiones adicionales con las dos API actuales).
+Los trabajos `queued`, los `deferred`
+con vencimiento cumplido y las ejecuciones interrumpidas despiertan únicamente el host
+`ingest` existente. La cola en PostgreSQL es la fuente persistente; cada revisión recupera
+fallas de arranque y archivos encolados mientras la máquina está apagándose. No hay nuevo
+puerto público, migración, proveedor ni recurso de cómputo.
+
+El host inicializa Docker/scanner solamente cuando hay trabajo o verificación de release.
+Al concluir extracción e indexación, espera `ASSISTANT_INGEST_IDLE_SECONDS` (60 por defecto)
+sin trabajo elegible y sale con código cero. La política Fly `on-failure` lo deja detenido;
+los errores terminan con código no cero. El chat conserva su worker y leases independientes,
+y el servicio HTTP de `app` mantiene `auto_stop_machines='off'`. La retención continúa en chat.
+La preparación del antivirus en cada arranque en frío puede demorar varios minutos y también
+se factura; una actualización fallida sigue bloqueando el procesamiento.
+
+Activación en orden, dentro del release vigente y sin desplegar un checkout anterior al SHA live:
+
+1. Crear un token dedicado limitado a esta app y guardar su valor directamente como secreto
+   Fly `ASSISTANT_INGEST_FLY_TOKEN`, sin copiarlo a chat, logs, frontend ni repositorio.
+   No reutilizar el token de observabilidad ni un token personal de toda la cuenta.
+2. Configurar `ASSISTANT_INGEST_MACHINE_ID` con la identidad del host aprobado existente
+   (`83d166eb4e5518` al auditar el 2026-10-12). No crear otra máquina ni cambiar región/tamaño.
+3. Publicar el código conservando el flag de demanda falso. `assistant_host_release.py`
+   configura `on-fail`, una ventana de verificación de 30 minutos y los diez controles
+   originales de OCR/antivirus/parser. Al concluir elimina la ventana. Su vencimiento
+   limita el mantenimiento si el proceso de CI se interrumpe.
+4. Validar que el token puede consultar y arrancar **esa** máquina. Activar el flag de demanda
+   en API e ingesta; conservar los consentimientos y flags comerciales/IA existentes.
+5. QA real con archivo propio: cola vacía → host detenido; upload → arranque y `ready`;
+   segundo archivo durante OCR → ambos completos; cola nueva durante apagado → recuperada;
+   vencimiento de `deferred` → reanudación; POS y chat concurrentes sin regresión.
+   Comprobar nuevamente el estado detenido después de la gracia y la facturación posterior.
+
+Rollback: desactivar primero `ASSISTANT_INGEST_ON_DEMAND`, arrancar la máquina existente y
+verificar el drenado. El proceso vuelve al comportamiento continuo anterior; mantener
+`on-failure` es seguro porque el loop continuo no sale por inactividad en ese modo.
+No detener un parser activo ni cambiar permisos, cuotas, consentimientos o datos.
+
+No se aplicaron estos cambios a Fly en esta sesión. La validación local de cola, RLS,
+ciclo de vida y contratos de release no reemplaza la QA real de arranque/archivo/apagado.
+Validación con Python 3.12 y `uv.lock`: 120 pruebas backend de asistente, cola, ACL/RLS y
+ciclo de vida; 60 contratos de repositorio; lint backend completo, OpenAPI sin cambios y
+TOML con política de reinicio limitada a `ingest`. La prueba de cola vacía confirma que no
+se contacta R2 ni Fly; la de fallo de arranque recupera el trabajo persistente en la siguiente revisión.
+
+La capacidad nominal del host cuesta USD 32.78 por 720 horas: bajo demanda paga aproximadamente
+USD 0.0455 por hora encendida, más rootfs y transferencias. Con 10 horas mensuales serían
+USD 0.46 de CPU/RAM; no es una factura garantizada ni incluye embeddings o almacenamiento R2.
+Referencias: [política de reinicio](https://fly.io/docs/reference/configuration/#the-restart-section),
+[Machines API](https://machines-api-spec.fly.dev/),
+[tokens por app](https://fly.io/docs/security/tokens/).
 
 La tarifa nominal publicada para iad es USD 32.78 por treinta días (USD 33.873 por treinta y uno),
 antes de impuestos/transferencias; comprobar el total de la cuenta contra USD 35 antes de crear

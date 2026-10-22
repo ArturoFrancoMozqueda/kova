@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
 import type { BusinessStoryReport } from "../types";
@@ -13,10 +13,10 @@ export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
     <Card data-testid="waste-analysis">
       <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
             {copy.reportsView.wasteTitle}
-          </CardTitle>
+          </h2>
           <p className="mt-2 text-sm text-kova-muted">{copy.reportsView.wasteBody}</p>
         </div>
         <Badge variant={waste.complete ? "secondary" : "warning"}>

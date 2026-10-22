@@ -7,7 +7,9 @@ import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
 import {
   BILLING_VIEW_PERMISSION,
+  CATALOG_CREATE_PERMISSION,
   CUSTOMER_ORDER_VIEW_PERMISSION,
+  CUSTOMER_ORDER_CREATE_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
   INVENTORY_ADJUST_PERMISSION,
   EXPENSES_MANAGE_PERMISSION,
@@ -29,13 +31,21 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
-  ChevronRight,
   Menu,
   X,
   ChevronsLeft,
   ChevronsRight,
   CircleHelp,
   Sparkles,
+  Workflow,
+  Handshake,
+  Store,
+  FileText,
+  MessagesSquare,
+  CalendarDays,
+  Gift,
+  LifeBuoy,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -52,6 +62,8 @@ import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
+import { discoverSections, sectionDescription } from "./navigationDiscovery";
+import { BusinessNextActions } from "./BusinessNextActions";
 
 type NavItem = {
   to: string;
@@ -63,7 +75,7 @@ type NavItem = {
 };
 
 const adminNavItems: NavItem[] = [
-  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
+  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "business", permission: CUSTOMERS_VIEW_PERMISSION },
 
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
@@ -77,6 +89,20 @@ const adminNavItems: NavItem[] = [
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/operations-queue", label: "Pendientes", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/service-cases", label: "Atención postventa", icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/appointments", label: "Agenda", icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/loyalty", label: "Lealtad de clientes", icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/inbox", label: "Bandeja de atención", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/commercial-requests", label: "Solicitudes del catálogo", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/followups", label: "Postventa y seguimiento", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/crm", label: "Seguimiento comercial", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/quotes", label: "Cotizaciones", icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/automations", label: "Automatizaciones", icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/public-catalog", label: "Catálogo público", icon: <Store className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/channels", label: "Canales", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/reconciliation", label: "Conciliación", icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/replenishment", label: "Reposición", icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
 ];
@@ -102,6 +128,19 @@ function roleLabel(role: string): string {
 }
 
 const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
+const businessNavGroups: {
+  id: string; label: string; paths: string[];
+}[] = [
+  { id: "products", label: "Productos e inventario",
+    paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
+  { id: "commercial", label: "Ventas y atención",
+    paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
+      "/followups", "/appointments", "/loyalty"] },
+  { id: "management", label: "Gestión y ajustes",
+    paths: ["/reports", "/expenses", "/reconciliation", "/automations",
+      "/assistant", "/settings", "/settings/billing", "/settings/integrations",
+      "/settings/channels"] },
+];
 
 function readStoredSidebarCollapsed(): boolean {
   try {
@@ -119,6 +158,9 @@ export default function AppShell() {
   const sidebarRef = useRef<HTMLElement>(null);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+  const [navigationQuery, setNavigationQuery] = useState("");
+  const navigationSearchRef = useRef<HTMLInputElement>(null);
+  const focusSearchOnExpand = useRef(false);
   const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { toast } = useToast();
@@ -143,6 +185,10 @@ export default function AppShell() {
     });
   };
 
+  useEffect(() => {
+    setNavigationQuery("");
+  }, [location.pathname]);
+
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
   const tenantName = formatTenantName(tenantNameRaw);
   const tenantLogoUrl = state.status === "authenticated" ? state.tenantLogoUrl : null;
@@ -155,6 +201,8 @@ export default function AppShell() {
   const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
   const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
+  const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
+  const canCreateProducts = usePermission(CATALOG_CREATE_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
   const assistantIdentity = state.status === "authenticated" && state.sessionMode === "online" && isAdminRole(state.user.role)
@@ -162,6 +210,20 @@ export default function AppShell() {
   const loadingViewName = (() => {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
+    if (path.startsWith("/operations-queue")) return "Pendientes del negocio";
+    if (path.startsWith("/service-cases")) return "Atención postventa";
+    if (path.startsWith("/appointments")) return "Agenda del negocio";
+    if (path.startsWith("/loyalty")) return "Lealtad de clientes";
+    if (path.startsWith("/inbox")) return "Bandeja de atención";
+    if (path.startsWith("/commercial-requests")) return "Solicitudes del catálogo";
+    if (path.startsWith("/followups")) return "Postventa y seguimiento";
+    if (path.startsWith("/crm")) return "Seguimiento comercial";
+    if (path.startsWith("/quotes")) return "Cotizaciones";
+    if (path.startsWith("/automations")) return "Automatizaciones";
+    if (path.startsWith("/reconciliation")) return "Conciliación";
+    if (path.startsWith("/replenishment")) return "Reposición";
+    if (path.startsWith("/settings/public-catalog")) return "Catálogo público";
+    if (path.startsWith("/settings/channels")) return "Canales";
     if (path.startsWith("/purchasing")) return "Compras y proveedores";
     if (path.startsWith("/settings/integrations")) return "Facturación e integraciones";
     if (path.startsWith("/register") || path === "/caja") return copy.register.title;
@@ -224,8 +286,29 @@ export default function AppShell() {
     if (item.feature === "customer_orders" && !customerOrdersEnabled) return false;
     return true;
   });
-  const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");
+  const operationNavItems = ["/register", "/dashboard", "/operations-queue", "/customers", "/orders", "/shifts", "/pedidos"]
+    .flatMap(path => filteredNavItems.filter(item => item.to === path && item.group === "operation"));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
+  const searchingSections = !(isDesktop && sidebarCollapsed) && navigationQuery.trim().length > 0;
+  const searchDestinations = [...operationNavItems, ...businessNavItems];
+  if (isAdminRole(userRole) && !isOfflineSession) {
+    const hasDestination = (path: string) => filteredNavItems.some(item => item.to === path);
+    if (hasDestination("/pedidos") && canCreateCustomerOrders) searchDestinations.push({
+      to: "/pedidos/nuevo", label: "Crear pedido", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business",
+    });
+    if (hasDestination("/catalog") && canCreateProducts) searchDestinations.push({
+      to: "/catalog?new=product", label: "Crear producto", icon: <Package className="h-4.5 w-4.5" />, group: "business",
+    });
+    if (hasDestination("/settings")) {
+      for (const [to, label] of [
+        ["/settings/business-profile", "Perfil del negocio"],
+        ["/settings/receipt", "Personalizar recibo"],
+        ["/settings/branches", "Sucursales"],
+        ...(userRole === "owner" ? [["/settings/employees", "Empleados y accesos"]] : []),
+      ]) searchDestinations.push({ to, label, icon: <Settings className="h-4.5 w-4.5" />, group: "business" });
+    }
+  }
+  const sectionResults = searchingSections ? discoverSections(searchDestinations, navigationQuery) : [];
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const drawerOpen = sidebarOpen && !isDesktop;
@@ -278,6 +361,53 @@ export default function AppShell() {
   // The saved collapse preference applies only to the desktop rail.
   const sidebarCompact = isDesktop && sidebarCollapsed;
 
+  useEffect(() => {
+    if (sidebarCompact) setNavigationQuery("");
+    if (!sidebarCompact && focusSearchOnExpand.current && (isDesktop || drawerOpen)) {
+      focusSearchOnExpand.current = false;
+      navigationSearchRef.current?.focus();
+    }
+  }, [sidebarCompact, drawerOpen, isDesktop]);
+
+  const openNavigationSearch = (trigger: HTMLElement) => {
+    trigger.focus();
+    if (isDesktop && !sidebarCompact) {
+      navigationSearchRef.current?.focus();
+      return;
+    }
+    focusSearchOnExpand.current = true;
+    if (isDesktop) toggleSidebarCollapsed();
+    else setSidebarOpen(true);
+  };
+
+  const renderNavItem = (item: NavItem, nested = false, describe = false) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.to === "/settings"}
+      onClick={() => { setNavigationQuery(""); closeSidebar(); }}
+      title={sidebarCompact ? item.label : undefined}
+      aria-label={sidebarCompact || describe ? item.label : undefined}
+      aria-describedby={describe ? `section-purpose-${item.to.replaceAll("/", "-")}` : undefined}
+      className={({ isActive }) => cn(
+        "group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
+        sidebarCompact ? "justify-center px-2.5" : "px-2.5",
+        nested && "text-[13px]",
+        isActive ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+          : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+      )}
+    >
+      {({ isActive }) => <>
+        <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
+        <span aria-hidden={sidebarCompact} className={cn(
+          "min-w-0 flex-1 whitespace-normal break-words text-left leading-5 transition-[opacity,transform] duration-panel ease-standard",
+          sidebarCompact ? "pointer-events-none absolute left-[42px] translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+        )}>{item.label}{describe && <span id={`section-purpose-${item.to.replaceAll("/", "-")}`}
+          className="mt-0.5 block text-xs font-normal leading-4 text-sidebar-muted">{sectionDescription(item.to)}</span>}</span>
+      </>}
+    </NavLink>
+  );
+
   const SidebarContent = (
     <>
       {/* Brand */}
@@ -327,62 +457,57 @@ export default function AppShell() {
         </button>
       </div>
 
+      {filteredNavItems.length > 1 && <div className={cn("border-b border-sidebar-border", sidebarCompact ? "px-2 py-3" : "px-3 py-3")}>
+        {sidebarCompact ? <button type="button" aria-label="Buscar sección" title="Buscar sección"
+          onClick={event => openNavigationSearch(event.currentTarget)}
+          className="flex min-h-11 w-full items-center justify-center rounded-kova-md text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+          <Search aria-hidden="true" className="h-4 w-4" />
+        </button> : <div role="search" aria-label="Buscar secciones de Kova" className="relative">
+          <label htmlFor="navigation-section-search" className="sr-only">Buscar sección</label>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-sidebar-muted" />
+          <input id="navigation-section-search" ref={navigationSearchRef} type="search" maxLength={120}
+            placeholder="¿Qué quieres hacer?" value={navigationQuery} aria-controls="navigation-sections"
+            autoComplete="off" spellCheck={false}
+            onChange={event => setNavigationQuery(event.target.value)}
+            onKeyDown={event => { if (event.key === "Escape" && navigationQuery) { event.preventDefault(); event.stopPropagation(); setNavigationQuery(""); } }}
+            className="min-h-11 w-full rounded-kova-md border border-sidebar-border bg-sidebar-accent/30 py-2 pl-9 pr-10 text-sm text-sidebar-foreground placeholder:text-sidebar-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue-light [&::-webkit-search-cancel-button]:appearance-none" />
+          {navigationQuery && <button type="button" aria-label="Limpiar búsqueda de secciones"
+            onClick={() => { setNavigationQuery(""); navigationSearchRef.current?.focus(); }}
+            className="absolute right-0 top-0 flex h-11 w-10 items-center justify-center rounded-kova-md text-sidebar-muted hover:text-sidebar-foreground">
+            <X aria-hidden="true" className="h-4 w-4" />
+          </button>}
+        </div>}
+      </div>}
+
       {/* Nav */}
       <nav
+        id="navigation-sections"
         className={cn("flex-1 overflow-y-auto py-4", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
-        {[
-          { id: "operation", label: "Operación", items: operationNavItems },
-          { id: "business", label: "Negocio", items: businessNavItems },
-        ].map((section) => section.items.length > 0 ? (
-          <div key={section.id} className={cn("space-y-1", section.id === "business" && "mt-5")}>
-            {!sidebarCompact && (
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">
-                {section.label}
-              </p>
-            )}
-            {section.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={closeSidebar}
-                title={sidebarCompact ? item.label : undefined}
-                className={({ isActive }) =>
-                  cn(
-                    "group relative flex h-10 items-center overflow-hidden rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:origin-center before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light before:transition-transform before:duration-quick before:ease-entrance",
-                    sidebarCompact ? "justify-center px-2.5" : "px-2.5",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
-                      : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
-                    <span
-                      aria-hidden={sidebarCompact}
-                      className={cn(
-                        "absolute left-[42px] right-8 truncate transition-[opacity,transform] duration-panel ease-standard",
-                        sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                    <ChevronRight
-                      aria-hidden
-                      className={cn(
-                        "absolute right-3 h-3.5 w-3.5 transition-opacity duration-quick",
-                        sidebarCompact ? "opacity-0" : "opacity-0 group-hover:opacity-60",
-                      )}
-                    />
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </div>
-        ) : null)}
+        {searchingSections ? <div className="space-y-1">
+          <p role="status" className="px-2 pb-2 text-xs text-sidebar-muted">{sectionResults.length
+            ? `${sectionResults.length} ${sectionResults.length === 1 ? "resultado encontrado" : "resultados encontrados"}`
+            : "No encontramos esa acción o sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
+          {sectionResults.map(item => renderNavItem(item, false, true))}
+        </div> : <><div className="space-y-1">
+          {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Operación</p>}
+          {operationNavItems.map(item => renderNavItem(item))}
+        </div>
+        {businessNavItems.length > 0 && <div className="mt-5 space-y-1">
+          {businessNavGroups.map(group => {
+            const items = group.paths.flatMap(path => businessNavItems.filter(item => item.to === path));
+            if (!items.length) return null;
+            return <div key={group.id} className={cn("mt-4", sidebarCompact && "border-t border-sidebar-border pt-2")}>
+              {!sidebarCompact && <h2 className="px-2 pb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-sidebar-muted">
+                {group.label}
+              </h2>}
+              <div className="space-y-1">
+                {items.map(item => renderNavItem(item, !sidebarCompact))}
+              </div>
+            </div>;
+          })}
+        </div>}</>}
       </nav>
 
       {/* Footer */}
@@ -515,7 +640,10 @@ export default function AppShell() {
         <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setSidebarOpen(true);
+            }}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"
@@ -533,6 +661,13 @@ export default function AppShell() {
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tenantName || copy.app.homeTitle}</span>
           {/* Persistent online/offline + queue visibility on mobile, where the
               sidebar footer (its only home before) is hidden during POS. */}
+          {!isDesktop && isAdminRole(userRole) && !isOfflineSession ? <button
+            type="button" aria-label="Buscar tareas del negocio" aria-controls="navigation-sections"
+            onClick={event => openNavigationSearch(event.currentTarget)}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"
+          >
+            <Search aria-hidden="true" className="h-4 w-4" /><span className="hidden sm:inline">Buscar</span>
+          </button> : null}
           <OfflineIndicator compact />
           <TrialChip compact />
         </header>
@@ -573,6 +708,10 @@ export default function AppShell() {
           >
             <Outlet />
           </Suspense>
+          {/* Continuation follows the task so primary content keeps its mobile viewport. */}
+          {isAdminRole(userRole) && !isOfflineSession ? (
+            <BusinessNextActions pathname={location.pathname} destinations={filteredNavItems} canCreateCustomerOrders={canCreateCustomerOrders} />
+          ) : null}
         </div>
         <FirstUseTour />
         <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />
@@ -605,7 +744,10 @@ export default function AppShell() {
           ))}
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setSidebarOpen(true);
+            }}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -42,12 +42,12 @@ import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
-import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageUrl";
+import { ProductThumbnail } from "./ProductThumbnail";
 import { ImagePositionEditor } from "./ImagePositionEditor";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -115,7 +115,7 @@ export default function CatalogView() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [searchParams] = useSearchParams();
-  const handledSetupParam = useRef<string | null>(null);
+  const location = useLocation();
   const [pending, setPending] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const { toast } = useToast();
@@ -166,13 +166,20 @@ export default function CatalogView() {
       : searchParams.get("inventory") === "activate"
         ? "inventory=activate"
         : null;
-    if (!setupParam || handledSetupParam.current === setupParam) return;
-    handledSetupParam.current = setupParam;
+    if (!setupParam) return;
+    // Creation links are one-shot intents. Consume only recognized commands,
+    // preserving filters so cancelling and selecting the task again works.
+    const remaining = new URLSearchParams(searchParams);
+    if (remaining.get("new") === "product") remaining.delete("new");
+    if (remaining.get("inventory") === "activate") remaining.delete("inventory");
+    navigate({ pathname: location.pathname,
+      search: remaining.size ? `?${remaining.toString()}` : "", hash: location.hash,
+    }, { replace: true, state: location.state });
     setModal({
       type: "product-create",
       defaultTrackInventory: setupParam === "inventory=activate",
     });
-  }, [canCreate, loadState.status, modal, searchParams]);
+  }, [canCreate, loadState.status, modal, searchParams, navigate, location.pathname, location.hash, location.state]);
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);
@@ -301,11 +308,20 @@ export default function CatalogView() {
       <ViewHeader
         title={copy.catalog.title}
         meta={copy.catalog.activeProducts(activeProducts.length)}
-        actions={canCreate ? (
-          <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
-            <Plus className="h-4 w-4" />
-            {copy.catalog.newProduct}
-          </Button>
+        actions={canCreate || canUpdate ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canUpdate && (
+              <Link to="/settings/public-catalog" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                Compartir catálogo
+              </Link>
+            )}
+            {canCreate && (
+              <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
+                <Plus className="h-4 w-4" />
+                {copy.catalog.newProduct}
+              </Button>
+            )}
+          </div>
         ) : undefined}
       />
 
@@ -410,10 +426,10 @@ export default function CatalogView() {
         {/* ---- Categories sidebar ---- */}
         <Card className="overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.categories}
-            </CardTitle>
+            </h2>
             {canCreate && (
               <Button
                 variant="ghost"
@@ -425,13 +441,13 @@ export default function CatalogView() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2 pt-0">
+          <CardContent className="flex flex-nowrap gap-2 overflow-x-auto pt-0 sm:flex-wrap">
             {/* All products filter */}
             <button
               type="button"
               aria-pressed={selectedCategoryId === null}
               className={cn(
-                "flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors text-left",
+                "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors text-left",
                 selectedCategoryId === null
                   ? "border-kova-ink bg-kova-ink text-white"
                   : "border-kova-border bg-white text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -446,7 +462,7 @@ export default function CatalogView() {
               <div
                 key={cat.id}
                 className={cn(
-                  "group flex items-center overflow-hidden rounded-full border transition-colors",
+                  "group flex shrink-0 items-center overflow-hidden rounded-full border transition-colors",
                   selectedCategoryId === cat.id
                     ? "border-kova-ink bg-kova-ink"
                     : "border-kova-border bg-white hover:bg-accent",
@@ -522,10 +538,10 @@ export default function CatalogView() {
         {/* ---- Products grid ---- */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Tag className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.products}
-            </CardTitle>
+            </h2>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {canUpdate && visibleProducts.length > 0 && (
                 <Button
@@ -657,22 +673,7 @@ export default function CatalogView() {
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist lg:h-11 lg:w-11">
-                      {product.image_url ? (
-                        <img
-                          src={productImageSrc(product.image_url, 400)}
-                          srcSet={productImageSrcSet(product.image_url)}
-                          sizes="64px"
-                          alt={copy.catalog.productImageAlt(product.name)}
-                          className="h-full w-full"
-                          style={productImageStyle(product)}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <Package className="h-8 w-8 text-muted-foreground/60" />
-                      )}
-                    </div>
+                    <ProductThumbnail product={product} />
                     <div className="min-w-0">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm truncate">{product.name}</h3>
@@ -736,10 +737,10 @@ export default function CatalogView() {
       {canCreate && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Layers className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.modifiers}
-            </CardTitle>
+            </h2>
             <Button
               variant="ghost"
               size="sm"

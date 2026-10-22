@@ -35,7 +35,7 @@ function DaypartDelta({ current, previous }: { current: DaypartRow; previous: Da
     <span
       className={cn(
         "text-xs font-medium tabular-nums",
-        growth.value > 0 ? "text-kova-growth" : "text-destructive",
+        growth.value > 0 ? "text-emerald-700" : "text-destructive",
       )}
     >
       {formatSignedPercent(growth.value)} {copy.reportsView.deltaVsPrevious}
@@ -115,19 +115,22 @@ export function DaypartsPanel({
         <div className="space-y-3">
           {dayparts.map((row) => {
             const isBest = best?.key === row.key && Number(row.net_sales) > 0;
-            const zero = Number(row.net_sales) <= 0;
+            const positive = Number(row.net_sales) > 0;
+            const hasOrders = row.order_count > 0;
+            const hasActivity = hasOrders || Number(row.net_sales) !== 0;
             return (
-              <div key={row.key} className={cn(zero && "opacity-70")}>
+              <div key={row.key} className={cn(!hasActivity && "opacity-70")}>
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-medium text-kova-ink">
                     {row.label}
                     {isBest ? <Badge variant="secondary">{copy.reportsView.daypartStrongest}</Badge> : null}
                   </div>
                   <p className="text-sm font-semibold tabular-nums text-kova-ink">
-                    {zero ? copy.reportsView.daypartNoSales : formatMoney(row.net_sales)}
+                    {!hasActivity ? "Sin operaciones"
+                      : positive ? formatMoney(row.net_sales) : `${formatMoney(row.net_sales)} netos`}
                   </p>
                 </div>
-                {!zero ? (
+                {positive ? (
                   <>
                     <div
                       className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-kova-mist"
@@ -143,8 +146,7 @@ export function DaypartsPanel({
                       />
                     </div>
                     <p className="mt-1 text-xs tabular-nums text-kova-muted">
-                      {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
-                      {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
+                      {copy.reportsView.chartShare(row.sales_share_pct)} · {copy.dashboard.topHoursOrders(row.order_count)} · {formatMoney(row.average_ticket)}
                       {prevComparable ? (
                         <>
                           {" · "}
@@ -153,6 +155,10 @@ export function DaypartsPanel({
                       ) : null}
                     </p>
                   </>
+                ) : hasActivity ? (
+                  <p className="mt-1 text-xs tabular-nums text-kova-muted">
+                    {copy.dashboard.topHoursOrders(row.order_count)} · Ticket promedio neto {formatMoney(row.average_ticket)}
+                  </p>
                 ) : null}
               </div>
             );

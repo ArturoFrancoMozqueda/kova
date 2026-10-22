@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { getActiveBranchId } from "./activeBranch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/orders/format";
 import { compareBranches, type BranchComparison as Comparison } from "./api";
@@ -59,12 +59,16 @@ export function BranchComparison({
   const hasSales = visibleData?.branches.some(
     (branch) => branch.completed_orders > 0,
   );
+  const allBranchesNetZero = visibleData?.branches.every(
+    (branch) => Number(branch.net_sales) === 0,
+  );
+  const singleBranch = visibleData?.branches.length === 1;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>¿Qué sucursal vende más?</CardTitle>
+        <h2 className="text-lg font-semibold leading-none tracking-tight">{singleBranch ? "Ventas de tu sucursal" : "¿Qué sucursal vende más?"}</h2>
         <p className="text-sm text-muted-foreground">
-          Todas tus sucursales en el periodo seleccionado. Ventas netas después
+          {singleBranch ? "Resultados de esta sucursal" : "Todas tus sucursales"} en el periodo seleccionado. Ventas netas después
           de devoluciones; las cancelaciones quedan fuera.
         </p>
       </CardHeader>
@@ -87,22 +91,28 @@ export function BranchComparison({
           <>
             {!hasSales ? (
               <p>
-                Aún no hay ventas en estas fechas. Registra ventas en cada
-                sucursal para comparar sus resultados.
+                {singleBranch ? "Aún no hay ventas en estas fechas en esta sucursal."
+                  : "Aún no hay ventas en estas fechas. Registra ventas en cada sucursal para comparar sus resultados."}
               </p>
             ) : (
               <div className="rounded-lg bg-muted p-4">
                 <p className="break-words font-medium">
-                  {leaders.length > 1
+                  {singleBranch
+                    ? allBranchesNetZero
+                      ? "Esta sucursal tiene ventas netas en cero. Revisa los cobros y las devoluciones del periodo."
+                      : `Ventas netas de ${visibleData.branches[0].branch_name} en este periodo.`
+                    : allBranchesNetZero
+                    ? "Todas las sucursales tienen ventas netas en cero. Revisa los cobros y las devoluciones del periodo."
+                    : leaders.length > 1
                     ? `Hay un empate entre ${leaders.map((branch) => branch.branch_name).join(", ")}.`
                     : `${leaders[0]?.branch_name} tiene las mayores ventas netas.`}
                 </p>
                 <p className="mt-1 text-sm">
-                  Total del negocio: {formatMoney(visibleData.total_net_sales)}
+                  {singleBranch ? "Total de esta sucursal" : "Total del negocio"}: {formatMoney(visibleData.total_net_sales)}
                 </p>
               </div>
             )}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className={singleBranch ? "grid gap-4" : "grid gap-4 lg:grid-cols-2"}>
               {visibleData.branches.map((branch) => (
                 <section
                   key={branch.branch_id}
@@ -117,7 +127,7 @@ export function BranchComparison({
                         {formatMoney(branch.net_sales)}
                       </dd>
                     </div>
-                    <div>
+                    {!singleBranch && <div>
                       <dt className="text-muted-foreground">Participación</dt>
                       <dd>
                         {Number(branch.share_pct).toLocaleString("es-MX", {
@@ -125,7 +135,7 @@ export function BranchComparison({
                         })}
                         % del negocio
                       </dd>
-                    </div>
+                    </div>}
                     <div>
                       <dt className="text-muted-foreground">Tickets</dt>
                       <dd>{branch.completed_orders}</dd>

@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
@@ -9,6 +9,8 @@ from app.branches.reports import BranchComparisonResponse, compare_branches
 from app.db import get_db
 from app.rbac.permissions import Permission
 from app.reports import service
+from app.reports.dashboard import DashboardOverviewResponse, DashboardPeriod, overview
+from app.reports.presentation import business_story_copy
 from app.reports.schemas import (
     BusinessStoryReportResponse,
     PaymentBreakdownResponse,
@@ -20,6 +22,20 @@ from app.reports.schemas import (
 )
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
+
+
+@router.get("/dashboard", response_model=DashboardOverviewResponse)
+def dashboard_overview(
+    response: Response,
+    period: DashboardPeriod = "day",
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    _, membership, _ = ctx
+    return overview(db, membership=membership, period=period)
 
 
 @router.get("/sales-summary", response_model=SalesSummaryResponse)
@@ -49,12 +65,13 @@ def business_story(
     ),
 ):
     _, membership, _ = ctx
-    return service.business_story(
+    report = service.business_story(
         db,
         tenant_id=membership.tenant_id,
         start_date=start_date or start,
         end_date=end_date or end,
     )
+    return business_story_copy(report)
 
 
 @router.get("/payment-breakdown", response_model=PaymentBreakdownResponse)

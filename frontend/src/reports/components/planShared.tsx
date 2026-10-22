@@ -73,7 +73,7 @@ export function ActionFeedback({
           className={cn(
             "rounded-kova-sm border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2",
             value === "helpful"
-              ? "border-kova-growth bg-kova-growth/10 text-kova-growth"
+              ? "border-kova-growth bg-kova-growth/10 text-emerald-700"
               : "border-kova-border bg-white text-kova-ink hover:border-kova-growth/50",
           )}
         >

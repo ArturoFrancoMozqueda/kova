@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { BranchSelector } from "./BranchSelector";
 import { listBranches } from "./api";
@@ -51,4 +51,11 @@ it("keeps offline sales in the prepared branch by disabling location changes", (
   render(<BranchSelector />);
   expect(screen.getByLabelText("Sucursal activa")).toBeDisabled();
   expect(listBranches).not.toHaveBeenCalled();
+});
+
+it("exposes branch selection as a named landmark outside the page content", async () => {
+  render(<BranchSelector />);
+  await screen.findByText("Centro");
+  const region = screen.getByRole("region", { name: "Selección de sucursal" });
+  expect(within(region).getByRole("combobox", { name: "Sucursal activa" })).toHaveValue("principal");
 });

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import type { SalesByHourRow, SalesSummary, TopProducts } from "@/reports/types";
 import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
@@ -225,7 +225,7 @@ export function InsightStrip({
       {showActions && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{copy.dashboard.nextActionsTitle}</CardTitle>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{copy.dashboard.nextActionsTitle}</h2>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

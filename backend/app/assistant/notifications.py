@@ -4,13 +4,18 @@ import base64
 import hashlib
 import json
 import os
+import sys
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+if sys.platform == "emscripten":
+    from app.workers.crypto import AESGCM
+else:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.assistant import budget, tools
 from app.assistant import repository as repo

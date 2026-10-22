@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +73,7 @@ export function BranchesSettings() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Sucursales</CardTitle>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">Sucursales</h2>
           <p className="text-sm text-muted-foreground">
             Cada sucursal tiene sus propias ventas, existencias y caja.
             Comparten catálogo, empleados y suscripción.

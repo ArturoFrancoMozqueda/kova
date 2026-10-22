@@ -7,6 +7,13 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
+description = "Historical synthetic Stripe key used only to reject live mode in local config"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^backend/app/tests/test_hardening\.py$''']
+regexes = ['''^\s*monkeypatch\.setattr\(settings, "stripe_secret_key", "sk_live_abc123"\)\s*$''']
+
+[[rules.allowlists]]
 description = "Synthetic enrollment key used only to assert the MFA request shape"
 condition = "AND"
 regexTarget = "line"

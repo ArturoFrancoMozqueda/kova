@@ -80,6 +80,51 @@ test("desktop sidebar crossfades labels without losing link names", async ({ pag
   await expect(dashboardLabel).toHaveCSS("opacity", "1");
 });
 
+test("business navigation stays directly visible and keyboard-accessible in the compact rail", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", route => route.fulfill({ json: authenticatedOwner }));
+  await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: billingAllowed }));
+  await page.route("**/api/v1/purchasing/suppliers", route => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/purchasing/orders?*", route => route.fulfill({ json: [] }));
+  await page.goto("/dashboard");
+  const nav = page.locator("aside nav");
+  for (const name of ["Productos e inventario", "Ventas y atención", "Gestión y ajustes"]) {
+    await expect(nav.getByRole("heading", { name, exact: true })).toBeVisible();
+  }
+  await expect(nav.getByRole("button")).toHaveCount(0);
+  for (const path of ["/catalog", "/inventory", "/purchasing", "/quotes", "/settings/public-catalog", "/reports", "/settings"]) {
+    await expect(nav.locator(`a[href="${path}"]`)).toBeVisible();
+  }
+  for (const link of await nav.getByRole("link").all()) await expect(link).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("navigation-expanded-top.png"), animations: "disabled" });
+  await nav.getByRole("link").last().scrollIntoViewIfNeeded();
+  await expect(nav.getByRole("link").last()).toBeInViewport();
+  await expect(page.locator("aside").getByRole("button", { name: "Cerrar sesión", exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("navigation-expanded-end.png"), animations: "disabled" });
+
+  await page.getByRole("button", { name: /contraer men/i }).click();
+  const purchasing = nav.getByRole("link", { name: "Compras y proveedores", exact: true });
+  await expect(purchasing).toBeVisible();
+  await expect(purchasing).toHaveAttribute("title", "Compras y proveedores");
+  await expect(nav.locator('a[href="/quotes"]')).toHaveAccessibleName("Cotizaciones");
+  await expect(nav.getByRole("button")).toHaveCount(0);
+  await purchasing.focus();
+  await expect(purchasing).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/purchasing$/);
+  await expect(purchasing).toHaveAttribute("aria-current", "page");
+
+  // A direct load keeps the chosen rail preference and its active deep link,
+  // without requiring a hidden group to be opened first.
+  await page.reload();
+  await expect(purchasing).toHaveAttribute("aria-current", "page");
+  await expect(purchasing).toHaveAttribute("title", "Compras y proveedores");
+  await page.getByRole("button", { name: /expandir men/i }).click();
+  await expect(nav.getByRole("heading", { name: "Productos e inventario", exact: true })).toBeVisible();
+  await expect(purchasing).toHaveAttribute("aria-current", "page");
+});
+
 test("catalog owns the desktop product search without a global command bar", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await markFirstUseToursSeen(page);

@@ -535,6 +535,10 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
   for (const path of ["/register", "/dashboard", "/reports", "/settings/billing"]) {
     await page.goto(path);
     if (path === "/dashboard") {
+      await expect(page.getByRole("group", { name: "Siguiente paso" })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      // Completed setup steps now live in the expandable checklist.
+      await page.getByText("Ver los demás pasos", { exact: true }).click();
       await expect(page.getByText(/Agrega tu primer producto vendible|Agrega productos vendibles/i)).toBeVisible();
     }
     if (path !== "/settings/billing") {
@@ -820,7 +824,7 @@ test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/inventory");
 
-    await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /inventario/i, level: 1 })).toBeVisible();
     await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
     await expect(page.getByText("2 disponible, umbral 6.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ajustar stock: Concha" })).toBeVisible();
@@ -847,6 +851,116 @@ test("catalog fits at 390px with category and product visible", async ({ page })
   await expectNoHorizontalOverflow(page);
 });
 
+test.describe("register photos on a high-density phone", () => {
+  test.use({ deviceScaleFactor: 3 });
+
+  test("keeps viewport-sized photos when searching the menu and leaving Caja", async ({ page }) => {
+    await markFirstUseToursSeen(page);
+    await mockCommon(page, {
+      viewport: { width: 393, height: 852 },
+      billingAccess: { ...ACTIVE_ACCESS, reason: "active", trialing: false, trial_ends_at: null },
+    });
+    await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: Array.from({ length: 12 }, (_, index) => ({
+      ...PRODUCT,
+      id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+      name: `Producto ${index}`,
+      image_url: `/api/v1/catalog/products/00000000-0000-4000-8000-${String(index).padStart(12, "0")}/image?v=1`,
+    })) }));
+    await page.route("**/api/v1/catalog/modifier-groups", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/quotes?**", route => route.fulfill({ json: { items: [], total: 0 } }));
+    const photoRequests: string[] = [];
+    await page.route("**/api/v1/catalog/products/*/image?**", async route => {
+      photoRequests.push(route.request().url());
+      await route.fulfill({ contentType: "image/png", path: "public/showcase/products/alfajores.png" });
+    });
+
+    await page.goto("/register");
+    const photos = page.locator('img[srcset][src*="/catalog/products/"]');
+    await expect.poll(() => photos.count()).toBeGreaterThan(0);
+    await page.waitForLoadState("networkidle");
+    const initial = photoRequests.length;
+    expect(initial).toBeGreaterThan(0);
+    expect(initial).toBeLessThan(12);
+    await expect.poll(() => photos.evaluateAll(images => images.every(image => {
+      const img = image as HTMLImageElement;
+      return img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width === 48;
+    }))).toBe(true);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+
+    const content = page.locator("#contenido-principal");
+    await content.evaluate(element => element.scrollTo(0, element.scrollHeight));
+    await expect.poll(() => photoRequests.length).toBeGreaterThan(initial);
+    await page.waitForLoadState("networkidle");
+    const afterScroll = photoRequests.length;
+    expect(new Set(photoRequests).size).toBe(afterScroll);
+    await content.evaluate(element => element.scrollTo(0, 0));
+    await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+    await page.getByRole("searchbox", { name: "Buscar sección" }).fill("crear cotización");
+    await page.waitForLoadState("networkidle");
+    expect(photoRequests).toHaveLength(afterScroll);
+
+    await page.getByRole("link", { name: "Cotizaciones", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Cotizaciones", exact: true })).toBeVisible();
+    await expect(photos).toHaveCount(0);
+    await page.waitForLoadState("networkidle");
+    // Leaving a screen must not fetch larger versions of its detached images.
+    expect(photoRequests).toHaveLength(afterScroll);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+  });
+});
+
+test.describe("catalog thumbnails on a high-density phone", () => {
+  test.use({ deviceScaleFactor: 3 });
+
+  test("shows products above navigation for an active business and recovers a failed small photo", async ({ page }) => {
+    // Match the active tenant reviewed through computer use. Trial and blocked
+    // banners retain their own viewport scenarios above.
+    await mockCommon(page, {
+      viewport: { width: 393, height: 852 },
+      billingAccess: { ...ACTIVE_ACCESS, reason: "active", trialing: false, trial_ends_at: null },
+    });
+    const names = ["Café caliente", "Bebidas frías", "Pan dulce", "Alimentos"];
+    await page.route("**/api/v1/catalog/categories", route => route.fulfill({ json: names.map((name, index) => ({
+      id: `cat-${index}`, tenant_id: "tenant-1", name, description: null, sort_order: index, is_active: true,
+    })) }));
+    const imagePath = "/api/v1/catalog/products/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/image?v=123";
+    await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: [{
+      ...PRODUCT, category_id: "cat-3", image_url: imagePath,
+      image_position_x: 50, image_position_y: 50, image_zoom: 1,
+    }] }));
+    await page.route("**/api/v1/catalog/modifier-groups", route => route.fulfill({ json: [] }));
+    const photoRequests: string[] = [];
+    await page.route("**/api/v1/catalog/products/*/image?**", async route => {
+      photoRequests.push(route.request().url());
+      if (photoRequests.length === 1) await route.fulfill({ status: 503, body: "" });
+      else await route.fulfill({ contentType: "image/png", path: "public/showcase/products/alfajores.png" });
+    });
+
+    await page.goto("/catalog");
+    const retry = page.getByRole("button", { name: "Volver a cargar la foto de Concha" });
+    await expect(retry).toBeVisible();
+    const productBox = await page.getByRole("heading", { name: "Concha", exact: true }).boundingBox();
+    const navigationBox = await page.getByRole("navigation", { name: /navegaci/i }).last().boundingBox();
+    expect(productBox).not.toBeNull();
+    expect(navigationBox).not.toBeNull();
+    expect(productBox!.y + productBox!.height).toBeLessThan(navigationBox!.y);
+    expect(new URL(photoRequests[0]).searchParams.get("w")).toBe("160");
+
+    await retry.click();
+    const image = page.getByRole("img", { name: "Imagen de Concha" });
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    expect(photoRequests).toHaveLength(2);
+    expect(photoRequests[1]).toBe(photoRequests[0]);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(retry).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Alimentos", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Alimentos", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: "Concha", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
 test("inventory fits at 390px with empty state", async ({ page }) => {
   await mockCommon(page);
   await page.route("**/api/v1/inventory/movements**", (route) => route.fulfill({ json: [] }));
@@ -863,4 +977,118 @@ test("shifts fits at 390px with no open shift", async ({ page }) => {
   await page.goto("/shifts");
   await expect(page.getByRole("heading", { name: /turnos/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test.describe("owner task discovery without waiting for analytics", () => {
+  async function focusTaskSearch(page: Page, mobile: boolean) {
+    const search = page.getByRole("searchbox", { name: "Buscar sección", exact: true });
+    if (mobile) {
+      await page.getByRole("button", { name: "Buscar tareas del negocio", exact: true }).click();
+    } else {
+      await expect(page.locator("aside")).toBeVisible();
+      if (await search.isVisible()) await search.click();
+      else await page.getByRole("button", { name: "Buscar sección", exact: true }).click();
+    }
+    await expect(search).toBeFocused();
+    return search;
+  }
+
+  test("dashboard actions survive a pending and failed overview and open the chosen section", async ({ page }, testInfo) => {
+    await markFirstUseToursSeen(page);
+    await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
+      ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
+    let requested = false;
+    let releaseOverview!: () => void;
+    const overviewGate = new Promise<void>(resolve => { releaseOverview = resolve; });
+    await page.route("**/api/v1/reports/dashboard**", async route => {
+      requested = true;
+      await overviewGate;
+      await route.fulfill({ status: 503, json: { detail: "Analytics temporarily unavailable" } });
+    });
+    await page.route(/\/api\/v1\/shifts(\?|$)/, route => route.fulfill({ json: [] }));
+    await page.goto("/dashboard");
+    await expect.poll(() => requested).toBe(true);
+    const actions = page.getByRole("navigation", { name: "Acciones rápidas", exact: true });
+    await expect(actions).toBeVisible();
+    const destinations = ["/operations-queue", "/settings/public-catalog", "/shifts", "/reports"];
+    await expect(actions.getByRole("link")).toHaveCount(4);
+    for (const [index, destination] of destinations.entries()) {
+      await expect(actions.getByRole("link").nth(index)).toHaveAttribute("href", destination);
+    }
+    await expect(actions.getByRole("link", { name: /Ver pendientes/ })).toBeInViewport();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath("dashboard-owner-actions.png"), animations: "disabled" });
+    releaseOverview();
+    await expect(page.getByText("No se pudo cargar el panel", { exact: true })).toBeVisible();
+    await expect(actions).toBeVisible();
+    await actions.getByRole("link", { name: /Revisar turnos/ }).click();
+    await expect(page).toHaveURL(/\/shifts$/);
+    await expect(page.getByRole("heading", { name: "Turnos", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("task search focuses the existing search and opens a product form without saving", async ({ page }, testInfo) => {
+    await markFirstUseToursSeen(page);
+    await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
+      ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
+    await page.route("**/api/v1/catalog/modifier-groups", route => route.fulfill({ json: [] }));
+    let productWrites = 0;
+    page.on("request", request => {
+      if (new URL(request.url()).pathname.startsWith("/api/v1/catalog/") && request.method() !== "GET") productWrites++;
+    });
+    await page.goto("/register");
+    await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath("register-owner-header.png"), animations: "disabled" });
+    const search = await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
+    await search.fill("crear producto");
+    const create = page.getByRole("link", { name: "Crear producto", exact: true });
+    await expect(create).toHaveAttribute("href", "/catalog?new=product");
+    await create.click();
+    // The creation command is consumed once; the clean catalog URL permits
+    // selecting the same global task again after canceling the dialog.
+    await expect(page).toHaveURL(/\/catalog$/);
+    const dialog = page.getByRole("dialog", { name: "Nuevo producto", exact: true });
+    await expect(dialog).toBeVisible();
+    const cancel = dialog.getByRole("button", { name: "Cancelar", exact: true });
+    await expect(cancel).toBeVisible();
+    await dialog.getByLabel("Nombre del producto", { exact: true }).fill("Producto sin guardar");
+    await expect(dialog.getByLabel("Nombre del producto", { exact: true })).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath("product-create-task-form.png"), animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
+    await search.fill("crear producto");
+    await page.getByRole("link", { name: "Crear producto", exact: true }).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    expect(productWrites).toBe(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("task search opens the receipt settings directly without exploring settings sections", async ({ page }, testInfo) => {
+    await markFirstUseToursSeen(page);
+    await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
+      ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
+    await page.route("**/api/v1/settings/receipt", route => route.fulfill({ json: {
+      tenant_id: "tenant-1", receipt_business_name: "Bakery", footer: null,
+      tax_contact_text: null, logo_url: null, paper_width_mm: 80,
+    } }));
+    await page.route("**/api/v1/employees", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/employees/invitations", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/account/deletion", route => route.fulfill({ json: {
+      status: "none", requested_at: null, purge_after: null,
+    } }));
+    await page.goto("/register");
+    const search = await focusTaskSearch(page, testInfo.project.name.includes("mobile"));
+    await search.fill("recibo");
+    const receipt = page.getByRole("link", { name: "Personalizar recibo", exact: true });
+    await expect(receipt).toHaveAttribute("href", "/settings/receipt");
+    await receipt.click();
+    await expect(page).toHaveURL(/\/settings\/receipt$/);
+    await expect(page.getByRole("heading", { name: "Ajustes del recibo", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Nombre del negocio en el recibo", { exact: true })).toHaveValue("Bakery");
+    await expectNoHorizontalOverflow(page);
+  });
 });

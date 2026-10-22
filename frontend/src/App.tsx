@@ -17,6 +17,17 @@ const VerifyEmailView = lazy(() => import("./auth/VerifyEmailView"));
 const AcceptInviteView = lazy(() => import("./auth/AcceptInviteView"));
 const BillingView = lazy(() => import("./billing/BillingView"));
 const CustomersView = lazy(() => import("./customers/CustomersView").then(module => ({ default: module.CustomersView })));
+const AutomationsView = lazy(() => import("./automations/AutomationsView"));
+const CrmView = lazy(() => import("./crm/CrmView"));
+const QuotesView = lazy(() => import("./quotes/QuotesView"));
+const ReconciliationView = lazy(() => import("./reconciliation/ReconciliationView"));
+const ReplenishmentView = lazy(() => import("./replenishment/ReplenishmentView"));
+const StorefrontView = lazy(() => import("./storefront/StorefrontView"));
+const CatalogPublishView = lazy(() => import("./storefront/CatalogPublishView"));
+const InboxView = lazy(() => import("./messaging/InboxView"));
+const CommercialRequestsView = lazy(() => import("./crm/CommercialRequestsView"));
+const FollowupsView = lazy(() => import("./crm/FollowupsView"));
+const ChannelsView = lazy(() => import("./messaging/ChannelsView"));
 const PurchasingView = lazy(() => import("./purchasing/PurchasingView"));
 const IntegrationsView = lazy(() => import("./integrations/IntegrationsPage").then(module => ({ default: module.IntegrationsPage })));
 const CatalogView = lazy(() => import("./catalog/CatalogView"));
@@ -34,6 +45,10 @@ const ReportsView = lazy(() => import("./reports/ReportsView"));
 const AssistantView = lazy(() => import("./assistant/AssistantView"));
 const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
+const AppointmentsView = lazy(() => import("./appointments/AppointmentsView"));
+const LoyaltyView = lazy(() => import("./loyalty/LoyaltyView"));
+const ServiceCasesView = lazy(() => import("./serviceCases/ServiceCasesView"));
+const OperationsQueueView = lazy(() => import("./operationsQueue/OperationsQueueView"));
 const AppShell = lazy(() => import("./layout/AppShell"));
 // Prerendered routes use lazyWithPreload: after preload() their first render
 // never suspends, which hydrateRoot (main.tsx) and renderToString
@@ -84,6 +99,7 @@ export function AppRoutes() {
             <Route path="/accept-invite" element={<AcceptInviteView />} />
 
             <Route path="/" element={<Home />} />
+            <Route path="/catalogo/:token" element={<StorefrontView />} />
             {/* Isolated marketing showcase for video export (noindex). */}
             <Route path="/kova-showcase-video" element={<KovaShowcaseVideo />} />
             <Route path="/privacy" element={<LegalPage variant="privacy" />} />
@@ -115,6 +131,20 @@ export function AppRoutes() {
               <Route path="/register" element={<RegisterView />} />
               <Route path="/catalog" element={<CatalogView />} />
               <Route path="/customers" element={<CustomersView />} />
+              <Route path="/automations" element={<AutomationsView />} />
+              <Route path="/crm" element={<CrmView />} />
+              <Route path="/inbox" element={<InboxView />} />
+              <Route path="/commercial-requests" element={<CommercialRequestsView />} />
+              <Route path="/followups" element={<FollowupsView />} />
+              <Route path="/service-cases" element={<ServiceCasesView />} />
+              <Route path="/operations-queue" element={<OperationsQueueView />} />
+              <Route path="/appointments" element={<AppointmentsView />} />
+              <Route path="/loyalty" element={<LoyaltyView />} />
+              <Route path="/quotes" element={<QuotesView />} />
+              <Route path="/reconciliation" element={<ReconciliationView />} />
+              <Route path="/replenishment" element={<ReplenishmentView />} />
+              <Route path="/settings/public-catalog" element={<CatalogPublishView />} />
+              <Route path="/settings/channels" element={<ChannelsView />} />
               <Route path="/purchasing" element={<PurchasingView />} />
               <Route path="/settings/integrations" element={<IntegrationsView />} />
               <Route path="/inventory" element={<InventoryView />} />

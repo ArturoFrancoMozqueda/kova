@@ -6,7 +6,9 @@ import {
   cliProvider, productionHostname, recoverRelease, resolveNpxCommand, runProviderCommand,
   validateRollbackArtifact,
 } from "./release-recovery.mjs";
-import { verifyDeployment } from "./verify-deployment.mjs";
+import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mjs";
+import { cloudflareProvider } from "./cloudflare-provider.mjs";
+import { cloudflareBackendProvider } from "./cloudflare-backend-provider.mjs";
 
 export function candidateUrl(value) {
   const url = new URL(value);
@@ -21,23 +23,59 @@ export function candidateUrl(value) {
 export async function release({ artifact: rawArtifact, sha, provider,
   verify = verifyDeployment, recover = recoverRelease }) {
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
+    throw new Error("Resident release requires the captured Container image or explicit absence");
+  }
+  if (provider.requiresCloudflare && !artifact.cloudflareVersion) {
+    throw new Error("Cloudflare release requires a captured rollback version");
+  }
+  if (provider.requiresCloudflare && typeof provider.waitForPublicFrontend !== "function") {
+    throw new Error("Cloudflare publication requires frontend readiness verification");
+  }
+  if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
+    throw new Error("Cloudflare backend release requires captured rollback versions");
+  }
+  if (provider.requiresCloudflareBackend && typeof provider.waitForPublicBackend !== "function") {
+    throw new Error("Cloudflare backend publication requires readiness verification");
+  }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
   let phase;
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
-    await provider.deployFly(sha);
+    await provider.deployBackend(sha);
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
+        sha, previousSha: artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     phase = "promotion";
     await provider.promote(url, artifact.frontendUrl);
     phase = "acceptance";
-    await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
-      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    if (provider.requiresCloudflare) {
+      await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl, sha,
+        previousSha: artifact.releaseSha });
+    }
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha });
+    }
+    if (provider.requiresCloudflare) {
+      await verifyPublicDeployment({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha, verify });
+    } else {
+      await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha });
+    }
     return { sha, url, phase, accepted: true };
   } catch (error) {
     if (phase) {
-      await recover({ phase, artifact, provider, verify });
+      try {
+        await recover({ phase, artifact, provider, verify, failedSha: sha });
+      } catch (recoveryError) {
+        throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
+      }
       throw new Error(`RELEASE_FAILED_RECOVERED (${phase}): ${error.message}`);
     }
     throw error;
@@ -47,36 +85,35 @@ export async function release({ artifact: rawArtifact, sha, provider,
 export function releaseProvider(globalConfig, { run = runProviderCommand, env = process.env } = {}) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const npx = resolveNpxCommand();
+  const cloudflare = cloudflareProvider({ run, env });
+  const backend = cloudflareBackendProvider({ run, env });
+  if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
+  const buildEnv = { ...env, ...(cloudflare ? { VITE_HOSTING_PROVIDER: "cloudflare" } : {}) };
+  // The owner connection belongs only to the backend migration subprocess.
+  delete buildEnv.SUPABASE_DB_URL;
   const vercel = (args, capture = false) => run(npx.command,
     [...npx.prefixArgs, "--yes", "vercel@59.0.0", ...args,
-      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env });
+      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env: buildEnv });
   return {
     ...cliProvider({ globalConfig, run, env }),
+    requiresCloudflare: Boolean(cloudflare),
+    ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
+    requiresCloudflareBackend: Boolean(backend),
+    requiresNativeContainer: Boolean(backend?.requiresNativeContainer),
+    ...(backend ? { waitForPublicBackend: backend.waitForPublicBackend } : {}),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);
       return vercel(["deploy", "--prebuilt", "--prod", "--skip-domain", "--yes"], true);
     },
-    async deployFly(sha) {
-      // Provisioning is idempotent and stays inside the recoverable phase.
-      await runProviderCommand("python3", ["../scripts/ensure_cfdi_storage_key.py"],
-        { cwd: path.join(root, "backend"), label: "Fiscal encryption preflight" });
-      await runProviderCommand(process.platform === "win32" ? "flyctl.exe" : "flyctl",
-        ["deploy", "--remote-only", "--build-arg", `KOVA_RELEASE_SHA=${sha}`,
-          "--env", `GIT_SHA=${sha}`, "--strategy", "rolling", "--wait-timeout", "5m",
-          "--process-groups", "app,assistant", "--ha=false"],
-        { cwd: path.join(root, "backend"), label: "Fly deploy" });
-      await runProviderCommand("python3", ["../scripts/assistant_host_release.py",
-        "update", "--sha", sha],
-        { cwd: path.join(root, "backend"), label: "Existing assistant file host" });
-      await runProviderCommand(npx.command,
-        [...npx.prefixArgs, "--yes", "wait-on@9.0.1", "https://api.kovasuite.com/health/db",
-          "--timeout", "180000"], { label: "Fly health wait" });
+    async deployBackend(sha) {
+      return backend.publish(sha);
     },
     async promote(url, frontendUrl) {
       const hostname = productionHostname(frontendUrl);
       await vercel(["promote", url, "--yes"]);
       await vercel(["alias", "set", url, hostname]);
+      if (cloudflare) await cloudflare.publish();
     },
   };
 }

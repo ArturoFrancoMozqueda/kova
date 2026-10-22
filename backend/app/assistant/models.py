@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import UserDefinedType
 
-from app.db import Base
+from app.orm_metadata import Base
 
 KINDS = (
     "conversation",

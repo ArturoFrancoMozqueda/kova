@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pyotp
 import pytest
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import text
@@ -242,8 +242,8 @@ def test_every_ops_route_has_founder_guard_and_privileged_db():
 
     routes = [
         route
-        for route in app.routes
-        if isinstance(route, APIRoute) and route.path.startswith("/api/v1/internal/ops")
+        for route in iter_route_contexts(app.routes)
+        if isinstance(route.route, APIRoute) and route.path.startswith("/api/v1/internal/ops")
     ]
     assert routes
     for route in routes:

@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import Base
+from app.orm_metadata import Base
 
 
 def _now() -> datetime:

@@ -52,7 +52,7 @@ def scope(db, ctx) -> tuple[UUID, UUID, UUID]:
     return ctx[1].tenant_id, ctx[0].id, active_branch_id(db, ctx[1].tenant_id)
 
 
-def assert_private_policies() -> None:
+def assert_private_policies(*, policy_catalog=None) -> None:
     """Fail closed on restrictive ACL drift as well as the canonical tenant RLS."""
     import logging
 
@@ -83,15 +83,25 @@ def assert_private_policies() -> None:
         expected[(table, prefix + "update")] = ("w", normalized(write), normalized(write))
         expected[(table, prefix + "delete")] = ("d", normalized(write), None)
     try:
-        with engine.connect() as conn:
-            rows = conn.execute(
-                text("""SELECT c.relname,p.polname,p.polpermissive,p.polcmd,
-                p.polroles,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)
-                FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid
-                JOIN pg_namespace n ON n.oid=c.relnamespace
-                WHERE n.nspname='public'
-                AND c.relname IN ('assistant_records','assistant_chunks')""")
-            ).all()
+        if policy_catalog is None:
+            with engine.connect() as conn:
+                rows = conn.execute(
+                    text("""SELECT c.relname,p.polname,p.polpermissive,p.polcmd,
+                    p.polroles::bigint[],pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)
+                    FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid
+                    JOIN pg_namespace n ON n.oid=c.relnamespace
+                    WHERE n.nspname='public'
+                    AND c.relname IN ('assistant_records','assistant_chunks')""")
+                ).all()
+        else:
+            # Same live catalog and role as the preceding startup RLS guard;
+            # retain the standalone read when no catalog was supplied.
+            rows = [
+                (table, name, permissive, command, roles, using, check)
+                for table in ("assistant_records", "assistant_chunks")
+                for (name, permissive, command, roles, _has_using, _has_check, using, check)
+                in policy_catalog.get(table, ())
+            ]
         actual = {(r[0], r[1]): r for r in rows}
         for key, (command, using, check) in expected.items():
             row = actual.get(key)

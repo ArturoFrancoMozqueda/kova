@@ -1,0 +1,101 @@
+import { publicPages, securityHeaders } from "./policy.mjs";
+import { cachedPublicImage, publicImageResponse } from "../public-images.mjs";
+
+const API_ORIGIN = "https://api.kovasuite.com";
+const NO_STORE = "private, no-store, max-age=0";
+
+function secure(response, { api = false, html = false, request } = {}) {
+  const image = api && publicImageResponse(request, response);
+  const result = image || new Response(response.body, response);
+  for (const [name, value] of Object.entries(securityHeaders)) result.headers.set(name, value);
+  if (html) result.headers.set("Cache-Control", "no-cache");
+  if (api && !image) {
+    result.headers.set("Cache-Control", NO_STORE);
+    result.headers.set("CDN-Cache-Control", "no-store");
+    result.headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+  }
+  return result;
+}
+
+async function proxy(request, path, fetcher, trustedClientIP) {
+  const source = new URL(request.url);
+  // Construct the destination from a fixed origin; paths can never select a host.
+  const destination = new URL(API_ORIGIN);
+  destination.pathname = path;
+  destination.search = source.search;
+  const headers = new Headers(request.headers);
+  for (const name of ["host", "forwarded", "x-forwarded-for", "x-forwarded-host",
+    "x-forwarded-proto", "fly-client-ip", "x-real-ip"]) headers.delete(name);
+  // Cloudflare derives CF-Connecting-IP from X-Real-IP on same-zone
+  // subrequests. An anonymous image miss still needs the edge's original IP
+  // for rate limiting; never recover it from caller forwarding headers.
+  if (trustedClientIP) {
+    headers.set("CF-Connecting-IP", trustedClientIP);
+    headers.set("X-Real-IP", trustedClientIP);
+  }
+  headers.set("X-Forwarded-Host", source.host);
+  headers.set("X-Forwarded-Proto", source.protocol.slice(0, -1));
+  const upstream = new Request(destination, {
+    method: request.method,
+    headers,
+    body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
+    redirect: "manual",
+    duplex: "half",
+  });
+  try {
+    const response = secure(await fetcher(upstream, {
+      cf: { cacheEverything: false, cacheTtl: 0 },
+    }), { api: true, request });
+    const location = response.headers.get("Location");
+    if (location) {
+      const redirect = new URL(location, destination);
+      if (redirect.origin === API_ORIGIN) {
+        redirect.host = source.host;
+        redirect.protocol = source.protocol;
+        response.headers.set("Location", redirect.href);
+      }
+    }
+    return response;
+  } catch {
+    // Never log request URLs, cookies, credentials or upstream response bodies.
+    return secure(Response.json({ detail: "El servicio no está disponible. Intenta de nuevo." },
+      { status: 502 }), { api: true });
+  }
+}
+
+export async function handleRequest(request, env, fetcher = fetch, ctx) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+  if (path === "/api/health" || path === "/api/health/db") {
+    return proxy(request, path.slice(4), fetcher);
+  }
+  if (path === "/api/v1" || path.startsWith("/api/v1/")) {
+    const response = await cachedPublicImage(request, anonymousRequest =>
+      proxy(anonymousRequest, new URL(anonymousRequest.url).pathname, fetcher,
+        anonymousRequest === request ? undefined : request.headers.get("cf-connecting-ip")), ctx);
+    return secure(response, { api: true, request });
+  }
+  if (path === "/api" || path.startsWith("/api/")) {
+    return secure(Response.json({ detail: "Not Found" }, { status: 404 }), { api: true });
+  }
+  if (!["GET", "HEAD"].includes(request.method)) {
+    return secure(new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } }));
+  }
+  const canonical = path === "/" ? path : path.replace(/\/$/, "");
+  const page = Object.hasOwn(publicPages, canonical) ? publicPages[canonical] : undefined;
+  if (page) {
+    url.pathname = page;
+    return secure(await env.ASSETS.fetch(new Request(url, request)), { html: true });
+  }
+  const asset = await env.ASSETS.fetch(request);
+  if (asset.status !== 404) return secure(asset, { html: path.endsWith(".html") });
+  // Missing assets must stay 404. Returning HTML would break module loading
+  // and can poison a service worker precache during a release.
+  if (/\.[^/]+$/.test(path) || path.startsWith("/_vercel/")) return secure(asset, { api: true });
+  url.pathname = "/app-shell.html";
+  const shell = secure(await env.ASSETS.fetch(new Request(url, request)), { html: true });
+  shell.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return shell;
+}
+
+export default { fetch(request, env, ctx) { return handleRequest(request, env, fetch, ctx); } };

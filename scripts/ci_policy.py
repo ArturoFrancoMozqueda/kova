@@ -54,6 +54,8 @@ def gate_errors(policy: dict[str, str], needs: dict) -> list[str]:
         "repository": True,
         "security": True,
         "backend-integration": policy.get("code") == "true",
+        "backend-workers": policy.get("code") == "true",
+        "backend-native": policy.get("code") == "true",
         "frontend": policy.get("code") == "true",
         "frontend-unit": policy.get("code") == "true",
         "integration": policy.get("code") == "true",

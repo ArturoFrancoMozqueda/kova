@@ -1,8 +1,892 @@
 # Current Sprint
 
-Last updated: 2026-10-09
+Last updated: 2026-10-21
 
-## Active implementation (2026-10-09): Cajón de dinero
+## Prueba real del circuito comercial y continuidad
+
+El propietario autorizó escrituras en el tenant de soporte. Computer Use sobre
+producción del 21 de octubre creó el producto y cliente `QA-20261021-E2E`,
+registró cinco unidades, publicó sólo ese producto adicional y envió una consulta
+con contacto reservado `.invalid`. Se verificó solicitud → oportunidad →
+cotización `COT-952CCC99` → pedido `PED-F814A689` → venta `747E0AF8` por $10 en
+efectivo registrado, sin procesar dinero ni enviar mensajes externos.
+
+Inventario conservó cinco unidades antes de confirmar el pedido y cuatro tras
+la venta. El Panel pasó de $0/0 ventas a $10/1 venta y ticket $10. La devolución
+total quedó registrada con recibo neto $0, y se canceló el pedido con nota QA.
+No se abrió ni cerró un turno para esta prueba. La auditoría no se elimina.
+
+Limpieza completada tras el desbloqueo manual: se verificó stock de vuelta en
+cinco por la devolución y se retiraron esas cinco unidades con ajuste auditado
+`Otro` y nota `QA-20261021-E2E`, dejando cero. Se desactivaron producto y cliente;
+el cliente reaparece como Inactivo sólo al incluir inactivos y el catálogo volvió
+a 18 productos activos. La publicación guardada y su lectura pública conservan
+los 16 productos originales, título y configuración, sin rotar el enlace; el
+producto QA ya no aparece. La oportunidad quedó Perdida, con cero oportunidades
+abiertas en la vista. La cola consultada no mostró atenciones, oportunidades,
+seguimientos ni recordatorios pendientes. El Panel confirmó neto $0, bruto $10
+y devolución $10. Esos importes históricos se conservan como auditoría; no se
+eliminan ni se declara completa toda la automatización del negocio.
+
+Fricciones observadas: solicitud convertida sin enlace a su oportunidad y
+siguiente paso de cotizar sin acción directa desde CRM. Se implementaron enlaces
+y precarga de cliente/oportunidad validados por el recurso autenticado exacto;
+abrir el formulario no crea, comparte ni acepta una cotización.
+Validación local: 41 pruebas de CRM/solicitudes/cotizaciones y siete pruebas
+de navegador aprobadas, incluido el recorrido de enlaces en1440/390/320px sin
+escrituras y con la oportunidad fuera de la primera página. Build, TypeScript,
+ESLint completo y revisión independiente aprobaron. Se revisaron capturas sin
+desbordamiento. Publicado en #251 como
+`b8b00c36b9697b9ae1009bd8cad57894d31a340a`: CI/release `39679329676`
+aprobó, 25 contratos sobre el mismo proceso (mediana 186ms, máximo 330ms), sin
+rollback. Los seis contratos públicos posteriores confirmaron ese SHA.
+
+Computer Use posterior con el tenant verificó Solicitudes → Ver oportunidad →
+Preparar cotización: el recurso exacto abrió el formulario con cliente y origen
+correctos; el parámetro se consumió y cerrar no creó otra cotización. La PWA
+mostró la actualización disponible y se aplicó desde el Panel, conservando la
+sesión y los datos. Se cerró la pestaña pública temporal y se restauraron Panel
+y ventana original. Este cierre documental no requiere otra publicación de
+runtime; el SHA productivo permanece en `b8b00c36`.
+
+## Navegación visible del dueño
+
+Corrección solicitada el 21 de octubre tras revisar el menú productivo: las
+secciones del negocio deben reconocerse sin abrir acordeones. Se sustituyen por
+encabezados estáticos y enlaces directos, también accesibles como iconos al
+contraer voluntariamente el menú de escritorio. Se conserva la búsqueda de
+secciones y tareas, los permisos, la sesión offline y la navegación móvil.
+Validación local: 61 pruebas de layout, TypeScript, ESLint completo y revisión
+independiente sin bloqueos. 25 pruebas de navegador aprobaron: teclado, enlaces
+directos, rail, foco y scroll móvil, privacidad del borrador y búsqueda de tareas.
+Se revisaron capturas de escritorio y móvil. Cuatro comprobaciones focales
+aprobaron tras reconstruir el build final. CI inicial detectó una interferencia
+del service worker con el 404 simulado de un chunk de login: la traza mostró
+precache 200 y login válido al recargar. Se aísla sólo `stale-chunks.spec.ts` sin
+SW, manteniendo conteos, cookies e IndexedDB; los dos casos aprobaron y la traza
+final conserva los tres 404 esperados. Esta prueba no acredita limpieza real del
+SW; precache y offline conservan su cobertura separada. Publicado en #250 como
+`4c411f01e73d556c316666bb11e9fac043c18192`; CI/release `39671524769` aprobó,
+25 contratos sobre el mismo proceso (mediana184ms, máximo366ms), sin rollback.
+Los seis contratos públicos y CU con el tenant confirmaron menú estático,
+scroll móvil de393×852, entrada a Solicitudes y Catálogo mediante Tab/Enter
+con el rail contraído. La sesión cargó la versión nueva con recargas normales,
+sin borrar datos. Se restauró el Panel y la ventana original.
+
+## Flujo del dueño: tareas accesibles sin explorar ajustes
+
+Publicado en #249 como `0887bdcc51b729511c6026de69b87e490c566e5d`:
+
+- Buscar desde el encabezado móvil abre y enfoca el buscador existente. En
+  escritorio usa el buscador lateral, sin una barra superior adicional. Prioriza tareas concretas y abre Crear producto, Crear pedido y
+  ajustes específicos de recibo, perfil, sucursales y equipo según permisos.
+  No agrega niveles al menú ni cambia Caja/Pedidos/Panel de la barra inferior.
+- Acciones rápidas aparece una sola vez, antes de métricas y disponible aun
+  mientras cargan o fallan los reportes. El siguiente paso de onboarding conserva
+  prioridad. No se agregan consultas ni se presume que existen pendientes.
+- El acceso existente de Productos a Compartir catálogo no se duplica en el pie.
+  La continuación vincula publicación → solicitudes, y reposición →
+  compras → existencias. Conserva dos enlaces como máximo y filtros de acceso.
+- Las intenciones de creación de producto se consumen una vez preservando el
+  filtro, ancla y estado de navegación; cancelar y volver a elegir la tarea abre nuevamente el formulario.
+  No se guardan productos por navegar ni se cambia la prioridad de inventario.
+
+Validación: 62 pruebas de layout, 45 de dashboard, 20 de catálogo y cuatro de guía inicial aprobadas;
+regresiones rojas antes de corregir continuidad y repetición del formulario.
+Revisión independiente sin bloqueos. Build completo y ESLint aprobaron. Nueve
+pruebas de navegador sobre el build final aprobaron: tareas con reportes
+pendientes/error, búsqueda a formulario repetible y recibo directo en escritorio
+y móvil, más regresión de fotos y el contrato anterior de escritorio con contenido
+en y=0 sin barra superior adicional, sin modificar esa prueba. Se revisaron capturas sin desbordamiento;
+Cancelar en el formulario móvil requiere su desplazamiento interno existente.
+CI y release `39664180827` aprobaron, con 25 contratos de aceptación sobre el
+mismo proceso (mediana 180ms, máximo 494ms) y seis contratos públicos posteriores.
+Computer Use con el tenant de pruebas confirmó búsqueda y repetición de Crear
+producto, recibo, empleados, Crear pedido, publicación y lectura del catálogo
+público con fotos, solicitudes y continuidad compras → existencias → reposición.
+Se verificaron escritorio y móvil emulado de 393×852, sin cobros, envíos ni
+creación de registros de negocio. Estas pruebas no equivalen a validar cuentas
+externas o todas las operaciones de escritura.
+
+## Estado productivo verificado del 21 de octubre
+
+#248 está publicado como `c4b57b205e2545fe6a80a4cd6ed342732bf2d17b`.
+CI y release `39649619567` aprobaron al primer intento, sin rollback: 25 contratos,
+mismo proceso, mediana 290ms y máximo 1061ms. Los seis contratos públicos
+confirmaron ese SHA. Computer Use posterior: sesión 200/359ms, Cotizaciones
+200/535ms, cinco fotos iniciales 90–1170ms y seis adicionales 1.61–1.82s; al salir
+siguieron once, sin descargas adicionales de 400px. Tras 330s sin probes del
+verificador, doce imágenes fueron 200/MISS con proceso y bytes conservados:
+160px mediana/máximo 975/1034ms; 320px 354/432ms; 400px 374/429ms.
+
+Durante propagación, una lectura de sesión devolvió 503/242ms desde la versión
+anterior cf56c9d7 (4be82), según el log correlacionado a las 18:20:29.413Z. Ese código
+no tenía el marcador nuevo. Después se recuperó el recorrido; no se declara que
+se ejercitó el retry productivo ni que salud prueba por sí sola la convergencia
+del controlador. No hubo cobros, envíos ni cambios de datos de negocio en CU.
+
+Antecedentes aceptados:
+
+#247 está publicado como `4be82c85cddd7f7909ca99a5bbe2054fd572330d`:
+CI/release `39642218045` aprobó en el primer intento, sin rollback. La aceptación
+posterior pasó 25 contratos sobre el mismo proceso (mediana 190ms, máximo 319ms)
+y una comprobación independiente de los seis contratos públicos confirmó ese SHA.
+Computer Use repitió Caja → desplazamiento → menú → búsqueda → Cotizaciones:
+cinco fotos iniciales a 160px, otras dos al desplazarse y siete en total al salir;
+no reaparecieron las descargas adicionales de 400px. En esta muestra las cinco
+iniciales tardaron 2.44–2.92s y las siguientes 1.82/1.88s, sin prometer que todas
+las cargas sean inferiores a un segundo.
+
+Tras 330s sin probes del verificador, cuatro fotos concurrentes por ancho
+conservaron proceso y bytes, con respuestas 200/MISS. Mediana/máximo:
+160px 774/871ms; 320px 1338/1391ms; 400px 424/513ms. Resize fue cero en 160/320;
+una muestra de 400px tuvo 3.445ms. No se observó una espera de diez segundos por
+inactividad en esa comprobación.
+
+La revisión real detectó un 503 puntual en GET de Cotizaciones (124ms), aunque
+los contratos de salud habían aprobado. La recarga manual de esa lectura dio
+200 en 917ms. Server-Timing `api=60ms` sitúa el 503 en la respuesta del controlador;
+el proceso del contenedor mantuvo su arranque. Registros de KovaApi a las
+17:31:48.412Z contienen el mensaje exacto, obtenido con redacción en memoria:
+`Durable Object reset because its code was updated.` Los cinco registros de la
+misma firma no se cuentan como cinco peticiones independientes. Esto identifica
+un reset de memoria del controlador durante actualización, distinto del arranque
+del proceso nativo. Seguimiento: recuperación de una sola lectura permitida,
+con stub nuevo, cancelación y ventana acotada; las escrituras no se repiten.
+Referencia: https://developers.cloudflare.com/durable-objects/best-practices/error-handling/.
+
+Corrección preparada: un solo reintento con stub nuevo únicamente para siete GET
+permitidos y el reset exacto de actualización; pausa de 50ms dentro de una ventana
+total de 2s desde el primer intento. No acorta una primera lectura normal ni
+repite escrituras, errores genéricos, sobrecarga o respuestas con Set-Cookie.
+El marcador es interno y se elimina antes de responder. Se preservan abortos,
+streaming, cookies y aislamiento. Eventos diagnósticos fijos no incluyen contexto
+privado y sus fallos no afectan la petición. La batería inicial de 50 pruebas
+aprobó, incluida la frontera gateway→DO en workerd; los 39 checks afectados por
+la telemetría final también aprobaron, con dos regresiones rojas antes del cambio.
+Revisión independiente sin bloqueos; corrección publicada en #248 según la aceptación anterior.
+
+#246 se integró y publicó como `7266af61c9f001dbff1e3f7a98d1239535d51fe5`.
+CI/release `39637031484` aprobó todos los controles y aceptó la publicación sin
+rollback. La aceptación posterior comprobó 25 contratos sobre el mismo proceso,
+mediana 224ms y máximo 487ms. Una comprobación independiente verificó sitio,
+frontend, API, DB y proxy con ese SHA exacto, sin cabeceras de bypass. Los cambios
+acumulados de #243–#246 están publicados; sus intentos fallidos descritos abajo
+son antecedentes, no el estado productivo actual. El fallo previo del registro
+no tiene una causa raíz demostrada: el diagnóstico nuevo conserva HTTP/código
+numéricos sin credenciales, y esta publicación superó esa operación.
+
+Computer Use posterior verificó la sesión de propietario en Edge móvil
+393×852/DPR3: la recarga recuperó sesión con una única renovación 200; Caja
+solicitó inicialmente cinco fotografías de 160px (953–1460ms), frente a doce en
+el recorrido anterior. Al desplazarse solicitó otras dos (398/411ms) y volver
+arriba no duplicó las siete. El catálogo público existente mostró las doce fotos
+reales y estados honestos para productos sin imagen. Se comprobaron agrupación
+exclusiva del menú, Pendientes en Operación, búsqueda «crear cotización» y acceso
+«Crear pedido» al formulario, sin guardar registros, efectuar cobros ni envíos.
+
+Limitaciones observadas: una solicitud de salud durante el cambio de imagen del
+backend tardó 14.59s antes de responder 200 con el SHA nuevo; no representa una
+medición estable tras la publicación. Al salir de Caja aparecieron siete
+solicitudes adicionales de los mismos productos a 400px, con 4.56–5.55s. Esto es
+un pendiente de rendimiento reproducido en navegador local al desmontar una
+imagen; no se declara eliminada toda la latencia con la mejora inicial de Caja.
+
+Seguimiento acotado de las descargas al salir de Caja: el navegador local con
+AppShell/Register reales reproduce cinco cargas iniciales a 160px y doce tras
+recorrer la lista; abrir menú y buscar no agrega solicitudes. Navegar a
+Cotizaciones desmonta las fotos y, con `sizes="auto, …"`, dispara otras doce a
+400px. La regresión nueva falla antes en ambos proyectos de navegador (12→24).
+Retirar únicamente `auto` conserva las medias existentes y evita esas descargas
+(12→12); IO, lazy, fuentes, revisión, recorte y venta permanecen iguales. Cuatro
+pruebas de navegador y 46 unitarias, build/TypeScript y ESLint dirigidos aprueban.
+En escritorio 1366×900/DPR1, nueve fotos cuadradas de 147.33px cargan 320px: el
+size declarado de 200px es una estimación conservadora, no una medición exacta.
+Este seguimiento se aceptó en #247, según la verificación productiva anterior.
+
+## Revisión real del dueño y carga de fotografías
+
+Se recorrió el tenant de prueba autorizado mediante Computer Use en Edge, con
+sesión de propietario y vista de teléfono de 393×852 y DPR3. No se efectuaron
+cobros, envíos ni cambios en datos del negocio. Se comprobaron login, Panel,
+navegación, Catálogo, publicación existente, catálogo público, selección de un
+producto sin enviar la consulta, solicitudes vacías, pendientes y Análisis en
+Hoy/30 días. El bloqueo del Mac interrumpió el resto del recorrido; esta muestra
+no equivale a probar Safari real, otros roles ni todos los módulos.
+
+Las 12 fotos observadas de 320px devolvieron 200 en 187–215ms. Después de 362
+segundos, con la caché del navegador desactivada y sin cambiar versiones/URLs,
+nueve descargas observadas tardaron 1.30–2.38s. No se observaron 429/503. Esto
+documenta una demora de fotografías; no demuestra un reinicio del backend ni
+atribuye todo el tiempo a SQL o decodificación. Las cabeceras anteriores no
+separaban esas fases.
+
+Correcciones derivadas de esa evidencia:
+
+- PostgreSQL comprueba SHA-256 del contenido actual y visibilidad antes del HIT
+  de miniatura, evitando transferir el original que ya está representado en el
+  LRU. Se conserva la clave por contenido, MIME y ancho, los filtros de tenant y
+  producto activo, los cuatro slots, un decoder y 4MiB de derivados. El primer
+  MISS real todavía descarga y transforma; no se agrega almacenamiento externo.
+- Las miniaturas del Catálogo declaran sus 44/48px reales, de modo que 160px
+  alcanza para DPR3 en vez del candidato de 320px elegido con el antiguo sizes
+  de 64px. Se distinguen carga/fallo/sin fotografía y el reintento explícito
+  conserva URL y revisión, sin abrir el editor. Categorías se desplaza en una
+  fila en teléfono, conservando filtros y acciones.
+- Análisis conserva tickets en bloques con neto cero/negativo, explica que la
+  tasa de devolución corresponde a importe y evita comparar una sucursal
+  consigo misma. Pocas cancelaciones usan copy neutral; no cambian métricas,
+  denominadores, datos ni umbrales.
+- Diagnóstico numérico de SQL/caché/resize en imágenes públicas; el gateway
+  conserva sólo las métricas autorizadas y añade el tiempo total del hop.
+
+Validación dirigida: 48 pruebas de imágenes con psycopg y otras 48 con pg8000;
+20 de gateway/caché/workerd; 163 de Reports/Branch; 16 de miniaturas/Catálogo;
+cuatro escenarios de navegador móvil, incluidos DPR3, fallo503 simulado local,
+recuperación sin cachebuster y filtro de categoría fuera del primer tramo.
+CI completo y comparación posterior al despliegue son los gates de publicación.
+
+Aceptación posterior de #240 (`a468d868df10cbef67f56c43bb0ca99ed4203fd6`):
+CI y publicación aprobaron, pero cuatro fotografías reales simultáneas de 320px
+todavía tardaron 5.2–8.8s en su primer MISS. Tras 330s sin consultas del
+verificador, el mismo proceso devolvió los mismos archivos en 1.8–2.0s; resize
+fue cero en esa segunda muestra. Los tiempos alrededor de `db.execute` incluyen
+pool/conexión, transporte y ejecución; no son medidas puras del servidor SQL.
+Por ello #240 es una mejora parcial y no acredita resuelta la demora reportada.
+
+Seguimiento implementado, pendiente de aceptación productiva: miniaturas persistidas en la fila original,
+acotadas a cuatro anchos y validadas contra el SHA real antes de servirlas.
+Escritura técnica opcional con sesión propia sujeta a RLS, condición atómica y
+sin cambiar la versión de la foto; el reemplazo elimina las variantes anteriores.
+Las nuevas subidas preparan los cuatro tamaños fuera del event loop y sin
+conexión retenida. Antes de guardar original y variantes en una sola transacción,
+se vuelven a comprobar sesión, pertenencia, permiso y producto. Ese trabajo puede
+añadir segundos a la subida en el servidor limitado; no se presenta como gratis.
+Las fotos antiguas adquieren variantes de forma oportunista al consultarse; su
+primera transformación sigue teniendo coste.
+
+Las lecturas públicas frescas usan AUTOCOMMIT exclusivamente en psycopg nativo
+y en el pool privilegiado existente: se eliminan BEGIN/ROLLBACK sin alterar auth,
+webhooks, transacciones activas ni sesiones con contexto. Una prueba real verifica
+que el aislamiento se restaura y una escritura posterior sin commit se revierte.
+La proyección residente amplía recycle a 1800s, conservando pre-ping y capacidad.
+
+La aceptación de CI ahora exige persistencia antes de reiniciar realmente el
+contenedor y, después, proceso nuevo, mismos bytes y cero resize en las ocho
+peticiones, con el presupuesto original de 3000ms y 256MiB/1⁄16CPU. No se amplía
+el TTL público de 300s ni se conectan cuentas o recursos externos nuevos.
+
+Hallazgo separado: la consola del SDK reportó un DSN de observabilidad inválido.
+No se inspeccionaron valores secretos ni se modificó esa configuración; no se
+considera una explicación demostrada de la demora de las imágenes.
+
+### Capacidad mínima y preparación de fotografías anteriores
+
+#241 se publicó correctamente como `ddecf01a3af98d4b9682a8dca3785180761db7c7`
+con CI/release `39575574802`. Aun así, cuatro fotos antiguas sin variante de 160px
+tardaron 4.46–7.17s; las de 320px, 2.24–6.24s. Tras 330s sin consultas del
+verificador, con el mismo proceso y archivos, resize fue cero en las ocho descargas,
+pero 160px tuvo mediana 1938ms y máximo 1988ms; 320px, 1158ms y 1425ms. Todas fueron
+MISS de caché pública y 200. La persistencia evita recomputar tras reinicios;
+estos datos todavía no acreditan resuelta toda la demora interactiva.
+
+Seguimiento: una instancia `basic` (¼ CPU, 1GiB, 4GB, máximo 1) sustituye a `lite`.
+Es la siguiente capacidad mínima documentada; la evidencia de latencia motiva
+este ajuste, pero no demuestra directamente throttling ni promete 4× rapidez.
+RAM/disco residentes agregan aproximadamente USD 5.22 por 720h; CPU activa es variable,
+las inclusiones se comparten y el plan Workers USD 5 existente se cuenta aparte.
+Referencia: https://developers.cloudflare.com/containers/platform/pricing/.
+CI conserva su aceptación más estricta bajo 256MiB y 1⁄16 CPU. La recuperación
+valida exactamente ambas tuplas y restaura el tamaño capturado junto con la imagen.
+
+Un workflow manual separado prepara hasta 100 fotos públicas activas anteriores
+fuera del servidor productivo. Exige main, intención explícita y CI exitoso del
+mismo SHA. Sólo las lecturas de originales usan propietario en transacción de
+sólo lectura; cada escritura asume kova_app, fija tenant validado y usa el CAS
+existente para actualizar únicamente miniaturas sin cambiar fecha, URL u original.
+No crea cuentas, roles o recursos nuevos. La ejecución productiva y la medición
+posterior se documentan a continuación.
+
+Aceptación de #242, publicado como `90991995026191737a4af965a150158ac724580b`:
+CI y release `39580225817` aprobaron. La configuración productiva confirma basic,
+máximo una instancia, una running e imagen coincidente; la API no informa la cuota
+física de la VM individual. El mantenimiento SQL `39581662335` se detuvo antes de
+procesar fotos porque la identidad de administración no puede asumir `kova_app`.
+No se cambiaron permisos. Se completó la preparación de las 12 fotos del tenant
+de prueba con 48 GET acotados de la API existente, usando su escritor RLS normal;
+SQL de sólo lectura confirmó 12/12 variantes válidas a 160 y 320px. Tras 330s sin
+probes del verificador, cuatro fotos simultáneas por ancho devolvieron 200/MISS,
+mismos bytes y proceso: 160px mediana 774ms/máximo 806ms; 320px 358/410ms;
+400px 330/386ms. No se amplió el TTL de 300s ni se promete ausencia universal de
+reinicios o latencia equivalente en todos los dispositivos.
+
+Reanudación de Computer Use, pendiente de publicar sus correcciones: login,
+actualización del cliente, Caja (filtros, SKU, cantidad y efectivo exacto sin
+cobrar, carrito vaciado), Inventario e historial, Compras existentes, Pedidos y
+formulario sin guardar, búsqueda de secciones, Automatizaciones sin activar reglas
+y catálogo público con fotografías. Una pestaña de la versión anterior falló al
+expirar la sesión: AuthView/AuthLayout 404 y ErrorBoundary; recarga manual recuperó
+login. Se implementa recuperación fatal online acotada a una vez por build/tab,
+sin alterar cookies o ventas offline y conservando protección de Caja/devoluciones.
+Se corrigieron avisos falsos de error/vacío durante la carga de turno, proveedores
+y productos, con reproducciones previas en pruebas.
+
+La muestra móvil posterior de Caja (393×852/DPR3, Edge sin throttling) descargó
+12 fotos simultáneas aunque sólo tres eran visibles: 1.93–2.42s, todas 200.
+Agua mineral: cola 0.63ms, espera servidor 2.13s, descarga 3ms, API 1712ms,
+DB 292ms y resize cero. Es distinta de la prueba HTTP con cuatro fotos; no prueba
+una regresión del decoder. Se limita la admisión de fotografías a las que
+intersectan el viewport, conservando URL, recorte y caché existentes. Quedan por
+verificar CI, publicación y esa interacción móvil tras desplegar el cambio.
+
+Validación integrada local: 75 pruebas focales y compilación SSR/prerender
+aprobadas; cuatro recorridos E2E de 404 real (dev/preview) comprueban recuperación
+acotada y conservación de cookie, almacenamiento ajeno y venta offline con su
+clave idempotente. Un navegador local aislado comprobó tres solicitudes iniciales
+para tres fotos visibles a 393×852/DPR3, admisión al scroll sin duplicación,
+revisión nueva sólo para las visibles y foto cuadrada en escritorio. Revisión
+independiente sin regresiones bloqueantes. No se registraron cobros, compras,
+pedidos o mensajes durante Computer Use.
+
+## Continuidad de sesión y navegación por tareas — pendiente de publicación
+
+#243 pasó CI `39613792409` y se fusionó como
+`7a32729e91db562d223620e86ef4852264b0c6f5`. No apareció una ejecución push de
+ese SHA; se inició una sola ejecución manual `39616192422` tras verificar main.
+Todos sus gates aprobaron, pero la publicación falló en aceptación: readiness
+había observado el frontend nuevo y la verificación final recibió el anterior.
+El recovery terminó correctamente y la comprobación pública confirmó frontend y
+API `909919950261…`, ambos 200 y backend residente. Por tanto #243 fusionado no
+equivale a #243 activo en producción.
+
+La corrección de publicación comparte los headers públicos entre readiness,
+aceptación y recuperación, reservando el bypass al candidato protegido. Sólo
+reintenta un mismatch tipado del frontend anterior capturado: máximo 10 intentos,
+separados por 2s dentro de un único deadline de 20s. Cada intento revalida sitio,
+frontend, API, DB y proxy; backend inválido, HTTP, versión desconocida o metadatos
+malformados siguen fallando inmediatamente. No se modifican DNS, tokens o cuentas.
+
+Computer Use también observó dos refresh en el mismo intervalo de 22.5min:
+200/362ms y 401/420ms, con error `Invalid or expired refresh token`. La prueba
+determinista con AuthProvider, TrialChip y refresh real reprodujo la doble
+rotación y pérdida de sesión aun con una renovación exitosa. Probe e interceptor
+ahora comparten una sola promesa por provider; el resultado tardío no reintenta
+solicitudes de una identidad cerrada/cambiada. Se conservan cookies, TTL,
+revocación y backend. La coordinación simultánea entre pestañas queda fuera de
+esta corrección; no se promete resolver todos los motivos de cierre de sesión.
+
+La instrucción del dueño es completar tareas, no recorrer carpetas. Cambios
+acotados: Pendientes como entrada diaria, Clientes conservado en el grupo
+comercial, un solo grupo de menú abierto y búsqueda por intención (nuevo pedido,
+crear cotización, nuevo cliente). Máximo dos acciones contextuales al final del contenido conectan
+secciones; Crear pedido usa la ruta existente y exige su permiso y función.
+No se muestran en Caja/Panel/Turnos ni en formularios, edición o detalles;
+se preservan permisos, flags, offline, enlaces y todas las capacidades/datos.
+Cotizaciones explica precios del catálogo y opciones adicionales en lenguaje del
+negocio, sin referencias al servidor. La QA real adicional comprobó el modal de
+producto: Tab/ShiftTab permanecen dentro, Escape cierra y restaura el foco.
+
+Validación integrada tras restaurar npm ci desde package-lock: 146 pruebas de
+auth/navegación/cotizaciones aprobadas; contratos de release 123 y una omisión
+prevista de Windows. TypeScript, build SSR/prerender, lint y escaneo de bundle
+aprobaron. Revisión independiente de auth y UX sin bloqueos.
+
+#244 corrigió además una regresión real de espacio móvil detectada por CI: la
+franja contextual desplazaba el primer producto debajo de la navegación inferior.
+Se reprodujo antes en ambos proyectos y se movió después del contenido, sin
+cambiar las aserciones E2E. El build final aprobó 256 escenarios de navegador,
+con 11 omisiones existentes de stack real. CI `39622421630` aprobó completamente
+y se fusionó como `278d0ad6ed4685555b005b88fdbf330a02fa7ad6`.
+
+La ejecución main `39624669749` pasó todos los gates, pero release falló en fase
+`candidate`, antes de promover el frontend. La salud inicial y su identidad nueva
+habían aprobado; una de las 24 consultas GET concurrentes agotó 15s antes de
+recibir estado HTTP. El verificador anterior no registraba qué ruta fue.
+`RELEASE_FAILED_RECOVERED (candidate)` confirma la recuperación: 25 contratos,
+mismo proceso, mediana 146ms y máximo 854ms. La comprobación independiente
+posterior devolvió frontend/API 909919950261… con 200, API residente en 303ms.
+Los cambios de #243/#244 continúan pendientes de publicación.
+
+Los eventos de Containers consultados registran apagado a 15:30:56, startup
+a 15:31:40 y listener listo a 15:32:22 UTC, pero son de alcance cuenta y no se
+retuvo identidad de aplicación: no se atribuyen a Kova ni prueban su reinicio.
+Las tres invocaciones muestreadas sí corresponden a kova-backend y son previas
+a 15:31:11; no demuestran la causa del timeout posterior a readiness.
+Backend y controlador son idénticos entre 90991995 y 278d0ad6, salvo la identidad
+horneada; no hay evidencia para cambiar auth, SDK, RLS o ampliar presupuestos.
+
+El siguiente corte añade diagnóstico exclusivo del verificador: marcador fijo,
+rutas/métodos permitidos y etapas enumeradas en el controlador, con presupuesto
+de eventos acotado por instancia. El cliente informa endpoint permitido, método,
+tiempo y categoría de fallo de transporte sin revelar URL, cuerpo, cookies,
+cabeceras arbitrarias o causa original. Se conservan 15s de timeout, 3000ms de
+aceptación, las mismas consultas, SHA/PID estrictos y cero reintentos. Esta
+instrumentación identifica el atasco del siguiente candidato; no se presenta
+como una corrección causal del runtime ni como publicación exitosa.
+
+#245 pasó CI `39628260705`, se fusionó como
+`63cad8fe28792ce1263d0009650310a2c8850ff6` y su push creó `39629745330`.
+Todos los gates aprobaron; el release falló antes de readiness, tras subir el
+Worker y antes de login/push de la imagen. El CLI beta.18 devolvió únicamente
+`Generic Error`. La fuente acota esa operación a generar la credencial del
+registro gestionado; el mensaje no conserva el estado HTTP ni el código V4.
+También puede representar HTTP200 con success:false. No se atribuye a permisos,
+capacidad o caída del proveedor sin esa información.
+
+La recuperación pasó 25 contratos, mismo proceso, mediana 195ms y máximo 776ms.
+La comprobación independiente de los seis contratos públicos confirmó frontend,
+API, DB y proxy sobre90991995. La única verificación local de generación de
+credencial funcionó con perfil local, que no es el token de CI; se descartó en
+memoria sin login/push. Los eventos de aplicación encontrados son posteriores
+al error y pertenecen a recuperación. No hubo coincidencias del nuevo marcador:
+el verificador no llegó a ejecutarse, no se considera prueba de ausencia de tráfico.
+
+El siguiente cambio conserva en el CLI fijado el estado y código numérico de
+esa operación exacta, procesando sólo la respuesta que ya recibe el cliente.
+Se mantienen autenticación, permisos, validaciones, tiempos, cero reintentos y
+los demás mensajes. La publicación y la QA del código nuevo siguen pendientes.
+
+## Backend residente en Cloudflare — publicado y verificado
+
+FastAPI nativo se publicó inicialmente en un único Container `lite` (ahora `basic`,
+según la aceptación de #242 arriba), con proceso residente tras
+inactividad, conservando dominios, frontend, R2, jobs y namespaces existentes. El
+gateway dirige este modo directamente a `api-0` para evitar coordinadores intermedios
+y su coste. Las credenciales actuales no se extraen ni rotan: un aprovisionamiento
+explícito de CI crea un login que hereda sólo `kova_app`, conserva RLS y sella las
+conexiones. Rate limiting y avisos de jobs usan bindings privados persistentes.
+
+#232 y #233 quedaron fusionados. CI y publicación `39531362675` aprobaron para
+`6bd525e42c22c2b6d8798638ef4de6f3498d47af`, el 20 de octubre a las 20:22 CDMX.
+El aprovisionamiento aislado `39529850894` creó el login limitado y selló las
+conexiones sin modificar las credenciales anteriores. `KOVA_NATIVE_BACKEND=1`
+activa el corte. La captura conserva Workers e imagen para rollback.
+
+Aceptación productiva: API 25 contratos, mediana 311 ms, máximo 828 ms; proxy del
+frontend 24 contratos, mediana 323 ms, máximo 484 ms. Se verificaron SHA inmutable,
+marcador `native-resident`, proceso estable durante cada muestra, PostgreSQL,
+denegación anónima y binding privado del limitador. El listener sólo abre después
+de los guards de producción y del HEAD autenticado de R2 sin escrituras. Una prueba
+separada tras 330 segundos sin consultas del verificador aprobó 25 contratos con
+el mismo proceso: mediana 331 ms y máximo 515 ms. No se fuerza la ausencia de
+tráfico de otros usuarios ni se promete ausencia de reinicios por mantenimiento.
+Referencia operativa:
+`deploy/cloudflare-native/README.md`.
+
+Validación local: suite completa psycopg 1,938 aprobada y pg8000 1,937 aprobada,
+sin fallos/errores/omitidas. La imagen Linux amd64 del commit publicado aprobó
+en CI con 256 MiB y 1/16 CPU: 24 contratos GET, mediana 197 ms, máximo 298 ms y
+pico de 134,922,240 bytes. Esta medición no sustituye los tiempos productivos.
+### Revisión funcional, fotos de Caja y navegación
+
+Tres agentes implementaron correcciones concretas de funcionalidad/integraciones,
+UX/accesibilidad y rendimiento. Las escrituras de QA se limitan al stack local
+aislado con RLS y correo/cobros desactivados.
+
+- Fotos: el `no-store` general anulaba la caché pública del endpoint de producto.
+  La excepción se limita a GET versionado de imagen UUID, ancho permitido,
+  respuesta raster 200 explícitamente pública, sin cookies ni variación privada.
+  Frontend y gateway usan Cache API durante un máximo de 300 segundos sin extender
+  la frescura entre capas. Errores y toda API privada conservan `no-store`.
+  Las claves y subrequests públicos omiten credenciales; la IP real se conserva
+  separada para rate limiting. Los originales permanecen en PostgreSQL.
+- Miniaturas: JPEG draft antes de decodificar, orientación EXIF correcta,
+  reducción eficiente y caché derivada limitada a 4 MiB. La admisión ocurre antes
+  de cargar blobs y sólo se permite un decodificador simultáneo; se mantiene la
+  ruta original cuando la imagen excede el presupuesto de píxeles. Versiones de
+  carga con microsegundos evitan colisiones de caché al reemplazar una foto.
+  PNG se limita antes de consultar EXIF y WebP antes de crear su canvas; los
+  códecs comunes se preparan antes de abrir el servicio.
+  WebP animada conserva el archivo original sin abrir el decodificador de
+  animación, para evitar sus buffers adicionales dentro del proceso `lite`.
+  Caja solicita el tamaño real de la tarjeta y conserva candidatos para DPR2.
+- Navegación: 5–6 accesos diarios y tres grupos plegables: Productos e inventario,
+  Ventas y atención, Gestión y ajustes. Conserva destinos, permisos y flags reales;
+  no se inventan preferencias por giro ni se agregan consultas para el menú.
+  Etiquetas completas, apertura de sección activa, teclado y foco móvil verificados.
+- Sesión: foco/visibilidad/reconexión comparten la comprobación vigente. Requests
+  nativos conservan identidad, sucursal, cuerpos, abortos y un único reintento 401;
+  nunca se adjuntan esos metadatos a otro origen.
+- Formularios: login/registro no comparten contraseñas ni errores; las respuestas
+  abandonadas no navegan a otra pantalla. Estados pendientes y contraste accesible
+  corregidos, preservando el foco en el primer error y la navegación tras login.
+- Jobs: una sucursal fallida revierte su transacción sin bloquear las otras;
+  ambos workloads privados se intentan y el scheduler conserva el reintento.
+
+Validación local: 1,961 pruebas completas de backend aprobadas antes del último
+guard de admisión de imágenes (61 pruebas dirigidas posteriores aprobadas),
+1,147 pruebas frontend, TypeScript, ESLint, build/prerender y 101 contratos de
+release aprobados (un caso exclusivo de Windows omitido en macOS). También 47
+pruebas edge, incluido Cache API real en workerd, y 11 del verificador de fotos.
+Playwright real verificó el recorrido comercial completo, fotos de Caja y
+navegación/contraste a 320/390/768/1440 px. CI exige además las fotos JPEG EXIF y
+PNG RGBA de 8 MP dentro del contenedor amd64 con límites `lite` y 3,000 ms por GET.
+El run de publicación y la aceptación productiva son la fuente del corte final.
+
+## Arranque por módulo solicitado #231, publicado; latencia todavía abierta
+
+#231 publicó `ed2e5a6d7c0ac164d895b5c347de5de47d44bcab` con CI y aceptación
+productiva aprobados (39367734205). API/proxy/DB y SHA exacto verificados. Las
+primeras peticiones observadas dieron mediana 3,794 ms y máximo 8,303 ms, frente
+a mediana 108 ms al repetir. No se forzaron procesos fríos: no prueba ausencia
+de arranque ni elimina la necesidad del backend residente solicitado.
+
+#230 publicó `1d0bfc7cab06` con CI completo verde y aceptación productiva
+(39364788528, 03:45:14 UTC del 20 de octubre). Sitio/proxy/API/DB y SHA exacto
+verificados; 64/64 contratos GET aprobaron. La latencia sigue abierta: primeras
+peticiones directas, mediana 6,516.5 ms y máximo 11,244 ms, tres de 16 sobre diez
+segundos; repeticiones mediana 212 ms. Desbloquear la compilación no bastó.
+
+El corte #231 conserva las validaciones completas y carga los routers originales
+por prefijo, bajo la admisión del coordinador. El snapshot conserva librerías; toda
+la metadata ORM se inicializa antes de escribir y los validadores de rutas ajenas
+se difieren. El backend nativo conserva aplicación/OpenAPI completos. Se verifican
+cobertura de prefijos, mismo contrato y definiciones originales de permisos, orden de
+guards y denegación anónima. CI y publicación aprobados; el arranque frío sigue
+siendo un límite de esta arquitectura.
+
+## Publicación #227 aceptada; latencia de primera petición aún abierta
+
+`7002418f63389e5220f2136cd4a1489d3201d9e0` quedó aceptado en producción a las
+20:16:37 CDMX del 19 de octubre (39356494758, segundo intento). CI completo verde;
+sitio/proxy/API/DB verificados con SHA exacto. La corrección conserva strict y compara
+rutas idénticas sin depender del orden. El primer intento recibió 504 al cargar Python
+y recuperó la versión anterior; el segundo completó publicación y aceptación.
+
+QA pública: 32/32 contratos GET y 52 comprobaciones de navegador a 1440/768/390/320 px,
+sin errores JavaScript ni overflow. Sin operaciones de negocio autenticadas en producción.
+La latencia sigue abierta: primera cola directa 5,872/229/10,598/199 ms por grupo;
+mediana de repeticiones 197.5 ms. Algunas primeras peticiones ya estaban calientes;
+no se declara mejora causal ni eliminada la espera de diez segundos.
+
+### Historial previo a la aceptación
+
+Producción conserva `2df276612e66` (#221), verificada tras las recuperaciones. #222 y #224
+pasaron CI y se fusionaron; `69109d30d2ed` incluye además los controles de coste #223, preservados.
+Su CI completo aprobó, pero el gateway abortó por una propiedad `environment: undefined` que el
+comparador cf beta.18 añadía sólo al lado remoto. Ambos descriptores apuntan a la misma clase y
+script; el diff visible era `[{}]`. Se corrige sólo la ausencia equivalente de ese campo,
+con strict activo y rechazo de diferencias reales. El conflicto de CPU anterior ya fue resuelto
+conservando el techo remoto de 100 ms, sin modificar suscripciones.
+
+El siguiente corte conserva las dos validaciones de seguridad sobre el catálogo vivo y elimina
+dos ciclos adicionales de protocolo para la lista estática de tablas, escapada por SQLAlchemy.
+BEGIN, rol y guards permanecen intactos. Suites completas 1,848 por controlador, cero fallos,
+errores u omitidas; Workers 9+4+1 y pausa de presupuesto 4/4 aprobados. Se retira una clave CPU
+duplicada por la fusión concurrente sin cambiar su valor.
+
+La última cohorte aceptada sigue mostrando 6.27 s de mediana y 14.50 s máximo en primera cola
+directa, frente a 208 ms al repetir. CI/publicación y medición conjunta siguen pendientes;
+no se declara eliminada la espera. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+
+#226 está fusionada en `059ceb097cd7` con CI requerido verde. Tras dos fallos de carga
+500/10013, el tercer intento publicó los tres Workers backend; el frontend abortó por
+el orden de descriptores idénticos de rutas en cf beta.18. Se restauraron las versiones
+anteriores y la verificación independiente de sitio/proxy/API/DB aprobó. Workers Paid ya
+estaba observado antes de los fallos: no se atribuyen sólo al plan anterior. La corrección
+de comparación mantiene strict y los bloqueos de diferencias reales; aceptación pendiente.
+
+## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
+
+`service_case_overdue` incorpora revisiones internas opt-in/defaultoff para vencimientos manuales
+posteriores a la autorización, sin retroactividad automática. Reusa motor, worker/cohort/leases,
+RLS y billing; `0091` amplía dos CHECK sin tablas nuevas. Identidad por caso/fecha evita duplicados,
+la fuente obsoleta se suprime al procesar y FOR SHARE protege la validación hasta commit.
+
+Enlaces de la cola abren el registro exacto de sus cuatro fuentes; tres GET privados nuevos
+conservan scope/DTOs y no escriben. Reprogramar refresca también el recordatorio enlazado y retira
+sus acciones si deja de estar disponible. PDF/Resend cargan dependencias cuando se utilizan;
+Sentry WASM conserva integraciones web explícitas y transporte/sanitización.
+
+Perfil local: 2,171 → 1,213 ms de importación (~44% menos). La comprobación productiva sigue investigando los
+aproximadamente 10 s del acceso frío. PR #219 fue aceptada a las 18:00:50 UTC con SHA
+`1f12c4baf8a9` y migración 0091. La medición pública dio 32/32 contratos correctos, pero mediana
+de primeras peticiones directas 8.45 s frente a 0.35 s en repeticiones; no está resuelto. Se prepara
+instrumentación por fases sin cambiar validaciones. PR #220 fue aceptada (SHA `50c6749725b6`)
+a las 18:32:33 UTC: suite completa 1,808 aprobada, contratos públicos 32/32 y verificador estricto
+aprobados, pero primeras directas siguen con mediana 8.26 s frente a 0.22 s al repetir.
+Los tiempos de fases tienen el límite de reloj por I/O de Workers; no acreditan CPU nulo ni
+permiten atribuir todo el intervalo a consultas. Sigue una optimización de snapshot puro y viajes
+de catálogo RLS, todavía sin aceptación productiva. Validación de la entrega funcional #219:
+backend completo final 1,800; automatizaciones 25 por controlador y dos
+migraciones; GET 18 por controlador; frontend completo 1,124, focal 79, browser 16 y real uno;
+build/121 JS, Workers 9+4+1 y 27 migraciones completas aprobados. Suite backend final sin errores/fallos/omitidas (146 s).
+[Entrega, archivos y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+
+## Cola operativa interna (2026-10-19, publicada)
+
+La consulta privada `/api/v1/operations/queue` reúne casos activos, oportunidades con próxima acción,
+seguimientos pendientes y recordatorios vigentes disponibles de agenda. Dueño/gerente consultan
+su sucursal con billing y RLS; cuatro SELECT acotados devuelven hasta 20 filas por sección y
+`has_more`, sin total inferido. No agrega escrituras, migraciones, procesamiento ni canales.
+
+Validación focal: ocho pruebas con psycopg y ocho con pg8000; ocho pruebas de runtime workerd
+incluyen lectura antes/después de resolver un caso. Frontend: 1,102 pruebas completas, 15 focales,
+cuatro recorridos responsivos con axe A/AA y un recorrido real de las cuatro fuentes con
+API/Postgres/RLS. TypeScript, ESLint, build SSR/prerender, escaneo de 119 JS y revisión independiente
+aprobados. [PR #217](https://github.com/ArturoFrancoMozqueda/kova/pull/217) integrada y publicada
+en `734f67fa274f8b44c3883c87ba41c52ba85ecd4b`: el pipeline
+[39290153257](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39290153257) registró
+`accepted: true` a las 17:09:23 UTC y aplicó `0089 → 0090`. CI final: 1,766 pruebas backend y
+1,102 frontend aprobadas. El verificador público confirmó el SHA exacto en sitio/API/proxy y DB
+accesible; doce comprobaciones públicas Chromium a 1440/390 px aprobaron, sin errores JavaScript
+ni overflow y con APIs privadas 401/no-store. El primer acceso privado observado tardó 10 s;
+las siguientes vistas 0.4–1 s, y la API de cola tuvo respuestas de unos 10 s. No se acredita una
+sesión autenticada de negocio en producción ni el horizonte E2E completo.
+[Contrato](plans/PLAN-COLA-OPERATIVA-INTERNA.md) y
+[evidencia local](audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md).
+
+## Atención postventa interna (2026-10-19, publicada)
+
+La continuación autorizada sin conectar cuentas incorpora `/service-cases`: casos por cliente y
+sucursal, venta/pedido con identidad verificable, responsables activos, notas append-only con autor,
+estados/versiones y vencimiento manual calculado con el reloj del servidor. Dueño/gerente conservan
+el historial al resolver o reabrir. Los casos no modifican ventas, devoluciones, caja ni inventario;
+las incidencias sencillas de `/crm/followups` permanecen disponibles sin migración automática.
+
+Fuente local final: 1,746 pruebas backend, 25 de migraciones y ocho de workerd aprobadas; frontend
+1,087 unitarias, QA Chromium responsiva y recorrido real navegador/API/Postgres con RLS. El artefacto
+compila y pasa el escaneo del bundle. Publicada con la cola en `734f67fa` y migración `0090`,
+con la aceptación pública y límites descritos en la entrada anterior. Las operaciones de negocio
+autenticadas se probaron en entornos locales reales; esta entrada no acredita ese flujo en producción.
+[Entrega y límites](audits/KOVA-SERVICE-CASES-2026-10-19.md). La continuación de lectura está
+registrada en la entrada de cola operativa anterior.
+
+## Permanent Fly retirement (2026-10-19)
+
+El propietario pidió dejar de usar y generar consumo en Fly. Se eliminó
+`pos-project-backend` con sus cinco máquinas detenidas; no tenía volúmenes ni datos
+del negocio montados. La organización quedó sin aplicaciones, Managed Postgres,
+Redis, Tigris ni Sprites, y no tiene paquete de soporte activo. Se revocaron las dos
+credenciales de despliegue/ingesta y se eliminó el secreto de GitHub. Los tres
+workflows exclusivos de Fly se desactivaron y su código se conserva como texto
+histórico en [el archivo de retirada](archive/fly-retired-2026-10-19/README.md).
+
+Publicación y recuperación requieren Cloudflare y rechazan artefactos antiguos sin
+versiones de sus tres Workers. El dispatcher de documentos y conector operativo
+retirados no realizan peticiones aunque reciban configuración antigua. Se conservan
+los contratos de datos, auth, facturación, RLS y recuperación del proveedor actual.
+Los cargos acumulados anteriores a la retirada siguen sujetos a la factura final;
+el inventario vacío no cancela consumo ya realizado. La evidencia privada de
+inventario y facturación queda fuera del repositorio.
+
+Validación local: 77 contratos de publicación/recuperación (una prueba exclusiva
+de Windows omitida), 39 escenarios de backend, 41 contratos de scripts y 14
+comprobaciones completas en Workers. La aceptación remota se registra en la PR
+y el run de CI/publicación del commit de esta retirada.
+
+## Continuación operativa E2E (2026-10-19)
+
+El propietario autorizó continuar con agentes y verificar el despliegue en producción.
+Agenda interna por recurso/sucursal y lealtad opt-in del propietario incorporan UI, API,
+migraciones, RLS, permisos mínimos y exportación/purga. Recordatorios y beneficios permanecen
+internos/manuales; ningún canal externo se activa.
+[Alcance, validación y límites](audits/KOVA-E2E-OPERATIONS-2026-10-19.md).
+
+## Active E2E implementation (2026-10-18)
+
+El propietario autorizó el merge y continuación sin conectar cuentas. Primera entrega integrada en
+[PR #207](https://github.com/ArturoFrancoMozqueda/kova/pull/207) con CI completo aprobado.
+La continuación conecta captación, oportunidad, cotización, pedido, venta con cliente explícito y
+postventa interna; incorpora bandeja/outbox y borradores desde tareas sin activar canales.
+[Alcance y evidencia de continuación](audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+
+El propietario solicitó implementar el plan con equipos de agentes. Se autoriza implementación
+local incremental de automatizaciones, CRM/consentimientos y captación mediante catálogo público,
+preservando los contratos financieros y operativos actuales. Diseño y fases:
+[plan E2E](plans/PLAN-AUTOMATIZACION-E2E.md). Las reglas comienzan desactivadas; los canales externos
+sin proveedor verificado deben mostrarse desconectados. Ninguna tarea interna representa un envío,
+cobro, entrega ni emisión fiscal. La petición no activa proveedores ni publica en producción.
+
+Código local: motor de tareas internas, CRM y consentimientos, cotizaciones a pedido, catálogo
+público/QR, reposición aprobada, conciliación CSV manual y preparación de WhatsApp. Cinco
+migraciones aditivas, permisos runtime/RLS y exportación/purga acompañan los módulos. La conexión
+de canales y los efectos externos permanecen desactivados. El propietario confirmó sólo app de
+WhatsApp Business, Meta y dominio; no hay aceptación Cloud API.
+
+[Alcance exacto, evidencia y gates de release](audits/KOVA-E2E-IMPLEMENTATION-2026-10-18.md).
+La validación local no habilita producción ni cierra la totalidad del horizonte E2E.
+
+## Cloudflare Free backend migration (2026-10-18, accepted)
+
+El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.
+La API FastAPI existente se sirve en coordinadores Durable Objects y un gateway
+HTTP pequeño, con Postgres en Supabase, Hyperdrive sin caché y un Worker de tareas
+sin conexión privilegiada. Frontend y API públicos ya están en Cloudflare;
+`KOVA_CLOUDFLARE_BACKEND=1` selecciona el nuevo proveedor de publicación/recuperación.
+El primer corte se revirtió al detectar errores intermitentes de sesión/Postgres;
+se canceló `39183665551`, se recuperó Fly y se corrigió el ciclo de respuesta ASGI
+antes de repetir la aceptación pública.
+Las capturas de DNS, versiones exactas y máquinas se conservan fuera del repositorio.
+
+Validación local: 1,516 pruebas completas con pg8000; registro/verificación/login,
+cookies seguras, CSRF, aislamiento de tenants, venta offline repetida sin duplicar,
+refresh/logout y límites compartidos en workerd. Cuarenta casos CSD, Fernet/AES-GCM,
+QR y envío Sentry con datos sensibles eliminados verificados en el runtime.
+El PDF contable se renderizó idéntico al actual. Las nuevas opciones de lote del
+asistente aprobaron otras 91 pruebas enfocadas con el controlador de Workers.
+CI añade la suite completa del nuevo controlador y las pruebas del runtime.
+
+PR #201 y #202 integradas: publicación/recuperación de los tres Workers, R2 nativo,
+distribución de lecturas del panel y compresión del edge. El propietario y Browser
+validaron login, panel, recarga con renovación de sesión y logout en el candidato.
+Se corrigió además HTTPS de Stripe/conectores: una prueba desplegada sin credenciales
+reales confirmó el transporte Fetch; 72 pruebas enfocadas y nueve comprobaciones de
+Workers aprobaron. No se crearon cobros ni cambios de suscripciones durante la validación.
+
+PR #203 integrada: la corrección retiene la admisión por coordinador hasta terminar ASGI,
+conserva JSON de un solo bloque como respuesta completa y descargas como streams.
+El gateway rechaza rutas ajenas a la API antes de iniciar Python. Once pruebas
+nativas enfocadas y doce comprobaciones de Workers aprobaron, incluyendo tres
+ráfagas de seis sesiones entre dos negocios. CI completo de la corrección aprobado en
+[`39185158650`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39185158650).
+
+Browser verificó login nuevo, renovación de una sesión vencida, panel/sucursales,
+recargas, logout e informes reales de treinta días en el candidato. En el dominio
+principal confirmó login, actualización PWA, recarga completa, logout y redirección
+de una ruta privada después de salir. Aprobaron 52 lecturas de base en el candidato
+(incluidos todos los coordinadores tras inactividad), 36 públicas y el contrato
+frontend/API/proxy/Postgres con DNS normal. No se hicieron ventas ni cobros de prueba.
+
+El arranque de algunos coordinadores todavía puede tardar entre 7 y 13 segundos;
+las comprobaciones calientes de base de datos respondieron normalmente en menos de un segundo.
+El candidato permanece en `backend-preview.kovasuite.com` / `api-preview.kovasuite.com`.
+La primera publicación automática del nuevo proveedor se detuvo antes de mutaciones en
+[`39186012958`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39186012958),
+porque comprobaba el alias de respaldo Vercel contra la versión nueva de la API.
+La configuración `VERCEL_URL`, usada como origen público por el preflight,
+el artefacto de recuperación y los recordatorios, se corrigió a `https://kovasuite.com`.
+El segundo intento publicó la API, pero falló durante aceptación y su recuperación
+quedó bloqueada porque `GIT_SHA` / `KOVA_RELEASE_SHA` se habían rotado como secretos.
+Se activó manualmente la versión de frontend validada para recuperar coherencia
+con la API en `1e3e659`; el contrato público completo aprobó de nuevo.
+
+La corrección del publicador usa `KOVA_BUILD_SHA` como binding de texto versionado,
+conserva los secretos existentes y sus protecciones de reversión, y espera brevemente
+solo si el frontend muestra la versión anterior capturada. Los errores HTTP y versiones
+inesperadas siguen bloqueando. Las fallas de aceptación y recuperación conservan ambas
+causas para diagnóstico. Validación local: 17 pruebas nativas enfocadas, 49 contratos
+de publicación aprobados (una comprobación exclusiva de Windows omitida) y 12 pruebas
+de Workers. La prueba remota aislada revirtió exactamente una versión con identidad de texto
+sin omitir controles de secretos; el Worker temporal fue eliminado.
+
+Aceptación final: PR #204 integrada y publicación automática aprobada en
+[`39188579781`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39188579781),
+fuente `62aafb648cf70abf36336f89706a44cd4fbb25d9`. Una caída de Chromium por SIGSEGV
+al crear un contexto requirió repetir únicamente el trabajo de navegador y sus dependencias;
+las pruebas y criterios de aceptación se conservaron. El contrato público exacto de
+frontend/API/proxy/Postgres aprobó también desde DNS normal tras la publicación.
+
+Fly: las cinco máquinas de `pos-project-backend` quedaron detenidas y las dos máquinas
+de API tienen `autostart=false`. No se destruyeron máquinas ni direcciones; las capturas
+de imágenes/configuración, DNS y versiones de Cloudflare permanecen disponibles para
+recuperación fuera del repositorio. El contrato público volvió a aprobar después del apagado,
+y Browser conservó la sesión y el panel completo al actualizar los archivos definitivos.
+Con Fly detenido se verificaron también logout y redirección al acceso de una ruta privada.
+[Arquitectura, pruebas y límites](../deploy/cloudflare-backend/README.md).
+
+## Cloudflare Free frontend cutover (2026-10-17)
+
+El frontend de `kovasuite.com` ya se sirve mediante Cloudflare Workers Static Assets y un
+Worker para conservar el proxy `/api` hacia FastAPI en Fly. `www` redirige al dominio principal
+y HTTP a HTTPS. Se activó el proxy únicamente para los registros web de apex/www; los destinos
+originales de Vercel permanecen disponibles para revertir DNS. Workers sigue en Free; R2
+conserva su suscripción y franquicia de uso existentes. Fly, Supabase, Stripe, Resend y Sentry
+conservan sus funciones. Vercel sigue siendo candidato validado/respaldo del pipeline.
+
+PRs #198/#199 integradas. Publicación inicial aceptada en
+[`39066334257`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39066334257), fuente
+`089af764b8398944ddb16d84c8387463987c295f`. Captura y reversión incluyen la versión exacta
+del Worker, además del artefacto Vercel y la imagen Fly. La corrección de arranque del capturador
+dispone de regresión por subproceso. El simulacro desechable debe preparar también ese módulo.
+
+Aceptación: el propietario confirmó login, recarga del panel y logout en el candidato real de
+Cloudflare. En el dominio principal se verificaron respuesta del edge Cloudflare, versión,
+proxy/API/Postgres, 401 sin sesión, API/version sin caché, recursos versionados con caché
+inmutable, archivos faltantes 404 sin caché y redirecciones con parámetros preservados.
+Chromium cargó landing/login/privacidad e instaló el service worker sin excepciones JavaScript
+ni solicitudes a Vercel Analytics; Web Analytics de Cloudflare se inyecta correctamente.
+La aceptación inicial del edge se forzó con resolución de host porque algunos resolvedores
+conservaban el destino anterior durante la propagación DNS.
+
+Pruebas locales: build, ESLint, escaneo del bundle, contratos de publicación/recuperación,
+nueve pruebas de proxy, 16 unitarias enfocadas, 15 de navegador auth/rutas/PWA/offline y 68 de
+contratos de repositorio. CI completo y publicación aprobaron. No se hicieron ventas ni cobros
+reales en esta migración. FastAPI/bcrypt/parser Docker siguen sin validar en Workers Free;
+Fly no debe retirarse como parte de este corte. [Operación](../deploy/cloudflare/README.md).
+
+## Completed production validation (2026-10-10): operaciones reales en Sweet Home
+
+El propietario autorizó escrituras reales de prueba en su tenant y tres agentes.
+Se ejecutaron siete ventas por UI (efectivo, transferencia, tarjeta manual, dividido,
+offline, descuento/impuesto y checkout con lotes), siete devoluciones y dos anulaciones.
+Los reintentos idempotentes no duplicaron ventas, devoluciones ni recepciones.
+El neto final de estas ventas es 0.00; POS vuelve a 30 unidades, lotes a seis sin
+reservas. Se conservan los movimientos y registros `QA-20261010`.
+Se cerró el turno antiguo y se probaron cortes cuadrado, sobrante y faltante con
+importes declarados de prueba; no se certifica conteo físico de efectivo.
+
+Correcciones en `codex/sweet-home-production-validation`: búsqueda fija en tres
+triggers de lotes, tabla de devoluciones accesible por teclado, encabezados de panel,
+catálogo e inventario, etiquetas de compras/traspasos/pagos y claridad sobre cobros
+brutos y eventos de devolución. La revisión de sesiones añade invalidación de
+respuestas pendientes tras logout, desmontaje o cambio de identidad; las regresiones
+demuestran que no reabren una sesión ni reemplazan el caché del negocio vigente.
+Vitest y el parser CSS se actualizan para eliminar los críticos de desarrollo,
+conservando las dependencias runtime; CI añade un gate de críticos para el árbol completo.
+WebKit también conserva el foco del producto y del botón de menú tras cerrar
+sus paneles; nuevas regresiones prueban activación sin foco automático del puntero.
+Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
+compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
+La restauración real R2 en runner aislado aprobó también para el snapshot actualizado
+0079/1,025 órdenes en [38075155881](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075155881):
+checksum, PostgreSQL 17, RLS, pagos/lotes, grants y limpieza verificados.
+[Evidencia y límites](audits/KOVA-R2-REAL-RESTORE-2026-10-10.md). PR #187 ya pasó CI y publicación;
+frontend/API/proxy/base de datos verificados con fuente `e915e3760e0ff479cdb1d2dbef76449fc8964b43`.
+PR #189 publicó las correcciones de contraste, h2 de Análisis, landmark de
+sucursal, fechas de la gráfica y explicación de neto cero. Su release
+[38075095270](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075095270)
+aprobó CI y comprobación pública de frontend/API/proxy/base de datos con fuente
+`6d8fa1467edb5afdecc7277b13e61520232544e6`. La aceptación autenticada de #190 completó las vistas iniciales de 19 rutas en
+Chromium/WebKit con cero violaciones WCAG/heading/region, desbordamiento o
+excepciones. La respuesta completa del asistente se comprueba por separado. El motor
+aprobado se preservó byte por byte y la pregunta libre completó en modo grounded
+con netas 0.00, brutas/devoluciones 72.88 y conteos 5/7/2, sin propuestas.
+La ampliación corrigió h2 locales en Turnos/configuración, singular de un bloque
+y contraste de textos pequeños. PR #191, integrado como
+`826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`, añade los conteos de devolución y
+cancelación a la tarjeta completa y h2 en respuestas; CI: 1,483 backend,
+993 frontend, 214 navegador compilado y seis con stack real, todos aprobados.
+El release final [38079066759](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38079066759)
+aprobó a las 19:31:21 UTC; frontend/API/proxy/base de datos verificados en
+`826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`. La misma respuesta completa mostró
+sus seis métricas correctas tras recarga e historial en 1440/390, sin fallos de
+accesibilidad/desbordamiento/JavaScript detectados y sin nueva inferencia.
+Companion vacío/foco probado live; respuesta compacta poblada cubierta por test.
+Sesiones propias cerradas; pestaña original abierta en el panel.
+La última lectura detectó «Te quedan 1 de Alfajores». PR #193 corrige sólo el
+singular del helper y añade tres pruebas 1/2/0, todas correctas; lint/TypeScript
+aprobados. CI final: 996 frontend, 1,483 backend, 214 navegador compilado y
+seis con stack real. Release [38081235586](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38081235586)
+aprobado a las 20:04:33 UTC; frontend/API/proxy/base de datos verificados con
+`8f2f2ba9eabc050e54dc43aa4c22e6a85b601e2d`. Aceptación posterior 1440/390:
+singular correcto con stock uno/reservas cero; Dashboard y respuesta guardada
+sin fallos detectados de WCAG/heading/region, overflow o JavaScript. Seis cifras
+intactas y uso 3,126→3,126, sin nueva inferencia ni escrituras de negocio.
+La pestaña original aplicó «Actualizar ahora» con caja libre y conservó sesión
+y respuesta; volvió al panel. Contextos propios cerrados con logout/me 401.
+[Informe único de aceptación y límites](audits/KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md). Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+[negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
+[acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
+
+El usuario confirmó que no tiene cuenta Facturapi ni requisitos fiscales del emisor
+configurados para Sweet Home.
+La facturación Live queda sin emisión; Kova requiere una cuenta/llave de plataforma,
+y cada emisor debe aportar sus requisitos fiscales. Cargos externos, dispositivos
+físicos, Safari/iOS y recuperación regional siguen sin evidencia completa; no se
+declara disponibilidad productiva al 100%.
+
+## Published implementation (2026-10-09): Cajón de dinero
 
 El propietario pidió apertura de cajón desde cualquier equipo. Implementación local de un
 conector por sucursal, compatible con impresoras ESC/POS de red; Kova puede solicitar aperturas
@@ -10,7 +894,8 @@ desde navegador de computadora, Android o iPad. Contrato, limitaciones, segurida
 [`specs/shifts/cash_drawer.md`](../specs/shifts/cash_drawer.md).
 
 Verificación local: 73 pruebas de backend/RLS, 45 de frontend y 12 de navegador; build, lint,
-TypeScript y contrato OpenAPI pasan. Publicación y pruebas físicas pendientes; no se certifica hardware
+TypeScript y contrato OpenAPI pasan. La capacidad está publicada y la descarga real del conector verificada;
+las pruebas físicas siguen pendientes. No se certifica hardware
 USB/Bluetooth ni apertura remota offline. No modifica cobros, cortes ni sesiones por cookies.
 
 ## Source Of Truth

@@ -91,7 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [state, setState] = useState<AuthState>({ status: "loading" });
   const stateRef = useRef<AuthState>(state);
+  const mounted = useRef(true);
   const refreshEpoch = useRef(0);
+  const refreshPromise = useRef<Promise<boolean> | null>(null);
   const initialProbeStarted = useRef(false);
   const identityChangePending = useRef(false);
   const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
@@ -106,9 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  useEffect(() => () => {
-    setReportsCacheIdentity(null);
-    setBillingCacheIdentity(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      refreshEpoch.current += 1;
+      initialProbeStarted.current = false;
+      setReportsCacheIdentity(null);
+      setBillingCacheIdentity(null);
+    };
   }, []);
 
   useEffect(() => {
@@ -120,18 +128,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [authenticatedTenantId]);
 
+  // Session probes and API retries must share the same single-use cookie
+  // rotation. Separate flights can log out a tab whose other request won.
+  const refreshSessionOnce = useCallback(() => {
+    if (!refreshPromise.current) {
+      const pending = refreshSession().finally(() => {
+        if (refreshPromise.current === pending) refreshPromise.current = null;
+      });
+      refreshPromise.current = pending;
+    }
+    return refreshPromise.current;
+  }, []);
+
   const refreshInternal = useCallback(async (
     allowOfflineFallback: boolean,
     preserveCurrentOnUnavailable = false,
   ): Promise<AuthState> => {
     const epoch = ++refreshEpoch.current;
+    const isCurrent = () => mounted.current && refreshEpoch.current === epoch;
     const commit = (next: AuthState) => {
-      if (refreshEpoch.current === epoch) {
+      if (isCurrent()) {
         identityChangePending.current = false;
         applyState(next);
       }
-      return next;
+      return stateRef.current;
     };
+    if (!isCurrent()) return stateRef.current;
     if (hasLogoutPending()) {
       let serverSessionCleared = false;
       try {
@@ -141,26 +163,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Keep local access closed. The marker retries revocation after the
         // next successful login/network opportunity.
       }
+      if (!isCurrent()) return stateRef.current;
       try {
         await clearLocalIdentityData();
       } catch {
         // The durable logout marker remains set. Do not read the cached
         // identity again until its stores can be erased successfully.
+        if (!isCurrent()) return stateRef.current;
         clearErrorReportingIdentity();
         return commit({ status: "unavailable", reason: "offline_logout_storage" });
       }
+      if (!isCurrent()) return stateRef.current;
       if (serverSessionCleared) clearLogoutPending();
       clearErrorReportingIdentity();
       return commit({ status: "unauthenticated" });
     }
     const unavailable = async (error: unknown): Promise<AuthState> => {
+      if (!isCurrent()) return stateRef.current;
       if (preserveCurrentOnUnavailable && stateRef.current.status === "authenticated") {
         return stateRef.current;
       }
       const networkUnavailable = !(error instanceof ApiError);
       if (allowOfflineFallback && networkUnavailable) {
         const { readPreparedOfflineAccess } = await import("@/offline/offlineAccess");
+        if (!isCurrent()) return stateRef.current;
         const cached = await readPreparedOfflineAccess().catch(() => ({ status: "missing" as const }));
+        if (!isCurrent()) return stateRef.current;
         if (cached.status === "ready") {
           const next: AuthState = {
             status: "authenticated",
@@ -193,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return unavailable(error);
     }
+    if (!isCurrent()) return stateRef.current;
     // The access_token JWT has a short TTL (15 min). If it has expired
     // mid-session, /auth/session returns { authenticated: false } but the
     // refresh_token cookie is still valid. Try a single refresh before
@@ -201,23 +230,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session && !session.authenticated) {
       let refreshed: boolean;
       try {
-        refreshed = await refreshSession();
+        refreshed = await refreshSessionOnce();
       } catch (error) {
         return unavailable(error);
       }
+      if (!isCurrent()) return stateRef.current;
       if (refreshed) {
         try {
           session = await getSession();
         } catch (error) {
           return unavailable(error);
         }
+        if (!isCurrent()) return stateRef.current;
       }
     }
 
     if (!session.authenticated) {
       await import("@/offline/offlineAccess")
-        .then(({ clearOfflineAccess }) => clearOfflineAccess())
+        .then(({ clearOfflineAccess }) => isCurrent() ? clearOfflineAccess() : undefined)
         .catch(() => undefined);
+      if (!isCurrent()) return stateRef.current;
       clearErrorReportingIdentity();
       const next: AuthState = { status: "unauthenticated" };
       return commit(next);
@@ -240,42 +272,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
     }
     await import("@/offline/offlineAccess")
-      .then(({ cacheVerifiedOfflineAccess }) => cacheVerifiedOfflineAccess({
+      .then(({ cacheVerifiedOfflineAccess }) => isCurrent() ? cacheVerifiedOfflineAccess({
         tenant_id: session.tenant_id,
         tenant_name: session.tenant_name,
         user: session.user,
         feature_flags: session.feature_flags,
-      }))
+      }) : undefined)
       .catch(() => undefined);
+    if (!isCurrent()) return stateRef.current;
     commit(next);
 
     // Branding should not delay the authenticated shell. Load it after the
     // session is ready and only apply it if this is still the active tenant.
     void getReceiptSettings()
       .then((settings) => {
-        setState((current) => {
-          const branded =
-            current.status === "authenticated" && current.tenantId === session.tenant_id
-              ? { ...current, tenantLogoUrl: settings.logo_url }
-              : current;
-          stateRef.current = branded;
-          return branded;
-        });
+        const current = stateRef.current;
+        if (!isCurrent() || current.status !== "authenticated"
+          || current.tenantId !== session.tenant_id || current.user.id !== session.user.id
+          || current.user.role !== session.user.role) return;
+        const branded = { ...current, tenantLogoUrl: settings.logo_url };
+        stateRef.current = branded;
+        setState(branded);
       })
       .catch(() => undefined);
     return next;
-  }, [applyState]);
+  }, [applyState, refreshSessionOnce]);
 
   const refresh = useCallback(() => refreshInternal(true), [refreshInternal]);
 
   const setTenantLogoUrl = useCallback((logoUrl: string | null) => {
-    setState((current) => {
-      const next = current.status === "authenticated"
-        ? { ...current, tenantLogoUrl: logoUrl }
-        : current;
-      stateRef.current = next;
-      return next;
-    });
+    const current = stateRef.current;
+    if (!mounted.current || current.status !== "authenticated") return;
+    const next = { ...current, tenantLogoUrl: logoUrl };
+    stateRef.current = next;
+    setState(next);
   }, []);
 
   useEffect(() => {
@@ -306,12 +336,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }), [applyState, refreshInternal]);
 
   useEffect(() => {
+    let pending: { epoch: number; request: Promise<AuthState> } | null = null;
     const revalidate = () => {
       if (stateRef.current.status !== "authenticated") return;
+      // Browsers commonly emit focus, visibilitychange and online together.
+      // Share that verification while it is current; explicit refresh/logout
+      // or a cross-tab identity change still supersedes it through the epoch.
+      if (pending?.epoch === refreshEpoch.current) return;
       // Keep the current form mounted while the probe is pending. Every
       // mutation still carries its expected identity, so the server blocks a
       // stale tab even during this small focus/reconnect window.
-      void refreshInternal(false, true);
+      const request = refreshInternal(false, true);
+      const verification = { epoch: refreshEpoch.current, request };
+      pending = verification;
+      const completed = () => {
+        if (pending === verification) pending = null;
+      };
+      void request.then(completed, completed);
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") revalidate();
@@ -331,19 +372,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Skipped for auth endpoints themselves to avoid recursive loops.
   useEffect(() => {
     const originalFetch = window.fetch.bind(window);
-    let refreshPromise: Promise<boolean> | null = null;
 
-    const shouldSkip = (url: string): boolean =>
-      url.includes("/api/v1/auth/login") ||
-      url.includes("/api/v1/auth/refresh") ||
-      url.includes("/api/v1/auth/logout") ||
-      url.includes("/api/v1/auth/session") ||
-      url.includes("/api/v1/auth/signup");
+    const authPaths = new Set([
+      "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
+      "/api/v1/auth/session", "/api/v1/auth/signup",
+    ]);
 
     window.fetch = async (input, init) => {
-      const url = typeof input === "string" ? input : (input as URL | Request).toString();
+      const rawUrl = input instanceof Request ? input.url : input.toString();
+      const url = new URL(rawUrl, document.baseURI);
+      const isApiRequest = url.origin === window.location.origin && url.pathname.startsWith("/api/");
+      const skipAuth = authPaths.has(url.pathname.replace(/\/+$/, ""));
+      // An explicit stream override cannot be reused after fetch consumes it.
+      // Preserve its unauthorized response for the caller instead of replaying
+      // an exhausted stream. Normal JSON/Request bodies remain replayable.
+      const oneShotBody = typeof ReadableStream !== "undefined" && init?.body instanceof ReadableStream;
+      const canRetry = isApiRequest && !skipAuth && !oneShotBody;
       const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-      const unsafeApiRequest = url.includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(method) && !shouldSkip(url);
+      const unsafeApiRequest = isApiRequest && ["POST", "PUT", "PATCH", "DELETE"].includes(method) && !skipAuth;
       let requestInit = init;
       if (unsafeApiRequest) {
         if (identityChangePending.current) {
@@ -365,7 +411,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const activeIdentity = stateRef.current;
-      if (url.includes("/api/v1/") && !url.includes("/auth/") && activeIdentity.status === "authenticated") {
+      if (isApiRequest && url.pathname.startsWith("/api/v1/") && !url.pathname.startsWith("/api/v1/auth/") && activeIdentity.status === "authenticated") {
         const headers = new Headers(input instanceof Request ? input.headers : undefined);
         new Headers(requestInit?.headers).forEach((value, key) => headers.set(key, value));
         if (!headers.has("X-Kova-Branch")) {
@@ -373,9 +419,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         requestInit = { ...requestInit, headers };
       }
+      // fetch consumes a Request's body. Retain a fresh stream for the single
+      // unauthorized retry instead of submitting an already consumed Request.
+      // clone() keeps the original abort signal's propagation semantics.
+      const retryInput = canRetry && input instanceof Request ? input.clone() : input;
       const response = await originalFetch(input, requestInit);
       captureApiRequestId(input, response);
-      if (response.headers.get("X-Kova-Identity-Mismatch") === "true") {
+      if (isApiRequest && response.headers.get("X-Kova-Identity-Mismatch") === "true") {
         identityChangePending.current = true;
         refreshEpoch.current += 1;
         applyState({ status: "loading" });
@@ -385,18 +435,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new TypeError("La sesión cambió. Kova está verificando el negocio activo.");
       }
       if (response.status !== 401) return response;
-      if (!url.includes("/api/") || shouldSkip(url)) return response;
+      if (!canRetry) return response;
 
-      // De-dupe concurrent refresh attempts.
-      if (!refreshPromise) {
-        refreshPromise = refreshSession().finally(() => {
-          refreshPromise = null;
-        });
-      }
-      const ok = await refreshPromise;
+      const ok = await refreshSessionOnce();
       if (!ok) return response;
+      const currentIdentity = stateRef.current;
+      // A rotation that finishes after logout or an identity change must not
+      // replay the previous identity's request.
+      if (!mounted.current || identityChangePending.current || hasLogoutPending()
+        || (activeIdentity.status === "authenticated" && (
+          currentIdentity.status !== "authenticated"
+          || currentIdentity.tenantId !== activeIdentity.tenantId
+          || currentIdentity.user.id !== activeIdentity.user.id
+          || currentIdentity.user.role !== activeIdentity.user.role
+        ))) return response;
       // Retry the original request once with refreshed cookies.
-      const retriedResponse = await originalFetch(input, requestInit);
+      const retriedResponse = await originalFetch(retryInput, requestInit);
       captureApiRequestId(input, retriedResponse);
       return retriedResponse;
     };
@@ -404,9 +458,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.fetch = originalFetch;
     };
-  }, [applyState, refreshInternal]);
+  }, [applyState, refreshInternal, refreshSessionOnce]);
 
   const logout = useCallback(async () => {
+    refreshEpoch.current += 1;
     identityChangePending.current = true;
     markLogoutPending();
     try {

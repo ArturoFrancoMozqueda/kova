@@ -69,7 +69,8 @@ es recibo de pago ni comprobante fiscal.
 - Las cuatro tablas son tenant-scoped con RLS habilitado y forzado, políticas `USING` y
   `WITH CHECK`, más defensa de tenant en repositorios y servicios.
 - Los permisos son `customer_orders.view/create/update/cancel/checkout`.
-- El módulo requiere acceso comercial y el feature flag `customer_orders`, apagado por defecto.
+- El módulo requiere acceso comercial y el feature flag `customer_orders`. El valor vigente
+  predeterminado en `app/tenants/feature_flags.py` es `true`; un override `false` por negocio lo bloquea.
 - La auditoría registra acciones e identificadores operativos, no teléfono, dirección ni notas.
 
 ## Offline

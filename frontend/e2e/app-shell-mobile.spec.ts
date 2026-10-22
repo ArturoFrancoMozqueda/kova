@@ -48,10 +48,18 @@ test("mobile drawer manages focus, traps Tab and restores the trigger on Escape"
   await expect(trigger).toBeFocused();
 });
 
-test("drawer can navigate and desktop resize makes the sidebar operable", async ({ page }) => {
+test("drawer can navigate and desktop resize makes the sidebar operable", async ({ page }, testInfo) => {
   await openShell(page);
   await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
-  await page.getByRole("dialog").getByRole("link", { name: "Catálogo", exact: true }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer.getByRole("heading", { name: "Productos e inventario", exact: true })).toBeVisible();
+  await expect(drawer.getByRole("link", { name: "Catálogo", exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("mobile-navigation-expanded-top.png"), animations: "disabled" });
+  await drawer.getByRole("navigation").getByRole("link").last().scrollIntoViewIfNeeded();
+  await expect(drawer.getByRole("navigation").getByRole("link").last()).toBeInViewport();
+  await expect(drawer.getByRole("button", { name: "Cerrar sesión", exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("mobile-navigation-expanded-end.png"), animations: "disabled" });
+  await drawer.getByRole("link", { name: "Catálogo", exact: true }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.setViewportSize({ width: 1280, height: 800 });

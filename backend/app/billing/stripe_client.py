@@ -1,9 +1,13 @@
 import json
+import sys
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+
+if sys.platform == "emscripten":
+    from app.workers.http import urlopen
 
 
 class StripeCheckoutError(Exception):

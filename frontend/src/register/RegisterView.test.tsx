@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -140,6 +140,22 @@ describe("RegisterView cash-without-shift guard", () => {
     fireEvent.click(addButton);
   }
 
+  it("keeps photographed products sellable while choosing lazy sources from their actual card size", async () => {
+    const imageUrl = "/api/v1/catalog/products/10000000-0000-4000-8000-000000000001/image?v=123";
+    catalogApi.listProducts.mockResolvedValue([{ ...product, image_url: imageUrl }]);
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    const card = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
+    const image = await within(card).findByAltText("");
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveAttribute("sizes", "(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px");
+    expect(image).toHaveAttribute("width", "400");
+    expect(image).toHaveAttribute("height", "400");
+    expect(image.getAttribute("srcset")).toContain(`${imageUrl}&w=160 160w`);
+    fireEvent.click(card);
+    expect(await screen.findByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+  });
+
   it("opens the drawer only after the current cash sale is acknowledged by the server", async () => {
     getOpenShift.mockResolvedValue(openShift);
     queueOfflineSale.mockResolvedValue({ client_uuid: "drawer-sale" });
@@ -254,6 +270,45 @@ describe("RegisterView cash-without-shift guard", () => {
     expect((await screen.findAllByText(copy.register.cashShiftUnknown)).length).toBeGreaterThan(0);
     expect(cashRadio).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps cash blocked without a failure warning while the initial shift lookup is pending", async () => {
+    let resolveShift!: (shift: Shift | null) => void;
+    getOpenShift.mockReturnValue(new Promise<Shift | null>((resolve) => { resolveShift = resolve; }));
+    renderRegister();
+
+    await addProductToCart();
+    expect(screen.getByRole("status")).toHaveTextContent(copy.register.cashShiftLoading);
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: copy.register.openShift })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toHaveAttribute("aria-disabled", "true");
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+
+    await act(async () => { resolveShift(openShift); });
+    expect(screen.queryByText(copy.register.cashShiftLoading)).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: cashLabel })).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toHaveAttribute("aria-disabled", "false");
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+  });
+
+  it("shows the real shift failure only after the initial lookup rejects and keeps cash blocked", async () => {
+    let rejectShift!: (error: Error) => void;
+    getOpenShift.mockReturnValue(new Promise<Shift | null>((_resolve, reject) => { rejectShift = reject; }));
+    renderRegister();
+
+    await addProductToCart();
+    expect(screen.queryByText(copy.register.cashShiftUnknown)).not.toBeInTheDocument();
+
+    await act(async () => { rejectShift(new Error("offline")); });
+    expect(screen.queryByText(copy.register.cashShiftLoading)).not.toBeInTheDocument();
+    expect(screen.getAllByText(copy.register.cashShiftUnknown).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: copy.register.openShift }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
+    expect(queueOfflineSale).not.toHaveBeenCalled();
   });
 
   it("shows neutral cash guidance before interaction and keeps the financial guard", async () => {
@@ -629,6 +684,19 @@ describe("RegisterView cash-without-shift guard", () => {
     await waitFor(() => expect(dialog).toHaveFocus());
     fireEvent.keyDown(document, { key: "Escape" });
 
+    expect(screen.queryByRole("dialog", { name: copy.register.cartSheetTitle })).not.toBeInTheDocument();
+    expect(addButton).toHaveFocus();
+  });
+
+  it("returns focus to a product activated without native pointer focus", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    const addButton = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
+    expect(addButton).not.toHaveFocus();
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole("dialog", { name: copy.register.cartSheetTitle });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: copy.register.cartSheetTitle })).not.toBeInTheDocument();
     expect(addButton).toHaveFocus();
   });

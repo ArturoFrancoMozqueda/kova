@@ -18,6 +18,28 @@ the owner confirms neither is currently contracted. The remaining roadmap capabi
 
 ## Deferred From Closed Beta
 
+Actualización de dirección 2026-10-18: el propietario solicitó analizar Colega Studio y encaminar
+Kova hacia automatización de negocio de punta a punta. El
+[plan E2E](plans/PLAN-AUTOMATIZACION-E2E.md) abre discovery por fases para comunicación/CRM,
+captación, operación y postventa, con extensiones por giro. Esta dirección amplía el horizonte del
+copiloto; no mueve automáticamente agendas, lealtad, marketing masivo, API pública ni otras
+capacidades diferidas al sprint. Para implementarlas siguen aplicando los criterios de entrada
+al final de este documento y sus gates técnicos/comerciales.
+
+Actualización de ejecución autorizada: captación revisable, bandeja/borradores y postventa interna
+se implementaron en la continuación del circuito general. Su alcance, pruebas y canales aún sin
+conectar se registran en el [informe de continuación](audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+Las extensiones por giro de este documento conservan sus contratos y aceptación propios.
+
+Actualización 2026-10-19: la autorización explícita del propietario incorporó agenda interna por
+recurso, puntos de lealtad internos y atención postventa con casos/notas/responsables. Esos cortes
+acotados ya tienen contratos y validación local; las antiguas listas de deferrals no los bloquean.
+El alcance especializado de citas/lealtad, promociones, campañas, compensaciones automáticas y
+operación completa por giro sigue diferido. [Atención implementada y gates del release](
+audits/KOVA-SERVICE-CASES-2026-10-19.md). La [cola de pendientes internos](
+plans/PLAN-COLA-OPERATIVA-INTERNA.md) tiene backend y UI implementados y validados localmente; su
+publicación queda pendiente. Este corte no amplía los dominios especializados.
+
 The closed beta should focus on a reliable bakery / small food retail POS.
 
 Do not implement these for beta:

@@ -37,7 +37,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
             errors.append(f"workflow sin permisos explícitos mínimos: {path.name}")
         for line_number, line in enumerate(content.splitlines(), start=1):
             if ("uses:" in line and not PINNED_ACTION.fullmatch(line)
-                    and not re.fullmatch(r"\s*uses: \./\.github/workflows/ci-maintenance\.yml", line)):
+                    and not re.fullmatch(r"\s*uses: \./\.github/workflows/(?:ci-maintenance|native-backend)\.yml", line)):
                 errors.append(
                     f"action sin SHA inmutable: {path.name}:{line_number}"
                 )
@@ -86,40 +86,17 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
     if "test:e2e-preview:built" not in ci:
         errors.append("CI debe probar el build de producción existente")
 
-    drill_path = workflows / "release-recovery-drill.yml"
-    if not drill_path.is_file():
-        errors.append("contrato KOV-030 faltante: release-recovery-drill.yml")
-    else:
-        drill = drill_path.read_text(encoding="utf-8")
-        drill_markers = (
-            "workflow_dispatch:",
-            "contents: read",
-            "secrets.KOV030_FLY_API_TOKEN",
-            "RUN_KOV030_STAGING_DRILL",
-            "kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}",
-            "PRODUCTION_FLY_APP: pos-project-backend",
-            "PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}",
-            'test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"',
-            'echo "VERCEL_PROJECT_ID=$project_id" >>"$GITHUB_ENV"',
-            "deploy --prod --skip-domain --yes",
-            "release-recovery.mjs --phase candidate",
-            "release-recovery.mjs --phase promotion",
-            "release-recovery.mjs --phase acceptance",
-            "if: ${{ always() }}",
-            'flyctl apps destroy "$STAGING_NAME" --yes',
-            "--request DELETE",
-            "Verify disposable resources are gone",
-        )
-        for marker in drill_markers:
-            if marker not in drill:
-                errors.append(f"contrato KOV-030 faltante: {marker}")
-        for forbidden_trigger in ("push:", "pull_request:", "schedule:"):
-            if re.search(rf"(?m)^  {forbidden_trigger}$", drill):
-                errors.append(
-                    f"KOV-030 no puede ejecutarse automáticamente: {forbidden_trigger}"
-                )
-        if "kovasuite.com" in drill:
-            errors.append("KOV-030 no puede referenciar dominios de producción")
+    # The former remote drill provisioned the retired provider. Its source is
+    # historical documentation, never an active workflow. Current publication
+    # keeps exact Cloudflare captures and all phase/readiness recovery checks.
+    for path in workflows.glob("*.yml"):
+        if re.search(r"flyctl|FLY_API_TOKEN|api\.machines\.dev|registry\.fly\.io",
+                     path.read_text(encoding="utf-8"), re.IGNORECASE):
+            errors.append(f"proveedor Fly retirado no puede ejecutarse: {path.name}")
+    for marker in ('test "$KOVA_CLOUDFLARE_BACKEND" = "1"',
+                   "frontend/scripts/capture-cloudflare.mjs", "test:release-contract"):
+        if marker not in ci:
+            errors.append(f"contrato Cloudflare recuperable faltante: {marker}")
 
     fiscal = (workflows / "fiscal-global-drafts.yml").read_text(encoding="utf-8")
     fiscal_markers = (
@@ -131,7 +108,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         "-X POST",
         "X-Internal-Key: $INTERNAL_API_KEY",
         "--data '{\"tenant_limit\":100,\"periods_per_tenant\":31}'",
-        "https://pos-project-backend.fly.dev/api/v1/fiscal/internal/global-drafts/auto-close",
+        "https://api.kovasuite.com/api/v1/fiscal/internal/global-drafts/auto-close",
         'if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then',
         "'tenants_examined'",
         "'batches_created'",

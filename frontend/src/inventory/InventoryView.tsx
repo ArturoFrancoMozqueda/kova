@@ -8,7 +8,7 @@ import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { InventoryReasonCode, InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -270,10 +270,10 @@ export default function InventoryView() {
       {(attentionStock.length > 0 || attentionVelocity.some(isActionableInventoryVelocity)) && (
         <Card className="border-warning/30 bg-warning/5 mb-6">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
+            <h2 className="flex items-center gap-2 text-sm font-semibold leading-none tracking-tight">
               <AlertTriangle className="h-4 w-4 text-warning-strong" />
               {copy.inventoryView.attentionTitle}
-            </CardTitle>
+            </h2>
             <p className="text-sm text-muted-foreground">{copy.inventoryView.attentionBody}</p>
           </CardHeader>
           <CardContent>
@@ -358,6 +358,7 @@ export default function InventoryView() {
         />
       ) : (
         <>
+          <h2 className="sr-only">{copy.inventoryView.stockSectionTitle}</h2>
           <div className="mb-5 grid gap-3 rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card md:grid-cols-[minmax(0,1fr)_180px_220px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -415,7 +416,7 @@ export default function InventoryView() {
               </CardContent>
             </Card>
           ) : (
-            <div className="overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card">
+            <div role="region" aria-label={copy.inventoryView.stockSectionTitle} className="overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card">
               <div className="hidden grid-cols-[minmax(240px,2fr)_120px_120px_minmax(280px,1fr)] items-center gap-4 bg-kova-blue/[0.075] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid">
                 <span>Producto</span>
                 <span className="text-right">Stock</span>
@@ -452,6 +453,9 @@ function movementTypeLabel(type: string): string {
     stock_take: copy.inventoryView.movementTypeStockTake,
     refund: copy.inventoryView.movementTypeRefund,
     void: copy.inventoryView.movementTypeVoid,
+    purchase: copy.inventoryView.movementTypePurchase,
+    transfer_in: copy.inventoryView.movementTypeTransferIn,
+    transfer_out: copy.inventoryView.movementTypeTransferOut,
   };
   return map[type] ?? copy.inventoryView.movementTypeUnknown;
 }

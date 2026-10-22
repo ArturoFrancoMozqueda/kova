@@ -14,13 +14,17 @@ Callers must not persist, log or add these arguments to exception diagnostics.
 """
 
 import re
+import sys
 from datetime import UTC, datetime
 
-from cryptography import x509
-from cryptography.exceptions import UnsupportedAlgorithm
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
+if sys.platform == "emscripten":
+    from app.workers.x509 import NameOID, UnsupportedAlgorithm, rsa, serialization, x509
+else:
+    from cryptography import x509
+    from cryptography.exceptions import UnsupportedAlgorithm
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
 
 MAX_CERTIFICATE_BYTES = 64 * 1024
 MAX_PRIVATE_KEY_BYTES = 64 * 1024

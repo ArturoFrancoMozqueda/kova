@@ -17,6 +17,11 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 
 - A user with `reports.view_all` can request a sales summary for a date range.
 - Summary includes gross sales, refund total, net sales, order count, refund count, and void count.
+- Refund count counts refund events, including multiple partial refunds on the
+  same order; it does not count distinct refunded orders. Dashboard health shows
+  refund events per 100 completed orders, which can exceed 100, rather than
+  claiming a percentage of orders affected. The underlying report fields and
+  health score calculation remain unchanged.
 - Voided orders are excluded from gross and net sales.
 - Refund totals reduce net sales.
 - If no dates are provided, the endpoint defaults to the current UTC day.

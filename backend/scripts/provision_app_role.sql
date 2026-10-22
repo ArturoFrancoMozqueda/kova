@@ -120,6 +120,33 @@ DECLARE
 BEGIN
     FOR table_name, privilege_list IN
         SELECT * FROM (VALUES
+            ('automation_rules', 'SELECT, INSERT'),
+            ('automation_runs', 'SELECT, INSERT'),
+            ('business_events', 'SELECT, INSERT'),
+            ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
+            ('crm_catalog_requests', 'SELECT, INSERT'),
+            ('service_cases', 'SELECT, INSERT'),
+            ('service_case_events', 'SELECT, INSERT'),
+            ('appointment_resources', 'SELECT, INSERT'),
+            ('appointments', 'SELECT, INSERT'),
+            ('appointment_history', 'SELECT, INSERT'),
+            ('appointment_reminders', 'SELECT, INSERT'),
+            ('loyalty_policy_revisions', 'SELECT, INSERT'),
+            ('loyalty_entries', 'SELECT, INSERT'),
+            ('crm_followup_policies', 'SELECT, INSERT'),
+            ('crm_followup_tasks', 'SELECT, INSERT'),
+            ('messaging_channel_bindings', 'SELECT'),
+            ('messaging_conversations', 'SELECT, INSERT'),
+            ('messaging_messages', 'SELECT, INSERT'),
+            ('messaging_channel_events', 'SELECT, INSERT'),
+            ('customer_quotes', 'SELECT, INSERT'),
+            ('customer_quote_items', 'SELECT, INSERT'),
+            ('customer_contact_consents', 'SELECT, INSERT, UPDATE'),
+            ('public_catalogs', 'SELECT, INSERT, UPDATE'),
+            ('public_catalog_items', 'SELECT, INSERT, DELETE'),
+            ('reconciliation_import_batches', 'SELECT, INSERT'),
+            ('settlement_entries', 'SELECT, INSERT'),
+            ('reconciliation_matches', 'SELECT, INSERT'),
             ('account_deletion_requests', 'SELECT, INSERT, UPDATE'),
             ('categories', 'SELECT, INSERT, UPDATE'),
             ('branches', 'SELECT, INSERT'),
@@ -192,6 +219,53 @@ $$;
 -- Business profile updates mirror public_name onto the owning tenant. Keep the
 -- grant column-scoped so runtime cannot alter slug, lifecycle or feature flags.
 GRANT UPDATE (name, updated_at) ON TABLE tenants TO kova_app;
+
+DO $$ BEGIN
+    IF to_regclass('public.automation_rules') IS NOT NULL THEN
+        GRANT UPDATE (enabled, version, authorized_by_user_id, enabled_since, updated_at)
+            ON automation_rules TO kova_app;
+        GRANT UPDATE (status, version, resolved_at) ON automation_runs TO kova_app;
+        GRANT UPDATE (processed_at) ON business_events TO kova_app;
+    END IF;
+    IF to_regclass('public.reconciliation_matches') IS NOT NULL THEN
+        GRANT UPDATE (matched_amount, status, version, reasons, confirmed_by_user_id,
+                      reversal_reason, updated_at) ON reconciliation_matches TO kova_app;
+    END IF;
+    IF to_regclass('public.customer_quotes') IS NOT NULL THEN
+        GRANT UPDATE (status, shared_at, accepted_at, customer_order_id,
+                      updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app;
+    END IF;
+    IF to_regclass('public.crm_catalog_requests') IS NOT NULL THEN
+        GRANT UPDATE(status, customer_id, opportunity_id, version, resolved_at)
+            ON crm_catalog_requests TO kova_app;
+        GRANT UPDATE(enabled, review_delay_days, rebuy_delay_days, version,
+                     authorized_by_user_id, enabled_since, updated_at)
+            ON crm_followup_policies TO kova_app;
+        GRANT UPDATE(status, note, due_at, assigned_user_id, version, resolved_at)
+            ON crm_followup_tasks TO kova_app;
+    END IF;
+    IF to_regclass('public.service_cases') IS NOT NULL THEN
+        GRANT UPDATE(status, assigned_user_id, due_at, version, updated_at, resolved_at)
+            ON service_cases TO kova_app;
+    END IF;
+    IF to_regclass('public.appointment_resources') IS NOT NULL THEN
+        GRANT UPDATE(name, is_active, version, updated_at) ON appointment_resources TO kova_app;
+    END IF;
+    IF to_regclass('public.appointments') IS NOT NULL THEN
+        GRANT UPDATE(starts_at, ends_at, note, status, version, updated_at) ON appointments TO kova_app;
+    END IF;
+    IF to_regclass('public.appointment_reminders') IS NOT NULL THEN
+        GRANT UPDATE(status, version, resolved_at) ON appointment_reminders TO kova_app;
+    END IF;
+    IF to_regclass('public.messaging_conversations') IS NOT NULL THEN
+        GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id,
+                     last_inbound_at, version, updated_at)
+            ON messaging_conversations TO kova_app;
+        GRANT UPDATE(state, binding_id, provider_message_id, contact_fingerprint,
+                     version, error_code, updated_at)
+            ON messaging_messages TO kova_app;
+    END IF;
+END $$;
 
 -- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE. Limiting it
 -- to immutable id columns permits row locks while triggers reject mutation.

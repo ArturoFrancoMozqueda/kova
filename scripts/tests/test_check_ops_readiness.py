@@ -30,7 +30,7 @@ class WorkflowContractTests(unittest.TestCase):
         scheduler_curl = (
             'curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" '
             "--data '{\"tenant_limit\":100,\"periods_per_tenant\":31}' "
-            "https://pos-project-backend.fly.dev/api/v1/fiscal/internal/"
+            "https://api.kovasuite.com/api/v1/fiscal/internal/"
             "global-drafts/auto-close"
         )
         required = (
@@ -65,39 +65,7 @@ class WorkflowContractTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        target.joinpath("release-recovery-drill.yml").write_text(
-            textwrap.dedent(
-                """\
-                on:
-                  workflow_dispatch:
-                permissions:
-                  contents: read
-                env:
-                  FLY_API_TOKEN: ${{ secrets.KOV030_FLY_API_TOKEN }}
-                  STAGING_NAME: kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}
-                  PRODUCTION_FLY_APP: pos-project-backend
-                  PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-                jobs:
-                  drill:
-                    steps:
-                      - run: |
-                          confirm RUN_KOV030_STAGING_DRILL
-                          test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"
-                          echo "VERCEL_PROJECT_ID=$project_id" >>"$GITHUB_ENV"
-                          deploy --prod --skip-domain --yes
-                          node release-recovery.mjs --phase candidate
-                          node release-recovery.mjs --phase promotion
-                          node release-recovery.mjs --phase acceptance
-                      - if: ${{ always() }}
-                        run: |
-                          flyctl apps destroy "$STAGING_NAME" --yes
-                          curl --request DELETE
-                      - name: Verify disposable resources are gone
-                        run: verify
-                """
-            ),
-            encoding="utf-8",
-        )
+
         return target
 
     def test_accepts_pinned_actions_and_scheduler_contract(self) -> None:
@@ -193,25 +161,15 @@ class WorkflowContractTests(unittest.TestCase):
                 errors = OPS.workflow_contract_errors(workflows)
                 self.assertTrue(any("if: always() && !cancelled()" in error for error in errors))
 
-    def test_rejects_provider_drill_without_cleanup_or_with_automatic_trigger(self) -> None:
+    def test_rejects_retired_provider_workflows_and_missing_cloudflare_guard(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             workflows = self._workflows(directory)
-            drill = workflows.joinpath("release-recovery-drill.yml")
-            drill.write_text(
-                drill.read_text(encoding="utf-8")
-                .replace("  workflow_dispatch:", "  schedule:")
-                .replace('flyctl apps destroy "$STAGING_NAME" --yes', "cleanup removed"),
-                encoding="utf-8",
-            )
+            workflows.joinpath("legacy.yml").write_text("run: flyctl apps create obsolete")
+            ci = workflows / "ci.yml"
+            ci.write_text(ci.read_text().replace('test "$KOVA_CLOUDFLARE_BACKEND" = "1"', ""))
             errors = OPS.workflow_contract_errors(workflows)
-        self.assertIn(
-            "KOV-030 no puede ejecutarse automáticamente: schedule:",
-            errors,
-        )
-        self.assertIn(
-            'contrato KOV-030 faltante: flyctl apps destroy "$STAGING_NAME" --yes',
-            errors,
-        )
+        self.assertIn("proveedor Fly retirado no puede ejecutarse: legacy.yml", errors)
+        self.assertIn('contrato Cloudflare recuperable faltante: test "$KOVA_CLOUDFLARE_BACKEND" = "1"', errors)
 
 
 class RestorePreflightTests(unittest.TestCase):

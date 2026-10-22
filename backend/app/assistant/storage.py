@@ -1,10 +1,9 @@
 """Private R2 objects. Keys and destinations are never supplied by the model."""
 
 import re
+import sys
 from uuid import UUID
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException
 
@@ -23,6 +22,14 @@ def ready() -> bool:
 def client():
     if not ready():
         raise HTTPException(503, "El almacenamiento privado aún no está configurado.")
+    if sys.platform == "emscripten":
+        from app.workers.storage import R2Client
+
+        return R2Client()
+
+    import boto3
+    from botocore.config import Config
+
     return boto3.client(
         "s3",
         endpoint_url=f"https://{settings.assistant_cloudflare_account_id}.r2.cloudflarestorage.com",

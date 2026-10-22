@@ -44,4 +44,44 @@ describe("RefundsAndCancellations", () => {
     expect(screen.getByText(/\$600/)).toBeInTheDocument();
     expect(screen.getByText(/\$300/)).toBeInTheDocument();
   });
+
+  it("lets keyboard users focus the scrollable refund breakdown", () => {
+    const story = makeStory({
+      summary: { ...makeStory().summary, refund_count: 8, refund_total: "900", gross_sales: "10000" },
+      refunds_by_reason: [{ reason: "damaged_item", refund_count: 8, refunded_amount: "900" }],
+    });
+    render(<RefundsAndCancellations story={story} />);
+    const region = screen.getByRole("region", { name: /devoluciones o cancelaciones/i });
+    region.focus();
+    expect(region).toHaveFocus();
+    expect(region).toContainElement(screen.getByRole("table"));
+  });
+});
+
+it("makes the monetary denominator explicit and avoids calling two cancellations normal", () => {
+  const base = makeStory();
+  render(<RefundsAndCancellations story={makeStory({ summary: { ...base.summary,
+    gross_sales: "238.88", refund_total: "72.88", net_sales: "166.00", completed_orders: 7,
+    refund_count: 7, cancellation_count: 2,
+  } })} />);
+  expect(screen.getByText("% del importe devuelto")).toBeVisible();
+  expect(screen.getByText("31%")).toBeVisible();
+  expect(screen.getByText("$72.88 devueltos de $238.88 en ventas brutas")).toBeVisible();
+  expect(screen.getByText("Muestra pequeña; revisa cada cancelación.")).toBeVisible();
+  expect(screen.queryByText("Nivel normal.")).not.toBeInTheDocument();
+});
+
+it("keeps the small cancellation sample neutral in collapsed and expanded detail", () => {
+  const base = makeStory();
+  render(<RefundsAndCancellations story={makeStory({ summary: { ...base.summary,
+    gross_sales: "500.00", refund_total: "0.00", net_sales: "500.00", completed_orders: 7,
+    refund_count: 0, cancellation_count: 2,
+  } })} />);
+  expect(screen.getByText("0 devoluciones por $0.00 y 2 cancelaciones. Muestra pequeña; revisa cada cancelación.")).toBeVisible();
+  expect(screen.queryByText(/nivel normal/i)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /ver detalle/i }));
+  expect(screen.getByText("Muestra pequeña; revisa cada cancelación.")).toBeVisible();
+  expect(screen.getByText("0%")).toBeVisible();
+  expect(screen.getByText("Sin devoluciones registradas.")).toBeVisible();
+  expect(screen.queryByText(/Una devolución aislada/)).not.toBeInTheDocument();
 });

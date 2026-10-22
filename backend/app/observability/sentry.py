@@ -1,3 +1,5 @@
+import sys
+
 import sentry_sdk
 
 from app.config import settings
@@ -59,6 +61,24 @@ def sanitize_sentry_event(event: dict, _hint: dict | None = None) -> dict:
 def init_sentry() -> None:
     if not settings.sentry_dsn:
         return
+    transport = {}
+    if sys.platform == "emscripten":
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.httpx import HttpxIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+
+        from app.workers.sentry import WorkersTransport
+
+        transport["transport"] = WorkersTransport
+        # Optional SDK autodetection imports native transports (including the
+        # unused S3 client) on every cold coordinator. Keep core defaults and
+        # the web/database integrations actually used by the Workers API.
+        transport["auto_enabling_integrations"] = False
+        transport["integrations"] = [
+            FastApiIntegration(), StarletteIntegration(),
+            SqlalchemyIntegration(), HttpxIntegration(),
+        ]
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.app_env,
@@ -71,4 +91,5 @@ def init_sentry() -> None:
         # request payloads whose keys are not predictable enough to redact.
         include_local_variables=False,
         before_send=sanitize_sentry_event,
+        **transport,
     )

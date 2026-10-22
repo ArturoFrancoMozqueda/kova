@@ -33,6 +33,11 @@ describe("provider-aware assistant quota", () => {
 });
 
 describe("readable and safe assistant answers", () => {
+  it.each([1, 2, 3, 4, 5, 6])("keeps model-authored heading level %i below the assistant page title", level => {
+    render(<><h1>Asistente</h1><AnswerContent content={`${"#".repeat(level)} Resultado`} /></>);
+    expect(screen.getByRole("heading", { name: "Resultado", level: 2 })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
   it("renders emphasis, sections, lists and tables as semantic content", () => {
     render(<AnswerContent content={"## Lo que encontré\n\nHay **ventas completadas**.\n\n- Revisa tu catálogo\n- Compara productos\n\n| Producto | Acción |\n| --- | --- |\n| Café | Revisar |"} />);
     expect(screen.getByRole("heading", { name: "Lo que encontré" })).toBeVisible();
@@ -144,11 +149,46 @@ describe("composer and suggestions", () => {
 });
 
 describe("real business evidence", () => {
+  it("shows backend refund and cancellation counts in completed answer evidence", () => {
+    const run: Resource = { ...completed, data: { ...completed.data,
+      metrics: { ...completed.data.metrics, refund_count: 7, void_count: 2 },
+    } };
+    render(<AssistantConversation messages={[]} run={run} busy={false} onCancel={vi.fn()} empty={null} />);
+    expect(screen.getByText("Devoluciones").nextElementSibling).toHaveTextContent(/^7$/);
+    expect(screen.getByText("Cancelaciones").nextElementSibling).toHaveTextContent(/^2$/);
+    expect(screen.queryByText("$7.00")).not.toBeInTheDocument();
+    expect(screen.queryByText("$2.00")).not.toBeInTheDocument();
+  });
+  it("keeps refund and cancellation counts out of the compact two-metric card", () => {
+    render(<SalesEvidence compact metrics={{ net_sales: "0.00", order_count: 5,
+      gross_sales: "72.88", refund_total: "72.88", refund_count: 7, void_count: 2 }} />);
+    expect(screen.getByText("Venta neta")).toBeVisible();
+    expect(screen.getByText("Tickets").nextElementSibling).toHaveTextContent(/^5$/);
+    expect(screen.queryByText("Devoluciones")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cancelaciones")).not.toBeInTheDocument();
+    expect(screen.queryByText("Venta bruta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reembolsos")).not.toBeInTheDocument();
+  });
+  it("preserves explicit zero counts and formats integer counts for Mexico", () => {
+    render(<SalesEvidence metrics={{ refund_count: 0, void_count: "1234" }} />);
+    expect(screen.getByText("Devoluciones").nextElementSibling).toHaveTextContent(/^0$/);
+    expect(screen.getByText("Cancelaciones").nextElementSibling).toHaveTextContent(/^1,234$/);
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+  });
+  it.each(["unavailable", "", " ", "NaN", "Infinity", "1.5", -1])("does not invent an integer count from %j", value => {
+    render(<SalesEvidence metrics={{ refund_count: value, void_count: value }} />);
+    expect(screen.getByText("Devoluciones").nextElementSibling).toHaveTextContent(/^Sin dato$/);
+    expect(screen.getByText("Cancelaciones").nextElementSibling).toHaveTextContent(/^Sin dato$/);
+    expect(screen.queryByText(/^0$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/NaN|\$/)).not.toBeInTheDocument();
+  });
   it("preserves zero amounts and omits metrics the backend did not return", () => {
     render(<SalesEvidence metrics={{ net_sales: "0.00", order_count: 0 }} />);
     expect(screen.getByText("$0.00")).toBeVisible();
     expect(screen.getByText("0")).toBeVisible();
     expect(screen.queryByText("Venta bruta")).toBeNull();
+    expect(screen.queryByText("Devoluciones")).toBeNull();
+    expect(screen.queryByText("Cancelaciones")).toBeNull();
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
   it("shows missing numeric evidence as missing, rather than inventing a zero", () => {
@@ -158,6 +198,7 @@ describe("real business evidence", () => {
   });
   it("keeps inventory quality limitations and the empty state", () => {
     render(<EvidenceCards cards={[{ kind: "get_inventory", data: { restock_alerts: [], inventory_valuation: { complete: false, tracked_products: 0, products_without_cost: 2 } } }]} />);
+    expect(screen.getByRole("heading", { name: "Señales de inventario", level: 2 })).toBeVisible();
     expect(screen.getByText(/No hay productos con control de inventario/)).toBeVisible();
     expect(screen.getByText(/Faltan costos de 2 productos/)).toBeVisible();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/reports");

@@ -1,4 +1,5 @@
 import { type Page, expect, test } from "./fixtures";
+import axe, { type AxeResults } from "axe-core";
 
 async function mockAuthAsOwner(page: Page) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -15,6 +16,41 @@ async function mockAuthAsOwner(page: Page) {
     await route.fulfill({
       json: { status: "none", requested_at: null, purge_after: null },
     });
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`settings sections preserve heading hierarchy and landmarks at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockAuthAsOwner(page);
+    await page.route("**/api/v1/settings/business-profile", route => route.fulfill({ json: {
+      tenant_id: "tenant-1", public_name: "Bakery", support_email: null, support_phone: null,
+      timezone: "America/Mexico_City", locale: "es-MX", currency: "MXN",
+    } }));
+    await page.route("**/api/v1/settings/receipt", route => route.fulfill({ json: {
+      tenant_id: "tenant-1", receipt_business_name: "Bakery", footer: null, tax_contact_text: null,
+      logo_url: null, paper_width_mm: 80, default_tax_rate: "0.00",
+    } }));
+    await page.route("**/api/v1/employees", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/employees/invitations", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: {
+      subscription: null, access: { status: "trial_active", reason: "trial_active" },
+    } }));
+    const sections = [
+      ["business-profile", "Perfil del negocio"], ["receipt", "Cajón de dinero"],
+      ["employees", "Empleados"], ["branches", "Sucursales"], ["advanced", "Formato y zona horaria"],
+    ] as const;
+    for (const [route, title] of sections) {
+      await page.goto(`/settings/${route}`);
+      await expect(page.getByRole("heading", { name: title, level: 2, exact: true })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await page.addScriptTag({ content: axe.source });
+      const violations = await page.evaluate(async () => {
+        const engine = (window as unknown as { axe: { run: (context: string, options: object) => Promise<AxeResults> } }).axe;
+        return (await engine.run("body", { runOnly: ["heading-order", "region"] })).violations;
+      });
+      expect(violations, `/settings/${route}`).toEqual([]);
+    }
   });
 }
 

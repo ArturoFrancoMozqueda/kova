@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import logging
+import sys
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -12,9 +13,13 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from reportlab.lib.pagesizes import LETTER
-from reportlab.pdfgen import canvas
 from sqlalchemy.orm import Session
+
+if sys.platform == "emscripten":
+    from app.workers.pdf import LETTER, canvas
+else:
+    from reportlab.lib.pagesizes import LETTER
+    from reportlab.pdfgen import canvas
 
 from app.audit import service as audit_service
 from app.fiscal import repository as repo

@@ -140,6 +140,8 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
   // Step 1: dashboard shows the checklist with 0 completed steps.
   await page.goto("/dashboard");
   await expect(page.getByText(/Agrega tu primer producto vendible/i)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Siguiente paso" })).toContainText("Agrega tu primer producto vendible");
+  await page.getByText("Ver los demás pasos", { exact: true }).click();
   await expect(page.getByText(/Cobra la primera venta/i)).toBeVisible();
 
   // Step 2: navigate to catalog (link from checklist).
@@ -163,6 +165,9 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
 
   // Step 3: return to dashboard — first product is now checked.
   await page.goto("/dashboard");
+  await expect(page.getByRole("group", { name: "Siguiente paso" })).toContainText("Abre el primer turno");
+  // The next task stays prominent; later tasks remain in the owner's expandable checklist.
+  await page.getByText("Ver los demás pasos", { exact: true }).click();
   await expect(page.getByText(/Cobra la primera venta/i)).toBeVisible();
   await expect(page.locator('[data-billing-reason]')).toHaveCount(0).catch(() => null);
 
@@ -175,6 +180,8 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
   // Step 6: visit reports — backend marks first_report milestone via business-story call.
   await page.goto("/reports");
   await expect(page).toHaveURL(/\/reports/);
+  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
+  await expect.poll(() => state.visitedReports).toBe(true);
 
   // Step 7: return to dashboard — checklist hidden because all steps complete.
   await page.goto("/dashboard");

@@ -142,7 +142,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                         className={cn(
                           "text-sm font-bold tabular-nums",
                           variance === 0
-                            ? "text-kova-growth"
+                            ? "text-emerald-700"
                             : "text-warning-foreground",
                         )}
                       >

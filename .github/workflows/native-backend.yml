@@ -1,0 +1,168 @@
+name: Resident backend acceptance
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      provision_once:
+        description: Provision the dedicated native database login and sealed configuration
+        type: boolean
+        default: false
+      verify_public_images:
+        description: Verify cache reuse using one existing public photo without creating data
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: resident-backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  acceptance:
+    # Post-release read-only photo checks reuse the merged commit's required
+    # CI gate below; publishing/provisioning still run resource acceptance.
+    if: github.event_name != 'workflow_dispatch' || !inputs.verify_public_images || inputs.provision_once
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pos" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      APP_ENV: ci
+      SECRET_KEY: ci-only-not-a-real-secret-key-do-not-use-in-production
+      DATABASE_URL: postgresql+psycopg://pos:pos@127.0.0.1:5432/pos
+      KOVA_BUILD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - name: Test controller and prepare native artifact
+        run: |
+          npm ci --prefix deploy/cloudflare-native
+          npm test --prefix deploy/cloudflare-native
+          node deploy/cloudflare-native/build.mjs
+      - name: Prepare synthetic database
+        working-directory: backend
+        run: uv run --frozen alembic upgrade head
+      - name: Prepare isolated photo resource fixtures
+        run: |
+          uv run --project backend --frozen python -m unittest discover -s backend/scripts -p 'test_check_native_photo_resources.py'
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py seed --manifest /tmp/kova-native-photos.json
+      - name: Run with lite CPU and memory limits
+        run: |
+          docker run --detach --name kova-native-acceptance --network host \
+            --cpus 0.0625 --memory 256m --memory-swap 256m \
+            --env APP_ENV --env SECRET_KEY --env DATABASE_URL \
+            --env DATABASE_POOL_SIZE=3 --env DATABASE_MAX_OVERFLOW=0 \
+            "kova-native:${KOVA_BUILD_SHA}"
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(120):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=1) as response:
+                      if response.status == 200:
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Native process failed readiness within 120 seconds')
+          PY
+          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py wait-persisted --manifest /tmp/kova-native-photos.json --baseline /tmp/kova-native-photo-baseline.json
+          docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
+          test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
+          docker restart kova-native-acceptance
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(120):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=1) as response:
+                      if response.status == 200:
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Restarted native process failed readiness within 120 seconds')
+          PY
+          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json --require-persisted
+          docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
+          test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
+      - name: Stop synthetic API
+        if: always()
+        run: |
+          docker logs --tail 20 kova-native-acceptance || true
+          docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance || true
+          docker rm --force kova-native-acceptance || true
+
+  provision:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.provision_once
+    needs: [acceptance]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - name: Require the merged commit's CI gate
+        run: |
+          result="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '.check_runs[] | select(.name == "CI required") | .conclusion')"
+          test "$result" = success
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Provision without exporting or logging credentials
+        run: uv run --project backend --frozen python backend/scripts/provision_native_runtime.py --provision-once
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  public-image-acceptance:
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.verify_public_images && !inputs.provision_once
+    needs: [acceptance]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - name: Require the merged commit's CI gate
+        run: |
+          result="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '.check_runs[] | select(.name == "CI required") | .conclusion')"
+          test "$result" = success
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Read-only real photo and private cache acceptance
+        run: uv run --project backend --frozen python backend/scripts/check_public_image_cache.py --verify-public-images --sha "$GITHUB_SHA"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

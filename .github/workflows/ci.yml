@@ -4,16 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+  checks: read
 
-# A main release may not overtake another release: Fly is updated before the
-# Vercel candidate is accepted, so overlapping SHAs could otherwise race.
+# Main releases, including explicit reruns after configuration changes, may
+# not overtake one another while backend and frontend candidates are verified.
 # Obsolete PR validation is safe to cancel because it never deploys.
 concurrency:
   group: >-
-    ${{ github.event_name == 'push'
+    ${{ github.event_name != 'pull_request'
         && format('{0}-{1}', github.workflow, github.ref)
         || format('{0}-pr-{1}', github.workflow, github.event.pull_request.number) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -82,7 +84,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - name: Install dependencies
         run: uv sync --frozen
       - name: Lint
@@ -105,6 +107,68 @@ jobs:
             backend/reports/backend.xml
           retention-days: 7
 
+  backend-workers:
+    name: integration (Cloudflare Free + Postgres)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 12
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pos" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+pg8000://pos:pos@127.0.0.1:5432/pos
+      KOVA_WORKERS_TEST_DATABASE_URL: postgresql://pos:pos@127.0.0.1:5432/pos
+      APP_ENV: ci
+      SECRET_KEY: ci-only-not-a-real-secret-key-do-not-use-in-production
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - run: uv sync --project backend --frozen
+      - run: uv pip install --python backend/.venv/bin/python pg8000==1.31.5
+      - name: Verify full backend suite with the Workers Postgres driver
+        working-directory: backend
+        run: uv run --no-sync pytest -q --junitxml=reports/workers-driver.xml
+      - name: Provision disposable runtime role
+        run: psql -h 127.0.0.1 -U pos -d pos -v kova_app_password=kova_app -f backend/scripts/provision_app_role.sql
+        env:
+          PGPASSWORD: pos
+      - name: Install locked WebAssembly dependencies
+        run: |
+          uv python install cpython-3.14.2-emscripten-wasm32-musl
+          uv venv /tmp/kova-pyodide --python cpython-3.14.2-emscripten-wasm32-musl
+          uv pip install --python /tmp/kova-pyodide/bin/python --only-binary :all: --preview-features pylock -r deploy/cloudflare-backend/pylock.toml
+      - run: npm ci
+        working-directory: deploy/cloudflare-backend
+      - name: Build Workers without deployment credentials
+        run: npm run build
+        working-directory: deploy/cloudflare-backend
+        env:
+          KOVA_WORKERS_PACKAGES: /tmp/kova-pyodide/lib/python3.14/site-packages
+      - name: Generate synthetic cross-runtime crypto fixtures
+        run: backend/.venv/bin/python deploy/cloudflare-backend/test/generate_fixtures.py deploy/cloudflare-backend/.cloudflare/test-fixtures.json
+        env:
+          PYTHONPATH: backend
+      - name: Verify API, crypto, telemetry and isolated jobs in workerd
+        run: npm test
+        working-directory: deploy/cloudflare-backend
+
   frontend-unit:
     name: frontend unit and contracts
     needs: [changes]
@@ -126,6 +190,8 @@ jobs:
       - run: npm run check:api-contract
       - run: npm test -- --run --reporter=default --reporter=junit --outputFile=reports/vitest.xml
       - run: npm run test:release-contract
+      - run: npm ci --prefix deploy/cloudflare && npm test --prefix deploy/cloudflare
+        working-directory: .
       - name: Upload unit diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -258,7 +324,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - run: uv sync --frozen
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
@@ -290,7 +356,7 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
-          version: "0.9.18"
+          version: "0.13.4"
       - name: Audit Python runtime dependencies
         run: uv sync --frozen --no-dev && uv run --with pip-audit pip-audit
         working-directory: backend
@@ -299,6 +365,9 @@ jobs:
           node-version: "24"
       - name: Audit npm runtime dependencies
         run: npm audit --omit=dev --audit-level=high --package-lock-only
+        working-directory: frontend
+      - name: Reject critical vulnerabilities in build and test dependencies
+        run: npm audit --audit-level=critical --package-lock-only
         working-directory: frontend
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
@@ -323,10 +392,15 @@ jobs:
     uses: ./.github/workflows/ci-maintenance.yml
 
 
+  backend-native:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    uses: ./.github/workflows/native-backend.yml
+
   required:
     name: CI required
     if: always()
-    needs: [changes, repository, backend-integration, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
+    needs: [changes, repository, backend-integration, backend-workers, backend-native, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -343,7 +417,7 @@ jobs:
     needs: [changes, required]
     # Planned optional skips must not suppress a successful aggregate gate.
     # Failed/cancelled/missing gates still block all production effects.
-    if: always() && !cancelled() && needs.required.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    if: always() && !cancelled() && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     environment: production
@@ -354,14 +428,13 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
       - run: npm ci
         working-directory: frontend
       - name: Capture and verify current production before creating a candidate
         shell: bash
         run: |
           set -euo pipefail
-          fly_image="$(cd backend && flyctl status --json | jq -er '.Machines[0].config.image // .machines[0].config.image')"
+          test "$KOVA_CLOUDFLARE_BACKEND" = "1"
           previous_sha="$(curl --fail --silent --show-error https://api.kovasuite.com/health | jq -er '.release_sha')"
           [[ "$previous_sha" =~ ^[0-9a-fA-F]{40}$ ]] || {
             echo "Current backend did not expose a complete release SHA." >&2
@@ -395,19 +468,50 @@ jobs:
 
           jq -n \
             --arg releaseSha "$previous_sha" \
-            --arg flyImage "$fly_image" \
             --arg vercelDeployment "$vercel_deployment" \
             --arg frontendUrl "$VERCEL_PRODUCTION_URL" \
             --arg backendUrl "https://api.kovasuite.com" \
-            '{releaseSha:$releaseSha,flyImage:$flyImage,vercelDeployment:$vercelDeployment,frontendUrl:$frontendUrl,backendUrl:$backendUrl}' \
+            '{releaseSha:$releaseSha,vercelDeployment:$vercelDeployment,frontendUrl:$frontendUrl,backendUrl:$backendUrl}' \
             > "$RUNNER_TEMP/release-rollback.json"
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_PRODUCTION_URL: ${{ secrets.VERCEL_URL }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Install Cloudflare deployment tools
+        if: vars.KOVA_CLOUDFLARE_FRONTEND == '1'
+        run: npm ci --prefix deploy/cloudflare
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        if: vars.KOVA_CLOUDFLARE_BACKEND == '1'
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        if: vars.KOVA_CLOUDFLARE_BACKEND == '1'
+        with:
+          version: "0.13.4"
+      - name: Prepare locked Cloudflare backend deployment tools
+        if: vars.KOVA_CLOUDFLARE_BACKEND == '1'
+        run: |
+          set -euo pipefail
+          npm ci --prefix deploy/cloudflare-backend
+          if [[ "$KOVA_NATIVE_BACKEND" == "1" ]]; then npm ci --prefix deploy/cloudflare-native; fi
+          uv sync --project backend --frozen
+          uv python install cpython-3.14.2-emscripten-wasm32-musl
+          uv venv /tmp/kova-release-pyodide --python cpython-3.14.2-emscripten-wasm32-musl
+          uv pip install --python /tmp/kova-release-pyodide/bin/python --only-binary :all: --preview-features pylock -r deploy/cloudflare-backend/pylock.toml
+        env:
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+      - name: Capture exact Cloudflare rollback version
+        if: vars.KOVA_CLOUDFLARE_FRONTEND == '1' || vars.KOVA_CLOUDFLARE_BACKEND == '1'
+        run: node frontend/scripts/capture-cloudflare.mjs "$RUNNER_TEMP/release-rollback.json"
+        env:
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Persist exact rollback artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -419,7 +523,15 @@ jobs:
         run: node frontend/scripts/release.mjs --artifact "$RUNNER_TEMP/release-rollback.json"
         env:
           COMMIT_SHA: ${{ github.sha }}
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
+          KOVA_HYPERDRIVE_APP_ID: ${{ vars.KOVA_HYPERDRIVE_APP_ID }}
+          KOVA_HYPERDRIVE_PRIVILEGED_ID: ${{ vars.KOVA_HYPERDRIVE_PRIVILEGED_ID }}
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_WORKERS_PACKAGES: /tmp/kova-release-pyodide/lib/python3.14/site-packages
+          SUPABASE_DB_URL: ${{ vars.KOVA_CLOUDFLARE_BACKEND == '1' && secrets.SUPABASE_DB_URL || '' }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

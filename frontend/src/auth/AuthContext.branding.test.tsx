@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,10 +18,11 @@ vi.mock("@/settings/api", () => ({
 }));
 
 function BrandingProbe() {
-  const { state } = useAuthContext();
+  const { state, refresh } = useAuthContext();
   return (
     <div>
       {state.status === "authenticated" ? (state.tenantLogoUrl ?? "kova-fallback") : "loading"}
+      <button onClick={() => void refresh()}>refresh-branding</button>
     </div>
   );
 }
@@ -82,5 +83,24 @@ describe("AuthContext tenant branding", () => {
     );
 
     expect(await screen.findByText("kova-fallback")).toBeInTheDocument();
+  });
+
+  it("ignores an earlier logo response after a newer refresh for the same identity", async () => {
+    let resolveOld!: (value: Awaited<ReturnType<typeof getReceiptSettings>>) => void;
+    const settings = {
+      tenant_id: "tenant-1", receipt_business_name: "Sweet Home", footer: null,
+      tax_contact_text: null, logo_url: "/brand/current.png",
+    };
+    vi.mocked(getReceiptSettings)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce(settings);
+    render(<MemoryRouter initialEntries={["/dashboard"]}><AuthProvider><BrandingProbe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("kova-fallback");
+    await waitFor(() => expect(resolveOld).toBeDefined());
+    act(() => screen.getByRole("button", { name: "refresh-branding" }).click());
+    await screen.findByText("/brand/current.png");
+    await act(async () => { resolveOld({ ...settings, logo_url: "/brand/obsolete.png" }); });
+    expect(screen.getByText("/brand/current.png")).toBeVisible();
+    expect(screen.queryByText("/brand/obsolete.png")).not.toBeInTheDocument();
   });
 });

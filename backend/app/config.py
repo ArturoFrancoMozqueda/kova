@@ -1,3 +1,4 @@
+import sys
 from typing import Literal
 from uuid import UUID
 
@@ -6,6 +7,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def sqlalchemy_database_url(database_url: str) -> str:
+    if sys.platform == "emscripten":
+        for scheme in ("postgresql+psycopg://", "postgresql://", "postgres://"):
+            if database_url.startswith(scheme):
+                return "postgresql+pg8000://" + database_url[len(scheme):]
     if database_url.startswith("postgresql://"):
         return "postgresql+psycopg://" + database_url[len("postgresql://") :]
     if database_url.startswith("postgres://"):
@@ -82,11 +87,16 @@ class Settings(BaseSettings):
     kova_cfdi_timeout_seconds: int = Field(default=20, ge=5, le=30)
     account_deletion_grace_days: int = 30
     resend_api_key: str | None = None
-    # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise
-    # it falls back to a single-process in-memory limiter (tolerable for local dev
-    # and single-instance deploys but unsafe across replicas).
+    # Rate limiting outside Cloudflare — when both are set, use Upstash Redis;
+    # otherwise use a single-process in-memory limiter (tolerable for local dev
+    # and single-instance deploys but unsafe across replicas). Workers and
+    # explicitly enabled Container mode always use durable Cloudflare buckets.
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    # Set only by the native Cloudflare Container controller. Its private
+    # outbound handler keeps the existing durable rate-limit buckets shared
+    # across deployments; an outage must never select an in-memory fallback.
+    cloudflare_container_mode: bool = False
     trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 
@@ -97,6 +107,8 @@ class Settings(BaseSettings):
     assistant_documents_enabled: bool = False
     assistant_email_enabled: bool = False
     assistant_tenant_ids: str = ""
+    # Deterministic internal tasks have their own opt-in scheduler cohort.
+    automation_tenant_ids: str = ""
     assistant_cloudflare_account_id: str = ""
     assistant_cloudflare_token: SecretStr | None = None
     assistant_r2_access_key: SecretStr | None = None
@@ -126,6 +138,13 @@ class Settings(BaseSettings):
     assistant_global_concurrency: int = Field(default=3, ge=1, le=100)
     assistant_tenant_concurrency: int = Field(default=2, ge=1, le=10)
     assistant_ingest_global_concurrency: int = Field(default=1, ge=1, le=8)
+    # Enable only after the dispatcher can start the existing isolated Machine.
+    assistant_ingest_on_demand: bool = False
+    assistant_ingest_machine_id: str = Field(default="", pattern=r"^(?:[a-f0-9]{14})?$")
+    assistant_ingest_fly_token: SecretStr | None = None
+    assistant_ingest_idle_seconds: int = Field(default=60, ge=30, le=600)
+    # Host-specific release override; expires even if verification is interrupted.
+    assistant_ingest_verify_until: int = Field(default=0, ge=0)
     assistant_groq_api_key: SecretStr | None = None
     assistant_groq_model: str = "openai/gpt-oss-20b"
     assistant_groq_free_verified: bool = False
@@ -138,7 +157,7 @@ class Settings(BaseSettings):
     assistant_groq_minute_tokens: int = Field(default=7200, ge=1, le=8000)
     assistant_groq_minute_requests: int = Field(default=27, ge=1, le=30)
 
-    @field_validator("assistant_tenant_ids")
+    @field_validator("assistant_tenant_ids", "automation_tenant_ids")
     @classmethod
     def validate_assistant_cohort(cls, value: str) -> str:
         return ",".join(

@@ -37,7 +37,7 @@ export default function ForgotPasswordView() {
     <AuthLayout title={copy.auth.forgotPasswordTitle} subtitle={copy.auth.forgotPasswordSubtitle}>
             {state === "sent" ? (
               <div className="space-y-4">
-                <div role="status" className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                <div role="status" className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success">
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{copy.auth.forgotPasswordSent}</span>
                 </div>
@@ -91,7 +91,7 @@ export default function ForgotPasswordView() {
                   )}
                 </Button>
                 {state === "error" && (
-                  <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+                  <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-sm text-foreground [&>svg]:text-destructive">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{copy.auth.forgotPasswordError}</span>
                   </div>

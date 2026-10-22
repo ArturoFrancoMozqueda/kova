@@ -1,21 +1,54 @@
 import asyncio
 import logging
+import sys
 from collections.abc import AsyncGenerator, Generator
 from weakref import WeakKeyDictionary
 
 from anyio import CapacityLimiter
 from fastapi import Depends
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Connection
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy import String, bindparam, create_engine, event, text
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.engine import Connection, make_url
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
+import app.workers.postgres  # noqa: F401 — driver-specific error contract hook
 from app.config import settings, sqlalchemy_database_url
+from app.orm_metadata import Base as Base
 
 logger = logging.getLogger(__name__)
 
 # Canonical inventory of tables whose rows belong to a tenant. Keep this list
 # aligned with tenant-scoped migrations; production startup rejects drift.
 TENANT_SCOPED_TABLES = (
+    "service_cases",
+    "service_case_events",
+    "appointment_resources",
+    "appointments",
+    "appointment_history",
+    "appointment_reminders",
+    "loyalty_policy_revisions",
+    "loyalty_entries",
+
+    "automation_rules",
+    "automation_runs",
+    "business_events",
+    "crm_opportunities",
+    "crm_catalog_requests",
+    "crm_followup_policies",
+    "crm_followup_tasks",
+    "messaging_channel_bindings",
+    "messaging_conversations",
+    "messaging_messages",
+    "messaging_channel_events",
+    "customer_contact_consents",
+    "customer_quotes",
+    "customer_quote_items",
+    "public_catalogs",
+    "public_catalog_items",
+    "reconciliation_import_batches",
+    "reconciliation_matches",
+    "settlement_entries",
     "account_deletion_requests",
     "audit_logs",
     "assistant_records",
@@ -167,10 +200,6 @@ EXPECTED_ADDITIONAL_RLS_POLICY_SPECS = {
 }
 
 
-class Base(DeclarativeBase):
-    pass
-
-
 _TENANT_CONTEXT_INFO_KEY = "kova_tenant_id"
 
 
@@ -205,16 +234,61 @@ def set_tenant_context(db: Session, tenant_id: object) -> None:
         )
 
 
+def _pool_options(*, privileged: bool = False) -> dict:
+    if sys.platform == "emscripten":
+        from app.workers.postgres import connect_binding
+
+        # Hyperdrive owns the upstream pool. A connection opened by one Workers
+        # request must never be retained for a different request's I/O context.
+        return {
+            "poolclass": NullPool,
+            # Read binding coordinates inside each invocation, never retain
+            # a Hyperdrive connection string from another request.
+            "creator": lambda: connect_binding(privileged=privileged),
+        }
+    options = {
+        "pool_size": 2 if privileged else settings.database_pool_size,
+        "max_overflow": 2 if privileged else settings.database_max_overflow,
+        "pool_timeout": settings.database_pool_timeout,
+        "pool_recycle": settings.database_pool_recycle_seconds,
+    }
+    connection_url = (
+        settings.effective_migration_database_url
+        if privileged else settings.effective_app_database_url
+    )
+    database_url = make_url(sqlalchemy_database_url(connection_url))
+    if privileged and database_url.drivername == "postgresql+psycopg":
+        # Only explicitly scoped public reads use AUTOCOMMIT below. Ordinary
+        # privileged auth/webhook sessions still roll back their transactions.
+        options["skip_autocommit_rollback"] = True
+    if (
+        database_url.drivername == "postgresql+psycopg"
+        and (database_url.host or "").lower().endswith(".pooler.supabase.com")
+        and database_url.port == 6543
+    ):
+        # Supavisor transaction pooling cannot retain prepared statements on
+        # one server session. Native psycopg otherwise prepares after repeated
+        # execution and can fail only after production traffic warms the pool.
+        # Leave session/direct connections and other drivers unchanged.
+        options["connect_args"] = {"prepare_threshold": None}
+    return options
+
+
+def _engine_database_url(value: str) -> str:
+    normalized = sqlalchemy_database_url(value)
+    prefix = "postgresql+pg8000://"
+    if sys.platform == "emscripten" and normalized.startswith(prefix):
+        return "postgresql+kova_pg8000://" + normalized[len(prefix):]
+    return normalized
+
+
 # Runtime application engine. Connects as the least-privilege `kova_app` role
 # (when app_database_url is configured) so RLS tenant_isolation policies are
 # enforced for every ordinary request.
 engine = create_engine(
-    sqlalchemy_database_url(settings.effective_app_database_url),
+    _engine_database_url(settings.effective_app_database_url),
     pool_pre_ping=True,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    pool_timeout=settings.database_pool_timeout,
-    pool_recycle=settings.database_pool_recycle_seconds,
+    **_pool_options(),
     hide_parameters=True,
     future=True,
 )
@@ -228,16 +302,31 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # isolation on these paths is enforced at the application layer, as it is today.
 # Kept small — it is not a general-purpose connection.
 privileged_engine = create_engine(
-    sqlalchemy_database_url(settings.effective_migration_database_url),
+    _engine_database_url(settings.effective_migration_database_url),
     pool_pre_ping=True,
-    pool_size=2,
-    max_overflow=2,
-    pool_timeout=settings.database_pool_timeout,
-    pool_recycle=settings.database_pool_recycle_seconds,
+    **_pool_options(privileged=True),
     hide_parameters=True,
     future=True,
 )
 PrivilegedSessionLocal = sessionmaker(bind=privileged_engine, autoflush=False, autocommit=False)
+
+
+def prepare_public_asset_read(db: Session) -> None:
+    """Avoid BEGIN/ROLLBACK only for fresh native public-asset reads.
+
+    Reuse the bounded privileged pool; closing the Session restores the driver's
+    default isolation before another request can use the connection. Existing
+    transactions, tenant/user scope and pending ORM changes are never altered.
+    The caller must only execute the public asset's scoped SELECT statements.
+    """
+    if sys.platform == "emscripten":
+        return
+    bind = db.get_bind()
+    if (bind is not privileged_engine or bind.dialect.name != "postgresql"
+            or bind.dialect.driver != "psycopg" or db.in_transaction()
+            or db.info or db.new or db.dirty or db.deleted):
+        return
+    db.connection(execution_options={"isolation_level": "AUTOCOMMIT"})
 
 
 # Wait before entering FastAPI's shared sync worker pool. Otherwise requests
@@ -432,50 +521,64 @@ def _rls_posture_errors(
     return errors
 
 
-def assert_rls_active() -> None:
+def assert_rls_active() -> dict[str, list[tuple]] | None:
     """Verify the complete runtime RLS posture and fail closed in production."""
     try:
         with engine.connect() as conn:
-            role_row = conn.execute(
-                text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
-            ).one()
-            owned_tables = set(
-                conn.execute(
-                    text(
-                        "SELECT c.relname FROM pg_class c "
-                        "JOIN pg_namespace n ON n.oid = c.relnamespace "
-                        "WHERE n.nspname = 'public' AND c.relkind = 'r' "
-                        "AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user) "
-                        "AND c.relname = ANY(:tables)"
-                    ),
-                    {"tables": list(RLS_PROTECTED_TABLES)},
-                ).scalars()
-            )
+            # Read one catalog snapshot in one SELECT; transaction setup is separate.
+            # Preserve all relation kinds for the policy inventory; ownership
+            # and table posture intentionally cover ordinary tables only.
             rows = conn.execute(
                 text(
-                    "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, "
-                    "COALESCE(bool_or(p.polqual IS NOT NULL), false), "
-                    "COALESCE(bool_or(p.polwithcheck IS NOT NULL), false) "
-                    "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
-                    "LEFT JOIN pg_policy p ON p.polrelid = c.oid "
-                    "WHERE n.nspname = 'public' AND c.relkind = 'r' "
-                    "AND c.relname = ANY(:tables) "
-                    "GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity"
-                ),
-                {"tables": list(RLS_PROTECTED_TABLES)},
-            ).all()
-            policy_rows = conn.execute(
-                text(
-                    "SELECT c.relname, p.polname, p.polpermissive, p.polcmd, "
-                    "p.polroles, p.polqual IS NOT NULL, p.polwithcheck IS NOT NULL, "
+                    "SELECT r.rolsuper, r.rolbypassrls, c.relname, c.relkind, "
+                    "c.relowner = r.oid, c.relrowsecurity, c.relforcerowsecurity, "
+                    "p.polname, p.polpermissive, p.polcmd, p.polroles::bigint[], "
+                    "p.polqual IS NOT NULL, p.polwithcheck IS NOT NULL, "
                     "pg_get_expr(p.polqual, p.polrelid), "
                     "pg_get_expr(p.polwithcheck, p.polrelid) "
-                    "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid "
-                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
-                    "WHERE n.nspname = 'public' AND c.relname = ANY(:tables)"
+                    "FROM pg_roles r "
+                    "LEFT JOIN pg_namespace n ON n.nspname = 'public' "
+                    "LEFT JOIN pg_class c ON c.relnamespace = n.oid "
+                    "AND c.relname = ANY(:tables) "
+                    "LEFT JOIN pg_policy p ON p.polrelid = c.oid "
+                    "WHERE r.rolname = current_user"
+                ).bindparams(
+                    # Only the source-defined table inventory is rendered by
+                    # SQLAlchemy's typed literal escaping, never request input.
+                    # No DBAPI parameters means pg8000 uses simple protocol.
+                    bindparam(
+                        "tables", list(RLS_PROTECTED_TABLES),
+                        type_=ARRAY(String()), literal_execute=True,
+                    )
                 ),
-                {"tables": list(RLS_PROTECTED_TABLES)},
+                {},
             ).all()
+        if not rows:
+            raise RuntimeError("Runtime role was not found in the PostgreSQL catalog")
+        role_row = rows[0][:2]
+        owned_tables = set()
+        table_posture = {}
+        policy_catalog = {table: [] for table in RLS_PROTECTED_TABLES}
+        for (
+            _super, _bypass, table, kind, owned, enabled, forced,
+            policy_name, permissive, command, roles, has_using, has_check,
+            using_expression, check_expression,
+        ) in rows:
+            if table is None:
+                continue
+            if kind == "r":
+                if owned:
+                    owned_tables.add(table)
+                previous = table_posture.get(table, (False, False, False, False))
+                table_posture[table] = (
+                    bool(enabled), bool(forced),
+                    previous[2] or bool(has_using), previous[3] or bool(has_check),
+                )
+            if policy_name is not None:
+                policy_catalog[table].append((
+                    policy_name, bool(permissive), command, tuple(roles),
+                    bool(has_using), bool(has_check), using_expression, check_expression,
+                ))
     except Exception as exc:
         if settings.app_env == "production":
             raise RuntimeError("Could not verify RLS posture at startup") from exc
@@ -486,34 +589,8 @@ def assert_rls_active() -> None:
         role_is_super=bool(role_row[0]),
         role_bypasses_rls=bool(role_row[1]),
         owned_tables=owned_tables,
-        table_posture={row[0]: tuple(bool(value) for value in row[1:]) for row in rows},
-        policy_catalog={
-            table: [
-                (
-                    policy_name,
-                    bool(permissive),
-                    command,
-                    tuple(roles),
-                    bool(has_using),
-                    bool(has_check),
-                    using_expression,
-                    check_expression,
-                )
-                for (
-                    row_table,
-                    policy_name,
-                    permissive,
-                    command,
-                    roles,
-                    has_using,
-                    has_check,
-                    using_expression,
-                    check_expression,
-                ) in policy_rows
-                if row_table == table
-            ]
-            for table in RLS_PROTECTED_TABLES
-        },
+        table_posture=table_posture,
+        policy_catalog=policy_catalog,
     )
     if errors:
         message = "Incomplete RLS posture: " + "; ".join(errors)
@@ -522,3 +599,6 @@ def assert_rls_active() -> None:
         logger.warning(message)
         return
     logger.info("RLS posture verified for %d runtime tables", len(RLS_PROTECTED_TABLES))
+    # Return this invocation's live catalog only after complete RLS validation.
+    # The ACL guard still evaluates every restrictive policy independently.
+    return policy_catalog

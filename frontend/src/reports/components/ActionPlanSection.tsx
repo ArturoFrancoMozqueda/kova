@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CheckCircle2, Eye, Sparkles } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { cn } from "@/lib/utils";
 import type { ActionPlanItem } from "../utils/actionPlan";
@@ -106,7 +106,7 @@ export function ActionPlanSection({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-kova-blue" />
-          <CardTitle>{copy.reportsView.recommendationsTitle}</CardTitle>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.reportsView.recommendationsTitle}</h2>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

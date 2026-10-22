@@ -4,6 +4,32 @@ This runbook covers restoring the latest Supabase backup produced by the `Supaba
 
 > **Never restore on top of the production database.** Always restore into a fresh project (or a separate staging project) and validate before switching traffic.
 
+## Logical restore without creating a Supabase project
+
+The manual [`R2 logical backup restore drill`](../../.github/workflows/db-restore-drill.yml)
+restores the latest real R2 backup in a disposable PostgreSQL 17 container on a GitHub-hosted
+Linux runner. Run it from `main` with acknowledgement `KOVA-R2-RESTORE-RUNNER-ONLY` after reviewing
+the workflow. It uses only the four existing R2 storage secrets, never a production database URL.
+GitHub Actions minutes use the existing repository plan; no new external hosting is provisioned.
+
+The target has no network, published ports or host mounts; database files stay in temporary RAM
+filesystems. The drill requires a custom archive, matching size and trusted SHA-256 metadata,
+and a backup no older than 48 hours. It restores Kova's `public` and `assistant_control` schemas,
+preinstalls pgvector in `extensions`, reapplies the checked-in runtime grants, and checks
+orders, payment/lot reconciliation, foreign keys and real tenant isolation under `kova_app`.
+Provider-owned schemas such as `auth`, `storage`, `vault` and extension internals are excluded.
+
+Only aggregate JSON evidence is uploaded: backup timestamp/checksum/size, migration revision,
+counts, validation results, snapshot age and measured restore/drill duration. The dump, raw
+database output and container logs are never uploaded or printed. Cleanup runs on failure too;
+successful evidence requires confirmed container and private-file removal.
+
+This proves application-owned **logical backup restorability**. Snapshot age describes that
+backup's recovery window; runner restore time is not regional recovery RTO. It does not prove
+Supabase project provisioning, provider-schema recovery, migrations to the latest application
+revision, traffic switching, or regional disaster recovery. Keep the fresh-project procedure
+below for those remaining checks and record the exact scope in the dated drill evidence.
+
 ---
 
 ## When to use this

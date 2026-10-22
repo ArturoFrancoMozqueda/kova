@@ -168,6 +168,20 @@ def _stock_conflict(db: Session, *, order: CustomerOrder) -> bool:
     )
 
 
+def _automation_event(db: Session, order: CustomerOrder, event_type: str) -> None:
+    from app.automations.service import process_pending, record_event
+
+    record_event(db, tenant_id=order.tenant_id, branch_id=order.branch_id,
+                 entity_id=order.id, entity_version=order.version, event_type=event_type)
+    # Creating internal tasks is best effort; an error must not undo preparation
+    # or delivery. The event stays pending for the private worker or manual retry.
+    try:
+        with db.begin_nested():
+            process_pending(db, tenant_id=order.tenant_id, branch_id=order.branch_id)
+    except Exception:
+        logger.warning("Customer-order automation deferred")
+
+
 def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, Any]:
     items = repo.list_items(db, tenant_id=order.tenant_id, order_id=order.id)
     modifiers_by_item = repo.item_modifiers_for_items(
@@ -544,6 +558,7 @@ def create_customer_order(
     user_id: UUID,
     body: CustomerOrderCreate,
     idempotency_key: str,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     stored = _stored_response(
@@ -599,7 +614,8 @@ def create_customer_order(
         status_code=201,
         response_body=response_body,
     )
-    db.commit()
+    if commit:
+        db.commit()
     return 201, response_body
 
 
@@ -782,6 +798,8 @@ def change_customer_order_status(
         status_code=200,
         response_body=response_body,
     )
+    if body.status in {"ready", "fulfilled"}:
+        _automation_event(db, order, f"customer_order.{body.status}")
     db.commit()
     return 200, response_body
 
@@ -844,6 +862,7 @@ def cancel_customer_order(
         status_code=200,
         response_body=response_body,
     )
+    _automation_event(db, order, "customer_order.cancelled")
     db.commit()
     return 200, response_body
 
@@ -976,12 +995,21 @@ def checkout_customer_order(
                 requested=quantity,
             )
 
+    # A quote carries a reviewed customer identity. Counter/phone orders without
+    # this explicit link stay unattributed; never merge customers by contact text.
+    from app.quotes.models import CustomerQuote
+
+    quote = db.query(CustomerQuote).filter(
+        CustomerQuote.tenant_id == tenant_id, CustomerQuote.branch_id == order.branch_id,
+        CustomerQuote.customer_order_id == order.id, CustomerQuote.status == "accepted",
+    ).first()
     sale = order_service.persist_completed_order(
         db,
         tenant_id=tenant_id,
         user_id=user_id,
         priced_items=priced_lines,
         payments=body.payments,
+        customer_id=quote.customer_id if quote else None,
     )
     order.sale_order_id = sale.id
     order.updated_by_user_id = user_id

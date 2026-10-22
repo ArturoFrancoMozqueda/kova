@@ -27,6 +27,24 @@ afterEach(() => {
 });
 
 describe("ResetPasswordView", () => {
+  it("locks both password fields and announces pending reset until a failed request can be retried", async () => {
+    let finish!: (response: Response) => void;
+    mockFetch(() => new Promise<Response>(resolve => { finish = resolve; }));
+    renderAt("/reset-password?token=reset-token");
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    expect(screen.getByLabelText(/Nueva contraseña/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Confirma la contraseña/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Nueva contraseña/i).closest("form")).toHaveAttribute("aria-busy", "true");
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    await act(async () => { finish(new Response("Unavailable", { status: 503 })); });
+    await screen.findByRole("alert");
+    expect(screen.getByLabelText(/Nueva contraseña/i)).toBeEnabled();
+    expect(screen.getByLabelText(/Confirma la contraseña/i)).toBeEnabled();
+    expect(screen.getByLabelText(/Nueva contraseña/i).closest("form")).toHaveAttribute("aria-busy", "false");
+  });
+
   it("blocks oversized accented passwords and allows correction without expiring the link", async () => {
     const fetchMock = mockFetch(() => new Response(JSON.stringify({ message: "Password updated." }), {
       status: 200, headers: { "content-type": "application/json" },

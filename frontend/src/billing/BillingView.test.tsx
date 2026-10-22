@@ -263,6 +263,17 @@ describe("BillingView existing subscription payment recovery", () => {
 });
 
 
+it("offers paid checkout after a courtesy trial expires", async () => {
+  const result = billing({ status: "trialing" });
+  result.access = {
+    ...result.access, allowed: false, reason: "trial_expired", trialing: false,
+  };
+  getBillingSubscription.mockResolvedValue(result);
+  renderBilling();
+  expect(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" })).toBeEnabled();
+  expect(screen.queryByText(copy.billingView.subscriptionTrialingTitle)).not.toBeInTheDocument();
+});
+
 it("does not claim activation if checkout rejects an existing pending-payment subscription", async () => {
   getBillingSubscription.mockResolvedValueOnce(billing(null)).mockResolvedValue(billing({ status: "past_due" }));
   startCheckout.mockRejectedValue(new ApiError("Subscription already exists", 400));

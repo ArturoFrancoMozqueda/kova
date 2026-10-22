@@ -44,8 +44,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # A throwaway hash used to equalize login timing when the email is unknown. Verifying
 # against it costs the same bcrypt work as a real account, so response time can't be
-# used to tell whether an email is registered. Computed once at import.
-_DUMMY_PASSWORD_HASH = hash_password("timing-equalizer-not-a-real-password")
+# used to tell whether an email is registered. This public, precomputed dummy
+# is never an account credential. Avoid paying for a new bcrypt hash every cold
+# start; verification still uses the same production cost as real passwords.
+_DUMMY_PASSWORD_HASH = "$2b$12$Wo3iESN.7POwaT1RLu9gcuD6p.Z01WXMXwDiCM04tzWoqPNTM79Cm"
 
 
 # ── Tokens ────────────────────────────────────────────────────────────────────

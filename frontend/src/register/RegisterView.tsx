@@ -53,6 +53,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
+import { RegisterProductPhoto } from "./RegisterProductPhoto";
 import { exactSkuMatches, skuSearchMatches } from "./skuSearch";
 import { suggestCashBills } from "./cashSuggestions";
 import { ViewEmpty } from "@/components/ui/view-states";
@@ -81,7 +82,6 @@ import {
   CloudOff,
 } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
-import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getReceiptSettings } from "@/settings/api";
 import {
@@ -346,7 +346,11 @@ function RegularRegisterView() {
     if (!cartSheetOpen || !isCartSheetModal) return;
     const sheet = paymentSectionRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const focusFrame = window.requestAnimationFrame(() => sheet?.focus());
+    const focusFrame = window.requestAnimationFrame(() => {
+      // An interaction can reach a field before this frame runs. Keep that
+      // focus instead of moving it back to the summary container.
+      if (sheet && !sheet.contains(document.activeElement)) sheet.focus();
+    });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -792,10 +796,16 @@ function RegularRegisterView() {
       )
     : paymentMethod === "cash";
   const cashBlocked = hasOpenShift !== true && saleIncludesCash;
-  // Cashiers with the shift-open permission open it in place; everyone else
-  // keeps the route to /shifts (where a manager can open it).
+  const cashShiftLoading = hasOpenShift === null && !shiftCheckFailed;
+  const cashShiftMessage = hasOpenShift === false
+    ? copy.register.cashRequiresShift
+    : cashShiftLoading ? copy.register.cashShiftLoading : copy.register.cashShiftUnknown;
+  // When the server confirmed there is no open shift, cashiers with the
+  // shift-open permission open it in place (keeping the cart). If the lookup
+  // failed we can't rule out an existing shift, so keep the route to /shifts,
+  // which reloads the real state; same for roles that can't open one.
   const renderOpenShiftAction = () =>
-    canOpenDrawer ? (
+    canOpenDrawer && hasOpenShift === false ? (
       <button
         type="button"
         onClick={() => setOpenShiftModalOpen(true)}
@@ -1481,18 +1491,7 @@ function RegularRegisterView() {
                           ? { label: copy.inventoryView.lowBadge, tone: "warning" }
                           : undefined}
                       image={product.image_url ? (
-                        <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full">
-                          <img
-                            src={productImageSrc(product.image_url, 400)}
-                            srcSet={productImageSrcSet(product.image_url)}
-                            sizes="(max-width: 640px) 48px, (max-width: 1024px) 33vw, 200px"
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full"
-                            style={productImageStyle(product)}
-                          />
-                        </div>
+                        <RegisterProductPhoto product={product} />
                       ) : undefined}
                       onAdd={() => addProduct(product)}
                     />
@@ -1530,7 +1529,10 @@ function RegularRegisterView() {
           {/* Peek handle — mobile only */}
           <button
             type="button"
-            onClick={() => setCartSheetOpen((v) => !v)}
+            onClick={(event) => {
+              if (!cartSheetOpen) event.currentTarget.focus();
+              setCartSheetOpen((v) => !v);
+            }}
             aria-expanded={cartSheetOpen}
             aria-label={cartSheetOpen ? copy.register.collapseCart : copy.register.expandCart}
             className="xl:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"
@@ -1826,7 +1828,7 @@ function RegularRegisterView() {
                           {copy.register.splitCashShort}
                         </p>
                       ) : splitHasPayment ? (
-                        <p className="flex items-center gap-1.5 text-xs text-kova-growth">
+                        <p className="flex items-center gap-1.5 text-xs text-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                           {copy.register.splitBalanced}
                         </p>
@@ -1847,8 +1849,8 @@ function RegularRegisterView() {
                           icon,
                           disabled: value === "cash" && hasOpenShift !== true,
                           onDisabledSelect: () => toast(
-                            hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown,
-                            "warning",
+                            cashShiftMessage,
+                            cashShiftLoading ? "info" : "warning",
                           ),
                         }))}
                         onChange={selectPaymentMethod}
@@ -1993,12 +1995,22 @@ function RegularRegisterView() {
                 {/* Cash is blocked without an open drawer — tell the cashier
                     why the charge button is disabled and how to unblock it. */}
                 {cashBlocked && (
-                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:text-sm">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
+                  <div
+                    role={cashShiftLoading ? "status" : undefined}
+                    className={cn(
+                      "flex items-start gap-2 rounded-lg border p-3 text-xs sm:text-sm",
+                      cashShiftLoading
+                        ? "border-border bg-muted/40 text-muted-foreground"
+                        : "border-destructive/30 bg-destructive/10 text-destructive",
+                    )}
+                  >
+                    {cashShiftLoading
+                      ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                      : <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />}
                     <span className="min-w-0 flex-1">
-                      {hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown}
+                      {cashShiftMessage}
                     </span>
-                    {renderOpenShiftAction()}
+                    {!cashShiftLoading && renderOpenShiftAction()}
                   </div>
                 )}
 
@@ -2078,7 +2090,7 @@ function RegularRegisterView() {
                     <p
                       className={cn(
                         "font-semibold",
-                        isPendingSync ? "text-warning-foreground" : "text-kova-growth",
+                        isPendingSync ? "text-warning-foreground" : "text-emerald-700",
                       )}
                     >
                       {isPendingSync

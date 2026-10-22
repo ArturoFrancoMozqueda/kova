@@ -1,3 +1,4 @@
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -115,8 +116,13 @@ def fetch_all_connectors() -> dict[str, ConnectorResult]:
     """Run every connector concurrently (cached). One slow/broken source can't
     block or break the others."""
     names = list(_CONNECTORS)
-    with ThreadPoolExecutor(max_workers=len(names)) as pool:
-        results = list(pool.map(_fetch_connector, names))
+    if sys.platform == "emscripten":
+        # Connector responses remain real observations. WebAssembly has no OS
+        # threads; connector I/O is bounded by each provider's existing timeout.
+        results = [_fetch_connector(name) for name in names]
+    else:
+        with ThreadPoolExecutor(max_workers=len(names)) as pool:
+            results = list(pool.map(_fetch_connector, names))
     return dict(zip(names, results, strict=True))
 
 
@@ -798,8 +804,8 @@ def build_trace(
 
     # Sentry: the only local source that can resolve a bare request_id, since no
     # local table stores it. Issue search by the request_id tag (free plan).
-    sources_queried: dict[str, str] = {"local_db": "ok", "fly_logs": "deep_link_only"}
-    deep_links_out: dict[str, str] = {"fly_live_logs": deep_links.fly_monitoring()}
+    sources_queried: dict[str, str] = {"local_db": "ok", "fly_logs": "retired"}
+    deep_links_out: dict[str, str] = {}
 
     if request_id:
         sentry_result = sentry.search_issues_by_request_id(

@@ -100,6 +100,85 @@ _EXPORT_TABLES = (
         _columns("id tenant_id name email phone is_active created_at updated_at"),
     ),
     ExportTable(
+        "crm_opportunities",
+        _columns("id tenant_id branch_id customer_id title stage estimated_amount "
+                 "assigned_user_id next_action due_at note version created_by_user_id "
+                 "updated_by_user_id created_at updated_at"),
+    ),
+    ExportTable(
+        "customer_contact_consents",
+        _columns("id tenant_id branch_id customer_id channel purpose enabled source version "
+                 "updated_at"),
+    ),
+    ExportTable(
+        "public_catalogs",
+        _columns("id tenant_id branch_id title description whatsapp_phone enabled version "
+                 "link_version updated_at"),
+    ),
+    ExportTable("public_catalog_items", _columns("id tenant_id catalog_id product_id")),
+    ExportTable("customer_quotes", _columns(
+        "id tenant_id branch_id customer_id opportunity_id folio customer_name customer_phone "
+        "status total_amount "
+        "expires_at shared_at accepted_at customer_order_id created_by_user_id updated_by_user_id "
+        "version created_at updated_at")),
+    ExportTable("customer_quote_items", _columns(
+        "id tenant_id branch_id quote_id product_id product_name quantity unit_price_amount "
+        "line_total_amount")),
+    ExportTable("crm_catalog_requests", _columns(
+        "id tenant_id branch_id catalog_id name contact message product_ids status "
+        "customer_id opportunity_id version created_at resolved_at")),
+    ExportTable("service_cases", _columns(
+        "id tenant_id branch_id customer_id sale_order_id customer_order_id title status "
+        "assigned_user_id due_at version created_by_user_id created_at updated_at resolved_at")),
+    ExportTable("service_case_events", _columns(
+        "id tenant_id branch_id case_id case_version kind actor_user_id status "
+        "assigned_user_id due_at note created_at")),
+    ExportTable("appointment_resources", _columns(
+        "id tenant_id branch_id name timezone is_active version created_at updated_at")),
+
+    ExportTable("appointments", _columns(
+        "id tenant_id branch_id resource_id customer_id title starts_at ends_at note "
+        "status version created_by_user_id created_at updated_at")),
+
+    ExportTable("appointment_history", _columns(
+        "id tenant_id branch_id appointment_id appointment_version action status "
+        "starts_at ends_at note actor_user_id created_at")),
+
+    ExportTable("appointment_reminders", _columns(
+        "id tenant_id branch_id appointment_id appointment_version status due_at "
+        "version created_at resolved_at")),
+
+    ExportTable("loyalty_policy_revisions", _columns(
+        "id tenant_id branch_id version enabled spend_amount points_per_step "
+        "authorized_by_user_id effective_at")),
+
+    ExportTable("loyalty_entries", _columns(
+        "id tenant_id branch_id customer_id sale_order_id policy_revision_id kind "
+        "source_id points benefit recorded_by_user_id created_at")),
+
+    ExportTable("crm_followup_policies", _columns(
+        "id tenant_id branch_id enabled review_delay_days rebuy_delay_days version "
+        "authorized_by_user_id enabled_since updated_at")),
+    ExportTable("crm_followup_tasks", _columns(
+        "id tenant_id branch_id customer_id sale_order_id kind status title note due_at "
+        "assigned_user_id version created_at resolved_at")),
+    ExportTable("messaging_conversations", _columns(
+        "id tenant_id branch_id customer_id subject origin status automation_paused "
+        "assigned_user_id last_inbound_at version created_at updated_at")),
+    ExportTable("messaging_messages", _columns(
+        "id tenant_id branch_id conversation_id source_run_id direction body message_type "
+        "state purpose "
+        "requested_by_user_id version error_code created_at updated_at")),
+    ExportTable("reconciliation_import_batches", _columns(
+        "id tenant_id branch_id content_sha256 parser_version source_type row_count "
+        "created_by_user_id created_at")),
+    ExportTable("settlement_entries", _columns(
+        "id tenant_id branch_id batch_id settled_at gross_amount fee_amount net_amount "
+        "currency payment_method external_reference_masked row_fingerprint")),
+    ExportTable("reconciliation_matches", _columns(
+        "id tenant_id branch_id settlement_entry_id payment_id order_id matched_amount status "
+        "version reasons confirmed_by_user_id reversal_reason created_at updated_at")),
+    ExportTable(
         "suppliers",
         _columns("id tenant_id name contact is_active created_at"),
     ),
@@ -389,6 +468,11 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "account_deletion_requests",
         "assistant_records",
         "assistant_chunks",
+        "automation_rules",
+        "automation_runs",
+        "business_events",
+        "messaging_channel_bindings",
+        "messaging_channel_events",
         "audit_logs",
         "idempotency_keys",
         "ops_notes",
@@ -402,6 +486,33 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "service_case_events",
+    "service_cases",
+    "appointment_reminders",
+    "appointment_history",
+    "appointments",
+    "appointment_resources",
+    "loyalty_entries",
+    "loyalty_policy_revisions",
+    "messaging_channel_events",
+    "messaging_messages",
+    "messaging_conversations",
+    "messaging_channel_bindings",
+    "crm_followup_tasks",
+    "crm_followup_policies",
+    "crm_catalog_requests",
+    "customer_quote_items",
+    "customer_quotes",
+    "reconciliation_matches",
+    "settlement_entries",
+    "reconciliation_import_batches",
+    "automation_runs",
+    "business_events",
+    "automation_rules",
+    "crm_opportunities",
+    "customer_contact_consents",
+    "public_catalog_items",
+    "public_catalogs",
     "drawer_commands",
     "drawer_devices",
     "assistant_chunks",

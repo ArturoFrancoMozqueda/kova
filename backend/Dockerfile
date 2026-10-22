@@ -10,7 +10,7 @@ ARG KOVA_RELEASE_SHA=unknown
 ENV KOVA_RELEASE_SHA=$KOVA_RELEASE_SHA
 
 # Update the version and multi-platform digest together (docs/deployment.md).
-COPY --from=ghcr.io/astral-sh/uv:0.8.11@sha256:8101ad825250a114e7bef89eefaa73c31e34e10ffbe5aff01562740bac97553c /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.4@sha256:9f130421e930bfbdc563c00740466603f8723158e90297d07957c2294640262b /uv /usr/local/bin/uv
 
 WORKDIR /app
 
