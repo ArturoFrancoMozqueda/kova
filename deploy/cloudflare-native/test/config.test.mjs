@@ -10,6 +10,7 @@ test("candidate retains existing namespace contracts and permits exactly one bas
   const { worker, containers } = parsed.data;
   assert.equal(worker.name, "kova-backend");
   assert.equal(worker.workersDev, false);
+  assert.equal(worker.previewUrls, false);
   assert.equal(worker.domains, undefined);
   assert.deepEqual(Object.keys(worker.exports).sort(), ["ContainerProxy", "KovaApi", "KovaRateLimit"]);
   assert.equal(worker.exports.KovaApi.container, "kova-native-api");

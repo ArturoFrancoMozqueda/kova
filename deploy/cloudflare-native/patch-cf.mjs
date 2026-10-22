@@ -30,6 +30,12 @@ function prepareFix(filename, before, after, description) {
 // binding change against the otherwise identical local descriptor. Omit only
 // that undefined field; explicit environments and every strict check remain.
 const fixes = [
+  // Dashboard uploads omit script_name for this Worker's own DO namespaces.
+  // Normalize only that equivalent representation before the strict diff;
+  // explicit foreign workers, classes and environments still fail closed.
+  prepareFix(/^containers-BtcOgwm5\.mjs$/,
+    'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);',
+    'function xE(e,t){let n=SE(t);e=structuredClone(e);for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;let r=_E(DE(e,n),n);', "same-worker DO metadata"),
   // The generated registry client discards the useful HTTP status in its
   // generic error message. Preserve failure behavior and expose only numeric
   // diagnostics for the managed registry credential operation, never its body.

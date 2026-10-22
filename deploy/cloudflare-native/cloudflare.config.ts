@@ -25,6 +25,7 @@ export default defineConfig({
     compatibilityDate: "2026-10-20",
     compatibilityFlags: ["nodejs_compat"],
     workersDev: false,
+    previewUrls: false,
     limits: { cpuMs: 30_000 },
     exports: {
       KovaApi: exports.durableObject({ storage: "sqlite", container: api }),

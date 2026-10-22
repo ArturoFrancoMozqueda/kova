@@ -19,12 +19,20 @@ operar en Live. El proveedor documenta que los folios de la cuenta pueden consum
 organizaciones: https://docs.facturapi.io/api/ . El costo y la política comercial de Kova se
 resuelven por separado; este cambio no activa suscripciones del proveedor por cada negocio.
 
-Configurar `KOVA_FACTURAPI_USER_KEY` en el almacén de secretos del backend Fly. No enviarla
+Configurar `KOVA_FACTURAPI_USER_KEY` como tipo **Secret** en Settings → Variables and Secrets
+del Worker `kova-backend` en Cloudflare; no usar Text. No enviarla
 al chat, no ponerla en variables VITE, repositorio, base de datos ni comandos que impriman
 valores. Mantener `KOVA_CFDI_CREDENTIALS_KEY` existente y `KOVA_CFDI_ENABLED=true`; rotar la raíz
 requiere el procedimiento previo de descifrado/re-cifrado, nunca sustituirla para esta entrega.
 Si falta la cuenta/llave o el cifrado, `GET /setup` devuelve `available:false` y el producto
 muestra configuración pendiente de Kova, sin pedir llaves al negocio.
+
+El proceso nativo carga las variables al arrancar. Tras añadir o rotar un secreto,
+publicar mediante el flujo protegido y verificar un proceso nuevo antes de probar el
+proveedor. `available:true` confirma presencia/formato y cifrado disponible, no que
+Facturapi haya aceptado la credencial ni que Live esté autorizado. Un Deploy del panel
+puede omitir el nombre del propio Worker en bindings locales; el comparador fijado
+normaliza sólo esa representación equivalente y conserva la comprobación estricta.
 
 El backend debe migrar hasta `e9f2d5d835e6` antes de servir la nueva UI. La tabla
 `cfdi_enrollments` tiene FORCE RLS y sólo grants runtime necesarios; nunca acceso anon/browser.
