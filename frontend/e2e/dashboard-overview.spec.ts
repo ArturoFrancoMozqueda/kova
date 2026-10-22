@@ -25,9 +25,11 @@ test("loads and changes periods through the overview without legacy dashboard re
     }
   });
   await page.goto("/dashboard");
-  await expect(page.getByText("Qué hacer ahora", { exact: true })).toBeVisible();
+  // "Tu día" heads the ready panel on every load. "Qué hacer ahora" no longer
+  // renders when there's nothing to act on (as in this steady fixture).
+  await expect(page.getByText("Tu día", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "7 días", exact: true }).click();
-  await expect(page.getByText("Qué hacer ahora", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tu día", { exact: true })).toBeVisible();
   // React's development StrictMode remounts once; production has one load.
   expect(periods).toEqual(process.env.PLAYWRIGHT_TARGET === "dev"
     ? ["day", "day", "week"] : ["day", "week"]);
