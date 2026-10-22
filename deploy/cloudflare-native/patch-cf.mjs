@@ -29,6 +29,8 @@ function prepareFix(filename, before, after, description) {
 // an own undefined property, which json-diff treats as a destructive [{}]
 // binding change against the otherwise identical local descriptor. Omit only
 // that undefined field; explicit environments and every strict check remain.
+// The R2 converter has the same own-undefined defect for an unset jurisdiction.
+// Preserve explicit jurisdiction values so real storage changes still conflict.
 const fixes = [
   // Dashboard uploads omit script_name for this Worker's own DO namespaces.
   // Normalize only that equivalent representation before the strict diff;
@@ -54,8 +56,14 @@ const fixes = [
     'm.push({name:`./${o}`,filePath:l',
     'm.push({name:p===`python`?o:`./${o}`,filePath:l', "Python module naming"),
   prepareFix(/^dist-DZRTPMMA\.mjs$/,
-    'script_name:t.script_name,environment:t.environment}]};break;case`d1`',
-    'script_name:t.script_name,...t.environment!==void 0?{environment:t.environment}:{}}]};break;case`d1`', "remote DO environment"),
+    [
+      'script_name:t.script_name,environment:t.environment}]};break;case`d1`',
+      'bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`',
+    ],
+    [
+      'script_name:t.script_name,...t.environment!==void 0?{environment:t.environment}:{}}]};break;case`d1`',
+      'bucket_name:t.bucket_name,...t.jurisdiction!==void 0?{jurisdiction:t.jurisdiction}:{}}];break;case`secrets_store_secret`',
+    ], "remote optional DO environment and R2 jurisdiction"),
 ];
 for (const fix of fixes) if (fix.changed) writeFileSync(fix.file, fix.source);
 if (fixes.some(fix => fix.changed)) console.log("Applied pinned cf compatibility and safe registry diagnostic fixes.");

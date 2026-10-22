@@ -42,10 +42,12 @@ test("pinned cf fixes are idempotent and both remain applied", () => {
   assert.ok(before.some(source => source.includes('...t.environment!==void 0?{environment:t.environment}:{}')));
 });
 
-test("real cf strict comparator accepts only the equivalent unset remote DO environment", async () => {
+test("real cf strict comparator accepts equivalent unset DO environment and R2 jurisdiction only", async () => {
   const scratch = mkdtempSync(join(tmpdir(), "kova-cf-strict-diff-"));
   const before = 'script_name:t.script_name,environment:t.environment}]};break;case`d1`';
   const after = 'script_name:t.script_name,...t.environment!==void 0?{environment:t.environment}:{}}]};break;case`d1`';
+  const r2Before = 'bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`';
+  const r2After = 'bucket_name:t.bucket_name,...t.jurisdiction!==void 0?{jurisdiction:t.jurisdiction}:{}}];break;case`secrets_store_secret`';
   const names = readdirSync(directory);
   const comparatorName = "containers-BtcOgwm5.mjs";
   const mapperName = "dist-DZRTPMMA.mjs";
@@ -60,7 +62,7 @@ test("real cf strict comparator accepts only the equivalent unset remote DO envi
       for (const name of names) {
         const destination = join(folder, name);
         if (name === mapperName) {
-          const source = patched ? mapper : mapper.replace(after, before);
+          const source = patched ? mapper : mapper.replace(after, before).replace(r2After, r2Before);
           writeFileSync(destination, source + '\nexport { fE as mapBindingsForTest };\n');
         } else if (name === comparatorName) {
           writeFileSync(destination, readFileSync(new URL(name, directory), "utf8") + '\nexport { xE as remoteDiffForTest };\n');
@@ -86,6 +88,25 @@ test("real cf strict comparator accepts only the equivalent unset remote DO envi
     assert.equal(compare(variants[1], descriptor, { limits: { cpu_ms: 100 } }).nonDestructive, false);
     assert.equal(compare(variants[1], descriptor, { vars: { TENANT: "different" } }).nonDestructive, false);
     assert.equal(compare(variants[1], descriptor, { unsafe: { bindings: [{ type: "secret_text", name: "SYNTHETIC_SECRET" }] } }).nonDestructive, false);
+
+    const r2 = { type: "r2_bucket", name: "ASSISTANT_STORAGE", bucket_name: "kova-assistant" };
+    const r2Local = { name: "kova-backend", workers_dev: false, preview_urls: false,
+      r2_buckets: [{ binding: r2.name, bucket_name: r2.bucket_name }] };
+    const compareR2 = (variant, binding = r2) => variant.remoteDiffForTest(
+      { ...structuredClone(r2Local), ...variant.mapBindingsForTest([binding]) }, r2Local);
+    assert.equal(compareR2(variants[0]).nonDestructive, false,
+      "real unpatched mapper reproduces the destructive empty R2 binding diff");
+    assert.equal(compareR2(variants[1]).diff, null);
+    assert.equal(compareR2(variants[1], { ...r2, jurisdiction: undefined }).diff, null);
+    assert.equal(Object.hasOwn(variants[1].mapBindingsForTest([r2]).r2_buckets[0], "jurisdiction"), false);
+    for (const [field, value] of [["jurisdiction", null], ["jurisdiction", ""],
+      ["jurisdiction", "eu"], ["bucket_name", "another-bucket"], ["name", "OTHER_STORAGE"]]) {
+      assert.equal(compareR2(variants[1], { ...r2, [field]: value }).nonDestructive, false,
+        `${field} changes must still fail strict R2 comparison`);
+    }
+    const european = { ...r2Local, r2_buckets: [{ ...r2Local.r2_buckets[0], jurisdiction: "eu" }] };
+    assert.equal(variants[1].remoteDiffForTest({ ...structuredClone(european),
+      ...variants[1].mapBindingsForTest([{ ...r2, jurisdiction: "eu" }]) }, european).diff, null);
 
     // Dashboard saves omit the current Worker's name on its local namespaces.
     // Binding order is incidental; namespace identity and environment are not.
