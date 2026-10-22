@@ -200,12 +200,14 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
     reason_code: "caducidad",
   });
 
+  await page.getByRole("button", { name: "Más acciones de Concha", exact: true }).click();
   await page.getByRole("button", { name: /^conteo$/i }).click();
   await page.getByLabel(/cantidad contada/i).fill("5");
   await page.getByLabel(/motivo/i).fill("physical_count");
   await page.getByRole("button", { name: /guardar/i }).click();
   await expect(page.getByText(/conteo registrado/i)).toBeVisible();
 
+  await page.getByRole("button", { name: "Más acciones de Concha", exact: true }).click();
   await page.getByRole("button", { name: /definir umbral/i }).click();
   await page.getByRole("spinbutton", { name: /umbral/i }).fill("2");
   await page.getByRole("button", { name: /guardar/i }).click();

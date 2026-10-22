@@ -1514,7 +1514,7 @@ function RegularRegisterView() {
             // Desktop: normal sidebar column. transform-none rather than
             // translate-y-0, which would still emit a transform and make this a
             // containing block for anything absolutely positioned inside it.
-            "xl:sticky xl:top-4 xl:bottom-auto xl:inset-x-auto xl:z-auto xl:h-auto xl:max-h-none xl:overflow-visible xl:bg-transparent xl:border-0 xl:rounded-none xl:shadow-none xl:transform-none xl:transition-none xl:flex-none xl:block",
+            "xl:sticky xl:top-4 xl:bottom-auto xl:inset-x-auto xl:z-auto xl:h-auto xl:max-h-[calc(100dvh-8rem)] xl:overflow-y-auto xl:bg-white xl:border xl:border-kova-border xl:rounded-kova-xl xl:shadow-kova-card xl:transform-none xl:transition-none xl:flex-none xl:block",
             // Mobile: full-height fixed sheet, translated down to leave only the
             // 5rem handle (h-20 below) visible above the bottom nav. Timing and
             // easing live in .kv-cart-sheet, which needs the asymmetry.
@@ -1562,11 +1562,11 @@ function RegularRegisterView() {
             </div>
           </button>
 
-          {/* Scrollable content (cart + payment) — fills sheet on mobile, normal stack on desktop */}
+          {/* Mobile sheet scrolls here; desktop scrolls the integrated checkout. */}
           <div className="flex-1 overflow-y-auto overscroll-contain xl:overflow-visible xl:flex-none">
-            <div className="space-y-4 p-3 xl:p-0">
-          <Card aria-label={copy.register.cart} className="xl:block">
-            <CardHeader className="hidden border-b pb-3 xl:block">
+            <div className="space-y-4 p-3 xl:space-y-0 xl:p-0">
+          <Card aria-label={copy.register.cart} className="xl:block xl:rounded-none xl:border-0 xl:shadow-none">
+            <CardHeader className="hidden border-b pb-4 xl:block xl:border-kova-ink xl:bg-kova-ink xl:text-kova-on-ink">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                   <ShoppingCart className="h-4 w-4" />
@@ -1589,13 +1589,13 @@ function RegularRegisterView() {
                   <p className="text-sm text-muted-foreground">{copy.register.cartPlaceholder}</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 xl:max-h-[30dvh] xl:overflow-y-auto xl:overscroll-contain">
                   {cartRows.map(({ key: cartKey, item, state }) => {
                     return (
                       // The grid wrapper is what collapses on removal; the inner
                       // row keeps its own look untouched.
                       <div key={cartKey} className="kv-row-collapse" data-state={state}>
-                        <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in">
+                        <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in xl:rounded-none xl:border-x-0 xl:border-t-0 xl:bg-white xl:px-0">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">{item.product.name}</p>
                             {item.selectedModifiers.map((m) => (
@@ -1667,8 +1667,8 @@ function RegularRegisterView() {
             </CardContent>
           </Card>
 
-          {/* Payment section */}
-          <Card>
+          {/* Payment and cart share one desktop checkout surface. */}
+          <Card className="xl:rounded-none xl:border-x-0 xl:border-b-0 xl:border-t xl:border-dashed xl:bg-[var(--ticket-paper)] xl:shadow-none">
             <form ref={formRef} onSubmit={(event) => void submitSale(event)}>
               <CardContent className="p-4 space-y-4">
                 <details className="rounded-lg border p-3">
@@ -1694,12 +1694,6 @@ function RegularRegisterView() {
                   <div className="flex justify-between"><span>Descuento</span><span>−{formatMoney(centsToMoney(pricing.discount))}</span></div>
                   <div className="flex justify-between"><span>Impuesto adicional ({taxRate}%)</span><span>{formatMoney(centsToMoney(pricing.tax))}</span></div>
                 </div>}
-                {/* Total */}
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-sm font-medium text-muted-foreground">{copy.register.total}</span>
-                  <span className="text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
-                </div>
-
                 {!canCreateOrders && (
                   <div className="flex items-center gap-2 rounded-lg bg-warning/20 border border-warning/30 px-3 py-2 text-sm text-warning-foreground">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -2014,14 +2008,17 @@ function RegularRegisterView() {
                   </div>
                 )}
 
-                {/* Submit — kova-growth: cobrar es la accion que lleva al
-                    estado de exito, que ya usa ese mismo verde.
-                    In the mobile sheet it sticks to the bottom of the scroller:
+                {/* The total and explicit charge action stay together.
+                    In the sheet and desktop checkout they stick to the scroller:
                     with cash keypad, quick amounts and split payment above it,
                     "Cobrar" otherwise sat below the fold on every phone sale.
                     Solid surface, no backdrop-filter (a filter would make this a
                     containing block — see docs/claude/motion-system.md). */}
-                <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-kova-border bg-card px-4 pb-4 pt-3 xl:static xl:m-0 xl:border-0 xl:bg-transparent xl:p-0">
+                <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-kova-border bg-card px-4 pb-4 pt-3 xl:bg-[var(--ticket-paper)]">
+                <div className="mb-3 flex items-center justify-between gap-3 border-b pb-3 pt-1">
+                  <span className="text-sm font-medium text-muted-foreground">{copy.register.total}</span>
+                  <span className="text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
+                </div>
                 <Button
                   type="submit"
                   disabled={!canSubmitSale && !cashPaymentNeedsAmount}
@@ -2033,7 +2030,7 @@ function RegularRegisterView() {
                   }}
                   size="xl"
                   className={cn(
-                    "w-full bg-kova-growth text-white hover:bg-kova-growth/90",
+                    "w-full bg-kova-growth-strong text-white hover:bg-kova-growth-strong/90",
                     !canSubmitSale && cashPaymentNeedsAmount && "cursor-not-allowed opacity-50",
                   )}
                   variant="default"

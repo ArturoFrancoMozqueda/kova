@@ -27,11 +27,11 @@ export function ViewHeader({
           {eyebrow ? (
             <p className="mb-1 text-sm font-medium text-kova-blue/80">{eyebrow}</p>
           ) : null}
-          <h1 className="text-3xl font-bold tracking-[-0.035em] text-kova-ink">{title}</h1>
+            <h1 className="text-3xl font-semibold leading-tight tracking-[-0.04em] text-kova-ink lg:text-[2rem]">{title}</h1>
         </div>
         {actions}
       </div>
-      {meta ? <p className="text-sm text-muted-foreground">{meta}</p> : null}
+      {meta ? <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{meta}</p> : null}
     </div>
   );
 }

@@ -45,6 +45,9 @@ function renderView() {
 async function openModal(action = copy.inventoryView.adjust) {
   renderView();
   await screen.findByRole("heading", { name: item.product_name });
+  if (action === copy.inventoryView.stockTake || action === copy.inventoryView.setThreshold) {
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.moreActions(item.product_name) }));
+  }
   fireEvent.click(screen.getByRole("button", { name: action }));
   return screen.getByRole("dialog");
 }

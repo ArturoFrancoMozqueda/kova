@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import type { SalesByHourRow, SalesSummary, TopProducts } from "@/reports/types";
 import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
@@ -138,7 +137,9 @@ export function InsightStrip({
       title: copy.dashboard.actionRestockTitle,
       desc: copy.dashboard.actionRestockDesc(names),
       cta: copy.dashboard.actionRestockCta,
-      to: "/inventory",
+      to: lowStock.length === 1
+        ? `/inventory?${new URLSearchParams({ product: lowStock[0].product_id, filter: "low" })}`
+        : "/inventory?filter=low",
       tone: "warn",
       icon: Package,
     });
@@ -182,7 +183,7 @@ export function InsightStrip({
       title: copy.dashboard.actionPromoteTopTitle,
       desc: copy.dashboard.actionPromoteTopDesc(top.product_name),
       cta: copy.dashboard.actionPromoteTopCta,
-      to: "/catalog",
+      to: `/catalog?${new URLSearchParams({ search: top.product_name })}`,
       tone: "info",
       icon: TrendingUp,
     });
@@ -212,22 +213,17 @@ export function InsightStrip({
   return (
     <div className="space-y-4">
       {showBanner && (
-      <Card className="bg-gradient-to-br from-kova-mist/50 to-white border-kova-blue/15">
-        <CardContent className="flex items-start gap-2.5 p-4">
+      <div className="flex items-start gap-2.5 px-1 py-1">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
           <p className="text-sm leading-relaxed text-kova-ink">
             {emphasize(story, emphasisTokens)}
           </p>
-        </CardContent>
-      </Card>
+      </div>
       )}
 
       {showActions && (
-        <Card>
-          <CardHeader className="pb-3">
-            <h2 className="text-base font-semibold leading-none tracking-tight">{copy.dashboard.nextActionsTitle}</h2>
-          </CardHeader>
-          <CardContent className="pt-0">
+        <section aria-label={copy.dashboard.nextActionsTitle}>
+            <h2 className="mb-3 text-base font-semibold tracking-tight">{copy.dashboard.nextActionsTitle}</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {actions.slice(0, 3).map((a) => {
                 const Icon = a.icon;
@@ -247,7 +243,7 @@ export function InsightStrip({
                   <Link
                     key={a.key}
                     to={a.to}
-                    className={`group flex flex-col gap-2 rounded-lg border p-3 transition-colors ${toneClass}`}
+                    className={`group flex flex-col gap-2 rounded-kova-lg border bg-white p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue ${toneClass}`}
                   >
                     <div className="flex items-center gap-2">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-md ${iconClass}`}>
@@ -255,7 +251,7 @@ export function InsightStrip({
                       </div>
                       <p className="text-sm font-semibold text-kova-ink">{a.title}</p>
                     </div>
-                    <p className="text-xs text-kova-muted leading-relaxed">{a.desc}</p>
+                    <p className="text-sm text-kova-muted leading-relaxed">{a.desc}</p>
                     <span className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-kova-blue">
                       {a.cta}
                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
@@ -264,8 +260,7 @@ export function InsightStrip({
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+        </section>
       )}
     </div>
   );
