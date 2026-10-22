@@ -33,6 +33,15 @@ test("successful release verifies candidate before promotion and public site aft
   assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "promote", "acceptance"]);
 });
 
+test("backend publication receives the validated previous artifact identity", async () => {
+  const fake = fixture();
+  fake.provider.deployBackend = async (target, previous) => {
+    assert.equal(target, sha);
+    assert.equal(previous, artifact.releaseSha);
+  };
+  assert.equal((await release({ artifact, sha, ...fake })).accepted, true);
+});
+
 test("candidate failure leaves production alone", async () => {
   const fake = fixture("candidate");
   await assert.rejects(release({ artifact, sha, ...fake }), /candidate/);

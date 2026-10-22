@@ -33,6 +33,9 @@ proveedor. `available:true` confirma presencia/formato y cifrado disponible, no 
 Facturapi haya aceptado la credencial ni que Live esté autorizado. Un Deploy del panel
 puede omitir el nombre del propio Worker en bindings locales; el comparador fijado
 normaliza sólo esa representación equivalente y conserva la comprobación estricta.
+El release también transmite su SHA anterior capturado y su SHA objetivo al comando
+nativo. Sólo esa transición de `KOVA_BUILD_SHA` se admite en la comparación; una
+versión remota inesperada o cambios en otras variables conservan el bloqueo.
 
 El backend debe migrar hasta `e9f2d5d835e6` antes de servir la nueva UI. La tabla
 `cfdi_enrollments` tiene FORCE RLS y sólo grants runtime necesarios; nunca acceso anon/browser.
