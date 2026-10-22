@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -1389,6 +1390,18 @@ function persistedImagePosition(value: number): number {
   return Math.min(Math.max(Math.round(value), 0), 100);
 }
 
+function FormSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3 border-t border-kova-border pt-4 first:border-t-0 first:pt-0">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-kova-tertiary">{title}</h3>
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function ProductForm({
   initial,
   defaultTrackInventory = false,
@@ -1489,6 +1502,12 @@ export function ProductForm({
           ? copy.catalog.productCostNegative
           : null;
 
+  // Say why "Guardar" is disabled instead of only greying it out.
+  const missingRequired = [
+    ...(!name.trim() ? [copy.catalog.productName.toLowerCase()] : []),
+    ...(!price ? [copy.catalog.productPrice.toLowerCase()] : []),
+  ];
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0 || costError) {
@@ -1522,6 +1541,64 @@ export function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} aria-label="Formulario de producto" className="space-y-4">
+      <FormSection title={copy.catalog.productSectionEssentials}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="prod-name">{copy.catalog.productName}</Label>
+          <Input
+            id="prod-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={160}
+            aria-invalid={/<[^>]+>/.test(name) ? "true" : undefined}
+            aria-describedby={/<[^>]+>/.test(name) ? "prod-name-error" : undefined}
+          />
+          {/<[^>]+>/.test(name) && (
+            <p id="prod-name-error" className="text-xs text-destructive">
+              {copy.catalog.productNameNoHtml}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-price">{copy.catalog.productPrice}</Label>
+          <Input
+            id="prod-price"
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0"
+            value={price}
+            onChange={(e) => setPrice(e.target.value.replace(/^-/, ""))}
+            aria-invalid={priceError ? "true" : undefined}
+            aria-describedby={priceError ? "prod-price-error" : undefined}
+            required
+          />
+          {priceError && (
+            <p id="prod-price-error" className="text-xs text-destructive">
+              {priceError}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-cat">{copy.catalog.productCategory}</Label>
+          <Select
+            id="prod-cat"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">&mdash;</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        </div>
+      </FormSection>
+      <FormSection title={copy.catalog.productSectionPhoto}>
       <div className="space-y-2">
         <Label>{copy.catalog.productImage}</Label>
         <div className="flex flex-wrap gap-2">
@@ -1568,45 +1645,9 @@ export function ProductForm({
           onChange={handleImagePick}
         />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="prod-name">{copy.catalog.productName}</Label>
-          <Input
-            id="prod-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={160}
-            aria-invalid={/<[^>]+>/.test(name) ? "true" : undefined}
-            aria-describedby={/<[^>]+>/.test(name) ? "prod-name-error" : undefined}
-          />
-          {/<[^>]+>/.test(name) && (
-            <p id="prod-name-error" className="text-xs text-destructive">
-              {copy.catalog.productNameNoHtml}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="prod-price">{copy.catalog.productPrice}</Label>
-          <Input
-            id="prod-price"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={price}
-            onChange={(e) => setPrice(e.target.value.replace(/^-/, ""))}
-            aria-invalid={priceError ? "true" : undefined}
-            aria-describedby={priceError ? "prod-price-error" : undefined}
-            required
-          />
-          {priceError && (
-            <p id="prod-price-error" className="text-xs text-destructive">
-              {priceError}
-            </p>
-          )}
-        </div>
+      </FormSection>
+      <FormSection title={copy.catalog.productSectionDetails} hint={copy.catalog.productSectionDetailsHint}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="prod-cost">{copy.catalog.productCost}</Label>
           <Input
@@ -1627,21 +1668,6 @@ export function ProductForm({
               {copy.catalog.productCostHint}
             </p>
           )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="prod-cat">{copy.catalog.productCategory}</Label>
-          <Select
-            id="prod-cat"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value="">&mdash;</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="prod-sku">{copy.catalog.productSku}</Label>
@@ -1674,7 +1700,8 @@ export function ProductForm({
             maxLength={1000}
           />
         </div>
-      </div>
+        </div>
+      </FormSection>
 
       {/* Track inventory */}
       <div className="space-y-3">
@@ -1763,10 +1790,19 @@ export function ProductForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           {copy.catalog.cancel}
         </Button>
-        <Button type="submit" disabled={pending || !name.trim() || !price}>
+        <Button
+          type="submit"
+          disabled={pending || missingRequired.length > 0}
+          aria-describedby={missingRequired.length > 0 ? "prod-save-missing" : undefined}
+        >
           {copy.catalog.saveProduct}
         </Button>
       </DialogFooter>
+      {missingRequired.length > 0 && (
+        <p id="prod-save-missing" className="text-right text-xs text-muted-foreground">
+          {copy.catalog.productSaveMissing(missingRequired.join(" y "))}
+        </p>
+      )}
     </form>
   );
 }
