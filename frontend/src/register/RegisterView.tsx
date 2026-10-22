@@ -32,8 +32,11 @@ import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
 import type { OfflineReceiptSnapshot, OfflineSaleQueueItem } from "../offline/types";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
-import { getOpenShift } from "@/shifts/api";
-import type { Shift } from "@/shifts/types";
+import { getOpenShift, openShift as openShiftRequest } from "@/shifts/api";
+import type { Shift, ShiftOpenPayload } from "@/shifts/types";
+import { OpenShiftModal } from "@/shifts/OpenShiftModal";
+import { resolveApiErrorMessage } from "@/lib/apiError";
+import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -51,6 +54,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
 import { exactSkuMatches, skuSearchMatches } from "./skuSearch";
+import { suggestCashBills } from "./cashSuggestions";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -76,7 +80,7 @@ import {
   Printer,
   CloudOff,
 } from "lucide-react";
-import { trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
+import { trackFunnelEvent, trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getReceiptSettings } from "@/settings/api";
@@ -162,6 +166,31 @@ function createPaymentDraft(method: PaymentMethod, amount = ""): PaymentDraft {
   };
 }
 
+/** Quick-cash bills are whole pesos: "$500" reads faster than "$500.00". */
+function formatWholePesos(pesos: number): string {
+  return formatMoney(pesos).replace(/\.00$/, "");
+}
+
+const MOD_KEY_LABEL =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+
+/** Desktop-only keyboard hint, e.g. [Ctrl] [Enter] cobrar. */
+function ShortcutHint({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {keys.map((key) => (
+        <kbd
+          key={key}
+          className="rounded-kova-sm border border-kova-border bg-kova-mist px-1.5 py-0.5 font-sans text-[11px] font-medium text-kova-ink"
+        >
+          {key}
+        </kbd>
+      ))}
+      <span>{label}</span>
+    </span>
+  );
+}
+
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
@@ -205,7 +234,6 @@ function RegularRegisterView() {
   const [cashSubmitAttempted, setCashSubmitAttempted] = useState(false);
   const [reference, setReference] = useState("");
   const [splitPaymentsEnabled, setSplitPaymentsEnabled] = useState(false);
-  const [advancedOptionsOpen, setAdvancedOptionsOpen] = useState(false);
   const [splitPayments, setSplitPayments] = useState<PaymentDraft[]>([
     createPaymentDraft("cash"),
   ]);
@@ -350,13 +378,16 @@ function RegularRegisterView() {
     resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
-    setAdvancedOptionsOpen(false);
     setSplitPayments([createPaymentDraft("cash")]);
     setCompletedOrder(null);
     setPendingReceipt(null);
     activeSaleClientUuidRef.current = null;
     submittingRef.current = false;
-  }, [resetCashInteraction, tenantId]);
+    // Desktop counters scan the next item right away: put focus back on the
+    // search box. Runs after the success view restores its previous focus.
+    // Phones skip it so the on-screen keyboard doesn't pop up uninvited.
+    if (!isCartSheetModal) window.requestAnimationFrame(() => skuInputRef.current?.focus());
+  }, [isCartSheetModal, resetCashInteraction, tenantId]);
 
   useEffect(() => {
     setCustomerId("");
@@ -447,7 +478,17 @@ function RegularRegisterView() {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     if (isCartSheetModal) successPrimaryRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") resetSale();
+      if (e.key === "Escape") {
+        resetSale();
+        return;
+      }
+      // "N" (nueva venta) or Enter outside a control starts the next sale.
+      if (e.altKey || e.ctrlKey || e.metaKey || isEditableTarget(e.target)) return;
+      const onControl = e.target instanceof HTMLElement && e.target.closest("button, a, [role='button']");
+      if (e.key === "n" || e.key === "N" || (e.key === "Enter" && !onControl)) {
+        e.preventDefault();
+        resetSale();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -551,6 +592,36 @@ function RegularRegisterView() {
         if (requestId === shiftRequestRef.current) setShiftCheckFailed(true);
       });
   }, []);
+
+  // Open the shift without leaving the register so the cart in progress is
+  // kept (the cart is component state and navigating to /shifts drops it).
+  const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false);
+  const [openShiftPending, setOpenShiftPending] = useState(false);
+  const handleBillingBlocked = useBillingBlocked();
+  const submitInlineOpenShift = useCallback(
+    async (payload: ShiftOpenPayload) => {
+      setOpenShiftPending(true);
+      try {
+        const shift = await openShiftRequest(payload);
+        void trackFunnelEvent("open_shift");
+        shiftRequestRef.current += 1;
+        setOpenShift(shift);
+        setShiftCheckFailed(false);
+        setOpenShiftModalOpen(false);
+        // Cash was only moved off because the drawer was closed; the cashier
+        // opened it to charge in cash, so go back to it.
+        if (!splitPaymentsEnabled) selectPaymentMethod("cash");
+        toast(copy.shiftView.openSuccess, "success");
+        refreshShift();
+      } catch (err) {
+        if (handleBillingBlocked(err)) return;
+        toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
+      } finally {
+        setOpenShiftPending(false);
+      }
+    },
+    [handleBillingBlocked, refreshShift, selectPaymentMethod, splitPaymentsEnabled, toast],
+  );
 
   useEffect(() => {
     void load();
@@ -721,6 +792,22 @@ function RegularRegisterView() {
       )
     : paymentMethod === "cash";
   const cashBlocked = hasOpenShift !== true && saleIncludesCash;
+  // Cashiers with the shift-open permission open it in place; everyone else
+  // keeps the route to /shifts (where a manager can open it).
+  const renderOpenShiftAction = () =>
+    canOpenDrawer ? (
+      <button
+        type="button"
+        onClick={() => setOpenShiftModalOpen(true)}
+        className="-my-2 inline-flex min-h-11 shrink-0 items-center rounded-kova-md px-2 font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {copy.register.openShift}
+      </button>
+    ) : (
+      <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
+        {copy.register.openShift}
+      </Link>
+    );
   const canSubmitSale =
     canCreateOrders &&
     pricing.valid &&
@@ -904,7 +991,6 @@ function RegularRegisterView() {
     setCashTendered("");
     resetCashInteraction();
     setSplitPaymentsEnabled(enabled);
-    if (enabled) setAdvancedOptionsOpen(true);
     if (enabled) {
       setSplitPayments([
         {
@@ -1104,7 +1190,6 @@ function RegularRegisterView() {
     resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
-    setAdvancedOptionsOpen(false);
     setSplitPayments([createPaymentDraft("cash")]);
     submittingRef.current = false;
     setSubmitting(false);
@@ -1206,18 +1291,14 @@ function RegularRegisterView() {
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">{copy.register.noShiftWarning}</span>
-          <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
-            {copy.register.openShift}
-          </Link>
+          {renderOpenShiftAction()}
         </div>
       )}
       {hasOpenShift === null && shiftCheckFailed && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">{copy.register.cashShiftUnknown}</span>
-          <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
-            {copy.register.openShift}
-          </Link>
+          {renderOpenShiftAction()}
         </div>
       )}
 
@@ -1281,7 +1362,7 @@ function RegularRegisterView() {
                   type="button"
                   onClick={clearSkuSearch}
                   aria-label={copy.register.clearSkuSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-kova-md text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -1323,7 +1404,7 @@ function RegularRegisterView() {
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
+                    "min-h-11 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-quick ease-standard",
                     !selectedCategory
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -1337,7 +1418,7 @@ function RegularRegisterView() {
                     key={catId}
                     onClick={() => setSelectedCategory(catId)}
                     className={cn(
-                      "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
+                      "min-h-11 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-quick ease-standard",
                       selectedCategory === catId
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -1559,7 +1640,7 @@ function RegularRegisterView() {
                               type="button"
                               onClick={() => removeItem(cartKey)}
                               aria-label={copy.register.removeItem(item.product.name)}
-                              className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="flex h-11 w-11 items-center justify-center rounded-kova-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1589,21 +1670,21 @@ function RegularRegisterView() {
             <form ref={formRef} onSubmit={(event) => void submitSale(event)}>
               <CardContent className="p-4 space-y-4">
                 <details className="rounded-lg border p-3">
-                  <summary className="cursor-pointer text-sm font-medium">Cliente, descuento e impuesto</summary>
+                  <summary className="cursor-pointer text-sm font-medium">{copy.register.saleOptions}</summary>
                   <div className="mt-3 space-y-3">
-                    <Label htmlFor="sale-customer-query">Buscar cliente</Label>
-                    <Input id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder="Nombre, teléfono o correo" />
-                    <Label htmlFor="sale-customer">Cliente de la venta</Label>
+                    <Label htmlFor="sale-customer-query">{copy.register.customerSearch}</Label>
+                    <Input id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder={copy.register.customerSearchPlaceholder} />
+                    <Label htmlFor="sale-customer">{copy.register.saleCustomer}</Label>
                     <Select id="sale-customer" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
-                      <option value="">Público general</option>
+                      <option value="">{copy.register.walkInCustomer}</option>
                       {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
                     </Select>
-                    <Label htmlFor="sale-discount">Descuento de la venta (MXN)</Label>
+                    <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
                     <Input id="sale-discount" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} />
-                    <Label htmlFor="sale-tax">Impuesto adicional al precio (%)</Label>
+                    <Label htmlFor="sale-tax">{copy.register.saleTax}</Label>
                     <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
-                    <p className="text-xs text-muted-foreground">Se calcula después del descuento. Si tus precios ya incluyen impuestos, usa 0%. Esta configuración no emite una factura.</p>
-                    {!pricing.valid && <p role="alert" className="text-sm text-destructive">El descuento debe estar entre 0 y el subtotal; el impuesto entre 0 y 100%, con hasta dos decimales.</p>}
+                    <p className="text-xs text-muted-foreground">{copy.register.saleTaxHint}</p>
+                    {!pricing.valid && <p role="alert" className="text-sm text-destructive">{copy.register.salePricingInvalid}</p>}
                   </div>
                 </details>
                 {(pricing.discount > 0 || pricing.tax > 0) && <div className="text-sm space-y-1">
@@ -1812,26 +1893,26 @@ function RegularRegisterView() {
                                 : "cashTendered-help"
                           }
                         />
-                        {/* Quick cash: common MXN bills + exact amount, so the
-                            cashier taps instead of typing the tendered amount. */}
-                        <div className="flex flex-wrap gap-2">
-                          {[50, 100, 200, 500].map((bill) => (
+                        {/* Quick cash: exact amount first, then round-ups above the
+                            total, so the cashier taps instead of typing. */}
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                          <button
+                            type="button"
+                            onClick={() => updateCashTenderedFromInteraction(totalAmount)}
+                            className="min-h-11 rounded-lg border bg-background px-2 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                          >
+                            {copy.register.exactCash}
+                          </button>
+                          {suggestCashBills(totalCents).map((bill) => (
                             <button
                               key={bill}
                               type="button"
                               onClick={() => updateCashTenderedFromInteraction(String(bill))}
-                              className="min-h-11 rounded-lg border bg-background px-3 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                              className="min-h-11 rounded-lg border bg-background px-2 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
                             >
-                              {formatMoney(bill)}
+                              {formatWholePesos(bill)}
                             </button>
                           ))}
-                          <button
-                            type="button"
-                            onClick={() => updateCashTenderedFromInteraction(totalAmount)}
-                            className="min-h-11 rounded-lg border bg-background px-3 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
-                          >
-                            {copy.register.exactCash}
-                          </button>
                         </div>
                         {(() => {
                           if (showCashValidationError) {
@@ -1884,40 +1965,29 @@ function RegularRegisterView() {
                   </div>
                 )}
 
-                {/* Advanced options — split payment lives behind a disclosure */}
+                {/* Split payment is common at Mexican counters (cash + transfer),
+                    so the toggle stays visible instead of behind a disclosure. */}
                 {cartItems.length > 0 && (
-                  <details
-                    className="rounded-[var(--radius-md)] border border-[color:var(--kova-border)] px-3 py-2 text-sm [&[open]>summary]:mb-2"
-                    open={splitPaymentsEnabled || advancedOptionsOpen}
-                    onToggle={(event) => {
-                      if (!splitPaymentsEnabled) setAdvancedOptionsOpen(event.currentTarget.open);
-                    }}
+                  <label
+                    className={cn(
+                      "flex min-h-11 cursor-pointer items-start gap-3 rounded-kova-md border px-3 py-2.5 text-sm transition-colors duration-quick ease-standard",
+                      splitPaymentsEnabled
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-kova-border hover:border-primary/30",
+                    )}
                   >
-                    <summary
-                      onClick={(event) => {
-                        if (splitPaymentsEnabled) event.preventDefault();
-                      }}
-                      className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden"
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <SplitSquareHorizontal className="h-4 w-4" />
-                        {copy.register.advancedOptions}
-                      </span>
-                    </summary>
-                    {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- checkbox is nested and labelled by the visible spans; static analysis can't see the expression text */}
-                    <label className="flex items-start gap-2 cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        checked={splitPaymentsEnabled}
-                        onChange={(event) => toggleSplitPayments(event.target.checked)}
-                        className="mt-0.5 rounded border-input text-primary focus:ring-primary"
-                      />
-                      <span className="space-y-0.5">
-                        <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
-                        <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
-                      </span>
-                    </label>
-                  </details>
+                    <input
+                      type="checkbox"
+                      checked={splitPaymentsEnabled}
+                      onChange={(event) => toggleSplitPayments(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                    />
+                    <SplitSquareHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-kova-muted" aria-hidden="true" />
+                    <span className="space-y-0.5">
+                      <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
+                      <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
+                    </span>
+                  </label>
                 )}
 
                 {/* Cash is blocked without an open drawer — tell the cashier
@@ -1928,9 +1998,7 @@ function RegularRegisterView() {
                     <span className="min-w-0 flex-1">
                       {hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown}
                     </span>
-                    <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
-                      {copy.register.openShift}
-                    </Link>
+                    {renderOpenShiftAction()}
                   </div>
                 )}
 
@@ -1961,9 +2029,19 @@ function RegularRegisterView() {
                     <>
                       <CheckCircle2 className="h-5 w-5" />
                       {copy.register.completeSale}
+                      {/* The total is already announced in the summary; showing it
+                          here confirms the amount at the moment of charging. */}
+                      {totalCents > 0 && (
+                        <span aria-hidden="true" className="tabular-nums">{formatMoney(totalAmount)}</span>
+                      )}
                     </>
                   )}
                 </Button>
+                <p className="hidden items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex xl:flex-wrap">
+                  <ShortcutHint keys={[MOD_KEY_LABEL, "Enter"]} label={copy.register.shortcutCharge} />
+                  <ShortcutHint keys={["/"]} label={copy.register.shortcutSearch} />
+                  <ShortcutHint keys={["F2"]} label={copy.register.shortcutCash} />
+                </p>
               </CardContent>
             </form>
           </Card>
@@ -2040,6 +2118,9 @@ function RegularRegisterView() {
                     {copy.register.newSale}
                   </Button>
                 </div>
+                <p className="hidden text-xs text-muted-foreground xl:block">
+                  <ShortcutHint keys={["N"]} label={copy.register.shortcutNewSale} />
+                </p>
                 {/* On-screen preview for desktop. A separate print-only copy below
                     stays independent from viewport-specific success layouts. */}
                 {receiptProps && (
@@ -2064,6 +2145,14 @@ function RegularRegisterView() {
             setModifierTarget(null);
           }}
           onCancel={() => setModifierTarget(null)}
+        />
+      )}
+
+      {openShiftModalOpen && (
+        <OpenShiftModal
+          pending={openShiftPending}
+          onSubmit={(payload) => void submitInlineOpenShift(payload)}
+          onCancel={() => setOpenShiftModalOpen(false)}
         />
       )}
 

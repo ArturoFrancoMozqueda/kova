@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -8,6 +8,7 @@ import type { Shift } from "@/shifts/types";
 
 // Mocks for every side-effecting dependency RegisterView pulls in.
 const getOpenShift = vi.fn();
+const openShiftRequest = vi.fn();
 const queueOfflineSale = vi.fn();
 const claimOfflineSale = vi.fn();
 const syncOfflineSales = vi.fn();
@@ -21,6 +22,7 @@ const catalogCache = vi.hoisted(() => ({
   saveCatalogCache: vi.fn(),
 }));
 const telemetry = vi.hoisted(() => ({
+  trackFunnelEvent: vi.fn(),
   trackFunnelEventOnce: vi.fn(),
   trackSaleValidationBlocked: vi.fn(),
 }));
@@ -31,7 +33,10 @@ vi.mock("@/hardware/useCashDrawer", () => ({
 }));
 const scheduleOfflineSyncRetry = vi.hoisted(() => vi.fn());
 
-vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
+vi.mock("@/shifts/api", () => ({
+  getOpenShift: () => getOpenShift(),
+  openShift: (...args: unknown[]) => openShiftRequest(...args),
+}));
 vi.mock("../offline/queue", () => ({
   queueOfflineSale: (...args: unknown[]) => queueOfflineSale(...args),
   claimOfflineSale: (...args: unknown[]) => claimOfflineSale(...args),
@@ -826,6 +831,102 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
     expect(queueOfflineSale).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the shift from the register without losing the cart in progress", async () => {
+    getOpenShift.mockResolvedValueOnce(null).mockResolvedValue(openShift);
+    openShiftRequest.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+    await waitFor(() => expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true"));
+
+    fireEvent.click(screen.getAllByRole("button", { name: copy.register.openShift })[0]);
+    expect(await screen.findByRole("dialog", { name: copy.openShiftModal.title })).toBeVisible();
+    fireEvent.change(screen.getByLabelText(copy.openShiftModal.openingCash), { target: { value: "500" } });
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: copy.openShiftModal.title })).getByRole("button", { name: copy.openShiftModal.submit }),
+    );
+
+    await waitFor(() => expect(openShiftRequest).toHaveBeenCalledWith({ opening_cash_amount: "500" }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: cashLabel })).not.toHaveAttribute("aria-disabled", "true"));
+    expect(screen.getByRole("radio", { name: cashLabel })).toBeChecked();
+    expect(screen.queryByRole("dialog", { name: copy.openShiftModal.title })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeInTheDocument();
+  });
+
+  it("keeps the cart and the shift dialog when opening the shift fails", async () => {
+    getOpenShift.mockResolvedValue(null);
+    openShiftRequest.mockRejectedValue(new Error("network"));
+    renderRegister();
+    await addProductToCart();
+
+    await waitFor(() => expect(screen.getByRole("radio", { name: cashLabel })).toHaveAttribute("aria-disabled", "true"));
+    fireEvent.click(screen.getAllByRole("button", { name: copy.register.openShift })[0]);
+    const dialog = await screen.findByRole("dialog", { name: copy.openShiftModal.title });
+    fireEvent.click(within(dialog).getByRole("button", { name: copy.openShiftModal.submit }));
+
+    await waitFor(() => expect(openShiftRequest).toHaveBeenCalled());
+    expect(await screen.findByRole("dialog", { name: copy.openShiftModal.title })).toBeVisible();
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeInTheDocument();
+  });
+
+  it("suggests cash amounts above the total and shows the total on the charge button", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+
+    // $50.00 total: exact plus round-ups, never a bill below the total.
+    for (const amount of ["$60", "$100", "$200", "$500"]) {
+      expect(screen.getByRole("button", { name: amount })).toBeVisible();
+    }
+    expect(screen.queryByRole("button", { name: "$50" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toHaveTextContent("$50.00");
+  });
+
+  it("shows split payment without opening a disclosure", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+
+    expect(screen.getByRole("checkbox", { name: /pago dividido/i })).toBeVisible();
+  });
+
+  it("returns focus to the search box after starting a new sale on desktop", async () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    try {
+      getOpenShift.mockResolvedValue(openShift);
+      queueOfflineSale.mockResolvedValue({ client_uuid: "focus-sale" });
+      syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "focus-order", total_amount: "50.00" } }]);
+      renderRegister();
+      await addProductToCart();
+      fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+      fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+      fireEvent.click((await screen.findAllByRole("button", { name: copy.register.newSale }))[0]);
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByPlaceholderText(copy.register.skuSearchPlaceholder)),
+      );
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    }
+  });
+
+  it("starts the next sale with the N shortcut", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "shortcut-sale" });
+    syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "shortcut-order", total_amount: "50.00" } }]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await screen.findAllByRole("button", { name: copy.register.newSale });
+
+    fireEvent.keyDown(document.body, { key: "n" });
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: copy.register.newSale })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeDisabled();
   });
 });
 

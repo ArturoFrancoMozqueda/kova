@@ -169,10 +169,11 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await expectRegisterReady(page);
   await expect(page.getByText("Concha")).toBeVisible();
   await expect(page.getByText(/primero agrega productos al carrito/i)).toBeVisible();
-  await expect(page.getByText(/opciones avanzadas/i)).toBeHidden();
+  // Payment tools (split payment included) only appear once the cart has items.
+  await expect(page.getByLabel(/pago dividido/i)).toBeHidden();
 
   await page.getByRole("button", { name: "Agregar Concha" }).click();
-  await expect(page.getByText(/opciones avanzadas/i)).toBeVisible();
+  await expect(page.getByLabel(/pago dividido/i)).toBeVisible();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await expect(page.getByText(/\$1\.50/).first()).toBeVisible();
 
@@ -221,7 +222,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   await page.goto("/register");
   await expectRegisterReady(page);
   await page.getByRole("button", { name: "Agregar Concha" }).click();
-  await page.getByText(/opciones avanzadas/i).click();
+  // Split payment is a visible toggle, no disclosure to open first.
   await page.getByLabel(/pago dividido/i).check();
   await page.getByLabel(/^monto$/i).first().fill("10.00");
   await page.getByLabel(/efectivo recibido/i).fill("10.00");

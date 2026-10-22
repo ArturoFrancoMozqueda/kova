@@ -72,7 +72,7 @@ test("register shows modifier selection modal for products with modifier groups"
   await expect(page.getByText("Large")).toBeVisible();
 });
 
-test("add to cart is disabled until required modifier is selected", async ({ page }) => {
+test("required single-choice modifier starts on its first option and can be changed", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
@@ -90,13 +90,14 @@ test("add to cart is disabled until required modifier is selected", async ({ pag
   await page.goto("/register");
   await page.getByRole("button", { name: "Agregar Café Americano" }).click();
 
-  // Add to cart button disabled before selection
-  await expect(page.getByRole("button", { name: /agregar al carrito/i })).toBeDisabled();
+  // The usual order is one tap: the first size is preselected, so the
+  // required group is already satisfied.
+  await expect(page.getByLabel("Small")).toBeChecked();
+  await expect(page.getByRole("button", { name: /agregar al carrito/i })).toBeEnabled();
 
-  // Select "Large"
+  // The cashier can still switch to another option.
   await page.getByLabel("Large").check();
-
-  // Now enabled
+  await expect(page.getByLabel("Small")).not.toBeChecked();
   await expect(page.getByRole("button", { name: /agregar al carrito/i })).toBeEnabled();
 });
 
