@@ -368,6 +368,7 @@ def main() -> None:
             _, mv = shifts_service.record_cash_movement(
                 db, tenant_id=tenant.id, user_id=owner.id, shift_id=t_shift_id,
                 body=CashMovementCreate(type=mv_type, amount=amount, reason=reason),
+                idempotency_key=f"seed-cash-{mv_type}",
             )
             moved = db.get(CashMovement, mv["id"])
             if moved is not None:

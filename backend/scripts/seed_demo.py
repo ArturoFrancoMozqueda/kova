@@ -19,6 +19,10 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+# Importing the app registers every mapped model. Without it SQLAlchemy can't
+# resolve cross-domain foreign keys (memberships -> branches) and the first
+# flush fails with NoReferencedTableError.
+import app.main  # noqa: F401
 from app.auth.models import Membership, User
 from app.auth.service import hash_password
 from app.catalog.models import Category, Product
