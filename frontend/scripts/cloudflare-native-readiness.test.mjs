@@ -87,7 +87,7 @@ test("persistent503 is bounded by five minutes and fixed attempt ceiling", async
   assert.equal(calls, 300, "clock anomalies must not create an unbounded loop");
 });
 
-test("rollout waits through the documented old-process drain and still verifies both endpoints", async () => {
+test("rollout waits through observed provider propagation and still verifies both endpoints", async () => {
   let time = 0;
   let calls = 0;
   const targets = [];
@@ -96,11 +96,11 @@ test("rollout waits through the documented old-process drain and still verifies 
     wait: async ms => { time += ms; },
     fetcher: async url => {
       targets.push(url.pathname);
-      if (++calls === 1) { time += 900_000; return ready(previousSha); }
+      if (++calls === 1) { time += 1_500_000; return ready(previousSha); }
       return ready();
     },
   });
-  assert.equal(time, 901_000);
+  assert.equal(time, 1_501_000);
   assert.deepEqual(targets, ["/health", "/health", "/health", "/api/health"]);
 });
 
@@ -111,9 +111,9 @@ test("rollout deadline and attempt ceiling remain bounded even with a frozen clo
     await assert.rejects(waitForNativeBackendRelease({ ...options, rollout: true,
       now: () => time, wait: async ms => { if (advancing) time += ms; },
       fetcher: async () => { calls++; return ready(previousSha); },
-    }), /within twenty minutes/);
-    assert.equal(calls, 1200);
-    assert.equal(time, advancing ? 1_200_000 : 0);
+    }), /within thirty minutes/);
+    assert.equal(calls, 1800);
+    assert.equal(time, advancing ? 1_800_000 : 0);
   }
 });
 

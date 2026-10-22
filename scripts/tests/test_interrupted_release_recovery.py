@@ -30,8 +30,8 @@ class InterruptedReleaseRecoveryTests(unittest.TestCase):
     def test_job_budgets_cover_native_rollout_and_release_recovery(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         release = ci.split("  release:\n", 1)[1]
-        self.assertIn("timeout-minutes: 60", release)
-        self.assertIn("timeout-minutes: 25", self.source)
+        self.assertIn("timeout-minutes: 90", release)
+        self.assertIn("timeout-minutes: 35", self.source)
 
     def test_exact_artifact_and_incident_are_required_before_mutation(self):
         download = self.source.index("gh run download 39709835800")

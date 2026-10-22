@@ -92,9 +92,10 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
   ];
   // Application-wide rollouts may drain the old process for up to 15 minutes
   // before force-stopping it. Keep five minutes for cold provisioning, but allow
-  // that drain plus startup during publication/recovery. Neither mode accepts
+  // that drain, provider propagation and startup during publication/recovery.
+  // The October 22 recovery took about 25 minutes to converge. Neither mode accepts
   // a previous image as readiness or changes the strict identity checks below.
-  const budgetMs = rollout ? 1_200_000 : 300_000;
+  const budgetMs = rollout ? 1_800_000 : 300_000;
   const attempts = budgetMs / 1000;
   const deadline = now() + budgetMs;
   let directReady = false;
@@ -155,6 +156,6 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
     if (remaining <= 0) break;
     await wait(Math.min(1000, remaining));
   }
-  throw new Error(`Native container publication did not finish within ${rollout ? "twenty" : "five"} minutes`
+  throw new Error(`Native container publication did not finish within ${rollout ? "thirty" : "five"} minutes`
     + (lastFailure ? ` ${lastFailure}` : ""));
 }

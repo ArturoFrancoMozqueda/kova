@@ -419,7 +419,7 @@ jobs:
     # Failed/cancelled/missing gates still block all production effects.
     if: always() && !cancelled() && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
     # Include provider tooling/build time, a native rollout and its recovery.
-    timeout-minutes: 60
+    timeout-minutes: 90
     runs-on: ubuntu-latest
     environment: production
     steps:
