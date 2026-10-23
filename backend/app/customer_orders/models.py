@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
+    Index,
     Integer,
     Numeric,
     String,
@@ -53,6 +54,11 @@ class CustomerOrder(BranchScoped, Base):
             ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_customer_orders_tenant_sale",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_id"], ["customers.tenant_id", "customers.id"],
+            name="fk_customer_orders_customer",
+        ),
+        Index("ix_customer_orders_customer", "tenant_id", "branch_id", "customer_id"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -61,6 +67,7 @@ class CustomerOrder(BranchScoped, Base):
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="new")
     fulfillment_type: Mapped[str] = mapped_column(String(16), nullable=False, default="pickup")
     source_channel: Mapped[str] = mapped_column(String(24), nullable=False, default="counter")
+    customer_id: Mapped[UUID | None] = mapped_column(nullable=True)
     customer_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     customer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     delivery_address: Mapped[str | None] = mapped_column(String(300), nullable=True)

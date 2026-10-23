@@ -2435,6 +2435,8 @@ export const copy = {
     groupSales: "Ventas y atención",
     groupProducts: "Productos e inventario",
     groupManagement: "Gestión y ajustes",
+    workspaceOperation: "Operación",
+    relatedSections: "En esta sección",
   },
   customersView: {
     title: "Clientes",

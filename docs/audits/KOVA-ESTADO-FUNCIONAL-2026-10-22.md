@@ -1,13 +1,68 @@
 # Estado funcional de Kova y orden de cierre
 
-Fecha: 22 de octubre de 2026, America/Mexico_City. Base: `02ca589f149f`.
+Fecha: 22 de octubre de 2026, America/Mexico_City.
+Base del recorrido autenticado original: `02ca589f149f`.
 
 Kova tiene un núcleo POS operativo y varios módulos comerciales internos implementados.
 Las principales brechas están en conectar proveedores y completar el recorrido externo.
 Un CI aprobado acredita sus controles de código y publicación; no acredita cobros con terminal,
 mensajes entregados, timbrado fiscal ni compatibilidad física.
 
-## Qué se verificó y qué significa cada estado
+## Actualización de publicación y pulido
+
+La base productiva vigente es `07b03a9912ba32fd9ad165e3818e32d403626ff6`
+(#266), con [CI y release 39865204921 aprobados](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39865204921)
+y `/health` con ese SHA exacto. Publica el pase de presentación de Panel, Caja,
+Catálogo e Inventario; sus pruebas de navegador emplearon APIs interceptadas y
+la aceptación autenticada productiva de ese pase sigue pendiente.
+
+La comprobación posterior `verify-deployment` confirmó web, proxy, backend y
+base de datos con ese SHA; 25 contratos del verificador residente aprobaron
+sobre el mismo proceso, mediana 291 ms y máximo 551 ms. Fueron lecturas sin
+mutaciones. No acreditan una nueva venta, emisión fiscal, envío externo ni una
+aceptación autenticada completa de la interfaz.
+
+#260 ya publicó el catálogo legible como `e20b62a92413c78398dd8c1c039efe1704842ef6`,
+con [CI y release 39823273561 aprobados](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39823273561).
+La aceptación posterior verificó ajustes privados y lectura pública de
+`https://kovasuite.com/catalogo/cafeteria-sweet-home`. Este pendiente se cierra;
+no es checkout ni acredita un nuevo envío de solicitud pública.
+
+#262/#263 están integrados y corrigen publicación estricta tras cambios del
+dashboard. #265 normaliza la jurisdicción R2 sin configurar y tuvo
+[release 39850544534 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39850544534).
+#261 está integrado (`cb90e026`) con corrección de una aserción sobre ciphertext;
+no altera almacenamiento ni autoriza emisión fiscal.
+
+La lectura autenticada actual de `GET /api/v1/integrations/cfdi/setup` devolvió
+`available:true`, `state:not_started`, `issuer:null`, `organization_created:false`,
+`test_connected:false`, `live_connected:false` y `production_ready:false`.
+La configuración fiscal de plataforma ya se detecta; faltan los datos del emisor
+y conexiones Test/Live. `available:true` no valida la llave ante Facturapi ni
+autoriza emisión. `GET /api/v1/assistant/capabilities` devolvió `enabled:true`,
+`local_answers_ready:true`, `inference_ready:false`, `configuration:false`,
+`documents:false` y `email:false`. Las respuestas locales están disponibles según
+capacidades; generación externa, aplicación de configuración, documentos y correo
+no están habilitados. No se probó una respuesta hoy ni se invocó inferencia o
+generó gasto por ella.
+
+La ronda actual de equipos de agentes está lista para PR, sin publicar y con CI
+remoto pendiente. Incluye claridad de preparación de canales, especificación
+fiscal actualizada, cuatro correcciones de Pedidos y documentación. La generación
+de consulta descarta respuestas tardías de API y fallback al limpiar la consulta;
+las respuestas anteriores tampoco actualizan caché. Pruebas con promesas diferidas
+cubren la protección. La primera descripción de arquitectura de `CLAUDE.md`
+refleja Cloudflare activo, Vercel de respaldo y Fly retirado, sin cambiar reglas.
+
+Validación final local: 192 archivos y 1,334 pruebas de frontend; TypeScript,
+ESLint y build/SSR/prerender aprobados. Pasaron 19 pruebas de navegador del build
+final (`customer-orders` y `automations-crm`), con 320/390/768/1440 px y axe.
+Revisión independiente de Canales y especificación sin bloqueos. Las pruebas de
+navegador usan APIs interceptadas. Las lecturas autenticadas anteriores no son
+una nueva aceptación completa de la interfaz; no se realizó QA productiva
+financiera ni emisión Test/Live, envío de mensajes o cobro real.
+
+## Snapshot original: qué se verificó y qué significa cada estado
 
 - **Operativo**: implementación respaldada por contratos/pruebas y lectura autenticada del módulo.
   No significa que todas sus acciones se hayan repetido hoy en producción.
@@ -23,7 +78,10 @@ Se esperó el contenido después de los esqueletos de carga; el encabezado por s
 La revisión contrasta UI, rutas/backend, specs, pruebas y la aceptación productiva documentada
 del 10 y 21 de octubre. No se repitieron hoy las operaciones financieras de esas pruebas anteriores.
 
-## Matriz por sección
+## Matriz del recorrido autenticado original
+
+Las referencias a «hoy» describen el recorrido original, no una lectura nueva de
+la cuenta tras cada release. El estado de publicación actualizado está arriba.
 
 | Sección | Estado | Qué hace de verdad / límite que falta cerrar |
 |---|---|---|
@@ -37,7 +95,7 @@ del 10 y 21 de octubre. No se repitieron hoy las operaciones financieras de esas
 | Compras y proveedores | Operativo | Proveedores, compras pendientes, recepción parcial/total y cancelación; entrada de stock al recibir. No envía pedidos al proveedor ni paga compras. |
 | Reposición | Interno / alcance limitado | Sugerencias con stock, reservas, mínimos y compras pendientes; prepara compra revisada. En esta cuenta faltan costos para seleccionar los productos señalados. No compra autónomamente. |
 | Clientes | Operativo | Registro, edición, desactivación, compras y vinculación explícita. Teléfono/correo no equivalen a consentimiento comercial. |
-| Catálogo público | Operativo; mejora en esta rama | Productos seleccionados, fotos/precios/disponibilidad, QR, enlace WhatsApp y solicitudes públicas. No es checkout/pago en línea. URL legible implementada aquí; aún no publicada. |
+| Catálogo público | Operativo; URL legible publicada posteriormente | Productos seleccionados, fotos/precios/disponibilidad, QR, enlace WhatsApp y solicitudes públicas. No es checkout/pago en línea. URL legible publicada en #260 y verificada según actualización anterior. |
 | Solicitudes del catálogo | Operativo | Captura pública y cola privada; el equipo elige cliente al convertir a oportunidad. Recorrido validado en producción el 21 de octubre. |
 | CRM | Interno / alcance limitado | Oportunidades, responsable, próxima acción y consentimiento por finalidad. Ganar oportunidad no registra ingresos ni envía mensajes. |
 | Cotizaciones | Operativo | Precios acordados, vigencia, aceptación registrada por el equipo y pedido vinculado; recorrido hasta venta. Compartir y confirmar aceptación sigue siendo una acción humana. |
@@ -70,12 +128,13 @@ del 10 y 21 de octubre. No se repitieron hoy las operaciones financieras de esas
 
 ## Orden recomendado para terminar
 
-No se detectó hoy un nuevo bloqueo P0 de venta en la revisión de lectura. La desalineación del
-release anterior quedó resuelta por #258/#259; eso no elimina las brechas de producto anteriores.
+El recorrido original no detectó un nuevo bloqueo P0 de venta. La publicación
+vigente y sus controles se registran arriba; no sustituyen una nueva operación
+autenticada ni cierran las brechas de producto anteriores.
 
 | Prioridad | Entrega concreta | Criterio para darla por terminada | Dependencia |
 |---|---|---|---|
-| P1 · inmediato | Enlace de catálogo con nombre del negocio | Migración poblada, colisiones/sucursales, QR antiguo, revocación, billing, permisos y solicitud pública probados; CI y release protegido aprobados; URL real verificada. | Cambio de esta rama; autorización final de publicación. |
+| P1 · emisor fiscal y Test | Completar emisor y aceptar conexión Test | Plataforma detectada (`available:true`); falta comprobar aceptación del proveedor, datos reales del emisor y resultado Test. Live requiere aceptación separada. | Datos del dueño y condiciones del proveedor; sin contratar ni emitir por inferencia. |
 | P1 · operación | Sanear turno, costos y catálogo activo | Negocio cuenta efectivo y cierra turno; define costos reales; revisa productos QA activos y datos de soporte. | Decisiones/datos del propietario; no inventar importes ni borrar historial. |
 | P1 · claridad | Convertir Canales en configuración verificable | Estado real por negocio, requisitos accionables, progreso persistente, errores concretos y sin afirmar conexión antes de confirmarla. | Contrato de configuración y flujo de Meta elegido. |
 | P1 · recorrido externo | Conectar WhatsApp de extremo a extremo | Elegibilidad/coexistencia aprobada; binding seguro, webhook HTTPS, firma/dedupe, envío explícito, recibos y revocación; mensaje real enviado/recibido sin duplicados. | Cuenta/número del negocio, configuración de plataforma y consentimiento. No basta con introducir una llave. |
@@ -98,5 +157,7 @@ release anterior quedó resuelta por #258/#259; eso no elimina las brechas de pr
   `whatsapp.py`; `specs/integrations/messaging-inbox.md` y `provider-readiness.md`.
 - URL: `storefront/links.py`, `router.py`, migración `0093_readable_catalog_links`;
   sin cambiar la proyección pública, cookies, gates comerciales ni RLS de productos/clientes.
-- Comprobaciones locales: resultados finales se registran en el PR. La rama no acredita por sí
-  sola publicación ni una conexión externa; no se modificaron esas cuentas durante la revisión.
+- Publicación y aceptación posteriores del catálogo: #260 y run `39823273561`;
+  estado productivo vigente: #266 y run `39865204921`, registrados arriba.
+- La revisión documental actual no modificó cuentas externas ni reejecutó las
+  operaciones del snapshot; un release aprobado no certifica una conexión externa.

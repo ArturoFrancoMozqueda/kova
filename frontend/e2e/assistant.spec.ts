@@ -51,6 +51,7 @@ for (const width of [1280, 320]) {
     await page.route("**/api/v1/assistant/usage", route => route.fulfill({ json: {
       tenant_used: 0, tenant_limit: 8000, user_used: 0, user_limit: 6000, reset_at: "2026-10-07T00:00:00Z",
     } }));
+    await page.route("**/api/v1/operations/queue", route => route.fulfill({ json: { generated_at: "2026-10-22T18:00:00Z", sections: [] } }));
     await page.goto("/dashboard?range=private");
     await page.getByRole("button", { name: "Abrir asistente Kova" }).click();
     const panel = page.getByRole("dialog", { name: "Asistente Kova" });
@@ -71,7 +72,9 @@ for (const width of [1280, 320]) {
       await page.getByRole("button", { name: /abrir men/i }).first().click();
       await expect(page.getByRole("button", { name: "Abrir asistente Kova" })).toBeHidden();
     }
-    await expect(page.getByRole("navigation").getByRole("heading", { name: "Productos e inventario", exact: true })).toBeVisible();
+    await page.locator("aside nav").getByRole("link", { name: "Operación", exact: true }).click();
+    if (width === 320) await page.getByRole("button", { name: /abrir men/i }).first().click();
+    await expect(page.locator("aside nav").getByRole("heading", { name: "En esta sección: Operación", exact: true })).toBeVisible();
     await expect(page.locator('a[href="/catalog"]:visible').first()).toBeVisible();
     await page.locator('a[href="/catalog"]:visible').first().click();
     await expect(page).toHaveURL(/\/catalog$/);

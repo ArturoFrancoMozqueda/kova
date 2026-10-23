@@ -141,6 +141,9 @@ _EXPORT_TABLES = (
         "id tenant_id branch_id resource_id customer_id title starts_at ends_at note "
         "status version created_by_user_id created_at updated_at")),
 
+    ExportTable("appointment_sales", _columns(
+        "id tenant_id branch_id appointment_id sale_order_id actor_user_id created_at")),
+
     ExportTable("appointment_history", _columns(
         "id tenant_id branch_id appointment_id appointment_version action status "
         "starts_at ends_at note actor_user_id created_at")),
@@ -325,8 +328,8 @@ _EXPORT_TABLES = (
     ExportTable(
         "customer_orders",
         _columns(
-            "id tenant_id branch_id folio status fulfillment_type source_channel customer_name "
-            "customer_phone delivery_address delivery_reference promised_at note "
+            "id tenant_id branch_id folio status fulfillment_type source_channel customer_id "
+            "customer_name customer_phone delivery_address delivery_reference promised_at note "
             "subtotal_amount total_amount sale_order_id version created_by_user_id "
             "updated_by_user_id cancelled_by_user_id cancellation_reason cancellation_note "
             "confirmed_at ready_at fulfilled_at cancelled_at created_at updated_at"
@@ -490,6 +493,7 @@ _TENANT_DELETE_ORDER = (
     "service_case_events",
     "service_cases",
     "appointment_reminders",
+    "appointment_sales",
     "appointment_history",
     "appointments",
     "appointment_resources",

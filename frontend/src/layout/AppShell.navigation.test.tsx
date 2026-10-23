@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("visible daily and business navigation", () => {
+describe("simple task navigation and complete discovery", () => {
   it("finds an owner's task without more requests or changing rail preferences", async () => {
     host();
     const search = screen.getByRole("searchbox", { name: "Buscar sección" });
@@ -63,7 +63,7 @@ describe("visible daily and business navigation", () => {
     expect(navigation().getByRole("status")).toHaveTextContent("1 resultado encontrado");
     fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda de secciones" }));
     expect(search).toHaveFocus();
-    expect(navigation().getByRole("heading", { name: "Ventas y atención" })).toBeVisible();
+    expect(navigation().getByRole("link", { name: "Operación" })).toBeVisible();
     await act(async () => {});
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem("kova-sidebar-groups-v1")).toBeNull();
@@ -113,8 +113,8 @@ describe("visible daily and business navigation", () => {
     fireEvent.change(search, { target: { value: "compartir productos" } });
     fireEvent.click(navigation().getByRole("link", { name: "Catálogo público" }));
     expect(search).toHaveValue("");
-    expect(navigation().getByRole("heading", { name: "Ventas y atención" })).toBeVisible();
-    expect(navigation().getByRole("link", { name: "Compras y proveedores" })).toBeVisible();
+    expect(navigation().getByRole("link", { name: "Operación" })).toBeVisible();
+    expect(navigation().getByRole("link", { name: "Clientes" })).toBeVisible();
     expect(navigation().getByRole("link", { name: "Configuración" })).toBeVisible();
     expect(navigation().getByRole("link", { name: "Catálogo público" })).toHaveAttribute("aria-current", "page");
     await act(async () => {});
@@ -147,44 +147,53 @@ describe("visible daily and business navigation", () => {
     await act(async () => {});
   });
 
-  it("shows every permitted section under static headings with no disclosure controls", async () => {
+  it("offers seven main destinations and contextual tasks without accordions", async () => {
     host(); const nav = navigation();
-    expect(nav.getAllByRole("link").slice(0, 5).map(link => link.textContent)).toEqual(["Caja", "Panel", "Pendientes", "Ventas", "Turnos"]);
-    expect(nav.getAllByRole("heading").map(heading => heading.textContent?.trim())).toEqual([
-      "Productos e inventario", "Ventas y atención", "Gestión y ajustes",
+    expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual([
+      "Panel", "Caja", "Ventas", "Clientes", "Operación", "Análisis", "Configuración",
     ]);
     expect(nav.queryAllByRole("button")).toHaveLength(0);
     expect(document.querySelector("aside nav [hidden], aside nav [aria-expanded]")).toBeNull();
-    for (const name of ["Compras y proveedores", "Clientes", "Cotizaciones", "Postventa y seguimiento", "Configuración", "Catálogo público"]) {
-      expect(nav.getByRole("link", { name })).toBeVisible();
+    fireEvent.click(nav.getByRole("link", { name: "Clientes" }));
+    expect(nav.getByRole("heading", { name: "En esta sección: Clientes" })).toBeVisible();
+    for (const name of ["Catálogo público", "Cotizaciones"]) {
+      // Quotes belong to Sales; customer tasks stay together without repeating them.
+      if (name === "Cotizaciones") expect(nav.queryByRole("link", { name })).toBeNull();
+      else expect(nav.getByRole("link", { name })).toBeVisible();
     }
+    expect(nav.getByRole("link", { name: "Postventa y seguimiento" })).toBeVisible();
     await act(async () => {});
   });
-
-  it("retains all destinations, complete labels and unique links without expanding anything", async () => {
+  it("retains every allowed destination through one main link with unique links in each scope", async () => {
     features.margin_reports = true; features.customer_orders = true; host();
-    const nav = navigation();
-    const links = nav.getAllByRole("link");
-    const paths = links.map(link => link.getAttribute("href"));
-    expect(paths).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers"]));
-    expect(new Set(paths).size).toBe(paths.length);
-    expect(paths).toHaveLength(28);
-    expect(links).toHaveLength(nav.getAllByRole("link", { hidden: true }).length);
+    const nav = navigation(); const paths = new Set<string>();
+    for (const name of ["Ventas", "Clientes", "Operación", "Análisis", "Configuración"]) {
+      fireEvent.click(nav.getByRole("link", { name }));
+      const links = nav.getAllByRole("link");
+      const currentPaths = links.map(link => link.getAttribute("href")!);
+      expect(new Set(currentPaths).size).toBe(currentPaths.length);
+      currentPaths.forEach(path => paths.add(path));
+      expect(links).toHaveLength(nav.getAllByRole("link", { hidden: true }).length);
+    }
+    expect([...paths]).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers", "/appointments", "/loyalty"]));
+    expect(paths.size).toBe(28);
+    fireEvent.click(nav.getByRole("link", { name: "Operación" }));
     expect(nav.getByRole("link", { name: "Compras y proveedores" }).querySelector("span[aria-hidden]")).not.toHaveClass("truncate");
     await act(async () => {});
   });
-
-  it("marks active deep links while keeping all business sections available", async () => {
+  it("follows direct deep links and changes the related tasks when content navigates", async () => {
     host("/purchasing/orders/123"); const nav = navigation();
     expect(nav.getByRole("link", { name: "Compras y proveedores" })).toHaveAttribute("aria-current", "page");
-    expect(nav.getByRole("link", { name: "Cotizaciones" })).toBeVisible();
+    expect(nav.getByRole("heading", { name: "En esta sección: Operación" })).toBeVisible();
+    expect(nav.queryByRole("link", { name: "Cotizaciones" })).toBeNull();
     fireEvent.click(screen.getByRole("link", { name: "Abrir cotizaciones desde el contenido" }));
     expect(nav.getByRole("link", { name: "Cotizaciones" })).toHaveAttribute("aria-current", "page");
-    expect(nav.getByRole("link", { name: "Compras y proveedores" })).toBeVisible();
+    expect(nav.getByRole("heading", { name: "En esta sección: Ventas" })).toBeVisible();
+    expect(nav.queryByRole("link", { name: "Compras y proveedores" })).toBeNull();
+    fireEvent.click(nav.getByRole("link", { name: "Análisis" }));
     expect(nav.getByRole("link", { name: "Conciliación" })).toBeVisible();
     await act(async () => {});
   });
-
   it("ignores obsolete group preferences without reading or writing them or altering unrelated settings", async () => {
     const oldGroups = JSON.stringify({ products: false, commercial: false, management: false });
     window.localStorage.setItem("kova-sidebar-groups-v1", oldGroups);
@@ -193,33 +202,38 @@ describe("visible daily and business navigation", () => {
     const write = vi.spyOn(Storage.prototype, "setItem");
     const view = host("/quotes");
     expect(read).not.toHaveBeenCalledWith("kova-sidebar-groups-v1");
-    for (const name of ["Catálogo", "Cotizaciones", "Conciliación"]) expect(navigation().getByRole("link", { name })).toBeVisible();
+    expect(navigation().getByRole("link", { name: "Cotizaciones" })).toBeVisible();
+    fireEvent.click(navigation().getByRole("link", { name: "Operación" }));
+    expect(navigation().getByRole("link", { name: "Catálogo" })).toBeVisible();
     fireEvent.click(navigation().getByRole("link", { name: "Compras y proveedores" }));
     expect(write).not.toHaveBeenCalledWith("kova-sidebar-groups-v1", expect.anything());
-    view.unmount(); host();
+    view.unmount(); host("/quotes");
     expect(navigation().getByRole("link", { name: "Cotizaciones" })).toBeVisible();
     expect(window.localStorage.getItem("other-ui-preference")).toBe("preserve");
     read.mockRestore(); write.mockRestore();
     await act(async () => {});
   });
-
-  it("offers every business destination directly in the compact rail and preserves explicit collapse preference", async () => {
+  it("keeps the same task scopes in the compact rail and preserves explicit collapse preference", async () => {
     window.localStorage.setItem("kova-sidebar-collapsed", "1"); host();
     const nav = navigation();
     expect(screen.getByRole("button", { name: "Expandir menú" })).toBeInTheDocument();
     expect(nav.queryAllByRole("button")).toHaveLength(0);
-    for (const name of ["Catálogo", "Compras y proveedores", "Cotizaciones", "Configuración"]) {
+    expect(nav.getAllByRole("link")).toHaveLength(7);
+    for (const name of ["Operación", "Ventas", "Configuración"]) {
       const link = nav.getByRole("link", { name });
       expect(link).toHaveAttribute("title", name);
       expect(link).toHaveAttribute("aria-label", name);
       link.focus(); expect(link).toHaveFocus();
     }
-    fireEvent.click(nav.getByRole("link", { name: "Cotizaciones" }));
+    fireEvent.click(nav.getByRole("link", { name: "Ventas" }));
+    const quote = nav.getByRole("link", { name: "Cotizaciones" });
+    expect(quote).toHaveAttribute("title", "Cotizaciones");
+    fireEvent.click(quote);
     expect(nav.getByRole("link", { name: "Cotizaciones" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Expandir menú" })).toBeInTheDocument();
     expect(window.localStorage.getItem("kova-sidebar-collapsed")).toBe("1");
     fireEvent.click(screen.getByRole("button", { name: "Expandir menú" }));
-    expect(nav.getByRole("heading", { name: "Ventas y atención" })).toBeVisible();
+    expect(nav.getByRole("heading", { name: "En esta sección: Ventas" })).toBeVisible();
     expect(window.localStorage.getItem("kova-sidebar-collapsed")).toBe("0");
     await act(async () => {});
   });
@@ -237,7 +251,7 @@ describe("visible daily and business navigation", () => {
     expect(navigation().queryAllByRole("button")).toHaveLength(0);
     await act(async () => {});
   });
-  it("keeps all mobile sections directly available and restores focus after choosing pending work", async () => {
+  it("uses the same simple scopes on mobile and restores focus after choosing a task", async () => {
     vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
     host();
     const trigger = screen.getAllByRole("button", { name: "Abrir menú de navegación" })[0];
@@ -250,17 +264,18 @@ describe("visible daily and business navigation", () => {
     expect(firstControl).toHaveFocus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(logout).toHaveFocus();
-    for (const name of ["Compras y proveedores", "Cotizaciones", "Configuración"]) {
-      expect(within(drawer).getByRole("link", { name })).toBeVisible();
-    }
-    expect(within(drawer).queryByRole("button", { name: "Productos e inventario" })).toBeNull();
+    expect(navigation().getAllByRole("link")).toHaveLength(7);
     expect(within(drawer).getByRole("link", { name: "Clientes" })).toHaveAttribute("href", "/customers");
-    fireEvent.click(within(drawer).getByRole("link", { name: "Pendientes" }));
+    fireEvent.click(within(drawer).getByRole("link", { name: "Operación" }));
     expect(screen.queryByRole("dialog", { name: "Navegación de la cuenta" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    fireEvent.click(trigger);
+    expect(navigation().getByRole("link", { name: "Compras y proveedores" })).toBeVisible();
+    fireEvent.click(navigation().getByRole("link", { name: "Compras y proveedores" }));
+    expect(screen.getByLabelText("Ruta actual")).toHaveTextContent("/purchasing");
     expect(trigger).toHaveFocus();
     await act(async () => {});
   });
-
   it("shares permissions and feature filtering with contextual actions and keeps them out of offline or cashier sessions", async () => {
     const view = host("/quotes");
     const context = () => screen.queryByRole("navigation", { name: "Continúa tu operación" });

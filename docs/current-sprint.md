@@ -2,7 +2,77 @@
 
 Last updated: 2026-10-22
 
-## Escritorio: resultados y valor visible — implementación local
+## Flujos conectados de comercio y servicios — implementación local
+
+Agent Teams implementó navegación del dueño con siete entradas y herramientas contextuales,
+ficha de cliente con registros reales y pasos directos a Caja/Pedidos/Agenda. Pedidos conserva
+cliente explícito hasta la venta; Agenda vincula una venta existente con idempotencia/historial,
+sin confundir atención y cobro. Se mantienen rutas, roles, gates y operación anónima de mostrador.
+Migraciones 0094/0095 aditivas; preservan RLS, propiedad, exportación y purga. Los arreglos útiles
+de #267 se conservan íntegros en esta entrega antes de coordinar su cierre por sustitución.
+[Alcance, archivos, validación y límites](audits/KOVA-CONNECTED-OWNER-2026-10-22.md).
+Validación: 1,373 pruebas frontend, 93 backend por cada driver psycopg/pg8000, cinco escenarios
+de migración y 42 de navegador sobre el build final (tres con API/Postgres/RLS locales reales).
+Exportación del grafo conectado y ciclo de cuenta: 11 pruebas adicionales aprobadas.
+Publicación y aceptación productiva pendientes; no se activan canales ni proveedores externos.
+
+## Estado productivo registrado durante la PR #267
+
+La base productiva es `07b03a9912ba32fd9ad165e3818e32d403626ff6` (#266):
+[CI y release 39865204921](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39865204921)
+aprobados y `/health` con el SHA exacto. #262/#263 corrigieron la publicación
+estricta tras cambios de configuración del dashboard; #265 normalizó la
+jurisdicción R2 sin configurar y tuvo
+[release 39850544534 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39850544534).
+#261 también está integrado (`cb90e026`); corrige una aserción sobre ciphertext,
+sin modificar el almacenamiento de credenciales.
+
+La comprobación posterior `verify-deployment` confirmó web, proxy, backend y
+base de datos con ese SHA. El verificador residente aprobó 25 contratos sobre
+el mismo proceso, mediana 291 ms y máximo 551 ms. Fueron lecturas sin mutaciones;
+no equivalen a una nueva venta, emisión fiscal, mensaje entregado ni aceptación
+autenticada completa de la interfaz.
+
+La lectura autenticada actual de `GET /api/v1/integrations/cfdi/setup` devolvió
+`available:true`, `state:not_started`, `issuer:null`, `organization_created:false`,
+`test_connected:false`, `live_connected:false` y `production_ready:false`.
+Kova detecta la configuración fiscal de plataforma; faltan emisor y conexión
+Test/Live. Esto no demuestra que Facturapi acepte la llave. La lectura de
+`GET /api/v1/assistant/capabilities` devolvió `enabled:true`,
+`local_answers_ready:true`, `inference_ready:false`, `configuration:false`,
+`documents:false` y `email:false`. Las respuestas locales están disponibles según
+capacidades; generación externa, aplicación de configuración, documentos y correo
+no están habilitados. No se probó una respuesta hoy ni se invocó inferencia o
+generó gasto por ella.
+
+El catálogo con nombre del negocio ya se publicó en #260 y se verificó en
+`https://kovasuite.com/catalogo/cafeteria-sweet-home`. Ese pendiente está cerrado;
+no implica checkout ni pago en línea. La ronda con equipos de agentes está lista
+para PR, sin publicar y con CI remoto pendiente. Incluye claridad de preparación
+de canales, especificación fiscal actualizada y cuatro correcciones de Pedidos.
+La generación de consulta descarta respuestas tardías tanto de API como del
+fallback al limpiar la consulta; las respuestas anteriores tampoco actualizan la
+caché. Pruebas con promesas diferidas cubren esa protección. La primera descripción
+de arquitectura en `CLAUDE.md` refleja Cloudflare activo, Vercel de respaldo y Fly
+retirado, sin cambiar sus reglas.
+
+Validación de la versión final: 192 archivos y 1,334 pruebas de frontend;
+TypeScript, ESLint y build/SSR/prerender aprobados. Pasaron 19 pruebas de navegador
+del build final (`customer-orders` y `automations-crm`), con 320/390/768/1440 px y
+axe. Revisión independiente de Canales y especificación sin bloqueos. Las pruebas
+usan APIs interceptadas; las lecturas autenticadas anteriores no equivalen a una
+nueva aceptación completa de UI. No se realizó QA productiva financiera ni hubo
+emisión fiscal, envío de mensajes o cobro real.
+
+Prioridades pendientes: distinguir guía y conexión real de canales; completar
+el emisor fiscal y aceptar Test antes de cualquier Live, con configuración de
+plataforma ya detectada; revisar con el
+dueño turno, costos y catálogo; completar recorridos externos de WhatsApp/IA y
+aceptación de dispositivos/offline según alcance. El
+[estado funcional](audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md) conserva la auditoría
+autenticada anterior como snapshot, separado de estos hechos de publicación.
+
+## Escritorio: resultados y valor visible — publicado en #266
 
 Pase autorizado de Panel, Caja, Catálogo e Inventario: resultados y prioridades
 antes de configuración, comparación explícita, atajos compactos, enlaces
@@ -12,20 +82,24 @@ sesiones o permisos. [Alcance, archivos y QA](audits/KOVA-DESKTOP-VALUE-2026-10-
 Suite de frontend: 1,326 pruebas aprobadas y revalidaciones focales finales;
 build/SSR/prerender, TypeScript, ESLint y 49 recorridos de navegador del build
 final aprobados, incluidos 320–1920 px y regresiones de cobro/offline/recibo.
-Los recorridos usan datos de pruebas con APIs interceptadas. Publicación y
-aceptación autenticada en producción pendientes; no se cambia el estado del
-release productivo por esta validación local.
+Los recorridos usan datos de pruebas con APIs interceptadas. Publicación
+completada con el SHA y release indicados arriba; aceptación autenticada de este
+pase en producción pendiente. El documento de alcance enlazado conserva su
+estado de implementación local anterior a la publicación.
 
-## Auditoría funcional y enlaces legibles — pendiente de publicación
+## Auditoría funcional y enlaces legibles — snapshot y publicación #260
 
 Revisión de lectura autenticada de las secciones del dueño, contrastada con contratos,
 implementación y QA previa: [matriz de estado y prioridades](audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md).
 El núcleo POS está respaldado por aceptación previa; los canales externos no quedan
 certificados por CI. No se realizaron nuevas ventas ni conexiones durante esta auditoría.
 El propietario eligió enlaces del catálogo con nombre del negocio sin código aleatorio.
-La rama incorpora rutas legibles con colisiones numéricas, compatibilidad de QR anteriores
+La implementación publicada incorpora rutas legibles con colisiones numéricas, compatibilidad de QR anteriores
 y revocación por versión; migración aditiva y metadatos de routing con RLS por slug exacto.
-Publicación y aceptación de la URL real pendientes del release protegido.
+#260 se publicó como `e20b62a92413c78398dd8c1c039efe1704842ef6`, con
+[CI y release 39823273561 aprobados](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39823273561).
+La aceptación posterior verificó la URL real indicada arriba; no se repitió
+durante esta actualización documental ni acredita las integraciones externas.
 
 ## Prueba real del circuito comercial y continuidad
 

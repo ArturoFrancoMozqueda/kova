@@ -18,6 +18,8 @@ from app.appointments.schemas import (
     AppointmentResourceResponse,
     AppointmentResourceUpdate,
     AppointmentResponse,
+    AppointmentSaleLink,
+    AppointmentSalesList,
     AppointmentTransition,
 )
 from app.crm.router import require_crm
@@ -156,3 +158,39 @@ def transition(
 @router.get("/{appointment_id}/history", response_model=AppointmentHistoryList)
 def history(appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
     return service.history(db, ctx[1].tenant_id, appointment_id)
+
+
+@router.get("/{appointment_id}", response_model=AppointmentResponse)
+def get_appointment(appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    return service.get_appointment(db, ctx[1].tenant_id, appointment_id)
+
+
+@router.get("/{appointment_id}/sales", response_model=AppointmentSalesList)
+def available_sales(
+    appointment_id: UUID,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    return service.available_sales(db, ctx[1].tenant_id, appointment_id, limit=limit, offset=offset)
+
+
+@router.post("/{appointment_id}/sale", response_model=AppointmentResponse)
+def link_sale(
+    appointment_id: UUID,
+    body: AppointmentSaleLink,
+    response: Response,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    response.status_code, result = service.link_sale(
+        db,
+        ctx[1].tenant_id,
+        ctx[0].id,
+        appointment_id,
+        body,
+        key,
+    )
+    return result

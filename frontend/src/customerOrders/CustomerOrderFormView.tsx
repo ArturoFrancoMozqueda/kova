@@ -1,8 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
+import { getActiveBranchId } from "@/branches/activeBranch";
+import { listCustomers, resolveActiveCustomer, type Customer } from "@/customers/api";
 import { listProducts } from "@/catalog/api";
 import type { Product } from "@/catalog/types";
 import { Button } from "@/components/ui/button";
@@ -55,10 +58,16 @@ function localDateTime(value: string | null): string {
 
 export default function CustomerOrderFormView() {
   const { orderId } = useParams();
-  return <CustomerOrderFormSession key={orderId ?? "new"} orderId={orderId} />;
+  const { state } = useAuth();
+  const [params] = useSearchParams();
+  const incomingCustomerId = !orderId ? params.get("customerId") ?? "" : "";
+  const identity = state.status === "authenticated"
+    ? `${state.tenantId}:${state.user.id}:${state.user.role}:${getActiveBranchId(state.tenantId, state.user.id)}`
+    : state.status;
+  return <CustomerOrderFormSession key={`${identity}:${orderId ?? "new"}:${incomingCustomerId}`} orderId={orderId} incomingCustomerId={incomingCustomerId} />;
 }
 
-function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
+function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: string; incomingCustomerId: string }) {
   const formId = useId();
   useDocumentTitle("Nuevo pedido");
   const enabled = useFeature("customer_orders");
@@ -73,6 +82,13 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
   const [sourceChannel, setSourceChannel] = useState<SourceChannel>("counter");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [customerSelectorOpen, setCustomerSelectorOpen] = useState(Boolean(incomingCustomerId));
+  const [customerLoading, setCustomerLoading] = useState(Boolean(incomingCustomerId));
+  const [customerError, setCustomerError] = useState("");
+  const [customerSearchError, setCustomerSearchError] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryReference, setDeliveryReference] = useState("");
   const [promisedAt, setPromisedAt] = useState("");
@@ -84,6 +100,34 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
   // mutation with its original identity, including the save/confirm sequence.
   const mutationKeys = useRef(new Map<string, string>());
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!incomingCustomerId || orderId) return;
+    let active = true;
+    const controller = new AbortController();
+    void resolveActiveCustomer(incomingCustomerId, { signal: controller.signal })
+      .then((customer) => {
+        if (!active) return;
+        setCustomerId(customer.id);
+        setCustomerName(customer.name);
+        setCustomerPhone(customer.phone ?? "");
+        setCustomerOptions((rows) => [customer, ...rows.filter((row) => row.id !== customer.id)]);
+      })
+      .catch((caught: unknown) => {
+        if (active) setCustomerError(caught instanceof Error ? caught.message : "No pudimos confirmar el cliente del pedido.");
+      })
+      .finally(() => { if (active) setCustomerLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [incomingCustomerId, orderId]);
+  useEffect(() => {
+    if (orderId || !customerSelectorOpen) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void listCustomers(customerSearch)
+        .then((rows) => { if (active) { setCustomerOptions(rows); setCustomerSearchError(""); } })
+        .catch(() => { if (active) setCustomerSearchError("No pudimos buscar clientes. Cambia la búsqueda para reintentar."); });
+    }, 200);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [customerSearch, customerSelectorOpen, orderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +157,7 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
         setSourceChannel(order.source_channel);
         setCustomerName(order.customer_name ?? "");
         setCustomerPhone(order.customer_phone ?? "");
+        setCustomerId(order.customer_id ?? "");
         setDeliveryAddress(order.delivery_address ?? "");
         setDeliveryReference(order.delivery_reference ?? "");
         setPromisedAt(localDateTime(order.promised_at));
@@ -200,6 +245,7 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
   const payload = (): CustomerOrderInput => ({
     fulfillment_type: fulfillmentType,
     source_channel: sourceChannel,
+    ...(!orderId ? { customer_id: customerId || null } : {}),
     customer_name: customerName.trim() || null,
     customer_phone: customerPhone.trim() || null,
     delivery_address: fulfillmentType === "delivery" ? deliveryAddress.trim() || null : null,
@@ -216,7 +262,7 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
   });
 
   const persist = async (action: "save" | "confirm" | "checkout") => {
-    if (submittingRef.current) return;
+    if (submittingRef.current || customerLoading || customerError) return;
     setError(null);
     if (lines.length === 0) {
       setError("Agrega al menos un producto.");
@@ -323,6 +369,29 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
           <Card>
             <CardHeader><CardTitle>Entrega y cliente</CardTitle></CardHeader>
             <CardContent className="grid gap-3">
+              {orderId ? customerId && <p className="text-sm">Cliente registrado: <Link className="font-medium text-primary underline underline-offset-4" to={`/customers?customerId=${encodeURIComponent(customerId)}`}>{customerName || "Ver cliente"}</Link>. La asociación se conserva al editar.</p> : <details open={customerSelectorOpen} onToggle={(event) => setCustomerSelectorOpen(event.currentTarget.open)} className="rounded-lg border p-3">
+                <summary className="cursor-pointer text-sm font-medium">{customerId ? `Cliente registrado: ${customerName}` : "Asociar cliente registrado (opcional)"}</summary>
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">Al cobrar, la compra quedará en su historial. También puedes crear el pedido sin asociarlo a un cliente registrado.</p>
+                  {customerLoading && <p role="status" className="text-sm">Confirmando el cliente del pedido…</p>}
+                  {customerError && <p role="alert" className="text-sm text-destructive-strong">{customerError}</p>}
+                  <Label htmlFor={`${formId}-customer-search`}>Buscar cliente registrado</Label>
+                  <Input id={`${formId}-customer-search`} value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Nombre, correo o teléfono" disabled={customerLoading} />
+                  {customerSearchError && <p role="alert" className="text-sm text-destructive-strong">{customerSearchError}</p>}
+                  <Label htmlFor={`${formId}-registered-customer`}>Cliente registrado</Label>
+                  <Select id={`${formId}-registered-customer`} value={customerId} disabled={customerLoading} onChange={(event) => {
+                    const selected = customerOptions.find((customer) => customer.id === event.target.value);
+                    setCustomerId(selected?.id ?? "");
+                    setCustomerError("");
+                    if (selected) { setCustomerName(selected.name); setCustomerPhone(selected.phone ?? ""); }
+                  }}>
+                    <option value="">Sin asociar cliente registrado</option>
+                    {customerId && !customerOptions.some((row) => row.id === customerId) && <option value={customerId}>{customerName}</option>}
+                    {customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+                  </Select>
+                  {customerError && <Button type="button" variant="outline" size="sm" onClick={() => { setCustomerError(""); setCustomerId(""); }}>Continuar sin cliente registrado</Button>}
+                </div>
+              </details>}
               <div><Label htmlFor={`${formId}-fulfillment`}>Modalidad</Label><Select id={`${formId}-fulfillment`} value={fulfillmentType} onChange={(event) => setFulfillmentType(event.target.value as FulfillmentType)}><option value="pickup">{fulfillmentLabels.pickup}</option><option value="delivery">{fulfillmentLabels.delivery}</option></Select></div>
               <div><Label htmlFor={`${formId}-channel`}>Canal</Label><Select id={`${formId}-channel`} value={sourceChannel} onChange={(event) => setSourceChannel(event.target.value as SourceChannel)}><option value="counter">{channelLabels.counter}</option><option value="phone_whatsapp">{channelLabels.phone_whatsapp}</option><option value="other">{channelLabels.other}</option></Select></div>
               <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor={`${formId}-customer-name`}>Nombre</Label><Input id={`${formId}-customer-name`} value={customerName} onChange={(event) => setCustomerName(event.target.value)} maxLength={160} /></div><div><Label htmlFor={`${formId}-customer-phone`}>Teléfono</Label><Input id={`${formId}-customer-phone`} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} inputMode="tel" maxLength={32} /></div></div>
@@ -333,9 +402,9 @@ function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
           </Card>
 
           <div className="grid gap-2 sm:grid-cols-3">
-            <Button variant="outline" disabled={submitting} onClick={() => void persist("save")}><Save className="mr-2 h-4 w-4" /> Guardar</Button>
-            <Button variant="secondary" disabled={submitting} onClick={() => void persist("confirm")}>Guardar y confirmar</Button>
-            <Button disabled={submitting} onClick={() => void persist("checkout")}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Confirmar y cobrar</Button>
+            <Button variant="outline" disabled={submitting || customerLoading || Boolean(customerError)} onClick={() => void persist("save")}><Save className="mr-2 h-4 w-4" /> Guardar</Button>
+            <Button variant="secondary" disabled={submitting || customerLoading || Boolean(customerError)} onClick={() => void persist("confirm")}>Guardar y confirmar</Button>
+            <Button disabled={submitting || customerLoading || Boolean(customerError)} onClick={() => void persist("checkout")}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Confirmar y cobrar</Button>
           </div>
         </div>
       </div>

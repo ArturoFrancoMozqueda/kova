@@ -26,6 +26,15 @@ export type CustomerHistory = {
   offset: number;
   has_more: boolean;
 };
+export type CustomerActivitySource = "appointments" | "customer_orders" | "opportunities" | "followups" | "service_cases";
+export type CustomerActivity = {
+  branch_id: string;
+  sections: {
+    source: CustomerActivitySource;
+    items: { id: string; title: string; state: string; created_at: string; due_at: string | null }[];
+    has_more: boolean;
+  }[];
+};
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   if (!response.ok) {
@@ -67,6 +76,27 @@ export function saveCustomer(
 export function customerHistory(
   id: string,
   offset = 0,
+  init?: RequestInit,
 ): Promise<CustomerHistory> {
-  return request(`/api/v1/customers/${id}/history?offset=${offset}`);
+  return request(`/api/v1/customers/${encodeURIComponent(id)}/history?offset=${offset}`, init);
+}
+
+export function getCustomer(id: string, init?: RequestInit): Promise<Customer> {
+  return request(`/api/v1/customers/${encodeURIComponent(id)}`, init);
+}
+
+export function customerActivity(id: string, init?: RequestInit): Promise<CustomerActivity> {
+  return request(`/api/v1/customers/${encodeURIComponent(id)}/activity`, init);
+}
+
+/** Resolve the exact customer in the current authenticated business, never a list sample. */
+export async function resolveActiveCustomer(id: string, init?: RequestInit): Promise<Customer> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error("El enlace no contiene un cliente válido.");
+  }
+  const customer = await getCustomer(id, init);
+  if (customer.id.toLowerCase() !== id.toLowerCase() || !customer.is_active) {
+    throw new Error("Este cliente no está disponible para una nueva venta o cita.");
+  }
+  return customer;
 }

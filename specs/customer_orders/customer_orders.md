@@ -26,6 +26,15 @@ El flujo normal es `new → confirmed → in_progress → ready → fulfilled`. 
 
 ## Captura y snapshots
 
+- Un pedido nuevo admite `customer_id` opcional elegido explícitamente. El servidor valida
+  cliente activo del mismo negocio; nombre y teléfono siguen siendo snapshots de contacto,
+  no identificadores. Pedidos sin cliente siguen permitidos; no se vinculan por texto parecido.
+- La asociación se conserva al editar. Clientes anteriores pueden omitir el campo y no borran
+  la identidad; intentar cambiarla o quitarla explícitamente devuelve `CUSTOMER_IMMUTABLE`.
+  Editar entrega/contacto no exige reactivar al cliente histórico, pero cobrar sí lo exige.
+- El cobro conserva ese cliente en la venta, su historial y los dominios de seguimiento existentes.
+  Pedidos antiguos de cotizaciones mantienen la atribución revisada de la cotización; no se
+  backfillean contactos ni se permite una identidad contradictoria entre pedido y cotización.
 - Modalidad: recoger o entrega. La entrega exige nombre y dirección; teléfono es opcional.
 - Canal: mostrador, teléfono/WhatsApp u otro.
 - Se aceptan fecha prometida opcional, nota general y nota por artículo de hasta 200 caracteres.
@@ -57,6 +66,9 @@ es recibo de pago ni comprobante fiscal.
 
 ## API, concurrencia e idempotencia
 
+- `customer_id` es aditivo, nullable y opcional en escrituras y detalle. Respuestas idempotentes
+  antiguas sin ese campo se siguen aceptando. Crear sin ID o con null conserva el fingerprint
+  anterior; en edición, omitir preserva y null explícito es un cuerpo diferente para el replay.
 - Se expone `/api/v1/customer-orders`; `/api/v1/orders` no cambia.
 - Toda mutación exige `Idempotency-Key` y `expected_version`.
 - Una versión obsoleta devuelve `409 VERSION_CONFLICT`; otros códigos funcionales son

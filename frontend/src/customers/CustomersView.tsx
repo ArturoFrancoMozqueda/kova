@@ -1,11 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Users } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/auth/useAuth";
+import { useFeature } from "@/auth/useFeature";
+import { getActiveBranchId } from "@/branches/activeBranch";
 import {
   usePermission,
   CUSTOMERS_MANAGE_PERMISSION,
   CUSTOMERS_HISTORY_PERMISSION,
+  ORDER_CREATE_PERMISSION,
+  CUSTOMER_ORDER_CREATE_PERMISSION,
 } from "@/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +21,10 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { copy } from "@/i18n/messages";
+import { CustomerActivityPanel } from "./CustomerActivityPanel";
 import {
   customerHistory,
+  getCustomer,
   listCustomers,
   saveCustomer,
   type Customer,
@@ -30,9 +38,25 @@ const money = (amount: string) =>
     Number(amount),
   );
 export function CustomersView() {
+  const { state } = useAuth();
+  const identity = state.status === "authenticated"
+    ? `${state.tenantId}:${state.user.id}:${state.user.role}:${getActiveBranchId(state.tenantId, state.user.id)}`
+    : state.status;
+  return <CustomersWorkspace key={identity} />;
+}
+
+function CustomersWorkspace() {
   useDocumentTitle(t.title);
   const canManage = usePermission(CUSTOMERS_MANAGE_PERMISSION);
   const canHistory = usePermission(CUSTOMERS_HISTORY_PERMISSION);
+  const canSell = usePermission(ORDER_CREATE_PERMISSION);
+  const canCreatePedido = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
+  const pedidosEnabled = useFeature("customer_orders");
+  const [params, setParams] = useSearchParams();
+  const selectedId = params.get("customerId") ?? "";
+  const [selected, setSelected] = useState<Customer | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
   const [inactive, setInactive] = useState(false);
@@ -49,6 +73,57 @@ export function CustomersView() {
   const [revision, setRevision] = useState(0);
   const [history, setHistory] = useState<CustomerHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyRequest = useRef(0);
+  const profileHeading = useRef<HTMLHeadingElement>(null);
+  const profileTrigger = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (selected) profileHeading.current?.focus();
+  }, [selected]);
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setSelected(null);
+    setHistory(null);
+    historyRequest.current += 1;
+    setProfileError("");
+    if (!selectedId) {
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
+    void getCustomer(selectedId, { signal: controller.signal })
+      .then((customer) => {
+        if (active && customer.id === selectedId) setSelected(customer);
+        else if (active) setProfileError("No pudimos confirmar el cliente del enlace.");
+      })
+      .catch((error: unknown) => {
+        if (active) setProfileError(error instanceof Error ? error.message : t.loadError);
+      })
+      .finally(() => { if (active) setProfileLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [selectedId, revision]);
+  useEffect(() => {
+    if (!selected || !canHistory) return;
+    let active = true;
+    const controller = new AbortController();
+    setHistoryLoading(true);
+    void customerHistory(selected.id, 0, { signal: controller.signal })
+      .then((result) => { if (active) setHistory(result); })
+      .catch((error: unknown) => {
+        if (active) setProfileError(error instanceof Error ? error.message : t.historyError);
+      })
+      .finally(() => { if (active) setHistoryLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [selected, canHistory]);
+  const selectCustomer = (id: string | null) => {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (id) next.set("customerId", id);
+      else next.delete("customerId");
+      return next;
+    });
+    if (!id) window.requestAnimationFrame(() => profileTrigger.current?.focus());
+  };
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -103,14 +178,16 @@ export function CustomersView() {
     }
   };
   const showHistory = async (id: string, historyOffset = 0) => {
+    const requestId = ++historyRequest.current;
     setHistoryLoading(true);
     setError("");
     try {
-      setHistory(await customerHistory(id, historyOffset));
+      const result = await customerHistory(id, historyOffset);
+      if (requestId === historyRequest.current) setHistory(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.historyError);
+      if (requestId === historyRequest.current) setError(e instanceof Error ? e.message : t.historyError);
     } finally {
-      setHistoryLoading(false);
+      if (requestId === historyRequest.current) setHistoryLoading(false);
     }
   };
   const toggleActive = async (customer: Customer) => {
@@ -146,6 +223,94 @@ export function CustomersView() {
         >
           {error}
         </p>
+      )}
+      {(profileLoading || profileError || selected) && (
+        <Card>
+          <section className="space-y-4 p-5" aria-label="Ficha del cliente" aria-busy={profileLoading}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 ref={profileHeading} tabIndex={-1} className="text-lg font-semibold outline-none">{selected?.name ?? "Ficha del cliente"}</h2>
+                {selected && <p className="text-sm text-muted-foreground">{[selected.email, selected.phone].filter(Boolean).join(" · ") || t.noContact}</p>}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
+            </div>
+            {profileLoading && <p role="status" className="text-sm text-muted-foreground">Cargando cliente…</p>}
+            {profileError && <p role="alert" className="text-sm text-destructive-strong">{profileError}</p>}
+            {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
+            {selected?.is_active && <div className="flex flex-wrap gap-2">
+              {canSell && <Link className={buttonVariants()} to={`/register?customerId=${encodeURIComponent(selected.id)}`}>Nueva venta</Link>}
+              {canCreatePedido && pedidosEnabled && <Link className={buttonVariants({ variant: "outline" })} to={`/pedidos/nuevo?customerId=${encodeURIComponent(selected.id)}`}>Nuevo pedido</Link>}
+              {canHistory && <Link className={buttonVariants({ variant: "outline" })} to={`/appointments?customerId=${encodeURIComponent(selected.id)}`}>Agendar cita</Link>}
+            </div>}
+            {selected && canHistory && <CustomerActivityPanel key={selected.id} customerId={selected.id} />}
+            {historyLoading && <p role="status" className="text-sm text-muted-foreground">Cargando compras del cliente…</p>}
+          </section>
+        </Card>
+      )}
+      {selected && canHistory && history?.customer.id === selected.id && (
+        <Card>
+          <section className="space-y-3 p-5" aria-label={t.history}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-semibold">
+                {t.historyTitle(history.customer.name)}
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">{t.historyHint}</p>
+            {history.purchases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.historyEmpty}</p>
+            ) : (
+              <ul className="divide-y">
+                {history.purchases.map((sale) => (
+                  <li key={sale.id} className="flex justify-between gap-3 py-3">
+                    <div>
+                      <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
+                      <Link to={`/orders/${sale.id}`} className="text-xs text-primary underline underline-offset-4">
+                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}{" "}
+                        · {sale.id.slice(0, 8)}
+                      </Link>
+                    </div>
+                    <div className="text-right tabular-nums">
+                      <p className="font-medium">{money(sale.total_amount)}</p>
+                      {Number(sale.refunded_amount) > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {t.refunded(money(sale.refunded_amount))}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(history.offset > 0 || history.has_more) && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={history.offset === 0 || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      Math.max(0, history.offset - history.limit),
+                    )
+                  }
+                >
+                  {t.olderPurchases}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!history.has_more || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      history.offset + history.limit,
+                    )
+                  }
+                >
+                  {t.morePurchases}
+                </Button>
+              </div>
+            )}
+          </section>
+        </Card>
       )}
       {editing !== undefined && canManage && (
         <Card>
@@ -285,14 +450,13 @@ export function CustomersView() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {canHistory && (
+                  {(
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={historyLoading}
-                      onClick={() => void showHistory(customer.id)}
+                      onClick={(event) => { profileTrigger.current = event.currentTarget; selectCustomer(customer.id); }}
                     >
-                      {t.viewPurchases}
+                      Ver cliente
                     </Button>
                   )}
                   {canManage && (
@@ -338,74 +502,6 @@ export function CustomersView() {
             {t.next}
           </Button>
         </div>
-      )}
-      {history && (
-        <Card>
-          <section className="space-y-3 p-5" aria-label={t.history}>
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold">
-                {t.historyTitle(history.customer.name)}
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => setHistory(null)}>
-                {t.close}
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">{t.historyHint}</p>
-            {history.purchases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t.historyEmpty}</p>
-            ) : (
-              <ul className="divide-y">
-                {history.purchases.map((sale) => (
-                  <li key={sale.id} className="flex justify-between gap-3 py-3">
-                    <div>
-                      <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}{" "}
-                        · {sale.id.slice(0, 8)}
-                      </p>
-                    </div>
-                    <div className="text-right tabular-nums">
-                      <p className="font-medium">{money(sale.total_amount)}</p>
-                      {Number(sale.refunded_amount) > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          {t.refunded(money(sale.refunded_amount))}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {(history.offset > 0 || history.has_more) && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={history.offset === 0 || historyLoading}
-                  onClick={() =>
-                    void showHistory(
-                      history.customer.id,
-                      Math.max(0, history.offset - history.limit),
-                    )
-                  }
-                >
-                  {t.olderPurchases}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!history.has_more || historyLoading}
-                  onClick={() =>
-                    void showHistory(
-                      history.customer.id,
-                      history.offset + history.limit,
-                    )
-                  }
-                >
-                  {t.morePurchases}
-                </Button>
-              </div>
-            )}
-          </section>
-        </Card>
       )}
     </ViewLayout>
   );

@@ -15,6 +15,7 @@ async function openShell(page: Page) {
     access: { allowed: true, reason: "active", trialing: false, trial_ends_at: null,
       blocked_at: null, recovery_path: "/settings/billing" },
   } }));
+  await page.route("**/api/v1/operations/queue", route => route.fulfill({ json: { generated_at: "2026-10-22T18:00:00Z", sections: [] } }));
   await page.goto("/dashboard");
   await expect(page.getByRole("button", { name: "Abrir menú de navegación" }).first()).toBeVisible();
 }
@@ -52,13 +53,17 @@ test("drawer can navigate and desktop resize makes the sidebar operable", async 
   await openShell(page);
   await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
   const drawer = page.getByRole("dialog");
-  await expect(drawer.getByRole("heading", { name: "Productos e inventario", exact: true })).toBeVisible();
-  await expect(drawer.getByRole("link", { name: "Catálogo", exact: true })).toBeVisible();
+  await expect(drawer.getByRole("navigation").getByRole("link")).toHaveCount(7);
+  await expect(drawer.getByRole("link", { name: "Operación", exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("mobile-navigation-expanded-top.png"), animations: "disabled" });
   await drawer.getByRole("navigation").getByRole("link").last().scrollIntoViewIfNeeded();
   await expect(drawer.getByRole("navigation").getByRole("link").last()).toBeInViewport();
   await expect(drawer.getByRole("button", { name: "Cerrar sesión", exact: true })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("mobile-navigation-expanded-end.png"), animations: "disabled" });
+  await drawer.getByRole("link", { name: "Operación", exact: true }).click();
+  await expect(page).toHaveURL(/\/operations-queue$/);
+  await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+  await expect(drawer.getByRole("heading", { name: "En esta sección: Operación", exact: true })).toBeVisible();
   await drawer.getByRole("link", { name: "Catálogo", exact: true }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -90,7 +95,7 @@ test("desktop collapse preference does not hide labels in the mobile drawer", as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
   const drawer = page.getByRole("dialog");
-  const label = drawer.locator('a[href="/catalog"] span').filter({ hasText: "Catálogo" });
+  const label = drawer.locator('a[href="/operations-queue"] span').filter({ hasText: "Operación" });
   await expect(label).toHaveAttribute("aria-hidden", "false");
   await expect(label).toHaveCSS("opacity", "1");
   await expect(drawer.getByText("Mi negocio", { exact: true })).toBeVisible();

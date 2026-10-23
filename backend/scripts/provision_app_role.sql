@@ -129,6 +129,7 @@ BEGIN
             ('service_case_events', 'SELECT, INSERT'),
             ('appointment_resources', 'SELECT, INSERT'),
             ('appointments', 'SELECT, INSERT'),
+            ('appointment_sales', 'SELECT, INSERT'),
             ('appointment_history', 'SELECT, INSERT'),
             ('appointment_reminders', 'SELECT, INSERT'),
             ('loyalty_policy_revisions', 'SELECT, INSERT'),

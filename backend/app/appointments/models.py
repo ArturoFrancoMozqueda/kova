@@ -138,3 +138,30 @@ class AppointmentReminder(BranchScoped, Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AppointmentSale(BranchScoped, Base):
+    """Immutable attribution; never changes the sale or appointment attendance."""
+
+    __tablename__ = "appointment_sales"
+    __table_args__ = (
+        UniqueConstraint("appointment_id", name="uq_appointment_sale_appointment"),
+        UniqueConstraint("sale_order_id", name="uq_appointment_sale_order"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "appointment_id"],
+            ["appointments.tenant_id", "appointments.branch_id", "appointments.id"],
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "sale_order_id"],
+            ["orders.tenant_id", "orders.branch_id", "orders.id"],
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "actor_user_id"], ["memberships.tenant_id", "memberships.user_id"]
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    appointment_id: Mapped[UUID] = mapped_column(nullable=False)
+    sale_order_id: Mapped[UUID] = mapped_column(nullable=False)
+    actor_user_id: Mapped[UUID] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

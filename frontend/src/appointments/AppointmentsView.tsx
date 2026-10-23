@@ -12,7 +12,9 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import type { Customer } from "@/customers/api";
+import { resolveActiveCustomer, type Customer } from "@/customers/api";
+import { Link, useSearchParams } from "react-router-dom";
+import { AppointmentSalePanel } from "./AppointmentSalePanel";
 import type {
   Appointment,
   AppointmentPage,
@@ -48,6 +50,12 @@ export default function AppointmentsView() {
 }
 function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [reminderRevision, setReminderRevision] = useState(0);
+  const linked = useLinkedRecord<Appointment>(identity, "appointmentId", "/api/v1/appointments");
+  const [params, setParams] = useSearchParams();
+  const customerValues = params.getAll("customerId");
+  const incomingCustomer = customerValues.length === 1 ? customerValues[0] : customerValues.length > 1 ? "invalid" : "";
+  const [linkedCustomer, setLinkedCustomer] = useState<Customer | null>(null);
+  const [incomingCustomerError, setIncomingCustomerError] = useState("");
   const [offset, setOffset] = useState(0);
   const [windowStart, setWindowStart] = useState(() =>
     new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
@@ -135,6 +143,25 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       clearTimeout(timer);
     };
   }, [customerRequest, search]);
+  useEffect(() => {
+    if (!incomingCustomer) return;
+    const controller = new AbortController();
+    void resolveActiveCustomer(incomingCustomer, { signal: controller.signal, headers: { "X-Kova-Expected-Tenant": identity.tenantId, "X-Kova-Branch": identity.branchId } })
+      .then((customer) => {
+        if (controller.signal.aborted) return;
+        setLinkedCustomer(customer);
+        setCustomerId(customer.id);
+        setBookingOpen(true);
+        setIncomingCustomerError("");
+        setParams((current) => { const next = new URLSearchParams(current); next.delete("customerId"); return next; }, { replace: true });
+      }).catch((error: unknown) => {
+        if (!controller.signal.aborted) setIncomingCustomerError(error instanceof Error ? error.message : "No pudimos consultar el cliente del enlace.");
+      });
+    return () => controller.abort();
+  }, [incomingCustomer, setParams, identity.tenantId, identity.branchId]);
+  const visibleAppointments = linked.record
+    ? [linked.record, ...(panel.data?.items ?? []).filter((row) => row.id !== linked.record?.id)]
+    : panel.data?.items ?? [];
   const createResource = async (event: FormEvent) => {
     event.preventDefault();
     if (
@@ -187,6 +214,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             : "Cita registrada. No se ha enviado ningún aviso al cliente.",
         )
       ) {
+        linked.reload();
         setBookingOpen(false);
         setReminderRevision((value) => value + 1);
         setEditing(null);
@@ -223,6 +251,10 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         Cada recurso conserva su zona horaria. Las citas son internas: no envían
         recordatorios, generan cobros ni cambian el inventario.
       </p>
+      {incomingCustomerError && <p role="alert">{incomingCustomerError}</p>}
+      <LinkedRecordNotice linked={linked}>
+        {linked.record && <p className="text-sm">Cita solicitada: {linked.record.title}. Revisa su venta y continúa abajo.</p>}
+      </LinkedRecordNotice>
       {panel.error && (
         <ViewError
           message={panel.error}
@@ -242,7 +274,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           retryLabel="Consultar recursos"
         />
       )}
-      <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
+      <details className="space-y-4 rounded-2xl border border-kova-border bg-white p-6" open={resources.length === 0 || resourceOpen}>
+        <summary className="min-h-11 cursor-pointer font-semibold">Personas y espacios para las citas</summary>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Recursos disponibles</h2>
@@ -302,7 +335,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </li>
           ))}
         </ul>
-      </section>
+      </details>
       {resourceOpen && (
         <form
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
@@ -438,7 +471,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   onChange={(event) => setCustomerId(event.target.value)}
                 >
                   <option value="">Elige un cliente registrado</option>
-                  {customers.map((row) => (
+                  {(linkedCustomer ? [linkedCustomer, ...customers.filter((row) => row.id !== linkedCustomer.id)] : customers).map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.name}
                     </option>
@@ -608,13 +641,13 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           )}
         </form>
         {panel.loading && <p role="status">Consultando agenda…</p>}
-        {panel.data?.items.length === 0 && (
+        {visibleAppointments.length === 0 && !linked.loading && (
           <p className="rounded-2xl border border-kova-border bg-white p-6 text-sm text-kova-muted">
             No hay citas en este período. Crea una cita o consulta otras fechas.
           </p>
         )}
         <div className="grid gap-4 lg:grid-cols-2">
-          {panel.data?.items.map((row) => (
+          {visibleAppointments.map((row) => (
             <article
               key={row.id}
               className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5"
@@ -635,6 +668,13 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               <p className="break-words text-xs text-kova-muted">
                 Hora de {zoneLabel(row.timezone)} ({row.timezone})
               </p>
+              <Link className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline" to={`/customers?customerId=${row.customer_id}`}>Ver cliente y su historial</Link>
+              <AppointmentSalePanel appointment={row} identity={identity} busy={panel.busy} online={panel.online} onLink={async (saleId) => {
+                const ok = await panel.mutate(`/${row.id}/sale`, "POST", { expected_version: row.version, sale_order_id: saleId }, "Venta vinculada. El estado de atención se conserva.");
+                linked.reload();
+                setReminderRevision((value) => value + 1);
+                return ok;
+              }} />
               {row.note && (
                 <p className="whitespace-pre-wrap break-words text-sm text-kova-muted">
                   {row.note}
@@ -736,6 +776,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     "Estado de cita actualizado.",
                   )
                   .then((ok) => {
+                    linked.reload();
                     if (ok) {
                       setTransition(null);
                       setReminderRevision((value) => value + 1);
@@ -780,7 +821,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
 
 type HistoryEntry = {
   id: string;
-  action: "created" | "rescheduled" | "cancelled" | "completed" | "no_show";
+  action: "created" | "rescheduled" | "cancelled" | "completed" | "no_show" | "sale_linked";
   starts_at: string;
   ends_at: string;
   note: string | null;
@@ -793,6 +834,7 @@ const historyActions = {
   cancelled: "Cita cancelada",
   completed: "Atención registrada",
   no_show: "Inasistencia registrada",
+  sale_linked: "Venta vinculada",
 };
 function AppointmentHistory({
   identity,

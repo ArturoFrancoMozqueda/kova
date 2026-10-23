@@ -8,6 +8,7 @@ import { DrawerActions } from "@/hardware/DrawerActions";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CustomerOrderCheckoutRegister } from "@/customerOrders/CustomerOrderCheckoutRegister";
+import { resolveActiveCustomer, type Customer } from "@/customers/api";
 import {
   CATALOG_CREATE_PERMISSION,
   ORDER_CREATE_PERMISSION,
@@ -213,6 +214,20 @@ function RegularRegisterView() {
   const [lotError, setLotError] = useState("");
   const [lotRefresh, setLotRefresh] = useState(0);
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
+  const userId = state.status === "authenticated" ? state.user.id : "";
+  const [intentParams, setIntentParams] = useSearchParams();
+  const requestedCustomerId = intentParams.get("customerId") ?? "";
+  const appointmentValue = intentParams.get("appointmentId") ?? "";
+  const appointmentId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appointmentValue) ? appointmentValue : "";
+  const intentScope = `${tenantId}:${userId}:${requestedCustomerId}:${appointmentId}`;
+  const [customerIntent, setCustomerIntent] = useState<{
+    scope: string;
+    customer?: Customer;
+    error?: string;
+  } | null>(null);
+  const currentIntent = customerIntent?.scope === intentScope ? customerIntent : null;
+  const customerIntentPending = Boolean(requestedCustomerId && !currentIntent);
+  const customerIntentBlocked = customerIntentPending || Boolean(currentIntent?.error);
   const [paperWidthMm, setPaperWidthMm] = useState<ReceiptPaperWidth>(() =>
     tenantId ? readCachedReceiptPaperWidth(tenantId) : 80,
   );
@@ -227,6 +242,46 @@ function RegularRegisterView() {
   const [customerId, setCustomerId] = useState("");
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
+  const clearCustomerIntent = useCallback(() => {
+    setIntentParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("customerId");
+      next.delete("appointmentId");
+      return next;
+    }, { replace: true });
+    setCustomerIntent(null);
+  }, [setIntentParams]);
+  useEffect(() => {
+    setCustomerId("");
+    setCustomerQuery("");
+    setCustomers([]);
+  }, [tenantId, userId]);
+  useEffect(() => {
+    setCustomerIntent(null);
+    if (!requestedCustomerId || !tenantId) return;
+    const controller = new AbortController();
+    let active = true;
+    setCustomerId("");
+    void resolveActiveCustomer(requestedCustomerId, {
+      signal: controller.signal,
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "X-Kova-Expected-Tenant": tenantId,
+        "X-Kova-Expected-User": userId,
+      },
+    }).then((customer) => {
+      if (!active) return;
+      setCustomerIntent({ scope: intentScope, customer });
+      setCustomerId(customer.id);
+    }).catch((error: unknown) => {
+      if (active) setCustomerIntent({
+        scope: intentScope,
+        error: error instanceof Error ? error.message : "No pudimos confirmar el cliente. Inténtalo de nuevo.",
+      });
+    });
+    return () => { active = false; controller.abort(); };
+  }, [requestedCustomerId, tenantId, userId, intentScope]);
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashTendered, setCashTendered] = useState("");
@@ -376,6 +431,7 @@ function RegularRegisterView() {
     setDiscount("0.00");
     setCustomerId("");
     setCustomerQuery("");
+    clearCustomerIntent();
     setTaxRate(cachedTaxRate(tenantId));
     setPaymentMethod("cash");
     setCashTendered("");
@@ -391,10 +447,9 @@ function RegularRegisterView() {
     // search box. Runs after the success view restores its previous focus.
     // Phones skip it so the on-screen keyboard doesn't pop up uninvited.
     if (!isCartSheetModal) window.requestAnimationFrame(() => skuInputRef.current?.focus());
-  }, [isCartSheetModal, resetCashInteraction, tenantId]);
+  }, [isCartSheetModal, resetCashInteraction, tenantId, clearCustomerIntent]);
 
   useEffect(() => {
-    setCustomerId("");
     setCustomers([]);
     if (!tenantId || !navigator.onLine) return;
     const controller = new AbortController();
@@ -820,6 +875,7 @@ function RegularRegisterView() {
     );
   const canSubmitSale =
     canCreateOrders &&
+    !customerIntentBlocked &&
     pricing.valid &&
     cartItems.length > 0 &&
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
@@ -1313,6 +1369,17 @@ function RegularRegisterView() {
       )}
 
       {/* Mobile cart sheet backdrop */}
+      {requestedCustomerId && (
+        <section aria-label="Continuar con el cliente" className="mb-4 space-y-2 rounded-lg border bg-muted/30 p-4">
+          {customerIntentPending && <p role="status" className="text-sm">Confirmando el cliente de esta venta…</p>}
+          {currentIntent?.error && <p role="alert" className="text-sm text-destructive-strong">{currentIntent.error}</p>}
+          {currentIntent?.customer && <>
+            <p className="text-sm font-semibold">Venta para {currentIntent.customer.name}</p>
+            <p className="text-sm text-muted-foreground">{appointmentId ? "Al terminar el cobro, vuelve a la cita para vincular esta venta." : "El cliente ya está seleccionado. Agrega lo que vas a cobrar."}</p>
+          </>}
+          <Button type="button" variant="outline" size="sm" onClick={() => { clearCustomerIntent(); setCustomerId(""); }}>Continuar sin cliente</Button>
+        </section>
+      )}
       {cartSheetOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm xl:hidden"
@@ -1677,8 +1744,9 @@ function RegularRegisterView() {
                     <Label htmlFor="sale-customer-query">{copy.register.customerSearch}</Label>
                     <Input id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder={copy.register.customerSearchPlaceholder} />
                     <Label htmlFor="sale-customer">{copy.register.saleCustomer}</Label>
-                    <Select id="sale-customer" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
+                    <Select id="sale-customer" value={customerId} onChange={(event) => { clearCustomerIntent(); setCustomerId(event.target.value); }}>
                       <option value="">{copy.register.walkInCustomer}</option>
+                      {customerId && !customers.some((customer) => customer.id === customerId) && <option value={customerId}>{currentIntent?.customer?.name ?? "Cliente seleccionado"}</option>}
                       {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
                     </Select>
                     <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
@@ -2021,7 +2089,7 @@ function RegularRegisterView() {
                 </div>
                 <Button
                   type="submit"
-                  disabled={!canSubmitSale && !cashPaymentNeedsAmount}
+                  disabled={customerIntentBlocked || (!canSubmitSale && !cashPaymentNeedsAmount)}
                   aria-disabled={!canSubmitSale}
                   onClick={(event) => {
                     if (canSubmitSale) return;
@@ -2124,6 +2192,7 @@ function RegularRegisterView() {
                       {copy.register.openOrder}
                     </Link>
                   )}
+                  {completedOrder && appointmentId && currentIntent?.customer && <Link to={`/appointments?appointmentId=${appointmentId}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Volver a la cita y vincular venta</Link>}
                   {pendingReceipt?.syncFailed && (
                     <Link to="/sync-queue" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                       {copy.register.viewQueue}
@@ -2241,6 +2310,7 @@ function RegularRegisterView() {
             )}
           </div>
           <div className="px-6 pb-6 space-y-2">
+            {completedOrder && appointmentId && currentIntent?.customer && <Link to={`/appointments?appointmentId=${appointmentId}`} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}>Volver a la cita y vincular venta</Link>}
             {pendingReceipt?.syncFailed && (
               <Link to="/sync-queue" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}>
                 {copy.register.viewQueue}

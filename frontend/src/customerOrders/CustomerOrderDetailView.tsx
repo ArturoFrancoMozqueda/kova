@@ -139,7 +139,7 @@ export default function CustomerOrderDetailView() {
           <CardHeader><CardTitle>Cliente y entrega</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-start gap-2"><Store className="mt-0.5 h-4 w-4 text-muted-foreground" /><div><p className="font-medium">{fulfillmentLabels[order.fulfillment_type]}</p><p className="text-muted-foreground">{order.promised_at ? formatDateTime(order.promised_at) : "Lo antes posible"}</p></div></div>
-            <div><p className="font-medium">{order.customer_name || "Cliente sin nombre"}</p>{order.customer_phone ? <p className="mt-1 flex items-center text-muted-foreground"><Phone className="mr-1.5 h-3.5 w-3.5" /> {order.customer_phone}</p> : null}</div>
+            <div><p className="font-medium">{order.customer_name || "Cliente sin nombre"}</p>{order.customer_id && <Link to={`/customers?customerId=${encodeURIComponent(order.customer_id)}`} className="mt-1 inline-flex min-h-9 items-center text-primary underline underline-offset-4 print:hidden">Ver historial y atención del cliente</Link>}{order.customer_phone ? <p className="mt-1 flex items-center text-muted-foreground"><Phone className="mr-1.5 h-3.5 w-3.5" /> {order.customer_phone}</p> : null}</div>
             {order.delivery_address ? <div className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /><span>{order.delivery_address}{order.delivery_reference ? ` · ${order.delivery_reference}` : ""}</span></div> : null}
             {order.note ? <p className="rounded-md bg-muted/60 p-3 text-muted-foreground">{order.note}</p> : null}
           </CardContent>

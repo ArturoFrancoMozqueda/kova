@@ -37,4 +37,16 @@ describe("task and section discovery ranking", () => {
     expect(discoverSections([settings], "equipo")).toEqual([settings]);
   });
 
+  it.each([
+    ["agendar cita", "/appointments"], ["reagendar servicio", "/appointments"],
+    ["cobrar servicio", "/register"], ["ficha cliente", "/customers"],
+  ])("finds the same existing tasks for commerce and services: %s", (query, path) => {
+    const destinations = [
+      { to: "/appointments", label: "Agenda" }, { to: "/register", label: "Caja" },
+      { to: "/customers", label: "Clientes" },
+    ];
+    expect(discoverSections(destinations, query)[0]?.to).toBe(path);
+    expect(discoverSections(destinations.filter(item => item.to !== path), query)).toEqual([]);
+  });
+
 });

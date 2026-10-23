@@ -51,3 +51,29 @@ conservación de ventas, upgrade/downgrade vacío y rechazo de pérdida de histo
 Pendientes de aceptación: navegador y runtime Workers del corte completo, carga, operación con
 horarios reales del negocio y dispositivos. No se certifica integración con calendarios externos,
 reserva pública, cobro, aviso por canal, disponibilidad laboral recurrente ni sincronización offline.
+
+## Continuidad con cliente y venta (2026-10-22)
+
+La agenda permite abrir la ficha exacta del cliente, continuar en Caja con ese cliente validado y
+volver a la cita por `appointmentId`, aunque esté fuera del período visible. `customerId` desde
+Clientes abre el formulario con el cliente activo resuelto por ID; no crea una cita automáticamente.
+
+`GET /{id}` consulta una cita exacta en la sucursal. `GET /{id}/sales` devuelve ventas vigentes del
+mismo cliente/sucursal aún sin cita, con paginación `limit` (1–100), `offset` y `has_more`.
+`POST /{id}/sale` recibe `{expected_version, sale_order_id}` e Idempotency-Key. Mantiene las mismas
+barreras comerciales, owner/manager, cookie/CSRF y sucursal que la agenda. La selección es explícita:
+no se asocia una venta por proximidad de fecha, importe, teléfono ni nombre.
+
+El vínculo se conserva en `appointment_sales`, privada con ENABLE/FORCE RLS y sólo SELECT/INSERT
+para runtime. FKs compuestas verifican tenant/sucursal, una venta sólo corresponde a una cita y
+cada cita sólo admite una venta. No se reemplaza ni elimina el vínculo desde la interfaz. Exportación
+y purga de cuenta incluyen esta relación antes de sus padres.
+
+La transacción bloquea primero la venta y después la cita, valida cliente idéntico y activo,
+venta completed, cita scheduled/completed y versión vigente; agrega vínculo, historial `sale_linked`,
+versión, auditoría y replay en una transacción. No crea una venta, aplica un pago, cambia inventario,
+completa atención ni envía avisos. Dos atribuciones simultáneas de la misma venta se serializan.
+
+La respuesta de cita añade `sale` nullable con ID, estado vigente, importe original, suma real de
+devoluciones y fecha. Anulaciones/devoluciones posteriores se reflejan al consultar; no se etiqueta
+una cita atendida como pagada. Las listas agregan devoluciones por página, sin una consulta por cita.
