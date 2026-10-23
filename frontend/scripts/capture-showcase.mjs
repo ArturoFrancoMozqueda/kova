@@ -72,8 +72,12 @@ async function waitUntilReady(page, heading) {
 }
 
 async function sanitizeAccountArea(page) {
+  // A stylesheet also covers account rows React re-creates after this runs.
+  await page.addStyleTag({
+    content: "[data-capture-account], [data-capture-email] { visibility: hidden !important; }",
+  });
   await page.evaluate((accountEmail) => {
-    globalThis.document.querySelectorAll("[data-capture-account]").forEach((element) => {
+    globalThis.document.querySelectorAll("[data-capture-account], [data-capture-email]").forEach((element) => {
       element.setAttribute("aria-hidden", "true");
       element.style.visibility = "hidden";
     });
@@ -94,9 +98,43 @@ async function sanitizeAccountArea(page) {
     });
   }, email);
 
-  const visibleText = await page.locator("body").innerText();
-  if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(visibleText)) {
-    throw new Error("Se detectó un correo visible después de sanitizar la captura.");
+  // Check what is actually painted: rendered text nodes plus visible form
+  // values. Unselected <option> text is not on screen and is ignored. Leaks are
+  // reported by element, with the address masked, so a failure can be fixed.
+  const leaks = await page.evaluate(() => {
+    const emailPattern = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+    const visible = (element) => {
+      if (!element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+      // Screenshots cover the viewport only; off-canvas drawers are not painted.
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0
+        && rect.left < globalThis.innerWidth && rect.top < globalThis.innerHeight;
+    };
+    const describe = (element, text) => {
+      const attributes = Array.from(element.attributes)
+        .filter((attribute) => attribute.name.startsWith("data-") || attribute.name === "role")
+        .map((attribute) => attribute.name)
+        .join(",");
+      const masked = text.replace(/[a-z0-9._%+-]+@/gi, "***@").trim().slice(0, 80);
+      return `<${element.tagName.toLowerCase()}${attributes ? ` ${attributes}` : ""}> “${masked}”`;
+    };
+    const found = [];
+    const walker = globalThis.document.createTreeWalker(globalThis.document.body, globalThis.NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent || "";
+      const parent = node.parentElement;
+      if (!parent || !emailPattern.test(text)) continue;
+      const option = parent.closest("option");
+      if (option && !option.selected) continue;
+      if (visible(option?.closest("select") || parent)) found.push(describe(parent, text));
+    }
+    globalThis.document.querySelectorAll("input, textarea").forEach((field) => {
+      if (emailPattern.test(field.value || "") && visible(field)) found.push(describe(field, field.value));
+    });
+    return found;
+  });
+  if (leaks.length > 0) {
+    throw new Error(`Se detectó un correo visible después de sanitizar la captura: ${leaks.slice(0, 5).join("; ")}`);
   }
 }
 
@@ -177,17 +215,31 @@ async function captureDevice(browser, device) {
       const card = page.getByRole("button", { name: new RegExp(`^Agregar ${escapeRegex(name)}$`, "i") });
       await card.waitFor();
       const image = card.locator("img");
-      await image.waitFor();
+      // A product may lose its photo in the tenant; keep the existing demo
+      // asset instead of aborting the whole capture.
+      const hasImage = await image.waitFor({ timeout: 5_000 }).then(() => true, () => false);
+      if (!hasImage) {
+        console.warn(`Sin fotografía en el tenant para ${name}; se conserva products/${fileName}.`);
+        continue;
+      }
       await image.screenshot({ path: resolve(productOutputDir, fileName), animations: "disabled" });
     }
 
+    // Prices come from the live catalog, so the expected total is derived from
+    // the cards instead of being hard-coded.
+    let expectedTotal = 0;
     for (const name of ["Cold brew", "Capuchino mediano", "Yogurt con granola"]) {
       await search.fill(name);
-      await page.getByRole("button", { name: new RegExp(`^Agregar ${escapeRegex(name)}$`, "i") }).click();
+      const card = page.getByRole("button", { name: new RegExp(`^Agregar ${escapeRegex(name)}$`, "i") });
+      const price = (await card.innerText()).match(/\$\s*([\d,]+\.\d{2})/);
+      if (!price) throw new Error(`No se encontró el precio de ${name} en Caja.`);
+      expectedTotal += Number(price[1].replace(/,/g, ""));
+      await card.click();
     }
     await search.fill("");
+    const totalLabel = `$${expectedTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     // On mobile the cart is a collapsed sheet, so the total exists without being visible.
-    await page.getByText("$186.00", { exact: true }).last().waitFor({ state: "attached" });
+    await page.getByText(totalLabel, { exact: true }).last().waitFor({ state: "attached" });
     await captureViewport(page, device, "register");
 
     for (const screen of screens) {
