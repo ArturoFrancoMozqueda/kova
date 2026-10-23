@@ -27,6 +27,8 @@ import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { BusinessActivityRecap } from "./BusinessActivityRecap";
 import { BusinessControlCenter } from "./BusinessControlCenter";
+import { DashboardAttention, DashboardBranches, DashboardDeviceStatus, DashboardScopeToolbar, DashboardViewLink, DashboardStatusSummary } from "./DashboardSupervision";
+import type { DashboardControl, DashboardScope, ControlBranch } from "./controlTypes";
 import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -64,6 +66,8 @@ type LoadState =
   | {
       status: "ready";
       identity: string | null;
+      scope: DashboardScope;
+      control: DashboardControl | null;
       summary: SalesSummary;
       yesterday: SalesSummary | null;
       payments: PaymentBreakdown;
@@ -436,7 +440,7 @@ function DashboardExecutiveSummary({
             {copy.dashboard.netSales}
           </p>
           <div className="mt-3 flex flex-wrap items-baseline gap-3">
-            <p className="break-words text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
+            <p aria-label="Ventas netas del periodo" className="break-words text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
               <CountUp value={currentNet} format={(value) => formatMoney(value)} />
             </p>
             <div className="rounded-kova-sm bg-white px-2.5 py-1.5">
@@ -480,8 +484,12 @@ export default function DashboardView() {
   const canUseTaskActions = state.status === "authenticated" && state.sessionMode !== "offline";
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const identity = state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : null;
+  const [scopeSelection, setScopeSelection] = useState({ identity, value: "all" as DashboardScope });
+  const selectedScope = scopeSelection.identity === identity ? scopeSelection.value : "all";
+  const [scopeChoices, setScopeChoices] = useState<{ identity: string | null; branches: ControlBranch[]; canViewAll: boolean; effective: string }>({ identity: null, branches: [], canViewAll: true, effective: "all" });
+  const setSelectedScope = (value: DashboardScope) => setScopeSelection({ identity, value });
   const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const loadState: LoadState = storedLoadState.status === "ready" && storedLoadState.identity !== identity
+  const loadState: LoadState = storedLoadState.status === "ready" && (storedLoadState.identity !== identity || storedLoadState.scope !== selectedScope)
     ? { status: "loading" }
     : storedLoadState;
   const [period, setPeriod] = useState<Period>("day");
@@ -491,13 +499,15 @@ export default function DashboardView() {
     const requestId = ++requestIdRef.current;
     setLoadState({ status: "loading" });
     try {
-      const overview = await getDashboardOverview(selected);
+      const overview = await getDashboardOverview(selected, selectedScope);
       if (requestId !== requestIdRef.current) return;
       if (overview !== null) {
+        const control = overview.control_center ?? null;
+        if (control) setScopeChoices({ identity, branches: control.branches, canViewAll: control.scope.can_view_all, effective: control.scope.branch_id ?? "all" });
         const story = overview.story;
         const subscriptionStatus = overview.billing?.subscription?.status;
         setLoadState({
-          status: "ready", identity, story,
+          status: "ready", identity, story, scope: selectedScope, control,
           summary: summaryFromStory(story), yesterday: overview.previous_summary,
           payments: paymentsFromStory(story), hourly: overview.hourly,
           topProducts: topProductsFromStory(story),
@@ -556,6 +566,8 @@ export default function DashboardView() {
       setLoadState({
         status: "ready",
         identity,
+        scope: selectedScope,
+        control: null,
         summary,
         yesterday: previousSummary,
         payments,
@@ -582,7 +594,7 @@ export default function DashboardView() {
       if (requestId !== requestIdRef.current) return;
       setLoadState({ status: "error" });
     }
-  }, [identity]);
+  }, [identity, selectedScope]);
 
   useEffect(() => {
     void load(period);
@@ -591,13 +603,15 @@ export default function DashboardView() {
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
   const greeting = getGreeting(tenantTimezone);
+  const liveControl = loadState.status === "ready" ? loadState.control : null;
+  const choices = scopeChoices.identity === identity ? scopeChoices : null;
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
       {/* Keep business identity and the selected sales period visible together. */}
       <div className="mb-2">
         <ViewHeader
-          eyebrow={tenantName ? `${greeting}, ${tenantName}` : greeting}
+          eyebrow={`${tenantName ? `${greeting}, ${tenantName}` : greeting}${loadState.status === "ready" && !liveControl ? " · Sucursal operativa" : ""}`}
           title="Centro de control"
           meta={periodSubtitle(period, tenantTimezone)}
           actions={
@@ -615,6 +629,15 @@ export default function DashboardView() {
         />
       </div>
 
+      {canManageBusiness && canUseTaskActions && choices && (
+        <DashboardScopeToolbar
+          scope={liveControl?.scope.branch_id ?? (liveControl?.scope.kind === "all" ? "all" : selectedScope === "all" ? choices.effective : selectedScope)}
+          branches={choices.branches} canViewAll={choices.canViewAll}
+          loading={loadState.status === "loading"} generatedAt={liveControl?.generated_at ?? null}
+          timezone={tenantTimezone} onScope={setSelectedScope} onRefresh={() => void load(period)}
+        />
+      )}
+      {liveControl && <DashboardAttention control={liveControl} allowedDestinations={navigation?.destinations ?? []} />}
       {loadState.status === "ready" && (
         <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -635,6 +658,7 @@ export default function DashboardView() {
 
               <InsightStrip
                 show="banner"
+                suppressLowStock={Boolean(liveControl)}
                 summary={loadState.summary}
                 yesterday={loadState.yesterday}
                 hourly={loadState.hourly}
@@ -644,7 +668,7 @@ export default function DashboardView() {
               />
 
               {/* Priorities follow the evidence; no empty heading when all is clear. */}
-              <InsightStrip
+              {!liveControl && <InsightStrip
                 show="actions"
                 summary={loadState.summary}
                 yesterday={loadState.yesterday}
@@ -652,15 +676,15 @@ export default function DashboardView() {
                 topProducts={loadState.topProducts}
                 lowStock={loadState.lowStockItems}
                 compareLabel={loadState.compareLabel}
-              />
+              />}
             </div>
-            <BusinessHealthCard
+            {liveControl ? <DashboardStatusSummary control={liveControl} /> : <BusinessHealthCard
               summary={loadState.summary}
               yesterday={loadState.yesterday}
               payments={loadState.payments}
               lowStockCount={loadState.lowStockCount}
               compareLabel={loadState.compareLabel}
-            />
+            />}
           </div>
         </section>
       )}
@@ -696,7 +720,7 @@ export default function DashboardView() {
                   { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: "Ver análisis", desc: copy.dashboard.viewReportsDesc },
                 ] : []),
               ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                <Link key={to} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
+                <DashboardViewLink key={to} control={liveControl} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
                   <div className="flex h-full items-center gap-3 rounded-kova-md px-2 py-2 transition-colors duration-hover ease-standard hover:bg-white active:bg-kova-blue/5">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0 transition-transform duration-hover ease-standard group-hover:scale-105`}>
                       <Icon className="h-4 w-4" />
@@ -707,15 +731,20 @@ export default function DashboardView() {
                     </div>
                     <ArrowRight className="hidden h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[opacity,transform] duration-hover ease-standard group-hover:translate-x-0 group-hover:opacity-100 sm:block" />
                   </div>
-                </Link>
+                </DashboardViewLink>
               ))}
             </nav>
           </div>
         </section>
       )}
 
+      {loadState.status === "ready" && !liveControl && (
+        <p className="mb-3 text-xs text-kova-muted">Vista de la sucursal operativa. El resumen consolidado y los pendientes no están disponibles en esta consulta.</p>
+      )}
+      {liveControl && <DashboardBranches control={liveControl} onScope={setSelectedScope} />}
       {canManageBusiness && canUseTaskActions && (
         <BusinessControlCenter
+          control={liveControl}
           destinations={navigation?.destinations ?? []}
           snapshot={loadState.status === "ready" && loadState.activitySnapshotAvailable ? {
             orderCount: loadState.summary.order_count,
@@ -725,6 +754,7 @@ export default function DashboardView() {
         />
       )}
 
+      {liveControl && <DashboardDeviceStatus />}
       {loadState.status === "loading" && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -785,7 +815,7 @@ export default function DashboardView() {
         // capped CSS sequence as Análisis; numbers never tween).
         <div className="kv-stagger space-y-6">
           <ArcKicker label="Detrás de tus resultados" />
-          {canManageBusiness && loadState.activitySnapshotAvailable && (
+          {canManageBusiness && loadState.activitySnapshotAvailable && !liveControl && (
             <BusinessActivityRecap
               activeCatalogCount={loadState.activeCatalogCount}
               trackedInventoryCount={loadState.trackedInventoryCount}
@@ -816,13 +846,13 @@ export default function DashboardView() {
                   <p className="text-sm font-semibold">{copy.dashboard.noActivityTitle}</p>
                   <p className="max-w-md text-sm text-muted-foreground">{copy.dashboard.noActivityBody}</p>
                 </div>
-                <Link
+                <DashboardViewLink control={liveControl}
                   to="/register"
                   className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
                 >
                   {copy.dashboard.noActivityCta}
                   <ArrowRight className="h-4 w-4" />
-                </Link>
+                </DashboardViewLink>
               </CardContent>
             </Card>
           ) : (
@@ -893,13 +923,13 @@ export default function DashboardView() {
                               );
                             })}
                           </div>
-                          <Link
+                          <DashboardViewLink control={liveControl}
                             to="/reports"
                             className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-kova-md text-sm font-semibold text-[color:var(--kova-blue)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2"
                           >
                             {copy.dashboard.topHoursViewMore}
                             <ArrowRight className="h-4 w-4" />
-                          </Link>
+                          </DashboardViewLink>
                         </>
                       );
                     })()}

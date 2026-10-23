@@ -2,6 +2,7 @@ import type { BillingSubscription } from "@/billing/types";
 import type { StockItem } from "@/inventory/types";
 import type { OnboardingState } from "@/onboarding/api";
 import type { BusinessStoryReport, SalesByHourRow, SalesSummary } from "@/reports/types";
+import type { DashboardControl, DashboardScope } from "./controlTypes";
 
 export type DashboardPeriod = "day" | "week" | "month";
 export type DashboardOverview = {
@@ -16,10 +17,11 @@ export type DashboardOverview = {
   closed_shift_count: number;
   billing: BillingSubscription | null;
   onboarding: OnboardingState;
+  control_center?: DashboardControl | null;
 };
 
-export async function getDashboardOverview(period: DashboardPeriod): Promise<DashboardOverview | null> {
-  const response = await fetch(`/api/v1/reports/dashboard?${new URLSearchParams({ period })}`, {
+export async function getDashboardOverview(period: DashboardPeriod, branch: DashboardScope = "all"): Promise<DashboardOverview | null> {
+  const response = await fetch(`/api/v1/reports/dashboard?${new URLSearchParams({ period, branch_id: branch })}`, {
     cache: "no-store",
   });
   // An older backend may briefly serve an installed PWA during recovery. Only

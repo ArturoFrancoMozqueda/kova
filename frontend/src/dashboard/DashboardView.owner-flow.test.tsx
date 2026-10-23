@@ -88,7 +88,7 @@ describe("owner dashboard journey", () => {
     expect(within(actions).getByRole("link", { name: /Ver análisis/ })).toBeVisible();
     expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
     expect(screen.queryByTestId("net-sales")).not.toBeInTheDocument();
-    await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day"));
+    await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all"));
   });
 
   it("keeps task actions reachable when sales data fails without extra API calls", async () => {
@@ -232,7 +232,7 @@ describe("owner dashboard journey", () => {
     expect(within(quick).getByRole("link", { name: /Ver pendientes/ })).toBeVisible();
     expect(screen.getByTestId("net-sales")).toHaveTextContent(/^0$/);
     expect(screen.getByText(copy.dashboard.noActivityTitle)).toBeVisible();
-    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day");
+    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all");
     for (const legacy of [getBusinessStory, getSalesByHour, getSalesSummary]) expect(legacy).not.toHaveBeenCalled();
   });
 
