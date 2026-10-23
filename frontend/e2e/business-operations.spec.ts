@@ -116,6 +116,14 @@ for (const width of [1440, 768, 390, 320]) {
       }),
     );
     await page.goto("/appointments");
+    const resources = page.locator("details").filter({
+      has: page.locator("summary", { hasText: "Personas y espacios para las citas" }),
+    });
+    // Existing resources keep setup collapsed; open it through its actual
+    // owner-facing control before exercising the resource form.
+    await expect(resources).not.toHaveAttribute("open");
+    await resources.locator("summary").click();
+    await expect(resources).toHaveAttribute("open", "");
     await page.getByRole("button", { name: "Agregar recurso" }).click();
     await page.getByRole("button", { name: "Nueva cita" }).click();
     await page.getByLabel("Recurso de la cita").selectOption(resource.id);

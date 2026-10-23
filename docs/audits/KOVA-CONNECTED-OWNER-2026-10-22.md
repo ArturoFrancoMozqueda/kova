@@ -51,6 +51,22 @@ Las verificaciones productivas citadas en esa documentación son evidencia hist�
 
 ## Validación y límites
 
+### Corrección del CI de la PR #268
+
+El run `39889176788` detectó una prueba de backend con un conteo global incorrecto:
+esperaba cero ventas en toda la base, cuando la suite completa conservaba ventas de otros
+negocios. El rechazo del cobro ya devolvía `CUSTOMER_INACTIVE`. La prueba ahora crea una venta
+real de otro negocio, verifica cero ventas en el tenant afectado y exige que el conjunto global
+de ventas no cambie. Mantiene el resultado funcional y refuerza ausencia de efectos ajenos.
+
+Cinco escenarios de navegador aún recorrían la UI anterior: configuración de recursos siempre
+visible y botón Ver compras. Ahora abren el desplegable explícitamente y continúan por Ver
+cliente, con mocks que respetan el contrato de lectura exacta/actividad. Se conservan importes,
+devoluciones, cuatro tamaños de pantalla y permisos; cajero además acredita que abrir una ficha
+no realiza lecturas administrativas. No se cambia implementación, fixtures globales ni controles
+para acomodar las pruebas. Las seis pruebas de identidad y 11 E2E focales aprobaron localmente;
+la nueva ejecución remota valida la suite completa antes de cualquier publicación.
+
 - Frontend completo: **1,373 pruebas en 194 archivos** aprobadas; TypeScript, ESLint, build de
   cliente/SSR y prerender aprobados. Escaneo de 123 JS sin patrones prohibidos; guard de 51 specs.
 - Backend focal: **93 pruebas con psycopg y las mismas 93 con pg8000** aprobadas, incluyendo
