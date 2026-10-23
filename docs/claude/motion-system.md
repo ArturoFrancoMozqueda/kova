@@ -208,8 +208,8 @@ Each of these animates something the rules discourage, on purpose:
 - **Count-up on the cart total or the sale-success amount.** That number is read
   aloud to the customer. Tweening it puts a number on screen that is not the
   total.
-- **Motion on chart live regions** (`ChartDetailPanel`, the inline block in
-  `SalesTrendChart`). Fading in a number the user is reading, while a screen
+- **Motion on chart live regions** (`ChartDetailPanel` and any inline chart
+  detail block). Fading in a number the user is reading, while a screen
   reader announces it, helps nobody.
 - **Anything on "Cobrar" beyond its spinner**, and anything on keyboard submit.
 
