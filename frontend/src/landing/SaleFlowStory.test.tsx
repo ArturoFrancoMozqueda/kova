@@ -65,14 +65,13 @@ describe("SaleFlowStory", () => {
   it("selects the horizontal video on desktop", () => {
     const { container } = renderStory();
     const video = screen.getByLabelText(
-      "Demostración de Kova: venta, inventario, caja y análisis",
+      "Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis",
     );
 
     expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
-    expect(video.querySelector("track[kind='captions']")).toHaveAttribute(
-      "src",
-      "/film/kova-demo-es.vtt",
-    );
+    // The film has no narration: its message is on-screen text and the audio
+    // track is sound effects only, so there is no speech to caption.
+    expect(video.querySelector("track")).toBeNull();
     expect(
       container.querySelector("picture source[media='(max-width: 700px)']"),
     ).toHaveAttribute("srcset", "/film/kova-demo-vertical.webp");
@@ -83,7 +82,7 @@ describe("SaleFlowStory", () => {
     renderStory();
 
     expect(
-      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+      screen.getByLabelText("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis"),
     ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
   });
 
@@ -93,7 +92,7 @@ describe("SaleFlowStory", () => {
     renderStory();
 
     expect(
-      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+      screen.getByLabelText("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis"),
     ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
   });
 
@@ -103,14 +102,14 @@ describe("SaleFlowStory", () => {
     expect(play).toHaveBeenCalledTimes(1);
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
     expect(
-      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+      screen.getByLabelText("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis"),
     ).toHaveProperty("muted", true);
   });
 
   it("offers accessible playback and sound controls", () => {
     renderStory();
     const video = screen.getByLabelText(
-      "Demostración de Kova: venta, inventario, caja y análisis",
+      "Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis",
     ) as HTMLVideoElement;
 
     fireEvent.click(screen.getByRole("button", { name: "Activar sonido" }));

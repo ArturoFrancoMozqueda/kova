@@ -361,7 +361,7 @@ test("mobile landing uses the vertical product film without overflow", async ({ 
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
   await expect(video).toBeVisible();
   await expect(video).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
   await expect
@@ -385,7 +385,7 @@ test("landing switches the active film when the viewport becomes mobile", async 
 
   const video = page
     .locator("#producto")
-    .getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+    .getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
   await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -405,7 +405,7 @@ test("desktop product film controls stay navigable without horizontal overlap", 
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
   await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
   await expect
     .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
@@ -469,7 +469,7 @@ test("landing product film waits for manual playback under reduced motion", asyn
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
   await expect(video).toBeVisible();
   await expect(story.locator("picture img")).toBeVisible();
   await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
