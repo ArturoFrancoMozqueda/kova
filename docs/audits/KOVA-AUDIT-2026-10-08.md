@@ -105,7 +105,7 @@ Se actualizaron para verificar ambos contextos correctos y la única identidad d
 manteniendo la recuperación exitosa y añadiendo comprobaciones de UUID/payload/IndexedDB.
 La implementación corregida se conservó; no se ajustaron expectativas para ocultar fallos.
 
-La evidencia estructurada se registra en `KOVA-AUDIT-2026-10-08.json`.
+La evidencia estructurada `KOVA-AUDIT-2026-10-08.json` se retiró del árbol el 2026-10-22; queda en el historial git.
 Los logs locales completos están en `/workspace/kova-audit-evidence/` y no forman parte
 del bundle ni de la aplicación. La auditoría preserva las protecciones de autenticación,
 RLS, ownership, cobros e idempotencia; no introduce datos simulados en rutas productivas.

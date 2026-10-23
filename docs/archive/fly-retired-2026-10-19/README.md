@@ -1,7 +1,7 @@
 # Retired Fly integration
 
 The owner permanently retired Fly on 2026-10-19 after Cloudflare acceptance.
-These `.txt` files are historical source, not executable deployment instructions.
+The archived `.txt` source copies were removed from the tree on 2026-10-22; they remain in git history.
 Do not reactivate or restore them. Application machines and IP allocations were
 removed; Supabase and Cloudflare remain authoritative.
 
