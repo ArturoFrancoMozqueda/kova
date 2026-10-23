@@ -34,6 +34,7 @@ class CustomerOrderItemUpdate(CustomerOrderItemCreate):
 class _CustomerOrderFields(StrictModel):
     fulfillment_type: FulfillmentType = "pickup"
     source_channel: SourceChannel = "counter"
+    customer_id: UUID | None = None
     customer_name: str | None = Field(default=None, max_length=160)
     customer_phone: str | None = Field(default=None, max_length=32)
     delivery_address: str | None = Field(default=None, max_length=300)
@@ -133,6 +134,7 @@ class CustomerOrderResponse(BaseModel):
     payment_status: PaymentStatus
     fulfillment_type: FulfillmentType
     source_channel: SourceChannel
+    customer_id: UUID | None = None
     customer_name: str | None
     customer_phone: str | None
     delivery_address: str | None

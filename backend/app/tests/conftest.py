@@ -154,7 +154,7 @@ def _provision_kova_app() -> None:
             "SELECT, INSERT": (
                 "public_catalog_links "
                 "service_cases service_case_events "
-                "appointment_resources appointments appointment_history appointment_reminders loyalty_policy_revisions loyalty_entries "
+                "appointment_resources appointments appointment_sales appointment_history appointment_reminders loyalty_policy_revisions loyalty_entries "
                 "crm_catalog_requests crm_followup_policies crm_followup_tasks "
                 "messaging_conversations messaging_messages messaging_channel_events "
                 "automation_rules automation_runs business_events "

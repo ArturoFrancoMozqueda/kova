@@ -28,6 +28,9 @@ const telemetry = vi.hoisted(() => ({
 }));
 const inventoryApi = vi.hoisted(() => ({ listStock: vi.fn() }));
 const cashDrawer = vi.hoisted(() => ({ open: vi.fn() }));
+const customerApi = vi.hoisted(() => ({ resolveActiveCustomer: vi.fn() }));
+vi.mock("@/customers/api", () => customerApi);
+let registerTenantId = "tenant-1";
 vi.mock("@/hardware/useCashDrawer", () => ({
   useCashDrawer: () => ({ device: null, busy: false, message: "", open: cashDrawer.open }),
 }));
@@ -80,7 +83,7 @@ vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({
     state: {
       status: "authenticated",
-      tenantId: "tenant-1",
+      tenantId: registerTenantId,
       tenantName: "Sweet Home",
       user: { role: "owner" },
     },
@@ -100,9 +103,9 @@ const openShift: Shift = {
   status: "open",
 } as Shift;
 
-function renderRegister() {
+function renderRegister(entry = "/register") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[entry]}>
       <ToastProvider>
         <RegisterView />
       </ToastProvider>
@@ -114,6 +117,8 @@ const cashLabel = copy.register.cash;
 
 describe("RegisterView cash-without-shift guard", () => {
   beforeEach(() => {
+    registerTenantId = "tenant-1";
+    customerApi.resolveActiveCustomer.mockReset();
     cashDrawer.open.mockReset().mockResolvedValue(undefined);
     getOpenShift.mockReset();
     queueOfflineSale.mockReset();
@@ -139,6 +144,60 @@ describe("RegisterView cash-without-shift guard", () => {
     });
     fireEvent.click(addButton);
   }
+
+  const linkedCustomer = { id: "11111111-1111-4111-8111-111111111111", name: "Ana", email: null, phone: null, is_active: true, created_at: "2026-10-22T00:00:00Z" };
+  const appointmentId = "22222222-2222-4222-8222-222222222222";
+
+  it("recibe al cliente exacto, lo conserva en la venta y ofrece volver a la cita", async () => {
+    customerApi.resolveActiveCustomer.mockResolvedValue(linkedCustomer);
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "customer-sale" });
+    syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "customer-order", total_amount: "50.00" } }]);
+    renderRegister(`/register?customerId=${linkedCustomer.id}&appointmentId=${appointmentId}`);
+    expect(await screen.findByText("Venta para Ana")).toBeInTheDocument();
+    expect(customerApi.resolveActiveCustomer).toHaveBeenCalledWith(linkedCustomer.id, expect.objectContaining({ headers: expect.objectContaining({ "X-Kova-Expected-Tenant": "tenant-1" }) }));
+    await addProductToCart();
+    expect(screen.getByLabelText(copy.register.saleCustomer)).toHaveValue(linkedCustomer.id);
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await waitFor(() => expect(queueOfflineSale).toHaveBeenCalledWith("tenant-1", expect.objectContaining({ customer_id: linkedCustomer.id }), expect.anything(), expect.anything(), expect.anything()));
+    const returnLinks = await screen.findAllByRole("link", { name: "Volver a la cita y vincular venta" });
+    expect(returnLinks[0]).toHaveAttribute("href", `/appointments?appointmentId=${appointmentId}`);
+    fireEvent.click(screen.getAllByRole("button", { name: copy.register.newSale })[0]);
+    expect(screen.getByLabelText(copy.register.saleCustomer)).toHaveValue("");
+    expect(screen.queryByText("Venta para Ana")).not.toBeInTheDocument();
+    expect(customerApi.resolveActiveCustomer).toHaveBeenCalledTimes(1);
+  });
+
+  it("no permite cobrar como anónimo por accidente si falla el cliente del enlace", async () => {
+    customerApi.resolveActiveCustomer.mockRejectedValue(new Error("Cliente no encontrado"));
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister(`/register?customerId=${linkedCustomer.id}`);
+    expect(await screen.findByText("Cliente no encontrado")).toBeInTheDocument();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeDisabled();
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar sin cliente" }));
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeEnabled();
+    expect(screen.getByLabelText(copy.register.saleCustomer)).toHaveValue("");
+  });
+
+  it("descarta el cliente pendiente y la respuesta anterior al cambiar de negocio", async () => {
+    let resolvePrevious: ((value: typeof linkedCustomer) => void) | undefined;
+    customerApi.resolveActiveCustomer.mockImplementationOnce(() => new Promise((resolve) => { resolvePrevious = resolve; }));
+    getOpenShift.mockResolvedValue(openShift);
+    const view = renderRegister(`/register?customerId=${linkedCustomer.id}`);
+    await waitFor(() => expect(customerApi.resolveActiveCustomer).toHaveBeenCalledTimes(1));
+    registerTenantId = "tenant-2";
+    customerApi.resolveActiveCustomer.mockRejectedValue(new Error("Cliente no encontrado"));
+    view.rerender(<MemoryRouter><ToastProvider><RegisterView /></ToastProvider></MemoryRouter>);
+    expect(await screen.findByText("Cliente no encontrado")).toBeInTheDocument();
+    await act(async () => { resolvePrevious?.(linkedCustomer); });
+    expect(screen.queryByText("Venta para Ana")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(copy.register.saleCustomer)).toHaveValue("");
+    expect(customerApi.resolveActiveCustomer).toHaveBeenLastCalledWith(linkedCustomer.id, expect.objectContaining({ headers: expect.objectContaining({ "X-Kova-Expected-Tenant": "tenant-2" }) }));
+  });
 
   it("keeps photographed products sellable while choosing lazy sources from their actual card size", async () => {
     const imageUrl = "/api/v1/catalog/products/10000000-0000-4000-8000-000000000001/image?v=123";

@@ -381,6 +381,7 @@ def accept(db: Session, *, tenant_id: UUID, user_id: UUID, quote_id: UUID, body,
     order_body = CustomerOrderCreate(
         fulfillment_type="pickup",
         source_channel="other",
+        customer_id=row.customer_id,
         customer_name=row.customer_name,
         customer_phone=row.customer_phone,
         note=f"Cotización {row.folio} aceptada.",

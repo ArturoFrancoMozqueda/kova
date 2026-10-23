@@ -48,6 +48,7 @@ export type CustomerOrder = {
   payment_status: CustomerOrderPaymentStatus;
   fulfillment_type: FulfillmentType;
   source_channel: SourceChannel;
+  customer_id?: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   delivery_address: string | null;
@@ -105,6 +106,7 @@ export type CustomerOrderItemInput = {
 export type CustomerOrderInput = {
   fulfillment_type: FulfillmentType;
   source_channel: SourceChannel;
+  customer_id?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   delivery_address?: string | null;

@@ -31,3 +31,17 @@ Feature: Agenda interna de recursos reales
     When el dueño completa su recordatorio interno
     Then sólo se resuelve la tarea privada
     And no se envía mensaje ni se registra ingreso
+
+  Scenario: Vincular una venta sin confundir atención y cobro
+    Given una cita y una venta vigente del mismo cliente y sucursal
+    When el dueño selecciona esa venta y confirma con la versión actual
+    Then se conserva un vínculo privado e inmutable y un cambio de historial
+    And la atención y los importes de la venta no se modifican
+    And repetir la misma clave idempotente devuelve la misma respuesta
+    And una devolución o anulación posterior se muestra al consultar la cita
+
+  Scenario: Una venta no pertenece a dos citas
+    Given dos citas con el mismo cliente y una venta disponible
+    When dos operadores intentan vincular esa venta simultáneamente
+    Then un vínculo se confirma y el otro recibe conflicto
+    And no se duplica la venta ni el historial

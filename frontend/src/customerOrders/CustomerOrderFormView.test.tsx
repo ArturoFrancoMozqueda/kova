@@ -8,7 +8,10 @@ const api = vi.hoisted(() => ({
   listProducts: vi.fn(), listStock: vi.fn(), getCustomerOrder: vi.fn(),
   createCustomerOrder: vi.fn(), updateCustomerOrder: vi.fn(), confirmCustomerOrder: vi.fn(),
   navigate: vi.fn(), route: { orderId: undefined as string | undefined },
+  listCustomers: vi.fn(), resolveActiveCustomer: vi.fn(),
 }));
+vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant", user: { id: "user-1", role: "owner" } } }) }));
+vi.mock("@/customers/api", () => ({ listCustomers: (...args: unknown[]) => api.listCustomers(...args), resolveActiveCustomer: (...args: unknown[]) => api.resolveActiveCustomer(...args) }));
 vi.mock("react-router-dom", async original => ({ ...await original<object>(), useNavigate: () => api.navigate, useParams: () => api.route }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => true }));
 vi.mock("@/catalog/api", () => ({ listProducts: (...args: unknown[]) => api.listProducts(...args) }));
@@ -43,6 +46,8 @@ const saved: CustomerOrder = {
 beforeEach(() => {
   vi.clearAllMocks();
   api.route.orderId = undefined;
+  api.listCustomers.mockResolvedValue([]);
+  api.resolveActiveCustomer.mockReset();
   api.listProducts.mockResolvedValue([product]);
   api.listStock.mockResolvedValue([]);
   api.getCustomerOrder.mockResolvedValue(saved);
@@ -52,6 +57,52 @@ beforeEach(() => {
 });
 
 describe("customer order draft safety", () => {
+  const customer = { id: "11111111-1111-4111-8111-111111111111", name: "Ana", phone: "5512345678", email: null, is_active: true, created_at: "2026-10-22T00:00:00Z" };
+  it("continúa desde un cliente exacto y asocia el pedido sin volver a capturar su contacto", async () => {
+    api.resolveActiveCustomer.mockResolvedValue(customer);
+    render(<MemoryRouter initialEntries={[`/pedidos/nuevo?customerId=${customer.id}`]}><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Ana");
+    expect(screen.getByRole("textbox", { name: "Teléfono" })).toHaveValue("5512345678");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar y cobrar" }));
+    await waitFor(() => expect(api.createCustomerOrder).toHaveBeenCalledWith(expect.objectContaining({ customer_id: customer.id, customer_name: "Ana", customer_phone: "5512345678" }), expect.any(String)));
+    expect(api.navigate).toHaveBeenCalledWith(`/register?customerOrderId=${saved.id}`);
+  });
+  it("permite elegir un cliente registrado al crear desde Pedidos", async () => {
+    api.listCustomers.mockResolvedValue([customer]);
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByText("Asociar cliente registrado (opcional)"));
+    // The native disclosure exposes its fields after the toggle event.
+    const details = screen.getByText("Asociar cliente registrado (opcional)").closest("details")!;
+    details.open = true;
+    fireEvent(details, new Event("toggle"));
+    await screen.findByRole("option", { name: "Ana" });
+    fireEvent.change(screen.getByLabelText("Cliente registrado"), { target: { value: customer.id } });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar Concha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(api.createCustomerOrder).toHaveBeenCalledWith(expect.objectContaining({ customer_id: customer.id }), expect.any(String)));
+  });
+  it("bloquea el pedido si el cliente del enlace no está disponible hasta elegir continuar sin asociación", async () => {
+    api.resolveActiveCustomer.mockRejectedValue(new Error("Cliente no encontrado"));
+    render(<MemoryRouter initialEntries={[`/pedidos/nuevo?customerId=${customer.id}`]}><CustomerOrderFormView /></MemoryRouter>);
+    expect(await screen.findByText("Cliente no encontrado")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar Concha" }));
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar sin cliente registrado" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(api.createCustomerOrder).toHaveBeenCalledWith(expect.objectContaining({ customer_id: null }), expect.any(String)));
+  });
+  it("preserva la identidad de un pedido existente al editar sin permitir cambiarla por URL", async () => {
+    api.route.orderId = saved.id;
+    api.getCustomerOrder.mockResolvedValue({ ...saved, customer_id: customer.id, customer_name: customer.name });
+    render(<MemoryRouter initialEntries={[`/pedidos/${saved.id}/editar?customerId=otro-cliente`]}><CustomerOrderFormView /></MemoryRouter>);
+    expect(await screen.findByRole("link", { name: "Ana" })).toHaveAttribute("href", `/customers?customerId=${customer.id}`);
+    expect(screen.queryByLabelText("Cliente registrado")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(api.updateCustomerOrder).toHaveBeenCalled());
+    expect(api.updateCustomerOrder.mock.calls[0][1]).not.toHaveProperty("customer_id");
+    expect(api.resolveActiveCustomer).not.toHaveBeenCalled();
+  });
   it("names every pickup and delivery field and identifies each line's quantity controls", async () => {
     render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));

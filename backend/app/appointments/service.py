@@ -3,13 +3,14 @@
 import hashlib
 from datetime import UTC, timedelta
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from app.appointments.models import (
     Appointment,
     AppointmentHistory,
     AppointmentReminder,
     AppointmentResource,
+    AppointmentSale,
     now,
 )
 from app.appointments.schemas import (
@@ -17,12 +18,14 @@ from app.appointments.schemas import (
     AppointmentReminderResponse,
     AppointmentResourceResponse,
     AppointmentResponse,
+    AppointmentSaleResponse,
 )
 from app.audit import service as audit
 from app.branches.scope import active_branch_id
 from app.crm.service import _customer
 from app.customers.models import Customer
 from app.idempotency import service as idempotency
+from app.orders.models import Order, Refund
 from app.shared.exceptions import bad_request, conflict, not_found
 
 
@@ -65,13 +68,13 @@ def _resource_response(row):
     ).model_dump(mode="json")
 
 
-def _appointment_response(db, row, resource=None, customer=None):
+def _appointment_response(db, row, resource=None, customer=None, sales=None):
     resource = resource or _resource(db, row.tenant_id, row.resource_id)
     customer = customer or _customer(db, row.tenant_id, row.customer_id)
     fields = {
         name: getattr(row, name)
         for name in AppointmentResponse.model_fields
-        if name not in {"resource_name", "timezone", "customer_name"}
+        if name not in {"resource_name", "timezone", "customer_name", "sale"}
     }
     for name in ("starts_at", "ends_at", "created_at", "updated_at"):
         fields[name] = _utc(fields[name])
@@ -80,6 +83,9 @@ def _appointment_response(db, row, resource=None, customer=None):
         resource_name=resource.name,
         timezone=resource.timezone,
         customer_name=customer.name,
+        sale=(sales if sales is not None else _linked_sales(db, row.tenant_id, [row.id])).get(
+            row.id
+        ),
     ).model_dump(mode="json")
 
 
@@ -327,9 +333,10 @@ def list_appointments(db, tenant, *, starts_from=None, starts_until=None, limit=
         .limit(limit + 1)
         .all()
     )
+    sales = _linked_sales(db, tenant, [row.id for row, _, _ in rows[:limit]])
     return {
         "items": [
-            _appointment_response(db, row, resource, customer)
+            _appointment_response(db, row, resource, customer, sales)
             for row, resource, customer in rows[:limit]
         ],
         "has_more": len(rows) > limit,
@@ -504,4 +511,122 @@ def resolve_reminder(db, tenant, actor, reminder_id, body, key):
         _reminder_response(db, row, appointment),
         200,
         "appointment.reminder.resolved",
+    )
+
+
+def _sale_response(sale, refunded=0):
+    return AppointmentSaleResponse(
+        id=sale.id,
+        status=sale.status,
+        total_amount=sale.total_amount,
+        refunded_amount=refunded,
+        created_at=_utc(sale.created_at),
+    ).model_dump(mode="json")
+
+
+def _refund_totals(db, tenant, sale_ids):
+    if not sale_ids:
+        return {}
+    return dict(
+        _scope(db, tenant, Refund)
+        .filter(Refund.order_id.in_(sale_ids))
+        .with_entities(Refund.order_id, func.sum(Refund.refunded_amount))
+        .group_by(Refund.order_id)
+        .all()
+    )
+
+
+def _linked_sales(db, tenant, appointment_ids):
+    if not appointment_ids:
+        return {}
+    rows = (
+        _scope(db, tenant, AppointmentSale)
+        .join(
+            Order,
+            (Order.id == AppointmentSale.sale_order_id)
+            & (Order.tenant_id == AppointmentSale.tenant_id)
+            & (Order.branch_id == AppointmentSale.branch_id),
+        )
+        .add_entity(Order)
+        .filter(AppointmentSale.appointment_id.in_(appointment_ids))
+        .all()
+    )
+    # One aggregate for this page; never infer payment from attendance.
+    sale_ids = [sale.id for _, sale in rows]
+    refunds = _refund_totals(db, tenant, sale_ids)
+    return {
+        link.appointment_id: _sale_response(sale, refunds.get(sale.id, 0)) for link, sale in rows
+    }
+
+
+def get_appointment(db, tenant, appointment_id):
+    return _appointment_response(db, _appointment(db, tenant, appointment_id))
+
+
+def available_sales(db, tenant, appointment_id, *, limit=50, offset=0):
+    row = _appointment(db, tenant, appointment_id)
+    linked = _scope(db, tenant, AppointmentSale).with_entities(AppointmentSale.sale_order_id)
+    sales = (
+        _scope(db, tenant, Order)
+        .filter(
+            Order.customer_id == row.customer_id,
+            Order.status == "completed",
+            Order.id.not_in(linked),
+        )
+        .order_by(Order.created_at.desc(), Order.id)
+        .offset(offset)
+        .limit(limit + 1)
+        .all()
+    )
+    refunds = _refund_totals(db, tenant, [sale.id for sale in sales[:limit]])
+    return {
+        "items": [_sale_response(sale, refunds.get(sale.id, 0)) for sale in sales[:limit]],
+        "has_more": len(sales) > limit,
+    }
+
+
+def link_sale(db, tenant, actor, appointment_id, body, key):
+    fingerprint, replay = _claim(db, tenant, key, f"appointment.sale.{appointment_id}", body)
+    if replay:
+        return replay.response_status, replay.response_body
+    # Lock the sale before the appointment: refunds/voids serialize on the same sale.
+    sale = _scope(db, tenant, Order).filter_by(id=body.sale_order_id).with_for_update().first()
+    if sale is None:
+        raise not_found("Venta no encontrada en esta sucursal")
+    row = _appointment(db, tenant, appointment_id, lock=True)
+    if row.version != body.expected_version:
+        raise conflict("La cita cambió; actualiza antes de vincular la venta")
+    if row.status not in {"scheduled", "completed"}:
+        raise conflict("Sólo puedes vincular ventas a citas programadas o atendidas")
+    if sale.customer_id != row.customer_id or sale.status != "completed":
+        raise conflict("Elige una venta vigente del mismo cliente")
+    if not _customer(db, tenant, row.customer_id).is_active:
+        raise conflict("El cliente está desactivado")
+    if _scope(db, tenant, AppointmentSale).filter_by(appointment_id=row.id).first():
+        raise conflict("La cita ya tiene una venta vinculada")
+    if _scope(db, tenant, AppointmentSale).filter_by(sale_order_id=sale.id).first():
+        raise conflict("La venta ya está vinculada a otra cita")
+    db.add(
+        AppointmentSale(
+            tenant_id=tenant,
+            branch_id=row.branch_id,
+            appointment_id=row.id,
+            sale_order_id=sale.id,
+            actor_user_id=actor,
+        )
+    )
+    row.version += 1
+    row.updated_at = now()
+    db.flush()
+    _record_change(db, row, actor, "sale_linked")
+    return _finish(
+        db,
+        tenant,
+        actor,
+        key,
+        fingerprint,
+        row,
+        _appointment_response(db, row),
+        200,
+        "appointment.sale_linked",
     )

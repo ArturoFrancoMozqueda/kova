@@ -25,6 +25,7 @@ TENANT_SCOPED_TABLES = (
     "service_case_events",
     "appointment_resources",
     "appointments",
+    "appointment_sales",
     "appointment_history",
     "appointment_reminders",
     "loyalty_policy_revisions",

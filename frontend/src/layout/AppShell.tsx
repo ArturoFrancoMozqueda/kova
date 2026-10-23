@@ -67,6 +67,7 @@ import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
 import { discoverSections, sectionDescription } from "./navigationDiscovery";
 import { BusinessNextActions } from "./BusinessNextActions";
+import { buildWorkspaceNavigation, workspaceGroupForPath } from "./workspaceNavigation";
 
 type NavItem = {
   to: string;
@@ -131,19 +132,6 @@ function roleLabel(role: string): string {
 }
 
 const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
-const businessNavGroups: {
-  id: string; label: string; paths: string[];
-}[] = [
-  { id: "products", label: copy.nav.groupProducts,
-    paths: ["/catalog", "/inventory", "/purchasing", "/replenishment"] },
-  { id: "commercial", label: copy.nav.groupSales,
-    paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/inbox", "/service-cases",
-      "/followups", "/appointments", "/loyalty"] },
-  { id: "management", label: copy.nav.groupManagement,
-    paths: ["/reports", "/expenses", "/reconciliation", "/automations",
-      "/assistant", "/settings", "/settings/billing", "/settings/integrations",
-      "/settings/channels"] },
-];
 
 function readStoredSidebarCollapsed(): boolean {
   try {
@@ -312,6 +300,20 @@ export default function AppShell() {
     }
   }
   const sectionResults = searchingSections ? discoverSections(searchDestinations, navigationQuery) : [];
+  const workspaceNavigation = buildWorkspaceNavigation(filteredNavItems);
+  const activeWorkspace = workspaceGroupForPath(location.pathname);
+  const relatedWorkspace = workspaceNavigation.find(group => group.id === activeWorkspace);
+  const workspaceLabels = {
+    sales: copy.orderList.title,
+    customers: copy.nav.customers,
+    operation: copy.nav.workspaceOperation,
+    analysis: copy.reportsView.title,
+    settings: copy.app.settings,
+  };
+  const useWorkspaces = isAdminRole(userRole) && !isOfflineSession;
+  const primaryNavItems = useWorkspaces
+    ? ["/dashboard", "/register"].flatMap(path => filteredNavItems.filter(item => item.to === path))
+    : operationNavItems;
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const drawerOpen = sidebarOpen && !isDesktop;
@@ -383,7 +385,7 @@ export default function AppShell() {
     else setSidebarOpen(true);
   };
 
-  const renderNavItem = (item: NavItem, nested = false, describe = false) => (
+  const renderNavItem = (item: NavItem, nested = false, describe = false, scopeActive = false) => (
     <NavLink
       key={item.to}
       to={item.to}
@@ -396,12 +398,12 @@ export default function AppShell() {
         "group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
         sidebarCompact ? "justify-center px-2.5" : "px-2.5",
         nested && "text-[13px]",
-        isActive ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+        (isActive || scopeActive) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
           : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
       )}
     >
       {({ isActive }) => <>
-        <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
+        <span className={cn("relative z-10 shrink-0", (isActive || scopeActive) && "text-kova-blue-light")}>{item.icon}</span>
         <span aria-hidden={sidebarCompact} className={cn(
           "min-w-0 flex-1 whitespace-normal break-words text-left leading-5 transition-[opacity,transform] duration-panel ease-standard",
           sidebarCompact ? "pointer-events-none absolute left-[42px] translate-x-1 opacity-0" : "translate-x-0 opacity-100",
@@ -493,24 +495,23 @@ export default function AppShell() {
             ? `${sectionResults.length} ${sectionResults.length === 1 ? "resultado encontrado" : "resultados encontrados"}`
             : "No encontramos esa acción o sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
           {sectionResults.map(item => renderNavItem(item, false, true))}
-        </div> : <><div className="space-y-1">
-          {!sidebarCompact && <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">Operación</p>}
-          {operationNavItems.map(item => renderNavItem(item))}
-        </div>
-        {businessNavItems.length > 0 && <div className="mt-5 space-y-1">
-          {businessNavGroups.map(group => {
-            const items = group.paths.flatMap(path => businessNavItems.filter(item => item.to === path));
-            if (!items.length) return null;
-            return <div key={group.id} className={cn("mt-4", sidebarCompact && "border-t border-sidebar-border pt-2")}>
-              {!sidebarCompact && <h2 className="px-2 pb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-sidebar-muted">
-                {group.label}
-              </h2>}
-              <div className="space-y-1">
-                {items.map(item => renderNavItem(item, !sidebarCompact))}
-              </div>
-            </div>;
-          })}
-        </div>}</>}
+        </div> : <>
+          <div className="space-y-1">
+            {primaryNavItems.map(item => renderNavItem(item))}
+            {useWorkspaces && workspaceNavigation.map(group => renderNavItem(
+              { ...group.destination, label: workspaceLabels[group.id] }, false, false, group.id === activeWorkspace,
+            ))}
+          </div>
+          {useWorkspaces && relatedWorkspace && <div className={cn("mt-4 border-t border-sidebar-border pt-4", sidebarCompact && "pt-2")}>
+            <h2 className={cn("px-2 pb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-sidebar-muted", sidebarCompact && "sr-only")}>
+              {copy.nav.relatedSections}: {workspaceLabels[relatedWorkspace.id]}
+            </h2>
+            <div className="space-y-1">
+              {relatedWorkspace.items.filter(item => item.to !== relatedWorkspace.destination.to).map(item => renderNavItem(item, !sidebarCompact))}
+            </div>
+          </div>}
+        </>}
+
       </nav>
 
       {/* Footer */}

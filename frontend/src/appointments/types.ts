@@ -5,7 +5,15 @@ export type AppointmentResource = {
   is_active: boolean;
   version: number;
 };
+export type AppointmentSale = {
+  id: string;
+  status: "completed" | "voided";
+  total_amount: string;
+  refunded_amount: string;
+  created_at: string;
+};
 export type Appointment = {
+  sale?: AppointmentSale | null;
   id: string;
   resource_id: string;
   resource_name: string;

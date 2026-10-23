@@ -374,3 +374,62 @@ it("refreshes an exact reminder after rescheduling its appointment and removes s
     ),
   ).toHaveLength(2);
 });
+
+it("selects the exact active customer from a link without creating an appointment", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  fetchMock.mockImplementation(async (url) =>
+    String(url) === `/api/v1/customers/${id}`
+      ? json({ ...customer, id, name: "Cliente del enlace", is_active: true })
+      : route(url),
+  );
+  render(<MemoryRouter initialEntries={[`/appointments?customerId=${id}`]}><AppointmentsView /></MemoryRouter>);
+  expect(await screen.findByLabelText("Cliente de la cita")).toHaveValue(id);
+  expect(screen.getByRole("option", { name: "Cliente del enlace" })).toBeVisible();
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+});
+
+it("resolves a linked appointment outside the list and offers its exact customer in Caja", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  fetchMock.mockImplementation(async (url) => {
+    if (String(url) === `/api/v1/appointments/${id}`) return json({ ...appointment, id, title: "Servicio fuera del período" });
+    if (String(url).includes("appointments?")) return json({ items: [], has_more: false });
+    return route(url);
+  });
+  render(<MemoryRouter initialEntries={[`/appointments?appointmentId=${id}`]}><AppointmentsView /></MemoryRouter>);
+  expect(await screen.findByRole("heading", { name: "Servicio fuera del período" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Cobrar al cliente" })).toHaveAttribute("href", `/register?customerId=${customer.id}&appointmentId=${id}`);
+  expect(screen.getByRole("link", { name: "Ver cliente y su historial" })).toHaveAttribute("href", `/customers?customerId=${customer.id}`);
+});
+
+it("persists an explicitly selected sale with the appointment version and preserves attendance", async () => {
+  const sale = { id: "22222222-2222-4222-8222-222222222222", status: "completed", total_amount: "450.00", refunded_amount: "0.00", created_at: appointment.created_at };
+  let saved = false;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).endsWith("/sales?limit=20&offset=0")) return json({ items: [sale], has_more: false });
+    if (String(url).endsWith("/sale") && init?.method === "POST") { saved = true; return json({ ...appointment, sale, version: 4 }); }
+    if (String(url).includes("appointments?")) return json({ items: [{ ...appointment, sale: saved ? sale : null, version: saved ? 4 : 3 }], has_more: false });
+    return route(url);
+  });
+  render(<MemoryRouter><AppointmentsView /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button", { name: "Vincular venta existente" }));
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  const select = await screen.findByLabelText("Venta que corresponde a la cita");
+  fireEvent.change(select, { target: { value: sale.id } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar vínculo de venta" }));
+  expect(await screen.findByRole("link", { name: "Ver venta y comprobante" })).toHaveAttribute("href", `/orders/${sale.id}`);
+  const mutation = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/sale"));
+  expect(JSON.parse(String(mutation?.[1]?.body))).toEqual({ expected_version: 3, sale_order_id: sale.id });
+  expect(mutation?.[1]?.headers).toMatchObject({ "Idempotency-Key": expect.any(String), "X-Kova-Branch": "branch-1" });
+  expect(screen.getByText("Programada")).toBeVisible();
+});
+
+it("shows linked voids and refunds as financial facts separately from attendance", async () => {
+  fetchMock.mockImplementation(async (url) => String(url).includes("appointments?")
+    ? json({ items: [{ ...appointment, status: "completed", sale: { id: "sale-1", status: "voided", total_amount: "450.00", refunded_amount: "150.00", created_at: appointment.created_at } }], has_more: false })
+    : route(url));
+  render(<MemoryRouter><AppointmentsView /></MemoryRouter>);
+  expect(await screen.findByText(/Venta anulada/)).toBeVisible();
+  expect(screen.getByText(/Devoluciones registradas:/)).toHaveTextContent("150");
+  expect(screen.getByText("Atendida")).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Cobrar al cliente" })).not.toBeInTheDocument();
+});

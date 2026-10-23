@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -54,3 +55,24 @@ class CustomerHistory(BaseModel):
     limit: int
     offset: int
     has_more: bool
+
+
+class CustomerActivityItem(BaseModel):
+    id: UUID
+    title: str
+    state: str
+    created_at: datetime
+    due_at: datetime | None
+
+
+class CustomerActivitySection(BaseModel):
+    source: Literal[
+        "appointments", "opportunities", "followups", "service_cases", "customer_orders"
+    ]
+    items: list[CustomerActivityItem] = Field(max_length=10)
+    has_more: bool
+
+
+class CustomerActivity(BaseModel):
+    branch_id: UUID
+    sections: list[CustomerActivitySection] = Field(min_length=4, max_length=5)

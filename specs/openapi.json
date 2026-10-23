@@ -169,7 +169,8 @@
               "rescheduled",
               "cancelled",
               "completed",
-              "no_show"
+              "no_show",
+              "sale_linked"
             ],
             "title": "Action",
             "type": "string"
@@ -593,6 +594,16 @@
             "title": "Resource Name",
             "type": "string"
           },
+          "sale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentSaleResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -651,6 +662,89 @@
           "updated_at"
         ],
         "title": "AppointmentResponse",
+        "type": "object"
+      },
+      "AppointmentSaleLink": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "sale_order_id": {
+            "format": "uuid",
+            "title": "Sale Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "sale_order_id"
+        ],
+        "title": "AppointmentSaleLink",
+        "type": "object"
+      },
+      "AppointmentSaleResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "refunded_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refunded Amount",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "voided"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "total_amount",
+          "refunded_amount",
+          "created_at"
+        ],
+        "title": "AppointmentSaleResponse",
+        "type": "object"
+      },
+      "AppointmentSalesList": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AppointmentSaleResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "AppointmentSalesList",
         "type": "object"
       },
       "AppointmentTransition": {
@@ -2663,6 +2757,107 @@
         "title": "CrmOverview",
         "type": "object"
       },
+      "CustomerActivity": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerActivitySection"
+            },
+            "maxItems": 5,
+            "minItems": 4,
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "branch_id",
+          "sections"
+        ],
+        "title": "CustomerActivity",
+        "type": "object"
+      },
+      "CustomerActivityItem": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "state",
+          "created_at",
+          "due_at"
+        ],
+        "title": "CustomerActivityItem",
+        "type": "object"
+      },
+      "CustomerActivitySection": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerActivityItem"
+            },
+            "maxItems": 10,
+            "title": "Items",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "appointments",
+              "opportunities",
+              "followups",
+              "service_cases",
+              "customer_orders"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "items",
+          "has_more"
+        ],
+        "title": "CustomerActivitySection",
+        "type": "object"
+      },
       "CustomerHistory": {
         "properties": {
           "customer": {
@@ -2801,6 +2996,18 @@
       "CustomerOrderCreate": {
         "additionalProperties": false,
         "properties": {
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "customer_name": {
             "anyOf": [
               {
@@ -3324,6 +3531,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "customer_name": {
             "anyOf": [
               {
@@ -3588,6 +3807,18 @@
       "CustomerOrderUpdate": {
         "additionalProperties": false,
         "properties": {
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "customer_name": {
             "anyOf": [
               {
@@ -17367,6 +17598,49 @@
         ]
       }
     },
+    "/api/v1/appointments/{appointment_id}": {
+      "get": {
+        "operationId": "get_appointment_api_v1_appointments__appointment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appointment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Appointment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Appointment",
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
     "/api/v1/appointments/{appointment_id}/history": {
       "get": {
         "operationId": "history_api_v1_appointments__appointment_id__history_get",
@@ -17474,6 +17748,141 @@
           }
         },
         "summary": "Reschedule",
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/api/v1/appointments/{appointment_id}/sale": {
+      "post": {
+        "operationId": "link_sale_api_v1_appointments__appointment_id__sale_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appointment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Appointment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppointmentSaleLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Sale",
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/api/v1/appointments/{appointment_id}/sales": {
+      "get": {
+        "operationId": "available_sales_api_v1_appointments__appointment_id__sales_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appointment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Appointment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentSalesList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Available Sales",
         "tags": [
           "appointments"
         ]
@@ -22384,6 +22793,47 @@
       }
     },
     "/api/v1/customers/{customer_id}": {
+      "get": {
+        "operationId": "get_customer_api_v1_customers__customer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Customer",
+        "tags": [
+          "customers"
+        ]
+      },
       "put": {
         "operationId": "update_customer_api_v1_customers__customer_id__put",
         "parameters": [
@@ -22447,6 +22897,49 @@
           }
         },
         "summary": "Update Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/api/v1/customers/{customer_id}/activity": {
+      "get": {
+        "operationId": "customer_activity_api_v1_customers__customer_id__activity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerActivity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Customer Activity",
         "tags": [
           "customers"
         ]

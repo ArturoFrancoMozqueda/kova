@@ -41,6 +41,7 @@ _RUNTIME_TABLE_PRIVILEGES = {
     # immutable snapshots and ledgers retain no table-level UPDATE or DELETE.
     "appointment_resources": {"SELECT", "INSERT"},
     "appointments": {"SELECT", "INSERT"},
+    "appointment_sales": {"SELECT", "INSERT"},
     "appointment_history": {"SELECT", "INSERT"},
     "appointment_reminders": {"SELECT", "INSERT"},
     "loyalty_policy_revisions": {"SELECT", "INSERT"},
@@ -343,6 +344,7 @@ _SEMANTIC_INSERT_ORDER = (
     "appointment_resources",
     "appointments",
     "appointment_history",
+    "appointment_sales",
     "appointment_reminders",
     "loyalty_policy_revisions",
     "loyalty_entries",

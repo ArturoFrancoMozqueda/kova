@@ -7,13 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit
 from app.billing.access import require_commercial_access
+from app.branches.scope import active_branch_id
+from app.crm.router import require_crm
+from app.customers.activity import read_activity
 from app.customers.models import Customer
-from app.customers.schemas import CustomerHistory, CustomerResponse, CustomerWrite
+from app.customers.schemas import CustomerActivity, CustomerHistory, CustomerResponse, CustomerWrite
 from app.db import get_db
 from app.idempotency import service as idempotency
 from app.orders.models import Order, Refund
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, not_found
+from app.tenants import repository as tenant_repo
+from app.tenants.feature_flags import CUSTOMER_ORDERS, resolve_feature_flags
 
 router = APIRouter(prefix="/api/v1/customers", tags=["customers"])
 
@@ -54,6 +59,32 @@ def list_customers(
             )
         )
     return query.order_by(Customer.name, Customer.id).offset(offset).limit(limit).all()
+
+
+@router.get("/{customer_id}", response_model=CustomerResponse)
+def get_customer(
+    customer_id: UUID,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_commercial_access(Permission.CUSTOMERS_VIEW)),
+):
+    _, membership, _ = ctx
+    return _get(db, membership.tenant_id, customer_id)
+
+
+@router.get("/{customer_id}/activity", response_model=CustomerActivity)
+def customer_activity(
+    customer_id: UUID,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    _, membership, _ = ctx
+    _get(db, membership.tenant_id, customer_id)
+    tenant = tenant_repo.get_by_id(db, membership.tenant_id)
+    flags = resolve_feature_flags(tenant.feature_overrides if tenant else None)
+    return read_activity(
+        db, tenant_id=membership.tenant_id, customer_id=customer_id,
+        include_customer_orders=flags[CUSTOMER_ORDERS],
+    )
 
 
 def _save(db, membership, body, key, user_id, customer_id=None):
@@ -141,7 +172,10 @@ def customer_history(
     sale_time = func.coalesce(Order.occurred_at, Order.created_at)
     orders = (
         db.query(Order)
-        .filter(Order.tenant_id == membership.tenant_id, Order.customer_id == customer_id)
+        .filter(
+            Order.tenant_id == membership.tenant_id, Order.customer_id == customer_id,
+            Order.branch_id == active_branch_id(db, membership.tenant_id),
+        )
         .order_by(sale_time.desc(), Order.id)
         .offset(offset)
         .limit(limit + 1)

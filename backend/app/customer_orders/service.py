@@ -26,6 +26,7 @@ from app.customer_orders.schemas import (
     CustomerOrderUpdate,
     VersionedAction,
 )
+from app.customers.models import Customer
 from app.idempotency import service as idempotency_service
 from app.inventory import lots
 from app.inventory import repository as inventory_repo
@@ -53,7 +54,14 @@ def _observe(event: str, *, order: CustomerOrder, **dimensions: object) -> None:
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
-    payload = {k: v for k, v in payload.items() if k != "lot_allocations" or v is not None}
+    # Omitted optional fields retain the fingerprint used by older clients.
+    payload = {
+        k: v for k, v in payload.items()
+        if not (
+            v is None
+            and (k == "lot_allocations" or (k == "customer_id" and "order_id" not in payload))
+        )
+    }
     encoded = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
     return hashlib.sha256(encoded.encode()).hexdigest()
 
@@ -113,6 +121,18 @@ def _get_for_update(db: Session, *, tenant_id: UUID, order_id: UUID) -> Customer
     if not order:
         raise not_found("Pedido no encontrado")
     return order
+
+
+def _validate_order_customer(db: Session, tenant_id: UUID, customer_id: UUID | None) -> None:
+    if customer_id is None:
+        return
+    customer = db.query(Customer).filter(
+        Customer.tenant_id == tenant_id, Customer.id == customer_id,
+    ).first()
+    if customer is None:
+        raise not_found("Cliente no encontrado")
+    if not customer.is_active:
+        raise _error(409, "CUSTOMER_INACTIVE", "Reactiva al cliente para continuar con su pedido.")
 
 
 def _item_modifier_body(modifier: CustomerOrderItemModifier) -> dict[str, Any]:
@@ -211,6 +231,7 @@ def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, 
         "payment_status": repo.payment_status(db, order=order),
         "fulfillment_type": order.fulfillment_type,
         "source_channel": order.source_channel,
+        "customer_id": str(order.customer_id) if order.customer_id else None,
         "customer_name": order.customer_name,
         "customer_phone": order.customer_phone,
         "delivery_address": order.delivery_address,
@@ -567,6 +588,8 @@ def create_customer_order(
     if stored:
         return stored
 
+    _validate_order_customer(db, tenant_id, body.customer_id)
+
     order_id = uuid4()
     order = CustomerOrder(
         id=order_id,
@@ -575,6 +598,7 @@ def create_customer_order(
         status="new",
         fulfillment_type=body.fulfillment_type,
         source_channel=body.source_channel,
+        customer_id=body.customer_id,
         customer_name=body.customer_name,
         customer_phone=body.customer_phone,
         delivery_address=body.delivery_address,
@@ -629,6 +653,8 @@ def update_customer_order(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = {**body.model_dump(mode="json"), "order_id": str(order_id)}
+    if "customer_id" not in body.model_fields_set:
+        payload.pop("customer_id", None)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
@@ -642,6 +668,11 @@ def update_customer_order(
         )
     if order.status in {"fulfilled", "cancelled"}:
         raise _error(409, "INVALID_TRANSITION", "Este pedido ya terminó y no se puede editar.")
+    if "customer_id" in body.model_fields_set and body.customer_id != order.customer_id:
+        raise _error(
+            409, "CUSTOMER_IMMUTABLE",
+            "El cliente asociado se conserva desde la creación del pedido.",
+        )
 
     order.fulfillment_type = body.fulfillment_type
     order.source_channel = body.source_channel
@@ -995,21 +1026,27 @@ def checkout_customer_order(
                 requested=quantity,
             )
 
-    # A quote carries a reviewed customer identity. Counter/phone orders without
-    # this explicit link stay unattributed; never merge customers by contact text.
+    # New direct orders carry an explicit identity. Older quote orders retain
+    # their reviewed attribution; contact snapshots never identify a customer.
     from app.quotes.models import CustomerQuote
 
     quote = db.query(CustomerQuote).filter(
         CustomerQuote.tenant_id == tenant_id, CustomerQuote.branch_id == order.branch_id,
         CustomerQuote.customer_order_id == order.id, CustomerQuote.status == "accepted",
     ).first()
+    if quote and order.customer_id is not None and order.customer_id != quote.customer_id:
+        raise _error(
+            409, "CUSTOMER_CONFLICT", "Revisa el cliente asociado al pedido y su cotización."
+        )
+    customer_id = order.customer_id or (quote.customer_id if quote else None)
+    _validate_order_customer(db, tenant_id, customer_id)
     sale = order_service.persist_completed_order(
         db,
         tenant_id=tenant_id,
         user_id=user_id,
         priced_items=priced_lines,
         payments=body.payments,
-        customer_id=quote.customer_id if quote else None,
+        customer_id=customer_id,
     )
     order.sale_order_id = sale.id
     order.updated_by_user_id = user_id

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -99,7 +100,26 @@ class AppointmentResourceList(BaseModel):
     items: list[AppointmentResourceResponse]
 
 
+class AppointmentSaleLink(StrictModel):
+    expected_version: int = Field(ge=1)
+    sale_order_id: UUID
+
+
+class AppointmentSaleResponse(BaseModel):
+    id: UUID
+    status: Literal["completed", "voided"]
+    total_amount: Decimal
+    refunded_amount: Decimal
+    created_at: datetime
+
+
+class AppointmentSalesList(BaseModel):
+    items: list[AppointmentSaleResponse]
+    has_more: bool
+
+
 class AppointmentResponse(BaseModel):
+    sale: AppointmentSaleResponse | None = None
     id: UUID
     resource_id: UUID
     resource_name: str
@@ -125,7 +145,7 @@ class AppointmentHistoryResponse(BaseModel):
     id: UUID
     appointment_id: UUID
     appointment_version: int
-    action: Literal["created", "rescheduled", "cancelled", "completed", "no_show"]
+    action: Literal["created", "rescheduled", "cancelled", "completed", "no_show", "sale_linked"]
     status: AppointmentStatus
     starts_at: datetime
     ends_at: datetime
