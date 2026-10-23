@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { BILLING_VIEW_PERMISSION, REPORTS_VIEW_ALL_PERMISSION, permissionsForRole } from "@/auth/permissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -26,6 +26,8 @@ import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { BusinessActivityRecap } from "./BusinessActivityRecap";
+import { BusinessControlCenter } from "./BusinessControlCenter";
+import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -428,13 +430,13 @@ function DashboardExecutiveSummary({
 
   return (
     <Card className="overflow-hidden border-0 ring-1 ring-kova-border">
-      <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.75fr)]">
-        <div className="min-w-0 bg-kova-ink p-5 text-kova-on-ink sm:p-7">
+      <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(180px,0.8fr)]">
+        <div className="min-w-0 bg-kova-ink p-5 text-kova-on-ink">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-kova-on-ink/80">
             {copy.dashboard.netSales}
           </p>
           <div className="mt-3 flex flex-wrap items-baseline gap-3">
-            <p className="break-all text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
+            <p className="break-words text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
               <CountUp value={currentNet} format={(value) => formatMoney(value)} />
             </p>
             <div className="rounded-kova-sm bg-white px-2.5 py-1.5">
@@ -444,14 +446,14 @@ function DashboardExecutiveSummary({
           <p className="mt-2 text-sm text-kova-on-ink/80 tabular-nums">
             {copy.dashboard.grossSuffix(formatMoney(summary.gross_sales))}
           </p>
-          <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/20 pt-4 text-sm">
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/20 pt-4 text-sm">
             <span className="text-kova-on-ink/80">{copy.dashboard.previousPeriod}</span>
             <span className="font-medium tabular-nums">{previousNet !== null ? formatMoney(previousNet) : copy.dashboard.noComparison}</span>
           </div>
         </div>
         <dl className="divide-y divide-kova-border">
           {secondaryMetrics.map((metric) => (
-            <div key={metric.label} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+            <div key={metric.label} className="flex items-center justify-between gap-3 px-5 py-4">
               <dt>
                 <span className="block text-sm text-kova-muted">{metric.label}</span>
                 <span className="mt-0.5 block text-xs text-kova-tertiary">{metric.detail}</span>
@@ -468,6 +470,7 @@ function DashboardExecutiveSummary({
 export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
+  const navigation = useOutletContext<WorkspaceNavigationContext | undefined>();
   const canManageBusiness = state.status === "authenticated"
     && (state.user.role === "owner" || state.user.role === "manager");
   const canViewBilling = state.status === "authenticated"
@@ -591,12 +594,11 @@ export default function DashboardView() {
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
-      {/* Header — shared ViewHeader anatomy: greeting eyebrow, tenant title,
-          period subtitle, and the period toggle as the actions slot. */}
-      <div className="mb-8">
+      {/* Keep business identity and the selected sales period visible together. */}
+      <div className="mb-2">
         <ViewHeader
-          eyebrow={greeting}
-          title={tenantName || copy.app.dashboard}
+          eyebrow={tenantName ? `${greeting}, ${tenantName}` : greeting}
+          title="Centro de control"
           meta={periodSubtitle(period, tenantTimezone)}
           actions={
             <SegmentedControl
@@ -614,34 +616,52 @@ export default function DashboardView() {
       </div>
 
       {loadState.status === "ready" && (
-        <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-4">
-          <ArcKicker label={copy.dashboard.arcNow} />
-          <DashboardExecutiveSummary
-            summary={loadState.summary}
-            previous={loadState.yesterday}
-            compareLabel={loadState.compareLabel}
-          />
+        <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <ArcKicker label={copy.dashboard.arcNow} />
+            {canManageBusiness && canUseTaskActions && navigation?.destinations.length ? (
+              <a href="#business-control" className="inline-flex min-h-11 items-center gap-1 rounded-kova-md px-2 text-sm font-medium text-kova-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
+                Explorar mi negocio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            ) : null}
+          </div>
+          <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(300px,1fr)]">
+            <div className="min-w-0 space-y-4">
+              <DashboardExecutiveSummary
+                summary={loadState.summary}
+                previous={loadState.yesterday}
+                compareLabel={loadState.compareLabel}
+              />
 
-          <InsightStrip
-            show="banner"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
+              <InsightStrip
+                show="banner"
+                summary={loadState.summary}
+                yesterday={loadState.yesterday}
+                hourly={loadState.hourly}
+                topProducts={loadState.topProducts}
+                lowStock={loadState.lowStockItems}
+                compareLabel={loadState.compareLabel}
+              />
 
-          {/* Priorities follow the evidence; no empty heading when all is clear. */}
-          <InsightStrip
-            show="actions"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
+              {/* Priorities follow the evidence; no empty heading when all is clear. */}
+              <InsightStrip
+                show="actions"
+                summary={loadState.summary}
+                yesterday={loadState.yesterday}
+                hourly={loadState.hourly}
+                topProducts={loadState.topProducts}
+                lowStock={loadState.lowStockItems}
+                compareLabel={loadState.compareLabel}
+              />
+            </div>
+            <BusinessHealthCard
+              summary={loadState.summary}
+              yesterday={loadState.yesterday}
+              payments={loadState.payments}
+              lowStockCount={loadState.lowStockCount}
+              compareLabel={loadState.compareLabel}
+            />
+          </div>
         </section>
       )}
 
@@ -692,6 +712,17 @@ export default function DashboardView() {
             </nav>
           </div>
         </section>
+      )}
+
+      {canManageBusiness && canUseTaskActions && (
+        <BusinessControlCenter
+          destinations={navigation?.destinations ?? []}
+          snapshot={loadState.status === "ready" && loadState.activitySnapshotAvailable ? {
+            orderCount: loadState.summary.order_count,
+            activeCatalogCount: loadState.activeCatalogCount,
+            lowStockCount: loadState.lowStockCount,
+          } : null}
+        />
       )}
 
       {loadState.status === "loading" && (
@@ -753,16 +784,7 @@ export default function DashboardView() {
         // Sections settle in reading order once per resolved period (same
         // capped CSS sequence as Análisis; numbers never tween).
         <div className="kv-stagger space-y-6">
-          {/* Salud del negocio */}
-          <ArcKicker label={copy.dashboard.arcHealth} />
-          <BusinessHealthCard
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            payments={loadState.payments}
-            lowStockCount={loadState.lowStockCount}
-            compareLabel={loadState.compareLabel}
-          />
-
+          <ArcKicker label="Detrás de tus resultados" />
           {canManageBusiness && loadState.activitySnapshotAvailable && (
             <BusinessActivityRecap
               activeCatalogCount={loadState.activeCatalogCount}

@@ -710,7 +710,7 @@ export default function AppShell() {
               />
             )}
           >
-            <Outlet />
+            <Outlet context={{ destinations: filteredNavItems.map(({ to, label }) => ({ to, label })) }} />
           </Suspense>
           {/* Continuation follows the task so primary content keeps its mobile viewport. */}
           {isAdminRole(userRole) && !isOfflineSession ? (
