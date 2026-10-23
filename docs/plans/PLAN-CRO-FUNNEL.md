@@ -34,17 +34,17 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
   categóricos implementados; exportación interna documentada en
   [`docs/runbooks/cro-telemetry-export.md`](../runbooks/cro-telemetry-export.md); baseline de
   producción y tres corridas Lighthouse en
-  [`docs/audits/CRO-BASELINE-2026-07-20.md`](../audits/CRO-BASELINE-2026-07-20.md).
+  `CRO-BASELINE-2026-07-20.md` (retirado; ver historial git).
 - [x] **Epic CRO-1 — Home y demostración mobile** (2026-07-20). Hero y CTA priorizados en mobile,
   showcase consistente, EXP-01 preregistrado y gate Lighthouse aprobado con LCP mediano 1.773 s;
-  evidencia en [`docs/audits/CRO-1-HOME-2026-07-20.md`](../audits/CRO-1-HOME-2026-07-20.md).
+  evidencia en `CRO-1-HOME-2026-07-20.md` (retirado; ver historial git).
 - [x] **Epic CRO-2 — Signup claro y recuperable** (2026-07-20). Reglas de contraseña alineadas con
   backend, errores 422 por campo con foco accesible, confianza junto al CTA y telemetría sin PII;
-  evidencia en [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](../audits/CRO-2-SIGNUP-2026-07-20.md).
+  evidencia en `CRO-2-SIGNUP-2026-07-20.md` (retirado; ver historial git).
 - [x] **Epic CRO-3 — Carrito POS sin ansiedad prematura** (2026-07-20). El efectivo inicia con
   ayuda neutral, conserva las guardas de cobro, reinicia la interacción entre ventas y registra
   bloqueos únicamente después de interacción; evidencia en
-  [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](../audits/CRO-3-POS-CASH-2026-07-20.md).
+  `CRO-3-POS-CASH-2026-07-20.md` (retirado; ver historial git).
 - [ ] **Epic CRO-4 — Billing y checkout confiables**. CRO-4.1–4.5 completados; la porción de
   proveedor y lifecycle de CRO-4.6 pasó en Stripe test mode en el run `34179307328`. La UX de
   retorno/cancelación y el Checkout live permanecen como gates separados. Evidencia en
@@ -52,7 +52,7 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
 - [ ] **Epic CRO-5 — Rollout y aprendizaje**. CRO-5.1/5.2 completados; checkpoint preliminar de
   CRO-5.3 ejecutado a las 3.81 horas e inconcluso por muestra. Los cortes reales de 7 y 30 días
   quedan pendientes hasta 2026-07-28 y 2026-08-20; evidencia en
-  [`docs/audits/CRO-5-ROLLOUT-2026-07-21.md`](../audits/CRO-5-ROLLOUT-2026-07-21.md).
+  `CRO-5-ROLLOUT-2026-07-21.md` (retirado; ver historial git).
 
 ---
 

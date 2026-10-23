@@ -33,7 +33,7 @@
 > comparte presentación con el producto; Inventario, Turnos y Reportes usan
 > capturas reales sanitizadas. `KovaShowcase` concentra la historia y
 > `SaleStory` ya no se monta para evitar duplicación. Consulta
-> `docs/marketing-showcase.md` para el flujo de captura actual.
+> `frontend/public/showcase/README.md` para el flujo de captura actual.
 
 > Documento de especificación para implementación. No es código final.
 > Estrategia aprobada: landing product-led y visual-first donde el usuario entiende Kova viendo una venta de $186 de **Sweet Home** propagarse por POS → Inventario → Caja → Reportes.

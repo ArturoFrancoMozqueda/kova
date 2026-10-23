@@ -1229,61 +1229,13 @@ verification are tracked in [assistant-operations.md](assistant-operations.md) a
 remain disabled by default. This does not change pricing, authorize paid inference/deployment or
 close operational gates. The branch-management slice above remains independently completed.
 
-## Historical Sprint (2026-07): Premium redesign app-wide + remaining hardening
+## Historical sprints (2026-07 / 2026-08)
 
-The active backlog was `PLAN-DESIGN.md` (repo root): extend the `feature/reports-redesign` design
-system to every tab so the product feels premium end-to-end, and consolidate everything left over
-(PLAN-05 backend, PLAN-UX-04/05, B5 resume, quick wins, operational gates).
-
-Merged into `main` as of 2026-07-10 (closed, do not re-open here):
-
-- [x] PLAN-01 (billing lifecycle correctness), PLAN-02 (tenant-isolation RLS — provisioned in prod,
-      `kova_app` runtime verified on Fly), PLAN-03 (offline-sync integrity), PLAN-04 (cash & inventory
-      correctness).
-- [x] PLAN-UX-01 (modal a11y & destructive-action safety), PLAN-UX-02 (one-tap receipt + corte de
-      caja printout), PLAN-UX-03 (anonymous funnel instrumentation & landing accuracy).
-- [x] Épica 0 of `PLAN-DESIGN.md`: merged `feature/reports-redesign` (design system source) with the
-      T0.1–T0.6 correctness fixes (payment keys, `net_amount`, unified thresholds, Docker proxy).
-
-Open (tracked in `PLAN-DESIGN.md`): Épicas 1–4 (shared kit + per-tab redesign + state completeness +
-backend hardening PLAN-05/B5) and Épica 6 (operational gates below). PLAN-UX-04/05 detail specs live
-in `docs/audits/`.
-
-## Audit remediation execution
-
-The approved execution backlog is
-[`docs/plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md`](plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md).
-Execute one epic per feature branch, merge only after its required checks and evidence are complete,
-and keep provider/production-dependent items open until their external gate is reproducible.
-
-## Historical CRO execution (2026-07)
-
-The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
-Execute one epic per PR, merge only after required checks are green, then continue in order.
-
-The 2026-08-09 production diagnosis supersedes the contaminated CRO baseline for growth decisions.
-Requirement-by-requirement execution and proof now live in
-[`docs/plans/PLAN-GROWTH-EXECUTION.md`](plans/PLAN-GROWTH-EXECUTION.md); do not treat the scheduled
-2026-08-20 analysis as trustworthy unless its window excludes all rows quarantined by migration
-`0055`.
-
-- [x] Epic CRO-0 — measurement context, diagnostic events, protected 30-day export and baseline.
-- [x] Epic CRO-1 — mobile home and showcase.
-- [x] Epic CRO-2 — clear, recoverable signup: backend-aligned password rules, field-specific 422
-  recovery with accessible focus, adjacent trial trust copy, and PII-free validation telemetry;
-  evidence in [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](audits/CRO-2-SIGNUP-2026-07-20.md).
-- [x] Epic CRO-3 — POS cart without premature anxiety: neutral untouched-cash guidance,
-  interaction-gated validation and telemetry, preserved financial guards, and mobile coverage at
-  320×844 and 390×844; evidence in
-  [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](audits/CRO-3-POS-CASH-2026-07-20.md).
-- [ ] Epic CRO-4 — trustworthy billing and checkout: CRO-4.1–4.5 completed. The provider and
-  lifecycle portion of CRO-4.6 passed in a disposable Stripe test-mode drill; return/cancel UX and
-  live checkout remain release gates. Evidence in
-  [`docs/audits/CRO-4-BILLING-2026-07-20.md`](audits/CRO-4-BILLING-2026-07-20.md).
-- [ ] Epic CRO-5 — rollout and learning loop: small-batch rollout and experiment isolation are
-  complete; the 3.81-hour preliminary checkpoint was inconclusive as required, and reproducible
-  7/30-day analysis remains scheduled for 2026-07-28 and 2026-08-20. Evidence in
-  [`docs/audits/CRO-5-ROLLOUT-2026-07-21.md`](audits/CRO-5-ROLLOUT-2026-07-21.md).
+The July redesign backlog (`PLAN-DESIGN.md`), the August audit-remediation plan, the growth execution
+plan and the CRO epic evidence were retired from the tree on 2026-10-22 because they no longer
+reflect the current product. They remain in git history. The live CRO backlog is
+[`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md); CRO-4 evidence stays in
+[`docs/audits/CRO-4-BILLING-2026-07-20.md`](audits/CRO-4-BILLING-2026-07-20.md).
 
 ## Kova como copiloto — Phase 0 foundation
 
