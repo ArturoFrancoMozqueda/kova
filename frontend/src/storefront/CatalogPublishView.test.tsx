@@ -35,7 +35,7 @@ it("helps the owner identify products by their real photos without changing the 
   expect(image).toHaveAttribute("alt", "");
   expect(image).toHaveStyle({ objectPosition: "25% 60%", transform: "scale(1.2)" });
   expect(screen.getByRole("link", { name: "Productos" })).toHaveAttribute("href", "/catalog");
-  expect(screen.getByText(/dejar una solicitud o escribirte por WhatsApp si lo agregas/)).toBeVisible();
+  expect(screen.getByText(/elegir productos y cantidades, enviar una solicitud de pedido/)).toBeVisible();
   fireEvent.click(select);
   fireEvent.click(screen.getByRole("button", { name: "Guardar publicación" }));
   await waitFor(() => expect(request).toHaveBeenCalledWith("/storefront/settings", "PUT", {
