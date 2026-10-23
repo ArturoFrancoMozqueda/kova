@@ -279,32 +279,9 @@ Use `docs/runbooks/restore-supabase-backup.md` for the detailed procedure. This 
 
 ## Production Data Hygiene Scripts
 
-Kova Audit Sprint 6 requires these one-off, idempotent scripts to be run against production before
-live paid beta expansion:
-
-```powershell
-$env:DATABASE_URL="<production-postgres-url>"
-uv run python backend/scripts/clamp_negative_stock.py --dry-run
-uv run python backend/scripts/fix_category_accents.py --dry-run
-uv run python backend/scripts/backfill_skus.py --dry-run
-```
-
-If the dry-run output is expected, run the apply commands:
-
-```powershell
-$env:DATABASE_URL="<production-postgres-url>"
-uv run python backend/scripts/clamp_negative_stock.py
-uv run python backend/scripts/fix_category_accents.py
-uv run python backend/scripts/backfill_skus.py
-```
-
-Record the production run here after execution:
-
-| Date | Operator | Script | Dry-run result | Apply result | Rollback / recovery note |
-|---|---|---|---|---|---|
-| 2026-05-24 | Codex via Fly SSH | `clamp_negative_stock.py` | Initial dry-run found 2 products for tenant `549477db-0192-49d0-a041-861b750c4215`: `Agua mineral`, `Galleta New York` at `-1`. Post-deploy dry-run of corrected script returned no negative stock. | No apply needed after post-deploy verification; database already had no negative stock remaining. | Inserts compensating `adjustment` rows when needed; recover by inserting inverse adjustment if needed. |
-| 2026-05-24 | Codex via Fly SSH | `fix_category_accents.py` | 2 rows: `Cafe caliente -> Café caliente`, `Bebidas frias -> Bebidas frías`. | Applied: updated 2 rows. Follow-up dry-run: no rows matched. | Updates exact known category names only; recover by renaming rows back if needed. |
-| 2026-05-24 | Codex via Fly SSH | `backfill_skus.py` | 3 SKUs for tenant `549477db-0192-49d0-a041-861b750c4215`. | Applied: assigned 3 SKUs. Follow-up dry-run: no products needed a SKU. | Assigns missing SKUs only; recover by clearing affected generated SKUs if needed. |
+The one-off Audit Sprint 6 hygiene scripts (`clamp_negative_stock.py`, `fix_category_accents.py`,
+`backfill_skus.py`) were applied to production on 2026-05-24 and retired from the tree on
+2026-10-22. Their source and run log remain in git history.
 
 ## Pre-Beta Hard Gates (Running Checklist)
 
