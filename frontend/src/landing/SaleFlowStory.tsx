@@ -140,15 +140,7 @@ export default function SaleFlowStory({
           }}
           onPause={() => setIsPaused(true)}
           onEnded={() => setIsPaused(true)}
-        >
-          <track
-            kind="captions"
-            src="/film/kova-demo-es.vtt"
-            srcLang="es"
-            label="Español"
-            default
-          />
-        </video>
+        />
 
         <div className={styles.controls} role="group" aria-label={t.controlsLabel}>
           <button type="button" className={styles.control} onClick={togglePlayback}>
