@@ -71,7 +71,19 @@ def test_optional_identity_is_not_inferred_from_matching_contact_or_name(client,
 
 
 def test_identity_is_immutable_and_legacy_edits_preserve_it_even_after_deactivation(client, db):
-    _tenant, customer, body = prepare(client)
+    # The suite can contain sales from other businesses. Exercise that state
+    # explicitly, and prove the rejected checkout neither adds nor removes one.
+    _foreign_tenant, _foreign_customer, foreign_body = prepare(client)
+    foreign_sale = client.post(
+        "/api/v1/orders",
+        json={
+            "items": foreign_body["items"],
+            "payments": [{"method": "manual_card", "amount": "50.00"}],
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert foreign_sale.status_code == 201, foreign_sale.text
+    tenant, customer, body = prepare(client)
     order = post(client, "", {**body, "customer_id": customer["id"]}).json()
     path = BASE + "/" + order["id"]
     row = db.get(Customer, UUID(customer["id"]))
@@ -85,12 +97,15 @@ def test_identity_is_immutable_and_legacy_edits_preserve_it_even_after_deactivat
     assert cleared.status_code == 409, cleared.text
     assert cleared.json()["detail"]["code"] == "CUSTOMER_IMMUTABLE"
     confirmed = _confirm(client, changed.json()).json()
+    sales_before = {row.id for row in db.query(Order.id).all()}
     checkout = post(client, f"/{order['id']}/checkout", {
         "version": confirmed["version"], "payments": [{"method": "manual_card", "amount": "50.00"}],
     })
     assert checkout.status_code == 409, checkout.text
     assert checkout.json()["detail"]["code"] == "CUSTOMER_INACTIVE"
-    assert db.query(Order).count() == 0
+    assert db.query(Order).filter_by(tenant_id=tenant).count() == 0
+    assert {row.id for row in db.query(Order.id).all()} == sales_before
+    assert UUID(foreign_sale.json()["id"]) in sales_before
 
 
 def test_inactive_unknown_and_foreign_identity_fail_without_creating_orders(client, db):

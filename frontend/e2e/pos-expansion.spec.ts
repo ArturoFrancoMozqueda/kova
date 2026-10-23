@@ -133,6 +133,18 @@ test("mobile owner creates a customer and reviews purchases and refunds", async 
     customers = [customer];
     await route.fulfill({ status: 201, json: customer });
   });
+  await page.route(`**/api/v1/customers/${customerId}`, (route) => {
+    expect(route.request().method()).toBe("GET");
+    return route.fulfill({ json: customer });
+  });
+  await page.route(`**/api/v1/customers/${customerId}/activity`, (route) => {
+    expect(route.request().method()).toBe("GET");
+    return route.fulfill({ json: {
+      branch_id: tenantId,
+      sections: ["appointments", "opportunities", "followups", "service_cases", "customer_orders"]
+        .map(source => ({ source, items: [], has_more: false })),
+    } });
+  });
   await page.route(`**/api/v1/customers/${customerId}/history?*`, (route) =>
     route.fulfill({
       json: {
@@ -161,7 +173,9 @@ test("mobile owner creates a customer and reviews purchases and refunds", async 
   await noOverflow(page);
   await page.getByRole("button", { name: "Guardar cliente" }).click();
   await expect(page.getByText(customer.name, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Ver compras" }).click();
+  await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
+  const profile = page.getByRole("region", { name: "Ficha del cliente" });
+  await expect(profile.getByRole("heading", { name: customer.name, exact: true })).toBeFocused();
   await expect(
     page.getByRole("heading", { name: "Compras de Ana García" }),
   ).toBeVisible();
@@ -178,6 +192,10 @@ test("cashier can find customers but cannot edit or inspect purchase history", a
     expect(route.request().method()).toBe("GET");
     await route.fulfill({ json: [customer] });
   });
+  await page.route(`**/api/v1/customers/${customerId}`, (route) => {
+    expect(route.request().method()).toBe("GET");
+    return route.fulfill({ json: customer });
+  });
   await page.goto("/customers");
   await expect(page.getByText(customer.name, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Nuevo cliente" })).toHaveCount(
@@ -189,8 +207,21 @@ test("cashier can find customers but cannot edit or inspect purchase history", a
   await expect(page.getByRole("button", { name: "Ver compras" })).toHaveCount(
     0,
   );
+  // Cashiers can open the common profile, but its administrative purchases
+  // and activity reads must remain absent, even after selecting a customer.
+  const administrativeReads: string[] = [];
+  page.on("request", request => {
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === `/api/v1/customers/${customerId}/history`
+      || pathname === `/api/v1/customers/${customerId}/activity`) administrativeReads.push(pathname);
+  });
+  await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Ficha del cliente" })).toContainText(customer.name);
+  await expect(page.getByRole("heading", { name: "Compras de Ana García" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Actividad del cliente" })).toHaveCount(0);
   await page.getByRole("textbox", { name: "Buscar clientes" }).fill("Ana");
   await noOverflow(page);
+  expect(administrativeReads).toEqual([]);
 });
 
 test("mobile owner creates supplier and purchase then receives only units delivered", async ({
