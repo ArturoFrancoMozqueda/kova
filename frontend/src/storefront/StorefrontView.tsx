@@ -1,372 +1,195 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Search, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { useOptionalAuth } from "@/auth/useAuth";
+import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { ProductPhoto, type ProductPhotoData } from "./ProductPhoto";
+import { StorefrontRequest } from "./StorefrontRequest";
+import { MenuProductCard } from "./MenuProductCard";
+import { MenuProductDetails } from "./MenuProductDetails";
+import {
+  MAX_MENU_PRODUCTS, MAX_MENU_QUANTITY, menuMoney, menuSubtotal, searchMenu,
+  type MenuProduct,
+} from "./menu";
 
 type PublicCatalog = {
   title: string;
   description: string | null;
   whatsapp_phone: string | null;
-  products: (ProductPhotoData & {
-    id: string;
-    name: string;
-    description: string | null;
-    price_amount: string;
-    availability: "available" | "unavailable";
-  })[];
+  products: MenuProduct[];
   checkout_available: boolean;
 };
-const money = (value: string) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
-    Number(value),
-  );
 
 export default function StorefrontView() {
   const { token } = useParams();
   const auth = useOptionalAuth();
   const [data, setData] = useState<PublicCatalog | null>(null);
   const [error, setError] = useState("");
-  useDocumentTitle(data?.title ?? "Catálogo");
+  const [attempt, setAttempt] = useState(0);
+  useDocumentTitle(data?.title ?? "Menú digital");
   useEffect(() => {
     const controller = new AbortController();
     setData(null);
     setError("");
     void fetch(`/api/v1/public/catalog/${encodeURIComponent(token ?? "")}`, {
-      signal: controller.signal,
-      credentials: "omit",
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error(
-            response.status === 404
-              ? "Este catálogo ya no está disponible."
-              : "No pudimos consultar el catálogo. Intenta más tarde.",
-          );
-        return (await response.json()) as PublicCatalog;
-      })
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted)
-          setError(
-            e instanceof Error
-              ? e.message
-              : "No pudimos consultar el catálogo.",
-          );
-      });
+      signal: controller.signal, credentials: "omit", cache: "no-store",
+    }).then(async response => {
+      if (!response.ok) throw new Error(response.status === 404
+        ? "Este catálogo ya no está disponible."
+        : "No pudimos consultar el menú. Intenta de nuevo.");
+      return await response.json() as PublicCatalog;
+    }).then(result => {
+      if (!controller.signal.aborted) setData(result);
+    }).catch(e => {
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "No pudimos consultar el menú.");
+    });
     return () => controller.abort();
-  }, [token]);
-  // AuthProvider intentionally remounts routes when identity resolves. Do not
-  // accept public form input until that initial boundary is stable.
-  if (auth?.state.status === "loading")
-    return (
-      <main className="min-h-screen bg-kova-mist p-8">
-        <p role="status">Preparando catálogo…</p>
-      </main>
-    );
-  return (
-    <main className="min-h-screen bg-kova-mist px-4 py-10 sm:px-8 sm:py-16">
-      <div className="mx-auto max-w-5xl">
-        {error ? (
-          <div role="alert" className="rounded-2xl bg-white p-8">
-            <h1 className="text-2xl font-semibold">Catálogo no disponible</h1>
-            <p className="mt-3">{error}</p>
-          </div>
-        ) : !data ? (
-          <p role="status">Cargando catálogo…</p>
-        ) : (
-          <CatalogContent key={token} token={token ?? ""} data={data} />
-        )}
-      </div>
-    </main>
-  );
+  }, [token, attempt]);
+  // AuthProvider remounts routes when identity resolves. Wait before accepting input.
+  if (auth?.state.status === "loading") return <main className="min-h-screen bg-kova-mist p-8"><p role="status">Preparando menú…</p></main>;
+  return <main className="min-h-screen bg-[#FAFAF7] text-kova-ink">
+    {error ? <div role="alert" className="mx-auto max-w-xl px-5 py-20">
+      <h1 className="text-2xl font-semibold">Menú no disponible</h1><p className="mt-3 text-kova-muted">{error}</p>
+      <Button className="mt-5" variant="outline" onClick={() => setAttempt(value => value + 1)}>Volver a intentar</Button>
+    </div> : !data ? <div className="mx-auto max-w-6xl px-5 py-16"><p role="status">Cargando menú…</p></div>
+      : <CatalogContent key={token} token={token ?? ""} data={data} />}
+  </main>;
 }
 
 function CatalogContent({ data, token }: { data: PublicCatalog; token: string }) {
-  const [productIds, setProductIds] = useState<string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [query, setQuery] = useState("");
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [received, setReceived] = useState(false);
-  const toggleProduct = (id: string) => {
-    if (busy || received) return;
-    setProductIds(ids => ids.includes(id) ? ids.filter(value => value !== id)
-      : ids.length < 20 ? [...ids, id] : ids);
-  };
-  return (
-    <>
-      <header className="mb-10 max-w-2xl">
-        <p className="mb-3 text-xs uppercase tracking-widest text-kova-muted">
-          Catálogo del negocio
-        </p>
-        <h1 className="break-words text-4xl font-semibold tracking-tight text-kova-ink sm:text-5xl">
-          {data.title}
-        </h1>
-        {data.description && (
-          <p className="mt-5 break-words text-lg text-kova-muted">
-            {data.description}
-          </p>
-        )}
-        <p className="mt-5 text-base text-kova-ink">
-          Explora los productos, selecciona los que te interesan y deja tu consulta al negocio.
-        </p>
-        <p className="mt-4 text-sm text-kova-muted">
-          Precios en MXN. Confirma disponibilidad y condiciones con el
-          negocio antes de comprar.
-        </p>
-      </header>
-      {data.products.length === 0 && (
-        <p>No hay productos publicados por el momento.</p>
-      )}
-      {!received && productIds.length > 0 && <div className="sticky top-3 z-10 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-kova-border bg-white p-4 shadow-sm">
-        <p role="status" className="text-sm">{productIds.length} {productIds.length === 1 ? "producto seleccionado" : "productos seleccionados"} para consultar</p>
-        <a href="#solicitud-catalogo" className="inline-flex min-h-11 items-center rounded-xl bg-kova-ink px-4 text-sm text-white">Continuar con mi consulta</a>
-      </div>}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.products.map((product) => (
-          <article
-            key={product.id}
-            className="flex min-w-0 flex-col rounded-2xl border border-kova-border bg-white p-6"
-          >
-            <div className="-mx-6 -mt-6 mb-5">
-              <ProductPhoto product={product} />
-            </div>
-            <h2 className="break-words text-xl font-semibold">
-              {product.name}
-            </h2>
-            {product.description && (
-              <p className="mt-3 break-words text-sm text-kova-muted">
-                {product.description}
-              </p>
-            )}
-            <p className="mt-5 text-2xl font-semibold">
-              {money(product.price_amount)}
-            </p>
-            <p className="mt-2 text-sm">
-              {product.availability === "available"
-                ? "Disponible para consultar"
-                : "Agotado por el momento"}
-            </p>
-            <button
-              type="button"
-              aria-pressed={productIds.includes(product.id)}
-              aria-label={`${productIds.includes(product.id) ? "Quitar" : "Seleccionar"} ${product.name} para consultar`}
-              disabled={busy || received || (!productIds.includes(product.id) && productIds.length >= 20)}
-              onClick={() => toggleProduct(product.id)}
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-kova-border px-4 py-3 text-sm font-medium text-kova-ink aria-pressed:border-kova-blue aria-pressed:bg-kova-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-kova-blue disabled:opacity-50"
-            >
-              {productIds.includes(product.id) ? "Seleccionado para consultar" : "Me interesa"}
-            </button>
-            {data.whatsapp_phone &&
-              /^[1-9][0-9]{9,14}$/.test(data.whatsapp_phone) && (
-                <a
-                  className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-kova-ink px-4 py-3 text-center text-sm text-white"
-                  href={`https://wa.me/${data.whatsapp_phone}?text=${encodeURIComponent(`Hola, vi ${product.name} en su catálogo. ¿Me dan información para hacer un pedido?`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Consultar por WhatsApp
-                </a>
-              )}
-          </article>
-        ))}
-      </div>
-      <CatalogRequestForm
-        token={token}
-        products={data.products}
-        productIds={productIds}
-        onProductToggle={toggleProduct}
-        busy={busy}
-        setBusy={setBusy}
-        received={received}
-        onReceived={() => setReceived(true)}
-      />
-      <footer className="mt-10 text-sm text-kova-muted">
-        Consulta sin reserva ni cobro automático. Catálogo compartido con
-        Kova.
-      </footer>
-    </>
-  );
-}
-
-function CatalogRequestForm({
-  token,
-  products, productIds, onProductToggle, busy, setBusy, received, onReceived,
-}: {
-  token: string;
-  products: PublicCatalog["products"];
-  productIds: string[];
-  onProductToggle: (id: string) => void;
-  busy: boolean;
-  setBusy: (value: boolean) => void;
-  received: boolean;
-  onReceived: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const command = useRef<{ fingerprint: string; id: string } | null>(null);
-  const controller = useRef(new AbortController());
-  const lock = useRef(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [requestMode, setRequestMode] = useState<"order" | "question">("order");
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detailProduct = data.products.find(product => product.id === detailId) ?? null;
+  const review = useRef<HTMLElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const menuScroll = useRef(0);
   useEffect(() => {
-    controller.current = new AbortController();
-    const current = controller.current;
-    return () => current.abort();
-  }, []);
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    const fields = {
-      name: name.trim(),
-      contact: contact.trim(),
-      message: message.trim(),
-      product_ids: productIds,
-    };
-    const fingerprint = JSON.stringify(fields);
-    if (command.current?.fingerprint !== fingerprint)
-      command.current = { fingerprint, id: crypto.randomUUID() };
-    try {
-      const response = await fetch(
-        `/api/v1/public/catalog/${encodeURIComponent(token)}/requests`,
-        {
-          method: "POST",
-          credentials: "omit",
-          cache: "no-store",
-          signal: controller.current.signal,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...fields,
-            submission_id: command.current.id,
-          }),
-        },
-      );
-      if (!response.ok)
-        throw new Error(
-          response.status === 429
-            ? "Recibimos varias solicitudes. Espera un momento antes de volver a intentar."
-            : response.status === 404
-              ? "Este catálogo ya no está disponible para solicitudes."
-              : "No pudimos registrar tu solicitud. Revisa los datos y vuelve a intentar.",
-        );
-      if (!controller.current.signal.aborted) onReceived();
-    } catch (e) {
-      if (!controller.current.signal.aborted)
-        setError(
-          e instanceof Error ? e.message : "No pudimos registrar tu solicitud.",
-        );
-    } finally {
-      lock.current = false;
-      if (!controller.current.signal.aborted) setBusy(false);
+    if (reviewOpen) {
+      review.current?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0 });
+    } else if (returnFocus.current) {
+      returnFocus.current.focus({ preventScroll: true });
+      window.scrollTo({ top: menuScroll.current });
+      returnFocus.current = null;
     }
+  }, [reviewOpen]);
+  const openReview = (mode?: "order" | "question") => {
+    menuScroll.current = window.scrollY;
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (mode && !busy && !received) setRequestMode(mode);
+    setReviewOpen(true);
   };
-  const field =
-    "mt-1 min-h-11 w-full rounded-xl border border-kova-border bg-white p-3";
-  return (
-    <section
-      id="solicitud-catalogo"
-      tabIndex={-1}
-      className="mt-10 scroll-mt-32 rounded-2xl border border-kova-border bg-white p-6 sm:p-8"
-      aria-label="Solicitud al negocio"
-    >
-      <h2 className="text-2xl font-semibold">Deja tu solicitud al negocio</h2>
-      <p className="mt-3 max-w-2xl text-sm text-kova-muted">
-        El negocio revisará tu consulta y podrá responder al contacto que
-        indiques. Esto no confirma un pedido, reserva o pago, ni te suscribe a
-        campañas.
-      </p>
-      {received ? (
-        <p role="status" className="mt-5 rounded-xl bg-kova-mist p-5">
-          Solicitud recibida. El negocio revisará los datos para continuar
-          contigo.
-        </p>
-      ) : (
-        <form
-          className="mt-6 space-y-4"
-          onSubmit={(event) => void submit(event)}
-        >
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
-              Tu nombre
-              <input
-                className={field}
-                required
-                maxLength={160}
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-            <label className="text-sm">
-              Teléfono o correo para responder
-              <input
-                className={field}
-                required
-                maxLength={160}
-                autoComplete="off"
-                value={contact}
-                onChange={(event) => setContact(event.target.value)}
-              />
-            </label>
+  const lines = data.products.filter(product => quantities[product.id] > 0)
+    .map(product => ({ product, quantity: quantities[product.id] }));
+  const count = lines.reduce((total, line) => total + line.quantity, 0);
+  const subtotal = menuSubtotal(lines);
+  const term = searchMenu(query);
+  const products = data.products.filter(product => (!onlyAvailable || product.availability === "available") &&
+    (!term || searchMenu(`${product.name} ${product.description ?? ""}`).includes(term)));
+  const whatsapp = data.whatsapp_phone && /^[1-9][0-9]{9,14}$/.test(data.whatsapp_phone)
+    ? `https://wa.me/${data.whatsapp_phone}?text=${encodeURIComponent(`Hola, estoy viendo el menú de ${data.title}. ¿Me ayudan con una consulta?`)}` : null;
+  const changeQuantity = (id: string, quantity: number) => {
+    if (busy || received || !Number.isInteger(quantity) || quantity < 0 || quantity > MAX_MENU_QUANTITY) return;
+    const product = data.products.find(row => row.id === id);
+    if (!product || product.availability !== "available") return;
+    setQuantities(current => {
+      if (!current[id] && Object.values(current).filter(value => value > 0).length >= MAX_MENU_PRODUCTS) return current;
+      if (quantity === 0) {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      }
+      return { ...current, [id]: quantity };
+    });
+  };
+
+  return <>
+    <a href={reviewOpen ? "#mi-pedido" : "#menu"} className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-xl focus:bg-white focus:p-4 focus:text-kova-blue">{reviewOpen ? "Saltar al pedido" : "Saltar al menú"}</a>
+    <div className="border-b border-kova-border bg-white">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-8 lg:py-4">
+        <span className="flex items-center gap-2 text-xs font-medium lg:text-sm"><UtensilsCrossed className="h-4 w-4 text-kova-blue" aria-hidden="true" />Menú digital</span>
+        <Button type="button" variant="ghost" className="px-2 lg:hidden" onClick={() => reviewOpen ? setReviewOpen(false) : openReview()}>
+          {reviewOpen ? <><ArrowLeft aria-hidden="true" />Volver al menú</> : <><ShoppingBag aria-hidden="true" />Mi pedido{count > 0 && <span className="rounded-full bg-kova-ink px-2 py-0.5 text-xs text-white">{count}</span>}</>}
+        </Button>
+        <a href="#mi-pedido" className="hidden min-h-11 items-center gap-2 rounded-full border border-kova-border px-4 text-sm font-medium lg:inline-flex">
+          <ShoppingBag className="h-4 w-4" aria-hidden="true" />Mi pedido{count > 0 && <span className="rounded-full bg-kova-ink px-2 py-0.5 text-xs text-white">{count}</span>}
+        </a>
+      </div>
+    </div>
+    <header className={`${reviewOpen ? "hidden lg:block " : ""}border-b border-kova-border bg-white`}>
+      <div className="mx-auto grid max-w-6xl gap-2 px-4 pb-4 pt-4 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-8 lg:py-12">
+        <div className="min-w-0 max-w-2xl">
+          <p className="mb-4 hidden text-xs font-semibold uppercase tracking-[0.18em] text-kova-muted lg:block">Elige a tu gusto</p>
+          <h1 className="break-words text-2xl font-semibold tracking-tight lg:text-5xl">{data.title}</h1>
+          {data.description && <p className="mt-2 max-w-xl break-words text-sm leading-relaxed text-kova-muted lg:mt-4 lg:text-base">{data.description}</p>}
+          <p className="mt-5 hidden max-w-xl text-sm leading-relaxed lg:block">Estés aquí o a distancia, arma tu pedido y envíalo al negocio para que lo revise y confirme contigo.</p>
+          <div className="mt-5 hidden flex-wrap gap-x-5 gap-y-2 text-xs text-kova-muted lg:flex">
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Precios en MXN</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Sin crear una cuenta</span>
           </div>
-          <label className="block text-sm">
-            ¿Qué te gustaría consultar?
-            <textarea
-              className={field}
-              required
-              maxLength={1000}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-            />
-          </label>
-          <fieldset>
-            <legend className="text-sm font-medium">
-              Productos de tu consulta (opcional, hasta 20)
-            </legend>
-            <p className="mt-2 break-words text-sm text-kova-muted">
-              {productIds.length > 0
-                ? `Tu selección: ${products.filter(product => productIds.includes(product.id)).map(product => product.name).join(", ")}.`
-                : "Puedes seleccionar productos arriba o dejar una consulta general."}
-            </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {products.map((product) => (
-                <label
-                  key={product.id}
-                  className="flex min-h-11 min-w-0 items-center gap-3 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={productIds.includes(product.id)}
-                    disabled={
-                      busy || (!productIds.includes(product.id) &&
-                      productIds.length >= 20)
-                    }
-                    onChange={() => onProductToggle(product.id)}
-                  />
-                  <span className="break-words">{product.name}</span>
-                </label>
-              ))}
+        </div>
+        {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="hidden min-h-11 w-fit items-center gap-2 rounded-full border border-kova-border px-5 text-sm font-medium lg:inline-flex">
+          Consultar por WhatsApp<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </a>}
+      </div>
+    </header>
+    <div className={`mx-auto max-w-6xl px-4 py-4 sm:px-8 lg:py-10 ${count > 0 && !reviewOpen ? "pb-28 lg:pb-10" : ""}`}>
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
+        <section id="menu" tabIndex={-1} aria-labelledby="menu-title" className={`${reviewOpen ? "hidden lg:block " : ""}min-w-0 scroll-mt-6`}>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 lg:mb-5"><h2 id="menu-title" className="text-lg font-semibold tracking-tight lg:text-2xl">Nuestro menú</h2>
+            <span className="text-xs text-kova-muted lg:text-sm">{data.products.length} {data.products.length === 1 ? "producto" : "productos"} · <span className="lg:hidden">MXN</span><span className="hidden lg:inline">precios en MXN</span></span></div>
+          {data.products.length > 0 && <>
+            <label className="relative block"><span className="sr-only">Buscar en el menú</span>
+              <Search className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-kova-muted" aria-hidden="true" />
+              <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="¿Qué te gustaría pedir?"
+                className="min-h-12 w-full rounded-2xl border border-kova-border bg-white py-3 pl-12 pr-4 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue" />
+            </label>
+            <div className="mb-4 mt-2 flex flex-wrap gap-2 lg:mb-6 lg:mt-3" role="group" aria-label="Filtrar productos">
+              <Button type="button" className="rounded-full" variant={!onlyAvailable ? "default" : "outline"} aria-pressed={!onlyAvailable} onClick={() => setOnlyAvailable(false)}>Todo el menú</Button>
+              <Button type="button" className="rounded-full" variant={onlyAvailable ? "default" : "outline"} aria-pressed={onlyAvailable} onClick={() => setOnlyAvailable(true)}>Disponibles</Button>
             </div>
-          </fieldset>
-          <button
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-kova-ink px-5 py-3 text-sm text-white disabled:opacity-50"
-            disabled={
-              busy || !name.trim() || !contact.trim() || !message.trim()
-            }
-          >
-            {busy ? "Registrando solicitud…" : "Enviar solicitud al negocio"}
-          </button>
-        </form>
-      )}
-    </section>
-  );
+          </>}
+          {lines.length >= MAX_MENU_PRODUCTS && <p role="status" className="mb-4 rounded-xl border border-kova-border bg-white p-3 text-sm">Puedes incluir hasta 20 productos distintos por solicitud. Puedes ajustar sus cantidades.</p>}
+          {data.products.length === 0 ? <div className="rounded-2xl border border-dashed border-kova-border bg-white p-8">
+            <h3 className="font-semibold">El menú se está preparando</h3><p className="mt-2 text-sm text-kova-muted">No hay productos publicados por el momento. Puedes dejar una consulta al negocio.</p>
+          </div> : products.length === 0 ? <div role="status" className="rounded-2xl border border-kova-border bg-white p-6">
+            <p className="font-medium">No encontramos productos con estos filtros.</p><p className="mt-2 text-sm text-kova-muted">Prueba otro nombre o vuelve a ver todo el menú.</p>
+            <Button type="button" variant="outline" className="mt-4" onClick={() => { setQuery(""); setOnlyAvailable(false); }}>Limpiar búsqueda y filtros</Button>
+          </div> : <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 lg:grid-cols-1">
+            {products.map(product => <MenuProductCard key={product.id} product={product} quantity={quantities[product.id] ?? 0}
+              disabled={busy || received} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
+              onQuantityChange={value => changeQuantity(product.id, value)} onDetails={() => setDetailId(product.id)} />)}
+          </div>}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 lg:hidden">
+            <Button type="button" variant="link" className="px-0" disabled={busy || received} onClick={() => openReview("question")}>Hacer una consulta</Button>
+            {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm text-kova-muted underline">WhatsApp<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a>}
+          </div>
+        </section>
+        <aside ref={review} tabIndex={-1} aria-label="Revisar pedido" className={`${reviewOpen ? "" : "hidden lg:block "}min-w-0 focus:outline-none`}>
+          <StorefrontRequest token={token} lines={lines} onQuantityChange={changeQuantity} mode={requestMode} setMode={setRequestMode}
+            busy={busy} setBusy={setBusy} received={received} onReceived={() => setReceived(true)} onBrowse={() => setReviewOpen(false)} />
+        </aside>
+      </div>
+      <footer className="mt-5 border-t border-kova-border py-4 text-xs leading-relaxed text-kova-muted lg:mt-10 lg:py-6">
+        <p>Menú compartido con <span className="font-semibold text-kova-ink">Kova</span></p>
+        <p className="mt-2">Cada solicitud queda pendiente de aceptación por el negocio. No se realizan reservas ni cobros automáticos.</p>
+      </footer>
+    </div>
+    {count > 0 && <div className={`${reviewOpen ? "hidden " : ""}fixed inset-x-0 bottom-0 z-20 border-t border-kova-border bg-white px-4 pt-3 lg:hidden`} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+      <button type="button" onClick={() => openReview()} className="mx-auto flex min-h-14 w-full max-w-xl items-center justify-between gap-3 rounded-2xl bg-kova-ink px-4 py-3 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue">
+        <span className="flex items-center gap-2 text-sm"><ShoppingBag className="h-5 w-5" aria-hidden="true" /><span className="font-semibold">{received ? "Ver solicitud enviada" : "Ver mi pedido"}</span><span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">{count}</span></span>
+        <span className="flex items-center gap-2 text-sm font-semibold tabular-nums">{menuMoney(subtotal)}<ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
+      </button>
+      <p role="status" className="sr-only">{count} {count === 1 ? "artículo" : "artículos"} en tu pedido. Subtotal estimado: {menuMoney(subtotal)} MXN.</p>
+    </div>}
+    <MenuProductDetails product={detailProduct} quantity={detailId ? quantities[detailId] ?? 0 : 0}
+      disabled={busy || received} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
+      onQuantityChange={value => { if (detailId) changeQuantity(detailId, value); }} onClose={() => setDetailId(null)} />
+  </>;
 }

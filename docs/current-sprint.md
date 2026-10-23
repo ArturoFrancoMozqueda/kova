@@ -1,6 +1,32 @@
 # Current Sprint
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
+
+## Menú digital público — implementación local
+
+El catálogo se presenta como menú para armar solicitudes de pedido, a distancia o en el negocio:
+búsqueda, disponibilidad, cantidades, subtotal estimado y resumen adaptable a móvil/escritorio.
+El detalle llega a la bandeja existente de Kova con el contrato público actual, sin migraciones.
+Las consultas generales y el enlace secundario a WhatsApp se conservan. No crea automáticamente
+órdenes operativas, reservas ni pagos; el equipo revisa la solicitud antes de continuar.
+[Contrato y límites](../specs/storefront/public_catalog.md). Publicación y aceptación con un
+negocio real pendientes; las pruebas locales no acreditan pedidos productivos ni WhatsApp real.
+El ajuste móvil conserva el encabezado compacto y separa exploración de revisión sin duplicar formulario.
+El menú usa tarjetas en tres columnas en móvil/tablet con fotografías 4:3 a todo el ancho, nombres,
+precios y controles bajo la imagen. «N en pedido» abre el detalle para ajustar cantidades sin
+comprimir los botones; escritorio conserva sus controles directos. Un toque abre foto grande y descripción completa en el diálogo
+compartido. Sólo se muestran las fotos públicas reales del negocio; las capturas de demostración
+usan recursos existentes del proyecto desde una respuesta interceptada del test.
+Al volver conserva datos, selección, posición de desplazamiento y foco. Escritorio conserva la
+disposición con resumen lateral. La bandeja y los contratos no cambian.
+Validación: 32 pruebas focales, TypeScript, ESLint de archivos afectados y build/SSR/prerender
+aprobados. Ocho recorridos del catálogo sobre el build final, con APIs interceptadas, cubren
+320/390/768/1440 px, pedidos a distancia/presenciales, consultas, teclado, reintento y axe.
+Móvil verifica tres tarjetas por fila en 320/390/768 px, carga de fotografías, primer producto
+antes de 400 px, revisión separada y conservación de contacto/notas al regresar al menú.
+Las pruebas con fotografías verifican carga de píxeles reales, amplitud de imagen y navegación
+por teclado del detalle (foco, Tab/Shift+Tab y Escape), conservando la cobertura sin fotografías.
+Revisión visual de capturas móvil/escritorio completada; QR físico y WhatsApp real sin verificar.
 
 ## Flujos conectados de comercio y servicios — implementación local
 

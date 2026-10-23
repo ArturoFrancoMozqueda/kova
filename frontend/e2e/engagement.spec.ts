@@ -205,6 +205,8 @@ for (const width of [1440, 768, 390, 320]) {
       route.fulfill({ json: { receipt_id: "receipt-1", status: "received" } }),
     );
     await page.goto("/catalogo/public-test");
+    if (width < 1024) await page.getByRole("button", { name: "Hacer una consulta" }).click();
+    await page.getByRole("button", { name: "Solo consultar" }).click();
     await page.getByLabel("Tu nombre").fill("Ana de prueba");
     await page
       .getByLabel("Teléfono o correo para responder")

@@ -98,10 +98,11 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       <ViewHeader
         eyebrow="Captación"
         title="Solicitudes del catálogo"
-        meta="Revisa lo que te piden y decide con qué cliente continuar."
+        meta="Recibe pedidos y consultas del menú digital, en el negocio y a distancia."
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Una solicitud no crea una venta, reserva ni permiso de campañas.
+        Revisa productos, cantidades y notas antes de aceptar una solicitud de pedido.
+        Una solicitud no crea un pedido operativo, venta, reserva ni permiso de campañas.
         Verifica el contacto y vincula al cliente correcto antes de convertirla
         en oportunidad.
       </p>
@@ -121,7 +122,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       {panel.data?.requests.length === 0 && (
         <section className="rounded-2xl border border-kova-border bg-white p-6">
           <h2 className="font-semibold">
-            Aquí llegarán las consultas de tu catálogo
+            Aquí llegarán los pedidos y consultas de tu menú
           </h2>
           <p className="mt-2 text-sm text-kova-muted">
             Comparte tu enlace o QR para que tus clientes puedan dejar una
@@ -153,7 +154,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </p>
             <p className="text-xs text-kova-muted">
               {new Date(row.created_at).toLocaleString("es-MX")} ·{" "}
-              {row.product_ids.length} productos consultados
+              {row.product_ids.length} productos de la solicitud
             </p>
             {row.status === "converted" && row.opportunity_id && panel.online && (
               <Link
