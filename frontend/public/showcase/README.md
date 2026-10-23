@@ -12,7 +12,8 @@ El script:
 
 - conserva el AppShell completo y oculta el área de cuenta;
 - prepara localmente, sin cobrar, Cold brew + Capuchino mediano + Yogurt con granola = $186;
-- bloquea cualquier request de escritura después del inicio de sesión;
+- bloquea cualquier request de escritura después del inicio de sesión (la telemetría se descarta para no contar la captura como uso);
+- marca como vistos los recorridos de primer uso, que sólo viven en `localStorage`, para que no tapen Caja;
 - espera encabezados, fuentes e imágenes antes de capturar;
 - rechaza correos visibles y valida el tamaño exacto de cada vista;
 - captura escritorio (1440×900) en `showcase/` y teléfono emulado (390×844, DPR 3, táctil) en `showcase/mobile/`; `KOVA_CAPTURE_DEVICES=desktop` o `mobile` limita la corrida;

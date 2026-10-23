@@ -129,6 +129,14 @@ async function captureDevice(browser, device) {
     hasTouch: device.hasTouch,
     reducedMotion: "reduce",
   });
+  // First-use tours are remembered only in localStorage. Treat them as seen so
+  // they do not cover Caja; nothing is written to the tenant.
+  await context.addInitScript(() => {
+    const getItem = globalThis.Storage.prototype.getItem;
+    globalThis.Storage.prototype.getItem = function (key) {
+      return String(key).startsWith("kova:tour:") ? "1" : getItem.call(this, key);
+    };
+  });
   const page = await context.newPage();
   const blockedMutations = [];
 
@@ -148,7 +156,11 @@ async function captureDevice(browser, device) {
       const url = new globalThis.URL(request.url());
       const readOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
       if (!readOnly && (url.hostname === baseHost || url.hostname === `api.${baseHost}`)) {
-        blockedMutations.push(`${method} ${url.pathname}`);
+        // Telemetry is dropped so capture runs never count as product usage;
+        // any other write is reported and fails the run.
+        if (!url.pathname.startsWith("/api/v1/telemetry/")) {
+          blockedMutations.push(`${method} ${url.pathname}`);
+        }
         await route.abort("blockedbyclient");
         return;
       }
