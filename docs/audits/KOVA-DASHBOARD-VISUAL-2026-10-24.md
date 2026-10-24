@@ -67,3 +67,10 @@ Sin migraciones, cambios de API, operaciones productivas, pagos, timbrado ni env
 externos. No se realizó lector de pantalla nativo ni QA de hardware de caja.
 Capturas con escenarios de prueba guardadas fuera del producto; configuraciones
 locales de pruebas y enlaces de dependencias no se incluyen en Git.
+
+## Capturas revisadas
+
+Escenarios de prueba; no representan operaciones productivas.
+
+- [Panel completo en escritorio](assets/dashboard-control-center/desktop.png).
+- [Primera pantalla móvil](assets/dashboard-control-center/mobile.png).
