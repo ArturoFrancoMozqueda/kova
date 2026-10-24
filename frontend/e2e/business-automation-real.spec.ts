@@ -140,7 +140,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
 
     await page.goto("/settings/public-catalog");
     await page
-      .getByLabel("Nombre del catálogo")
+      .getByLabel("Nombre del menú o negocio")
       .fill("Catálogo integración E2E");
     await page
       .getByRole("checkbox", { name: new RegExp(prepared.product.name) })
@@ -164,6 +164,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
           exact: true,
         }),
       ).toBeVisible();
+      await publicPage.getByRole("button", { name: "Solo consultar", exact: true }).click();
       await publicPage.getByLabel("Tu nombre").fill("Consulta pública E2E");
       await publicPage.getByLabel("Teléfono o correo para responder").fill("cliente-e2e@example.com");
       await publicPage.getByLabel("¿Qué te gustaría consultar?").fill("Quiero cotizar el servicio para mi evento");

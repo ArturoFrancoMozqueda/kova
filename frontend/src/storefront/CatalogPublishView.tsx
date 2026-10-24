@@ -80,8 +80,8 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
   return <ViewLayout className="space-y-6">
-    <ViewHeader title="Tu catálogo, listo para compartir" eyebrow="Captación" meta="Publica los productos que elijas con precios y disponibilidad del negocio." />
-    <p className="max-w-2xl text-sm text-kova-muted">El cliente puede explorar tus productos, dejar una solicitud o escribirte por WhatsApp si lo agregas. La consulta no reserva existencias ni registra un pedido o pago.</p>
+    <ViewHeader title="Tu menú digital, listo para compartir" eyebrow="Catálogo público" meta="Comparte tu menú por enlace o QR, en el negocio y a distancia." />
+    <p className="max-w-2xl text-sm text-kova-muted">Tus clientes pueden elegir productos y cantidades, enviar una solicitud de pedido o escribirte por WhatsApp si lo agregas. Las solicitudes llegan a Kova para que las revises; todavía no crean un pedido operativo, una reserva o un pago.</p>
     {!online && <p role="status">Conéctate para publicar cambios.</p>}
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
     {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice}</p>}
@@ -89,7 +89,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     {settings && <form onSubmit={event => void save(event)} className="space-y-6">
       <fieldset disabled={busy || !online} className="space-y-5 rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Información pública</legend>
-        <div><Label htmlFor="public-title">Nombre del catálogo</Label><Input id="public-title" required maxLength={160} value={settings.title} onChange={e => setSettings({ ...settings, title: e.target.value })} /></div>
+        <div><Label htmlFor="public-title">Nombre del menú o negocio</Label><Input id="public-title" required maxLength={160} value={settings.title} onChange={e => setSettings({ ...settings, title: e.target.value })} /></div>
         <div><Label htmlFor="public-description">Descripción (opcional)</Label><Input id="public-description" maxLength={500} value={settings.description ?? ""} onChange={e => setSettings({ ...settings, description: e.target.value })} /></div>
         <div><Label htmlFor="public-whatsapp">WhatsApp público (opcional)</Label><Input id="public-whatsapp" inputMode="tel" pattern="[1-9][0-9]{9,14}" placeholder="52 y tu número de 10 dígitos" value={settings.whatsapp_phone ?? ""} onChange={e => setSettings({ ...settings, whatsapp_phone: e.target.value })} /><p className="mt-1 text-xs text-kova-muted">Este número será visible para cualquier persona con el enlace. Sin espacios ni signo +.</p></div>
         <label className="flex items-center gap-3"><input type="checkbox" checked={settings.enabled} onChange={e => setSettings({ ...settings, enabled: e.target.checked })} />Publicar catálogo</label>
