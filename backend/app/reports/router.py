@@ -1,4 +1,6 @@
 from datetime import date
+from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
@@ -28,6 +30,7 @@ router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 def dashboard_overview(
     response: Response,
     period: DashboardPeriod = "day",
+    branch_id: UUID | Literal["all"] | None = None,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_commercial_access(Permission.REPORTS_VIEW_ALL)
@@ -35,7 +38,7 @@ def dashboard_overview(
 ):
     response.headers["Cache-Control"] = "private, no-store, max-age=0"
     _, membership, _ = ctx
-    return overview(db, membership=membership, period=period)
+    return overview(db, membership=membership, period=period, branch_id=branch_id)
 
 
 @router.get("/sales-summary", response_model=SalesSummaryResponse)

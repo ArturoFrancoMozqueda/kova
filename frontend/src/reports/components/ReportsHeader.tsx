@@ -47,6 +47,7 @@ export function ReportsHeader({
 
   return (
     <ViewHeader
+      eyebrow="Histórico, rentabilidad y decisiones"
       title={copy.reportsView.title}
       meta={meta || undefined}
       actions={

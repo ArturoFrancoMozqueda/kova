@@ -1,5 +1,10 @@
 export type WorkspaceGroupId = "sales" | "customers" | "operation" | "analysis" | "settings";
 
+/** Already filtered by AppShell's role, feature, capability and session gates. */
+export type WorkspaceNavigationContext = {
+  destinations: readonly { to: string; label: string }[];
+};
+
 // These are navigation scopes, not access rules. AppShell supplies only the
 // destinations already allowed by role, feature, permission and session mode.
 export const workspaceGroups: readonly { id: WorkspaceGroupId; paths: readonly string[] }[] = [

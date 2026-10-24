@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { copy } from "@/i18n/messages";
@@ -88,7 +88,7 @@ describe("owner dashboard journey", () => {
     expect(within(actions).getByRole("link", { name: /Ver análisis/ })).toBeVisible();
     expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
     expect(screen.queryByTestId("net-sales")).not.toBeInTheDocument();
-    await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day"));
+    await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all"));
   });
 
   it("keeps task actions reachable when sales data fails without extra API calls", async () => {
@@ -232,7 +232,7 @@ describe("owner dashboard journey", () => {
     expect(within(quick).getByRole("link", { name: /Ver pendientes/ })).toBeVisible();
     expect(screen.getByTestId("net-sales")).toHaveTextContent(/^0$/);
     expect(screen.getByText(copy.dashboard.noActivityTitle)).toBeVisible();
-    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day");
+    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all");
     for (const legacy of [getBusinessStory, getSalesByHour, getSalesSummary]) expect(legacy).not.toHaveBeenCalled();
   });
 
@@ -338,5 +338,57 @@ describe("owner dashboard journey", () => {
     host();
     expect(await screen.findByRole("heading", { name: copy.dashboard.nextActionsTitle })).toBeVisible();
     expect(screen.getAllByText(copy.dashboard.nextActionsTitle)).toHaveLength(1);
+  });
+});
+
+
+function hostControlCenter() {
+  return render(<MemoryRouter><Routes>
+    <Route element={<Outlet context={{ destinations: [
+      { to: "/orders", label: "Ventas" }, { to: "/inventory", label: "Inventario" },
+      { to: "/operations-queue", label: "Pendientes" },
+    ] }} />}>
+      <Route path="*" element={<DashboardView />} />
+    </Route>
+  </Routes></MemoryRouter>);
+}
+
+describe("owner control center", () => {
+  it.each(["loading", "error"])("keeps area navigation available during %s without fabricated metrics", async status => {
+    vi.mocked(getDashboardOverview).mockImplementation(() => status === "loading"
+      ? new Promise(() => {}) : Promise.reject(new Error("unavailable")));
+    hostControlCenter();
+    if (status === "error") await screen.findByText(copy.dashboard.loadError);
+    const control = screen.getByRole("region", { name: "Cada área, a la vista" });
+    expect(within(control).getByRole("link", { name: "Inventario" })).toHaveAttribute("href", "/inventory");
+    expect(within(control).getByText("Consulta tus existencias")).toBeVisible();
+    expect(within(control).queryByText(/0 productos|0 órdenes/)).not.toBeInTheDocument();
+  });
+
+  it("shows verified current inventory separately from period sales", async () => {
+    vi.mocked(getDashboardOverview).mockResolvedValue(overview({ active_catalog_count: 12 }));
+    hostControlCenter();
+    await screen.findByTestId("net-sales");
+    const control = screen.getByRole("region", { name: "Cada área, a la vista" });
+    expect(within(control).getByText("12 productos activos")).toBeVisible();
+    expect(within(control).getByText("0 órdenes completadas")).toBeVisible();
+    expect(within(control).getByText("Inventario actual")).toBeVisible();
+  });
+
+  it("does not present failed optional legacy reads as verified area metrics", async () => {
+    vi.mocked(getDashboardOverview).mockResolvedValue(null);
+    hostControlCenter();
+    await screen.findByTestId("net-sales");
+    const control = screen.getByRole("region", { name: "Cada área, a la vista" });
+    expect(within(control).getByText("Consulta tus existencias")).toBeVisible();
+    expect(within(control).queryByText(/0 productos|0 órdenes/)).not.toBeInTheDocument();
+  });
+
+  it.each(["cashier", "staff", "offline"])("does not expose the owner's area map to %s", async mode => {
+    if (mode === "offline") auth.state.sessionMode = "offline";
+    else auth.state.user.role = mode;
+    hostControlCenter();
+    await screen.findByTestId("net-sales");
+    expect(screen.queryByRole("region", { name: "Cada área, a la vista" })).not.toBeInTheDocument();
   });
 });

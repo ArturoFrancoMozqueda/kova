@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { BranchComparison } from "@/branches/BranchComparison";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -189,18 +190,20 @@ export default function ReportsView() {
         onPreset={applyPreset}
       />
 
+      <nav aria-label="Secciones de análisis" className="flex flex-wrap items-center gap-1 border-b border-kova-border pb-2 text-sm">
+        <Link to="/dashboard" className="mr-auto inline-flex min-h-11 items-center rounded-kova-md px-3 font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">← Volver al panel</Link>
+        {(loaded ? [...(hasSales && marginReportsEnabled ? [["rentabilidad", "Rentabilidad"]] : []), ["productos-reposicion", "Productos y reposición"], ...(hasSales ? [["operacion", "Operación"], ["plan-accion", "Plan de acción"]] : [])] : []).map(([id, label]) => <a key={id} href={`#analisis-${id}`} className="inline-flex min-h-11 items-center rounded-kova-md px-3 text-kova-muted hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{label}</a>)}
+      </nav>
+
       {data.status !== "subscription-inactive" ? <BranchComparison startDate={appliedRange.startDate} endDate={appliedRange.endDate} refreshKey={comparisonRefresh} /> : null}
 
       {data.status === "loading" ? <LoadingState /> : null}
       {data.status === "error" ? <ErrorState onRetry={reloadReports} /> : null}
       {data.status === "subscription-inactive" ? <SubscriptionInactivePanel /> : null}
 
-      {loaded ? (
-        <RestockPlan stock={data.stock} velocity={data.velocity}
-          stockFailed={data.stockFailed} velocityFailed={data.velocityFailed}
-          horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
-      ) : null}
-
+      {loaded && !hasSales ? <section id="analisis-productos-reposicion">
+        <RestockPlan stock={data.stock} velocity={data.velocity} stockFailed={data.stockFailed} velocityFailed={data.velocityFailed} horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
+      </section> : null}
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 
       {hasSales && story ? (
@@ -238,44 +241,53 @@ export default function ReportsView() {
             }}
           />
 
-          {marginReportsEnabled ? <MarginAnalysis story={story} /> : null}
-          {marginReportsEnabled ? <WasteAnalysis story={story} /> : null}
-          {marginReportsEnabled ? <OperatingExpenseAnalysis story={story} /> : null}
+          {marginReportsEnabled && <section id="analisis-rentabilidad" aria-label="Rentabilidad a detalle" className="scroll-mt-4 space-y-4">
+            <MarginAnalysis story={story} />
+            <WasteAnalysis story={story} />
+            <OperatingExpenseAnalysis story={story} />
+          </section>}
 
           {/* Deeper operational reading remains below the compact overview. */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div id="analisis-operacion" className="grid scroll-mt-4 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DaypartsPanel story={story} previousStory={data.previousStory} />
             <RefundsAndCancellations story={story} />
             <EmployeePerformance story={story} />
           </div>
 
-          <ProductTableSection story={story} stock={data.stock} velocity={data.velocity}
-            inventoryAvailable={!data.stockFailed} />
+          <section id="analisis-productos-reposicion" aria-label="Productos y reposición a detalle" className="scroll-mt-4 space-y-4">
+            <RestockPlan stock={data.stock} velocity={data.velocity}
+              stockFailed={data.stockFailed} velocityFailed={data.velocityFailed}
+              horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
+            <ProductTableSection story={story} stock={data.stock} velocity={data.velocity}
+              inventoryAvailable={!data.stockFailed} />
+          </section>
 
-          <ActionPlanSection
-            actions={plan?.actions ?? []}
-            signals={plan?.signals ?? []}
-            doneIds={doneIds}
-            feedbackById={feedbackById}
-            onToggleDone={(item) => {
-              if (!item.priority) return;
-              toggleTrackedAction(item.id, {
-                template_id: item.templateId,
-                decision_area: item.decisionArea,
-                priority: item.priority,
-                surface: "plan",
-              });
-            }}
-            onFeedback={(item, helpfulness) => {
-              if (!item.priority) return;
-              recordActionFeedback(item.id, helpfulness, {
-                template_id: item.templateId,
-                decision_area: item.decisionArea,
-                priority: item.priority,
-                surface: "plan",
-              });
-            }}
-          />
+          <section id="analisis-plan-accion" aria-label="Plan de acción a detalle" className="scroll-mt-4">
+            <ActionPlanSection
+              actions={plan?.actions ?? []}
+              signals={plan?.signals ?? []}
+              doneIds={doneIds}
+              feedbackById={feedbackById}
+              onToggleDone={(item) => {
+                if (!item.priority) return;
+                toggleTrackedAction(item.id, {
+                  template_id: item.templateId,
+                  decision_area: item.decisionArea,
+                  priority: item.priority,
+                  surface: "plan",
+                });
+              }}
+              onFeedback={(item, helpfulness) => {
+                if (!item.priority) return;
+                recordActionFeedback(item.id, helpfulness, {
+                  template_id: item.templateId,
+                  decision_area: item.decisionArea,
+                  priority: item.priority,
+                  surface: "plan",
+                });
+              }}
+            />
+          </section>
         </div>
       ) : null}
     </ViewLayout>

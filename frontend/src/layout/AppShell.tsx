@@ -266,6 +266,7 @@ export default function AppShell() {
       ];
 
   const filteredNavItems = navItems.filter((item) => {
+    if (item.to === "/loyalty" && userRole !== "owner") return false;
     if (item.to === "/assistant" && !assistantEnabled) return false;
     if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
     if (item.permission === INVENTORY_ADJUST_PERMISSION && !canAdjustInventory) return false;
@@ -710,7 +711,7 @@ export default function AppShell() {
               />
             )}
           >
-            <Outlet />
+            <Outlet context={{ destinations: filteredNavItems.map(({ to, label }) => ({ to, label })) }} />
           </Suspense>
           {/* Continuation follows the task so primary content keeps its mobile viewport. */}
           {isAdminRole(userRole) && !isOfflineSession ? (
