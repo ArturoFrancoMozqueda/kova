@@ -45,6 +45,12 @@ Backend prueba rechazo sin crear alias, retiro/republicación con el mismo PNG d
 compatibilidad de enlaces históricos, incluyendo la invalidez de los ya retirados.
 Implementado localmente, pendiente de publicación.
 
+Integración con el panel de #275: se incorpora su DTO puro al inventario de Workers y se
+ajustan los checks de navegación/login a «Centro de control». El menú cerrado se verifica
+directamente por `aria-hidden`, `inert` y enlaces fuera del árbol accesible; los accesos de
+Catálogo del panel permanecen permitidos. Cuatro pruebas de snapshot, 13 recorridos de
+login/navegación sobre el build final, TypeScript, ESLint, Ruff y build/SSR/prerender aprobados.
+
 ## Flujos conectados de comercio y servicios — implementación local
 
 Agent Teams implementó navegación del dueño con siete entradas y herramientas contextuales,

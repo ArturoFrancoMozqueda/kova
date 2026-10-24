@@ -128,5 +128,6 @@ test("login posts credentials and navigates owners to the dashboard", async ({ p
   await page.getByRole("button", { name: /iniciar sesi[óo]n/i }).click();
 
   await expect(page).toHaveURL("/dashboard");
-  await expect(page.getByRole("heading", { name: "Bakery Demo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Centro de control", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByText(/Bakery Demo/)).toBeVisible();
 });
