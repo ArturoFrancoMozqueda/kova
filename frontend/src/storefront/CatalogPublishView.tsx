@@ -27,7 +27,6 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [rotate, setRotate] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [copyNotice, setCopyNotice] = useState("");
   const shareInput = useRef<HTMLInputElement>(null);
@@ -73,9 +72,9 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       const result = await request<Settings>("/storefront/settings", "PUT", {
         expected_version: settings.version, enabled: settings.enabled, title: settings.title,
         description: settings.description?.trim() || null, whatsapp_phone: settings.whatsapp_phone?.trim() || null,
-        product_ids: settings.product_ids, rotate_link: rotate,
+        product_ids: settings.product_ids, rotate_link: false,
       }, crypto.randomUUID());
-      if (alive.current) { setSettings(result); setRotate(false); setNotice(result.enabled ? "Catálogo publicado. Sólo aparecen los productos que seleccionaste." : "Catálogo retirado. El enlace ya no permite consultarlo."); }
+      if (alive.current) { setSettings(result); setNotice(result.enabled ? "Catálogo publicado. Los cambios ya están disponibles en el mismo enlace y código QR." : "Catálogo retirado. El enlace ya no permite consultarlo."); }
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos guardar."); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
@@ -93,7 +92,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <div><Label htmlFor="public-description">Descripción (opcional)</Label><Input id="public-description" maxLength={500} value={settings.description ?? ""} onChange={e => setSettings({ ...settings, description: e.target.value })} /></div>
         <div><Label htmlFor="public-whatsapp">WhatsApp público (opcional)</Label><Input id="public-whatsapp" inputMode="tel" pattern="[1-9][0-9]{9,14}" placeholder="52 y tu número de 10 dígitos" value={settings.whatsapp_phone ?? ""} onChange={e => setSettings({ ...settings, whatsapp_phone: e.target.value })} /><p className="mt-1 text-xs text-kova-muted">Este número será visible para cualquier persona con el enlace. Sin espacios ni signo +.</p></div>
         <label className="flex items-center gap-3"><input type="checkbox" checked={settings.enabled} onChange={e => setSettings({ ...settings, enabled: e.target.checked })} />Publicar catálogo</label>
-        <label className="flex items-center gap-3"><input type="checkbox" checked={rotate} onChange={e => setRotate(e.target.checked)} />Reemplazar el enlace y retirar el anterior al guardar</label>
+        <p className="text-sm text-kova-muted">Al guardar, actualizas tu menú en el mismo enlace y código QR. No necesitas compartir otra dirección ni volver a imprimir el QR.</p>
       </fieldset>
       <fieldset disabled={busy || !online} className="rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Productos que quieres mostrar</legend>
@@ -103,6 +102,6 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       </fieldset>
       <Button disabled={busy || !online || !settings.title.trim()} type="submit">{busy ? "Guardando…" : "Guardar publicación"}</Button>
     </form>}
-    {settings?.share_path && <section aria-label="Enlace publicado" className="space-y-3 rounded-2xl border border-kova-border p-5"><h2 className="font-semibold">Enlace para tus clientes</h2><p className="text-sm text-kova-muted">El enlace usa el nombre de tu negocio. Si el nombre ya está ocupado o reemplazas el enlace, agregamos un número. Cambiar el título del catálogo conserva el enlace actual.</p><a href={settings.share_path} target="_blank" rel="noreferrer" className="inline-block text-kova-blue underline">Abrir catálogo público</a><label className="block text-sm" htmlFor="public-catalog-link">Enlace público</label><Input ref={shareInput} id="public-catalog-link" readOnly value={new URL(settings.share_path, window.location.origin).href} /><Button type="button" variant="outline" onClick={() => void copyLink()}>Copiar enlace</Button>{copyNotice && <p role="status" className="text-sm">{copyNotice}</p>}<p className="text-sm text-kova-muted">Cuando alguien deje una consulta, continúa en <Link to="/commercial-requests" className="text-kova-blue underline">Ver solicitudes del catálogo</Link>.</p>{qr && <div><img src={qr} alt="Código QR del catálogo público" className="h-48 w-48" width={192} height={192} /><a href={qr} download="catalogo-kova.png" className="inline-block py-3 text-sm underline">Descargar código QR</a></div>}</section>}
+    {settings?.share_path && <section aria-label="Enlace publicado" className="space-y-3 rounded-2xl border border-kova-border p-5"><h2 className="font-semibold">Un mismo enlace para tus clientes</h2><p className="text-sm text-kova-muted">Comparte esta dirección para todas tus actualizaciones. Al abrir o recargar el menú, tus clientes ven la publicación guardada y los precios, fotos y disponibilidad actuales de tus productos.</p><a href={settings.share_path} target="_blank" rel="noreferrer" className="inline-block text-kova-blue underline">Abrir catálogo público</a><label className="block text-sm" htmlFor="public-catalog-link">Enlace público</label><Input ref={shareInput} id="public-catalog-link" readOnly value={new URL(settings.share_path, window.location.origin).href} /><Button type="button" variant="outline" onClick={() => void copyLink()}>Copiar enlace</Button>{copyNotice && <p role="status" className="text-sm">{copyNotice}</p>}<p className="text-sm text-kova-muted">Cuando alguien deje una consulta, continúa en <Link to="/commercial-requests" className="text-kova-blue underline">Ver solicitudes del catálogo</Link>.</p>{qr && <div><img src={qr} alt="Código QR del catálogo público" className="h-48 w-48" width={192} height={192} /><a href={qr} download="catalogo-kova.png" className="inline-block py-3 text-sm underline">Descargar código QR</a></div>}</section>}
   </ViewLayout>;
 }

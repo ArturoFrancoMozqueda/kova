@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -13,7 +14,10 @@ class CatalogWrite(StrictModel):
     description: str | None = Field(default=None, max_length=500)
     whatsapp_phone: str | None = Field(default=None, pattern=r"^[1-9][0-9]{9,14}$")
     product_ids: list[UUID] = Field(default_factory=list, max_length=200)
-    rotate_link: bool = False
+    rotate_link: Literal[False] = Field(
+        default=False, deprecated=True,
+        description="El enlace del menú es fijo. No se permite reemplazarlo.",
+    )
 
     @field_validator("title", "description")
     @classmethod

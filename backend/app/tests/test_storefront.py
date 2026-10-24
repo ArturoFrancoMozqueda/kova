@@ -8,7 +8,7 @@ from sqlalchemy import event, text
 from app.auth.models import Membership
 from app.billing.models import Subscription
 from app.catalog.models import Product
-from app.storefront.models import PublicCatalog
+from app.storefront.models import PublicCatalog, PublicCatalogLink
 from app.tests.test_customer_orders import _product, _seed, _signup_login
 
 pytestmark = pytest.mark.usefixtures("fast_business_auth")
@@ -30,6 +30,20 @@ def _save(client, products, *, version=0, enabled=True, key=None, **extra):
 
 def _read(client, result):
     return client.get(result["share_path"].replace("/catalogo/", "/api/v1/public/catalog/"))
+
+
+def _seed_legacy_link_replacement(db, tenant_id):
+    """Represent a replacement made before fixed links; no current API can do it."""
+    catalog = db.query(PublicCatalog).filter_by(tenant_id=tenant_id).one()
+    previous = db.query(PublicCatalogLink).filter_by(
+        catalog_id=catalog.id, link_version=catalog.link_version,
+    ).one()
+    catalog.link_version += 1
+    db.add(PublicCatalogLink(
+        slug=f"{previous.slug}-2", tenant_id=tenant_id,
+        catalog_id=catalog.id, link_version=catalog.link_version,
+    ))
+    db.commit()
 
 
 def _upload_photo(client, product):
@@ -135,18 +149,44 @@ def test_catalog_is_opt_in_and_only_selected_projection_is_public(client, db):
     assert db.query(PublicCatalog).filter_by(tenant_id=tenant_id).count() == 1
 
 
-def test_withdraw_and_rotate_invalidate_public_links(client, db):
-    _signup_login(client, prefix="catalog-revoke")
+def test_withdraw_and_republish_preserve_public_link_and_qr(client, db):
+    tenant_id = _signup_login(client, prefix="catalog-revoke")
     product = _product(client)
     first = _save(client, [product]).json()
-    rotated = _save(client, [product], version=first["version"], rotate_link=True)
-    assert rotated.status_code == 200, rotated.text
-    assert _read(client, first).status_code == 404
-    assert _read(client, rotated.json()).status_code == 200
-    withdrawn = _save(client, [product], version=rotated.json()["version"], enabled=False)
+    qr = client.get("/api/v1/storefront/qr")
+    assert qr.status_code == 200
+    withdrawn = _save(client, [product], version=first["version"], enabled=False)
     assert withdrawn.status_code == 200
     assert withdrawn.json()["share_path"] is None
-    assert _read(client, rotated.json()).status_code == 404
+    assert _read(client, first).status_code == 404
+    assert client.get("/api/v1/storefront/qr").status_code == 404
+    republished = _save(client, [product], version=withdrawn.json()["version"],
+                        title="Menú actualizado")
+    assert republished.status_code == 200, republished.text
+    assert republished.json()["share_path"] == first["share_path"]
+    assert _read(client, first).json()["title"] == "Menú actualizado"
+    assert client.get("/api/v1/storefront/qr").content == qr.content
+    assert db.query(PublicCatalog).filter_by(tenant_id=tenant_id).count() == 1
+    assert db.query(PublicCatalogLink).filter_by(tenant_id=tenant_id).count() == 1
+
+
+@pytest.mark.parametrize("published", [False, True])
+def test_link_replacement_is_rejected_without_creating_aliases(client, db, published):
+    tenant_id = _signup_login(client, prefix="catalog-fixed")
+    product = _product(client)
+    before = _save(client, [product]).json() if published else None
+    response = _save(client, [product], version=before["version"] if before else 0,
+                     title="Cambio no permitido", rotate_link=True)
+    assert response.status_code == 422, response.text
+    assert any(error["loc"] == ["body", "rotate_link"] for error in response.json()["detail"])
+    assert db.query(PublicCatalogLink).filter_by(tenant_id=tenant_id).count() == int(published)
+    assert db.query(PublicCatalog).filter_by(tenant_id=tenant_id).count() == int(published)
+    current = client.get("/api/v1/storefront/settings").json()
+    if before:
+        assert current == before
+        assert _read(client, before).status_code == 200
+    else:
+        assert current["version"] == 0 and current["share_path"] is None
 
 
 def test_public_link_does_not_authorize_a_private_session(client, db):
@@ -264,10 +304,11 @@ def test_readable_business_name_is_stable_and_revoked_names_are_reserved(client,
     product = _product(client)
     first = _save(client, [product]).json()
     assert first["share_path"] == "/catalogo/cafeteria-sweet-home"
-    updated = _save(client, [product], version=1, title="Otro título").json()
-    assert updated["share_path"] == first["share_path"]
-    rotated = _save(client, [product], version=2, rotate_link=True).json()
+    _seed_legacy_link_replacement(db, first_tenant)
+    rotated = client.get("/api/v1/storefront/settings").json()
     assert rotated["share_path"] == "/catalogo/cafeteria-sweet-home-2"
+    updated = _save(client, [product], version=1, title="Otro título").json()
+    assert updated["share_path"] == rotated["share_path"]
     assert _read(client, first).status_code == 404
     client.cookies.clear()
     second_tenant = _signup_login(client, prefix="readable-b")
@@ -280,7 +321,7 @@ def test_readable_business_name_is_stable_and_revoked_names_are_reserved(client,
     assert _read(client, second).status_code == 200
 
 
-def test_legacy_printed_capability_survives_until_rotation(client, db):
+def test_legacy_printed_capability_preserves_validity_and_historical_revocation(client, db):
     import jwt
 
     from app.config import settings
@@ -293,7 +334,14 @@ def test_legacy_printed_capability_survives_until_rotation(client, db):
                         "branch": str(catalog.branch_id), "catalog": str(catalog.id),
                         "version": catalog.link_version}, settings.secret_key, algorithm="HS256")
     assert client.get(f"/api/v1/public/catalog/{token}").status_code == 200
-    assert _save(client, [product], version=current["version"], rotate_link=True).status_code == 200
+    updated = _save(client, [product], version=current["version"], title="Título nuevo").json()
+    assert updated["share_path"] == current["share_path"]
+    assert client.get(f"/api/v1/public/catalog/{token}").json()["title"] == "Título nuevo"
+    _seed_legacy_link_replacement(db, tenant_id)
+    historical = client.get("/api/v1/storefront/settings").json()
+    saved = _save(client, [product], version=updated["version"]).json()
+    assert saved["share_path"] == historical["share_path"]
+    assert _read(client, current).status_code == 404
     assert client.get(f"/api/v1/public/catalog/{token}").status_code == 404
 
 
