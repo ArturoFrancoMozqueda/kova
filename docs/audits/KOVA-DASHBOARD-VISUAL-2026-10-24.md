@@ -72,5 +72,5 @@ locales de pruebas y enlaces de dependencias no se incluyen en Git.
 
 Escenarios de prueba; no representan operaciones productivas.
 
-- [Panel completo en escritorio](assets/dashboard-control-center/desktop.png).
-- [Primera pantalla móvil](assets/dashboard-control-center/mobile.png).
+- [Panel completo en escritorio](screenshots/dashboard-control-center/desktop.png).
+- [Primera pantalla móvil](screenshots/dashboard-control-center/mobile.png).
