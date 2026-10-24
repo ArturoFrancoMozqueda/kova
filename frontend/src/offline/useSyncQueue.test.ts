@@ -33,6 +33,20 @@ describe("offline queue visibility when the session changes", () => {
     listeners.length = 0;
   });
 
+  it("confirms readiness only after all three local projections have resolved", () => {
+    const { result, rerender } = renderHook(() => useSyncQueue());
+    expect(result.current.ready).toBe(false);
+    act(() => listeners[0](0));
+    expect(result.current.ready).toBe(false);
+    act(() => listeners[1]([]));
+    expect(result.current.ready).toBe(false);
+    act(() => listeners[2](0));
+    expect(result.current.ready).toBe(true);
+    session.tenantId = "tenant-b";
+    rerender();
+    expect(result.current.ready).toBe(false);
+  });
+
   it.each(["tenant-b", null])("hides the previous tenant from the first render for session %s", (tenantId) => {
     const renders: Array<ReturnType<typeof useSyncQueue>> = [];
     const { result, rerender } = renderHook(() => {

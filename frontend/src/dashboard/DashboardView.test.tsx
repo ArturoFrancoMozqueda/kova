@@ -58,13 +58,13 @@ describe("DashboardView period changes", () => {
     });
     render(<MemoryRouter><DashboardView /></MemoryRouter>);
     await screen.findByTestId("net-sales");
-    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day");
+    expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all");
     for (const legacy of [getBusinessStory, getSalesByHour, getSalesSummary, getBusinessProfile,
       listProducts, listStock, listLowStock, listEmployees, listClosedShifts, getOnboardingState]) {
       expect(legacy).not.toHaveBeenCalled();
     }
     fireEvent.click(screen.getByRole("radio", { name: "30 días" }));
-    await waitFor(() => expect(getDashboardOverview).toHaveBeenLastCalledWith("month"));
+    await waitFor(() => expect(getDashboardOverview).toHaveBeenLastCalledWith("month", "all"));
   });
 
   it("does not retry rejected overview requests through the legacy report endpoints", async () => {

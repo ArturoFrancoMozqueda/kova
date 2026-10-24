@@ -2706,6 +2706,348 @@
         "title": "ContextResponse",
         "type": "object"
       },
+      "ControlAlert": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "count": {
+            "exclusiveMinimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "now",
+              "today",
+              "followup"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "route_key": {
+            "enum": [
+              "orders",
+              "shifts",
+              "customer_orders",
+              "quotes",
+              "inventory",
+              "purchasing",
+              "replenishment",
+              "customers",
+              "crm",
+              "commercial_requests",
+              "followups",
+              "loyalty",
+              "appointments",
+              "service_cases",
+              "inbox",
+              "reports",
+              "expenses",
+              "reconciliation",
+              "automations",
+              "channels",
+              "integrations",
+              "billing",
+              "settings",
+              "public_catalog"
+            ],
+            "title": "Route Key",
+            "type": "string"
+          },
+          "scope": {
+            "default": "current",
+            "enum": [
+              "current",
+              "period",
+              "today"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "branch_id",
+          "branch_name",
+          "title",
+          "count",
+          "priority",
+          "route_key"
+        ],
+        "title": "ControlAlert",
+        "type": "object"
+      },
+      "ControlArea": {
+        "properties": {
+          "key": {
+            "enum": [
+              "sales",
+              "products",
+              "customers",
+              "attention",
+              "money",
+              "business"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/ControlMetric"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "status": {
+            "default": "ready",
+            "enum": [
+              "ready",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "metrics"
+        ],
+        "title": "ControlArea",
+        "type": "object"
+      },
+      "ControlBranch": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ControlBranch",
+        "type": "object"
+      },
+      "ControlBranchSales": {
+        "properties": {
+          "attention_signals": {
+            "title": "Attention Signals",
+            "type": "integer"
+          },
+          "average_ticket": {
+            "title": "Average Ticket",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "completed_orders": {
+            "title": "Completed Orders",
+            "type": "integer"
+          },
+          "low_stock_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Stock Count"
+          },
+          "net_sales": {
+            "title": "Net Sales",
+            "type": "string"
+          },
+          "open_shift_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Shift Count"
+          },
+          "share_pct": {
+            "title": "Share Pct",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch_id",
+          "branch_name",
+          "completed_orders",
+          "net_sales",
+          "average_ticket",
+          "share_pct",
+          "attention_signals"
+        ],
+        "title": "ControlBranchSales",
+        "type": "object"
+      },
+      "ControlMetric": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "format": {
+            "default": "count",
+            "enum": [
+              "count",
+              "money",
+              "text"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "route_key": {
+            "enum": [
+              "orders",
+              "shifts",
+              "customer_orders",
+              "quotes",
+              "inventory",
+              "purchasing",
+              "replenishment",
+              "customers",
+              "crm",
+              "commercial_requests",
+              "followups",
+              "loyalty",
+              "appointments",
+              "service_cases",
+              "inbox",
+              "reports",
+              "expenses",
+              "reconciliation",
+              "automations",
+              "channels",
+              "integrations",
+              "billing",
+              "settings",
+              "public_catalog"
+            ],
+            "title": "Route Key",
+            "type": "string"
+          },
+          "scope": {
+            "default": "current",
+            "enum": [
+              "current",
+              "period",
+              "today",
+              "business"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value",
+          "route_key"
+        ],
+        "title": "ControlMetric",
+        "type": "object"
+      },
+      "ControlScope": {
+        "properties": {
+          "branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "can_view_all": {
+            "title": "Can View All",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "all",
+              "branch"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "branch_id",
+          "label",
+          "can_view_all"
+        ],
+        "title": "ControlScope",
+        "type": "object"
+      },
       "ConversationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4076,6 +4418,81 @@
         "title": "CustomerWrite",
         "type": "object"
       },
+      "DashboardControl": {
+        "properties": {
+          "alert_groups_total": {
+            "title": "Alert Groups Total",
+            "type": "integer"
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/ControlAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "alerts_has_more": {
+            "title": "Alerts Has More",
+            "type": "boolean"
+          },
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/ControlArea"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
+          "branch_sales": {
+            "items": {
+              "$ref": "#/components/schemas/ControlBranchSales"
+            },
+            "title": "Branch Sales",
+            "type": "array"
+          },
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/ControlBranch"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "priority_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "now",
+                "today",
+                "followup"
+              ]
+            },
+            "title": "Priority Counts",
+            "type": "object"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ControlScope"
+          }
+        },
+        "required": [
+          "generated_at",
+          "scope",
+          "branches",
+          "branch_sales",
+          "areas",
+          "alerts",
+          "alert_groups_total",
+          "priority_counts",
+          "alerts_has_more"
+        ],
+        "title": "DashboardControl",
+        "type": "object"
+      },
       "DashboardOverviewResponse": {
         "properties": {
           "active_catalog_count": {
@@ -4110,6 +4527,16 @@
             "minimum": 0.0,
             "title": "Closed Shift Count",
             "type": "integer"
+          },
+          "control_center": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardControl"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "hourly": {
             "items": {
@@ -29642,6 +30069,27 @@
               ],
               "title": "Period",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "branch_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "const": "all",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
             }
           }
         ],

@@ -224,7 +224,7 @@ export function InsightStrip({
       {showActions && (
         <section aria-label={copy.dashboard.nextActionsTitle}>
             <h2 className="mb-3 text-base font-semibold tracking-tight">{copy.dashboard.nextActionsTitle}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className={`grid gap-3 ${actions.length > 1 ? "sm:grid-cols-2" : ""} ${actions.length >= 3 ? "2xl:grid-cols-3" : ""}`}>
               {actions.slice(0, 3).map((a) => {
                 const Icon = a.icon;
                 const toneClass =
