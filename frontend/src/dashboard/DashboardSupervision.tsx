@@ -69,18 +69,18 @@ export function DashboardScopeToolbar({ scope, branches, canViewAll, loading, ge
   scope: string; branches: ControlBranch[]; canViewAll: boolean; loading: boolean;
   generatedAt: string | null; timezone: string; onScope: (scope: string) => void; onRefresh: () => void;
 }) {
-  return <section aria-label="Alcance del centro de control" className="my-5 flex flex-wrap items-center justify-between gap-3 rounded-kova-xl border border-kova-border bg-white p-3 sm:px-4">
-    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+  return <section aria-label="Alcance del centro de control" className="my-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-kova-xl border border-kova-border bg-white p-2.5 sm:gap-3 sm:px-4">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
       <Building2 className="h-4 w-4 shrink-0 text-kova-blue" aria-hidden="true" />
-      <label htmlFor="dashboard-branch" className="text-sm font-medium">Consultar</label>
-      <Select id="dashboard-branch" value={scope} onChange={event => onScope(event.target.value)} disabled={loading || branches.length === 0} className="w-full sm:w-56">
+      <label htmlFor="dashboard-branch" className="sr-only text-sm font-medium sm:not-sr-only">Consultar</label>
+      <Select id="dashboard-branch" value={scope} onChange={event => onScope(event.target.value)} disabled={loading || branches.length === 0} className="w-auto min-w-0 flex-1 sm:w-56 sm:flex-none">
         {canViewAll && <option value="all">Todas las sucursales</option>}
         {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
       </Select>
-      <p className="text-xs text-kova-muted">Este filtro no cambia la sucursal de Caja.</p>
+      <p className="sr-only text-xs text-kova-muted sm:not-sr-only">Este filtro no cambia la sucursal de Caja.</p>
     </div>
     <div className="flex items-center gap-2">
-      <p className="text-xs text-kova-muted" role="status">{loading ? "Actualizando…" : generatedAt
+      <p className="sr-only text-xs text-kova-muted sm:not-sr-only" role="status">{loading ? "Actualizando…" : generatedAt
         ? `Actualizado a las ${new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(new Date(generatedAt))}` : "Sin actualización confirmada"}</p>
       <Button variant="ghost" size="icon" onClick={onRefresh} disabled={loading} aria-label="Actualizar centro de control"><RefreshCw className="h-4 w-4" /></Button>
     </div>
@@ -94,68 +94,41 @@ export function DashboardViewLink({ control, to, children, className }: {
     : <Link to={to} className={className}>{children}</Link>;
 }
 
-export function DashboardStatusSummary({ control }: { control: DashboardControl }) {
-  const incomplete = control.areas.some(area => area.status === "unavailable");
-  const labels = { now: "Atender ahora", today: "Revisar hoy", followup: "Dar seguimiento" } as const;
-  return <aside aria-labelledby="control-status-title" className="rounded-kova-xl border border-kova-border bg-white p-5">
-    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-kova-blue">Estado del negocio</p>
-    <h2 id="control-status-title" className="mt-3 text-xl font-semibold tracking-tight">{incomplete ? "Lectura parcial" : control.alert_groups_total ? "Hay asuntos por atender" : "Sin señales prioritarias"}</h2>
-    <p className="mt-2 text-sm text-kova-muted">{control.scope.label}. Señales agrupadas por sucursal y tipo.{incomplete ? " Las cifras excluyen las áreas sin actualizar." : ""}</p>
-    <dl className="mt-5 divide-y divide-kova-border">{(["now", "today", "followup"] as const).map(priority => (
-      <div key={priority} className="flex items-center justify-between gap-3 py-4"><dt className="text-sm text-kova-muted">{labels[priority]}</dt><dd className={cn("text-2xl font-semibold tabular-nums", priority === "now" && control.priority_counts.now > 0 ? "text-destructive-strong" : "text-kova-ink")}>{control.priority_counts[priority]}</dd></div>
-    ))}</dl>
-    <p className="mt-4 text-xs leading-relaxed text-kova-muted">Los resultados de ventas usan el periodo seleccionado. Los pendientes muestran lo que sigue abierto al actualizar.</p>
-  </aside>;
-}
-
 export function DashboardAttention({ control, allowedDestinations }: { control: DashboardControl; allowedDestinations: readonly { to: string }[] }) {
   const allowed = new Set(allowedDestinations.map(destination => destination.to));
   const alerts = control.alerts.filter(alert => allowed.has(controlRoutes[alert.route_key]));
   const incomplete = control.areas.some(area => area.status === "unavailable");
-  return <section aria-labelledby="control-attention-title" className="mb-6 rounded-kova-xl border border-kova-border bg-white p-4 sm:p-5">
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div>
-        <h2 id="control-attention-title" className="text-lg font-semibold tracking-tight">Necesita tu atención</h2>
-        <p className="mt-1 text-sm text-kova-muted">{control.scope.label} · Pendientes actuales y diferencias del periodo.</p>
-      </div>
-      <span className="rounded-full bg-kova-mist px-3 py-1 text-xs font-medium text-kova-muted">{control.alert_groups_total} señales registradas</span>
-    </div>
-    {incomplete && <p role="status" className="mt-3 flex items-start gap-2 rounded-kova-md bg-warning/10 p-3 text-sm text-warning-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />Algunas áreas no pudieron actualizarse. Sus pendientes no se consideran resueltos.</p>}
-    {alerts.length === 0 ? <p className="mt-4 flex items-center gap-2 text-sm text-kova-muted"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />{incomplete ? "Consulta las áreas disponibles y vuelve a actualizar." : "Sin señales prioritarias en las áreas revisadas."}</p> : (
-      <div className="mt-4 grid gap-2 lg:grid-cols-2">{alerts.map(alert => (
-        <DashboardScopeLink key={`${alert.branch_id}:${alert.key}`} to={controlRoutes[alert.route_key]} branchId={alert.branch_id} branches={control.branches}
-          className="group flex items-center gap-3 rounded-kova-lg border border-kova-border p-3 transition-colors hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
-          <span className={cn("flex h-10 min-w-10 shrink-0 items-center justify-center rounded-kova-md px-1 font-semibold tabular-nums", alert.priority === "now" ? "bg-destructive/10 text-destructive-strong" : "bg-warning/10 text-warning-foreground")}>{alert.count}</span>
-          <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{alert.title}</span><span className="mt-1 block text-xs text-kova-muted">{alert.branch_name} · {metricScopeLabel[alert.scope]} · {alert.priority === "now" ? "Atender ahora" : alert.priority === "today" ? "Revisar hoy" : "Seguimiento"}</span></span>
-          <ArrowUpRight className="h-4 w-4 shrink-0 text-kova-blue" aria-hidden="true" />
-        </DashboardScopeLink>
-      ))}</div>
-    )}
-    {control.alerts_has_more && <p className="mt-3 text-xs text-kova-muted">Se muestran las primeras {control.alerts.length} señales. Filtra por sucursal y consulta cada área para revisar el resto.</p>}
+  const alertRow = (alert: DashboardControl["alerts"][number]) => <DashboardScopeLink key={`${alert.branch_id}:${alert.key}`} to={controlRoutes[alert.route_key]} branchId={alert.branch_id} branches={control.branches}
+    className="group flex min-h-16 items-center gap-3 rounded-kova-md py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
+    <span className={cn("flex h-9 min-w-9 shrink-0 items-center justify-center rounded-kova-md px-1 text-sm font-semibold tabular-nums", alert.priority === "now" ? "bg-destructive/10 text-destructive-strong" : "bg-warning/10 text-warning-foreground")}>{alert.count}</span>
+    <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-snug">{alert.title}</span><span className="mt-1 block text-xs text-kova-muted">{alert.branch_name} · {metricScopeLabel[alert.scope]}</span></span>
+    <ArrowUpRight className="h-4 w-4 shrink-0 text-kova-blue" aria-hidden="true" />
+  </DashboardScopeLink>;
+  return <section aria-labelledby="control-attention-title" className="rounded-kova-xl border border-kova-border bg-white p-4 sm:p-5">
+    <div className="flex items-center justify-between gap-2"><h2 id="control-attention-title" className="font-semibold">Necesita tu atención</h2><span className="rounded-full bg-kova-mist px-2 py-1 text-xs font-semibold tabular-nums">{control.alert_groups_total}</span></div>
+    {incomplete && <div role="status" className="mt-3 rounded-kova-md bg-warning/10 p-3 text-xs text-warning-foreground"><h3 className="flex items-center gap-1.5 font-semibold"><AlertCircle className="h-4 w-4" aria-hidden="true" />Lectura parcial</h3><p className="mt-1">Algunas áreas no pudieron actualizarse. Sus pendientes no se consideran resueltos.</p></div>}
+    <div className="mt-4 flex h-1.5 overflow-hidden rounded-full bg-kova-mist" aria-hidden="true">{(["now", "today", "followup"] as const).map(priority => <span key={priority} className={priority === "now" ? "bg-destructive" : priority === "today" ? "bg-warning" : "bg-kova-blue"} style={{ width: `${control.alert_groups_total ? control.priority_counts[priority] / control.alert_groups_total * 100 : 0}%` }} />)}</div>
+    <p className="mt-2 text-[11px] text-kova-muted">{control.priority_counts.now} ahora · {control.priority_counts.today} hoy · {control.priority_counts.followup} seguimiento</p>
+    {alerts.length ? <div className="mt-1 divide-y divide-kova-border">{alerts.slice(0, 3).map(alertRow)}</div> : <p className="mt-5 flex items-center gap-2 text-sm text-kova-muted"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />{incomplete ? "Revisa las áreas disponibles." : "Sin señales prioritarias."}</p>}
+    {alerts.length > 3 && <details className="border-t border-kova-border"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-kova-blue">Ver {alerts.length - 3} señales más</summary><div className="divide-y divide-kova-border">{alerts.slice(3).map(alertRow)}</div></details>}
+    <p className="mt-3 border-t border-kova-border pt-3 text-[11px] text-kova-muted">Señales agrupadas por sucursal y tipo.{control.alerts_has_more ? ` Se muestran ${control.alerts.length} de ${control.alert_groups_total}; filtra para revisar más.` : ""}</p>
   </section>;
 }
 
 export function DashboardBranches({ control, onScope }: { control: DashboardControl; onScope: (id: string) => void }) {
   const stockAvailable = control.areas.some(area => area.key === "products" && area.status === "ready");
   const shiftsAvailable = control.areas.some(area => area.key === "sales" && area.status === "ready");
-  return <section aria-labelledby="control-branches-title" className="mb-7">
-    <h2 id="control-branches-title" className="text-xl font-semibold tracking-tight">Resultados por sucursal</h2>
-    <p className="mt-1 text-sm text-kova-muted">Ventas del periodo seleccionado. Stock y turnos muestran su estado actual.</p>
-    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{control.branch_sales.map(branch => (
-      <article key={branch.branch_id} className="rounded-kova-xl border border-kova-border bg-white p-4">
-        <div className="flex items-center justify-between gap-2"><h3 className="min-w-0 break-words font-semibold">{branch.branch_name}</h3>
-          {control.scope.kind === "all" && <Button variant="ghost" size="sm" onClick={() => onScope(branch.branch_id)} aria-label={`Consultar ${branch.branch_name}`}>Ver<ArrowUpRight className="ml-1 h-4 w-4" /></Button>}
-        </div>
-        <p className="mt-3 break-words text-2xl font-semibold tracking-tight tabular-nums">{formatMoney(branch.net_sales)}</p>
-        <p className="mt-1 text-xs text-kova-muted">{branch.completed_orders} órdenes · Ticket {formatMoney(branch.average_ticket)}</p>
-        <p className="mt-1 text-xs text-kova-muted">{Number(branch.share_pct).toLocaleString("es-MX", { maximumFractionDigits: 1 })}% de las ventas en esta vista</p>
-        <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-kova-border pt-3 text-xs">
-          {[['Stock bajo', stockAvailable ? branch.low_stock_count : null], ['Turnos abiertos', shiftsAvailable ? branch.open_shift_count : null], ['Señales', branch.attention_signals]].map(([label, value]) => (
-            <div key={String(label)}><dt className="text-kova-muted">{label}</dt><dd className="mt-1 text-base font-semibold tabular-nums">{value ?? "Sin datos"}</dd></div>
-          ))}
-        </dl>
-      </article>
-    ))}</div>
+  const max = Math.max(1, ...control.branch_sales.map(branch => Math.max(0, Number(branch.net_sales))));
+  return <section aria-labelledby="control-branches-title" className="mb-5 rounded-kova-xl border border-kova-border bg-white p-4 sm:p-5">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 id="control-branches-title" className="font-semibold">Resultados por sucursal</h2><span className="text-xs text-kova-muted">Ventas netas · periodo seleccionado</span></div>
+    <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">{control.branch_sales.map((branch, index) => <article key={branch.branch_id}>
+      <div className="flex items-center justify-between gap-2"><h3 className="min-w-0 break-words text-sm font-medium">{branch.branch_name}</h3>
+        {control.scope.kind === "all" ? <button type="button" onClick={() => onScope(branch.branch_id)} aria-label={`Consultar ${branch.branch_name}`} className="flex min-h-11 shrink-0 items-center gap-2 rounded-kova-md px-1 text-sm font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{formatMoney(branch.net_sales)}<ArrowUpRight className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /></button> : <strong className="py-3 text-sm font-semibold tabular-nums">{formatMoney(branch.net_sales)}</strong>}
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-kova-mist" aria-hidden="true"><div className={cn("h-full rounded-full", index % 2 ? "bg-kova-blue/40" : "bg-kova-blue")} style={{ width: `${Math.max(0, Number(branch.net_sales)) / max * 100}%` }} /></div>
+      <p className="mt-2 text-xs text-kova-muted">{branch.completed_orders} órdenes · {Number(branch.share_pct).toLocaleString("es-MX", { maximumFractionDigits: 1 })}% de esta vista</p>
+      <details className="mt-1"><summary className="min-h-11 cursor-pointer py-3 text-xs text-kova-blue">Caja e inventario actuales</summary><dl className="grid grid-cols-3 gap-2 pb-2 text-xs">{[["Stock bajo", stockAvailable ? branch.low_stock_count : null], ["Turnos abiertos", shiftsAvailable ? branch.open_shift_count : null], ["Señales", branch.attention_signals]].map(([label, value]) => <div key={String(label)}><dt className="text-kova-muted">{label}</dt><dd className="mt-1 font-semibold tabular-nums">{value ?? "Sin datos"}</dd></div>)}</dl></details>
+    </article>)}</div>
   </section>;
 }
 

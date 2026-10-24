@@ -23,7 +23,7 @@ const destinations = [
 ];
 function overview(control = makeControl()): DashboardOverview {
   const story = makeStory();
-  return { story, hourly: [], previous_summary: summaryFromStory(story), timezone: "America/Mexico_City",
+  return { story, hourly: [{ hour: 12, net_sales: "10000.00", order_count: 100 }], previous_summary: summaryFromStory(story), timezone: "America/Mexico_City",
     active_catalog_count: 20, tracked_inventory_count: 10, low_stock_items: [], active_employee_count: 2,
     closed_shift_count: 4, billing: null, onboarding: { tenant_id: principalId, completed_count: 0, total_count: 0, steps: [] }, control_center: control };
 }
@@ -40,6 +40,20 @@ beforeEach(() => {
 });
 
 describe("dashboard supervision", () => {
+  it("leads with a chart before operational lists and exposes exact values by keyboard", async () => {
+    host();
+    const chart = await screen.findByRole("img", { name: "Gráfica de ventas netas por hora" });
+    const areas = screen.getByRole("region", { name: "Tu operación, de un vistazo" });
+    expect(chart.compareDocumentPosition(areas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const products = screen.getByRole("article", { name: "Productos e inventario" });
+    expect(within(products).getByText("Compras con recepción parcial")).not.toBeVisible();
+    fireEvent.click(within(products).getByText("Ver detalle y herramientas"));
+    expect(within(products).getByText("Compras con recepción parcial")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Consultar hora"), { target: { value: "12" } });
+    expect(screen.getByText("12:00", { exact: true })).toBeVisible();
+    expect(screen.getByRole("img", { name: "Distribución de cobros brutos por método de pago" })).toBeVisible();
+  });
+
   it("defaults to all branches, shows attributed alerts, operational metrics and partial cost data", async () => {
     const { container } = host();
     expect(await screen.findByLabelText("Consultar")).toHaveValue("all");
@@ -47,7 +61,8 @@ describe("dashboard supervision", () => {
     expect(screen.getByRole("heading", { name: "Resultados por sucursal" })).toBeVisible();
     expect(screen.getByText("Citas programadas para hoy")).toBeVisible();
     expect(screen.getByText("Sin datos suficientes")).toBeVisible();
-    expect(screen.getByText("Sin conexión", { exact: true })).toBeVisible();
+    const business = screen.getByRole("article", { name: "Configuración del negocio" });
+    expect(within(business).getByText("Sin conexión", { exact: true })).toBeVisible();
     expect(screen.getByText(/2 por sincronizar/)).toBeVisible();
     expect(screen.queryByText("Lectura del periodo", { exact: true })).not.toBeInTheDocument();
     expect((await axe(container, { runOnly: ["heading-order", "definition-list", "dlitem", "aria-valid-attr-value"] })).violations).toEqual([]);
@@ -82,7 +97,7 @@ describe("dashboard supervision", () => {
   it("asks for a branch when opening an area from the consolidated view", async () => {
     host();
     const products = await screen.findByRole("article", { name: "Productos e inventario" });
-    fireEvent.click(within(products).getByText("Más indicadores y herramientas"));
+    fireEvent.click(within(products).getByText("Ver detalle y herramientas"));
     fireEvent.click(within(products).getByRole("link", { name: "Inventario" }));
     const dialog = screen.getByRole("dialog", { name: "¿Qué sucursal quieres abrir?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Sucursal principal" }));
@@ -98,6 +113,7 @@ describe("dashboard supervision", () => {
     expect(screen.getByText(/Algunas áreas no pudieron actualizarse/)).toBeVisible();
     const products = screen.getByRole("article", { name: "Productos e inventario" });
     expect(within(products).queryByText("Stock bajo", { exact: true })).not.toBeInTheDocument();
+    for (const summary of screen.getAllByText("Caja e inventario actuales")) fireEvent.click(summary);
     expect(screen.getAllByText("Sin datos", { exact: true })).toHaveLength(2);
     expect(screen.queryByText("Saludable", { exact: true })).not.toBeInTheDocument();
   });

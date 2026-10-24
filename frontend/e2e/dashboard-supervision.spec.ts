@@ -34,7 +34,7 @@ async function workspace(page: Page, unavailable = false) {
       control.alert_groups_total = control.alerts.length;
     }
     return route.fulfill({ json: {
-      story, hourly: [], previous_summary: summaryFromStory(story), timezone: "America/Mexico_City",
+      story, hourly: [{ hour: 12, net_sales: scope === "all" ? "6000.00" : story.summary.net_sales, order_count: 60 }, ...(scope === "all" ? [{ hour: 15, net_sales: "4000.00", order_count: 40 }] : [])], previous_summary: summaryFromStory(story), timezone: "America/Mexico_City",
       active_catalog_count: 20, tracked_inventory_count: 10, low_stock_items: [], active_employee_count: 2,
       closed_shift_count: 4, billing: null,
       onboarding: { tenant_id: principalId, steps: [], completed_count: 0, total_count: 0 }, control_center: control,
@@ -53,11 +53,26 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     await page.goto("/dashboard");
     await expect(page.getByLabel("Consultar", { exact: true })).toHaveValue("all");
     await expect(page.getByLabel("Sucursal activa", { exact: true })).toHaveValue(principalId);
+    const chart = page.getByRole("img", { name: "Gráfica de ventas netas por hora" });
+    await expect(chart).toBeVisible();
+    const chartBox = (await chart.boundingBox())!;
+    expect(chartBox.y).toBeLessThan(width >= 1280 ? 650 : 850);
+    await page.getByLabel("Consultar hora").selectOption("12");
+    await expect(page.getByText("12:00", { exact: true }).first()).toBeVisible();
     const attention = page.getByRole("region", { name: "Necesita tu atención" });
     await expect(attention.getByRole("link", { name: /Pedidos con entrega vencida/ })).toContainText("Norte");
-    const areas = page.getByRole("region", { name: "Cada área, a la vista" });
+    const areas = page.getByRole("region", { name: "Tu operación, de un vistazo" });
     await expect(areas.getByText("Citas programadas para hoy", { exact: true })).toBeVisible();
     await expect(areas.getByText("Sin datos suficientes", { exact: true })).toBeVisible();
+    await areas.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`supervision-compact-areas-${width}.png`) });
+    if (width === 1440) {
+      await page.getByRole("heading", { name: "Centro de control", exact: true }).scrollIntoViewIfNeeded();
+      const contentHeight = await page.locator("main").evaluate(element => element.scrollHeight);
+      await page.setViewportSize({ width, height: Math.max(1000, contentHeight + 180) });
+      await page.screenshot({ path: testInfo.outputPath("supervision-complete-1440.png") });
+      await page.setViewportSize({ width, height: 1000 });
+    }
     for (const details of await areas.locator("details").all()) await details.locator("summary").click();
     await expect(areas.getByText("Compras con recepción parcial", { exact: true })).toBeVisible();
     await expect(areas.getByText("Preparación fiscal de producción", { exact: true })).toBeVisible();
@@ -70,7 +85,7 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     });
     expect(violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.getByRole("link", { name: "Explorar mi negocio" }).click();
+    await areas.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`supervision-areas-${width}.png`) });
     await page.getByLabel("Consultar", { exact: true }).selectOption(northId);
     await expect(page.getByRole("region", { name: "Tu día", exact: true }).getByLabel("Ventas netas del periodo")).toHaveText("$4,000.00");
@@ -87,7 +102,7 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     await expect(dialog).not.toBeVisible();
     await expect(page.getByLabel("Sucursal activa", { exact: true })).toHaveValue(principalId);
     await page.getByLabel("Consultar", { exact: true }).selectOption("all");
-    await expect(page.getByRole("heading", { name: "Hay asuntos por atender" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Necesita tu atención" })).toContainText("2 ahora");
     await page.getByRole("heading", { name: "Centro de control", exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`supervision-overview-${width}.png`) });
   });

@@ -65,6 +65,11 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
     </dd>
     {metric.detail && <dd className="mt-1 text-xs text-kova-muted">{metric.detail}</dd>}
   </div>;
+  const primaryKeys: Record<string, string[]> = {
+    sales: ["orders_ready", "open_shifts"], products: ["low_stock", "out_of_stock"],
+    customers: ["opportunities", "followups"], attention: ["appointments_today", "cases_open"],
+    money: ["gross_profit", "unmatched_amount"], business: ["automation_pending", "whatsapp"],
+  };
   const visibleAreas = areas.flatMap(area => {
     const links = area.paths.flatMap(path => destinations.filter(destination => destination.to === path));
     return links.length > 0 ? [{ ...area, links }] : [];
@@ -76,8 +81,8 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-kova-blue">Todo tu negocio</p>
-          <h2 id="business-control-title" className="text-xl font-semibold tracking-tight text-kova-ink">Cada área, a la vista</h2>
-          <p className="mt-1 max-w-2xl text-sm text-kova-muted">Entra a cada área para consultar su estado y dar el siguiente paso.</p>
+          <h2 id="business-control-title" className="text-xl font-semibold tracking-tight text-kova-ink">{control ? "Tu operación, de un vistazo" : "Cada área, a la vista"}</h2>
+          {!control && <p className="mt-1 max-w-2xl text-sm text-kova-muted">Entra a cada área para consultar su estado y dar el siguiente paso.</p>}
         </div>
         <p className="text-xs text-kova-muted">{control ? control.scope.label : "Los pendientes y conexiones se consultan en su sección."}</p>
       </div>
@@ -86,6 +91,9 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
           const Icon = area.icon;
           const live = control?.areas.find(item => item.key === area.id);
           const liveMetrics = live?.metrics.filter(metric => allowed.has(controlRoutes[metric.route_key])) ?? [];
+          const preferred = primaryKeys[area.id].flatMap(key => liveMetrics.filter(metric => metric.key === key));
+          const primary = [...preferred, ...liveMetrics.filter(metric => !preferred.includes(metric))].slice(0, 2);
+          const secondary = liveMetrics.filter(metric => !primary.includes(metric));
           const needsStock = area.id === "products" && (control
             ? Number(liveMetrics.find(metric => metric.key === "low_stock")?.value ?? 0) > 0
             : snapshot !== null && snapshot.lowStockCount > 0);
@@ -93,7 +101,7 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
           return (
             <article key={area.id} aria-labelledby={`control-${area.id}`} className="flex min-w-0 flex-col overflow-hidden rounded-kova-xl border border-kova-border bg-white shadow-kova-card">
               <div className={cn("h-1", needsStock ? "bg-warning" : "bg-kova-blue/30")} />
-              <div className="flex flex-1 flex-col p-5">
+              <div className="flex flex-1 flex-col p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <span className={cn("flex h-10 w-10 items-center justify-center rounded-kova-lg", needsStock ? "bg-warning/10 text-warning-strong" : "bg-kova-mist text-kova-blue")}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
@@ -103,10 +111,13 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
                   </span>
                 </div>
                 <h3 id={`control-${area.id}`} className="text-base font-semibold tracking-tight">{area.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-kova-muted">{area.description}</p>
+                {!control && <p className="mt-1 text-sm leading-relaxed text-kova-muted">{area.description}</p>}
                 {live ? live.status === "unavailable" ? (
                   <p role="status" className="my-4 rounded-kova-md bg-warning/10 p-3 text-sm text-warning-foreground">No pudimos consultar esta área. Actualiza el panel para intentarlo de nuevo.</p>
-                ) : <dl className="my-3">{liveMetrics.slice(0, 4).map(metricRow)}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
+                ) : <dl className="my-4 grid grid-cols-2 gap-4">{primary.map(metric => <div key={metric.key} className="flex flex-col">
+                  <dt className="order-2 mt-1 text-xs leading-snug text-kova-muted">{metric.label}</dt>
+                  <dd className="order-1 break-words text-xl font-semibold tracking-tight tabular-nums">{metric.value === null ? <span className="text-sm text-kova-muted">Sin datos suficientes</span> : metric.format === "money" ? formatMoney(metric.value) : metric.format === "count" ? Number(metric.value).toLocaleString("es-MX") : <span className="text-sm">{metric.value}</span>}</dd>
+                </div>)}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
                   {snapshot && area.id === "sales"
                     ? `${snapshot.orderCount} ${snapshot.orderCount === 1 ? "orden completada" : "órdenes completadas"}`
                     : snapshot && area.id === "products"
@@ -116,8 +127,8 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
                       : area.prompt}
                 </p>}
                 {control ? <details className="mt-auto border-t border-kova-border pt-2">
-                  <summary className="min-h-11 cursor-pointer rounded-kova-md py-3 text-sm font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{liveMetrics.length > 4 ? "Más indicadores y herramientas" : "Abrir herramientas del área"}</summary>
-                  {liveMetrics.length > 4 && <dl className="mb-3">{liveMetrics.slice(4).map(metricRow)}</dl>}
+                  <summary className="min-h-11 cursor-pointer rounded-kova-md py-3 text-sm font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">Ver detalle y herramientas</summary>
+                  {secondary.length > 0 && <dl className="mb-3">{secondary.map(metricRow)}</dl>}
                   <nav aria-label={area.title} className="grid grid-cols-2 gap-x-2">{area.links.map(link => (
                     <DashboardScopeLink key={link.to} to={link.to} branchId={control.scope.branch_id} branches={control.branches} className="flex min-h-11 items-center justify-between gap-2 rounded-kova-md px-2 py-2 text-sm text-kova-muted hover:bg-kova-mist hover:text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
                       <span>{link.label}</span><ArrowUpRight className="h-4 w-4 shrink-0" aria-hidden="true" />

@@ -6,6 +6,7 @@ test.describe("centro de control con API y Postgres/RLS reales", () => {
   test.skip(!integrationEnabled(), "Requiere stack local desechable");
   test("consolida dos sucursales, filtra sin cambiar Caja y atribuye pendientes reales", async ({ page, baseURL }, testInfo) => {
     test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1440, height: 1080 });
     expect(["127.0.0.1", "localhost"]).toContain(new URL(baseURL!).hostname);
     const signupResponse = page.waitForResponse(response => response.url().endsWith("/api/v1/auth/signup") && response.request().method() === "POST");
     await createTenantThroughUi(page, "dashboard-real");
@@ -40,6 +41,7 @@ test.describe("centro de control con API y Postgres/RLS reales", () => {
     await expect(page.getByLabel("Consultar", { exact: true })).toHaveValue("all");
     const results = page.getByRole("region", { name: "Tu día", exact: true });
     await expect(results.getByLabel("Ventas netas del periodo")).toHaveText("$300.00");
+    await expect(page.getByRole("img", { name: "Gráfica de ventas netas por hora" })).toBeVisible();
     const attention = page.getByRole("region", { name: "Necesita tu atención" });
     await expect(attention.getByRole("link", { name: /Casos de atención con plazo vencido/ })).toContainText("Norte de control");
     await expect(attention.getByRole("link", { name: /Pedidos con entrega vencida/ })).toContainText("Norte de control");

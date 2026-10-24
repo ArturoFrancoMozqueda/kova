@@ -27,7 +27,8 @@ import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { BusinessActivityRecap } from "./BusinessActivityRecap";
 import { BusinessControlCenter } from "./BusinessControlCenter";
-import { DashboardAttention, DashboardBranches, DashboardDeviceStatus, DashboardScopeToolbar, DashboardViewLink, DashboardStatusSummary } from "./DashboardSupervision";
+import { DashboardVisualOverview, DashboardSalesMix } from "./DashboardVisualOverview";
+import { DashboardBranches, DashboardDeviceStatus, DashboardScopeToolbar, DashboardViewLink } from "./DashboardSupervision";
 import type { DashboardControl, DashboardScope, ControlBranch } from "./controlTypes";
 import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
@@ -637,8 +638,13 @@ export default function DashboardView() {
           timezone={tenantTimezone} onScope={setSelectedScope} onRefresh={() => void load(period)}
         />
       )}
-      {liveControl && <DashboardAttention control={liveControl} allowedDestinations={navigation?.destinations ?? []} />}
-      {loadState.status === "ready" && (
+      {loadState.status === "ready" && liveControl && loadState.story && <>
+        <DashboardVisualOverview story={loadState.story} hourly={loadState.hourly} previous={loadState.yesterday}
+          compareLabel={loadState.compareLabel} byHour={period === "day"} control={liveControl} destinations={navigation?.destinations ?? []} />
+        <DashboardBranches control={liveControl} onScope={setSelectedScope} />
+        <DashboardSalesMix story={loadState.story} hourly={loadState.hourly} control={liveControl} />
+      </>}
+      {loadState.status === "ready" && !liveControl && (
         <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <ArcKicker label={copy.dashboard.arcNow} />
@@ -678,13 +684,13 @@ export default function DashboardView() {
                 compareLabel={loadState.compareLabel}
               />}
             </div>
-            {liveControl ? <DashboardStatusSummary control={liveControl} /> : <BusinessHealthCard
+            <BusinessHealthCard
               summary={loadState.summary}
               yesterday={loadState.yesterday}
               payments={loadState.payments}
               lowStockCount={loadState.lowStockCount}
               compareLabel={loadState.compareLabel}
-            />}
+            />
           </div>
         </section>
       )}
@@ -703,7 +709,7 @@ export default function DashboardView() {
         </div>
       )}
 
-      {canUseTaskActions && (
+      {canUseTaskActions && !liveControl && (
         <section className="mb-6 border-y border-kova-border py-3">
           <h2 className="sr-only">{copy.dashboard.quickActions}</h2>
           <div>
@@ -741,7 +747,6 @@ export default function DashboardView() {
       {loadState.status === "ready" && !liveControl && (
         <p className="mb-3 text-xs text-kova-muted">Vista de la sucursal operativa. El resumen consolidado y los pendientes no están disponibles en esta consulta.</p>
       )}
-      {liveControl && <DashboardBranches control={liveControl} onScope={setSelectedScope} />}
       {canManageBusiness && canUseTaskActions && (
         <BusinessControlCenter
           control={liveControl}
@@ -810,7 +815,7 @@ export default function DashboardView() {
         </Card>
       )}
 
-      {loadState.status === "ready" && (
+      {loadState.status === "ready" && !liveControl && (
         // Sections settle in reading order once per resolved period (same
         // capped CSS sequence as Análisis; numbers never tween).
         <div className="kv-stagger space-y-6">

@@ -63,3 +63,12 @@ La navegación global no requiere cambiar sucursal.
 Sincronización lee sólo la cola local del dispositivo y tenant actual. Espera las
 tres lecturas antes de afirmar cantidades. No modifica registros, idempotencia ni
 el trabajador de sincronización. El fallback anterior explicita su alcance operativo.
+
+## Jerarquía visual (2026-10-24)
+
+Panel presenta primero cifras y gráfico horario/diario del overview; después
+compara sucursales, productos, horas y cobros. Cada área expone dos señales y
+permite expandir el resto. Los tres primeros grupos de pendientes se muestran
+inicialmente y el resto se puede expandir sin alterar el límite ni los totales
+backend. Análisis conserva rangos personalizados y lectura profunda, con
+navegación hacia rentabilidad, operación, reposición/productos y plan de acción.

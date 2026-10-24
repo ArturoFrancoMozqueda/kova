@@ -61,6 +61,17 @@ afterEach(() => {
 });
 
 describe("ReportsView", () => {
+  it("separates the dashboard entry from detailed analysis and groups replenishment with products", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    expect(screen.getByRole("link", { name: "← Volver al panel" })).toHaveAttribute("href", "/dashboard");
+    const products = screen.getByRole("link", { name: "Productos y reposición" });
+    expect(products).toHaveAttribute("href", "#analisis-productos-reposicion");
+    expect(document.getElementById("analisis-productos-reposicion")).toContainElement(screen.getByRole("heading", { name: copy.reportsView.restockPlan.title }));
+    expect(screen.queryByRole("link", { name: "Rentabilidad" })).not.toBeInTheDocument();
+  });
+
   it("labels the trailing 30-day window without changing its cross-month range", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));

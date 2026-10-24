@@ -4,6 +4,9 @@ Fecha: 2026-10-23. Branch: `feat/dashboard-business-status`.
 Base: `origin/main` en `168220ed` (#273), actualizado al iniciar el trabajo.
 Estado: implementado y validado localmente; sin publicación.
 
+La [revisión visual del 24 de octubre](KOVA-DASHBOARD-VISUAL-2026-10-24.md)
+reorganiza la primera pantalla y reduce el texto inicial.
+
 ## Resultado
 
 Abre todas las sucursales autorizadas y permite consultar una sin cambiar Caja.
