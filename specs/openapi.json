@@ -2170,7 +2170,10 @@
             "type": "array"
           },
           "rotate_link": {
+            "const": false,
             "default": false,
+            "deprecated": true,
+            "description": "El enlace del men\u00fa es fijo. No se permite reemplazarlo.",
             "title": "Rotate Link",
             "type": "boolean"
           },

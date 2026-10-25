@@ -97,6 +97,7 @@ _SCHEMA_MODULES = (
     'app.purchasing.schemas',
     'app.quotes.schemas',
     'app.reconciliation.schemas',
+    'app.reports.control_schemas',
     'app.reports.schemas',
     'app.service_cases.schemas',
     'app.shifts.schemas',

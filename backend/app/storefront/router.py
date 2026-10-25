@@ -137,8 +137,6 @@ def save_settings(
         db.add(row)
     for field in ("title", "description", "whatsapp_phone", "enabled"):
         setattr(row, field, getattr(body, field))
-    if body.rotate_link:
-        row.link_version += 1
     row.version += 1
     row.updated_at = datetime.now(UTC)
     db.flush()
@@ -165,7 +163,7 @@ def save_settings(
             "enabled": row.enabled,
             "version": row.version,
             "product_count": len(body.product_ids),
-            "link_rotated": body.rotate_link,
+            "link_rotated": False,
         },
     )
     idempotency.store(

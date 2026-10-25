@@ -28,6 +28,29 @@ Las pruebas con fotografías verifican carga de píxeles reales, amplitud de ima
 por teclado del detalle (foco, Tab/Shift+Tab y Escape), conservando la cobertura sin fotografías.
 Revisión visual de capturas móvil/escritorio completada; QR físico y WhatsApp real sin verificar.
 
+Ajuste del 2026-10-24: el guardado del menú conserva siempre el enlace y QR vigentes. Se retira
+la casilla de reemplazo del formulario para evitar invalidar direcciones al actualizar contenido.
+La interfaz aclara que los cambios guardados se ven al abrir o recargar el mismo enlace. La API
+rechaza `rotate_link: true` con 422 y elimina la lógica de reemplazo; el campo deprecado sólo
+admite `false` para clientes existentes. Las rutas retiradas históricamente siguen inválidas.
+Retirar y volver a publicar conserva la dirección y el QR, sin nuevas publicaciones ni alias.
+Validación frontend:
+cuatro pruebas del formulario, TypeScript y ESLint aprobados. El recorrido de navegador con
+API, Postgres y rol runtime sin bypass de RLS confirma que editar, guardar y abrir la misma
+URL muestra el título actualizado; también completa la consulta y su conversión existentes.
+Validación completa del ajuste: 30 pruebas backend de catálogo/captación, 33 de storefront,
+TypeScript, ESLint, Ruff y contrato OpenAPI aprobados. El recorrido real de publicación,
+actualización por la misma URL y consulta también aprobó con la nueva restricción de API.
+Backend prueba rechazo sin crear alias, retiro/republicación con el mismo PNG de QR y
+compatibilidad de enlaces históricos, incluyendo la invalidez de los ya retirados.
+Implementado localmente, pendiente de publicación.
+
+Integración con el panel de #275: se incorpora su DTO puro al inventario de Workers y se
+ajustan los checks de navegación/login a «Centro de control». El menú cerrado se verifica
+directamente por `aria-hidden`, `inert` y enlaces fuera del árbol accesible; los accesos de
+Catálogo del panel permanecen permitidos. Cuatro pruebas de snapshot, 13 recorridos de
+login/navegación sobre el build final, TypeScript, ESLint, Ruff y build/SSR/prerender aprobados.
+
 ## Flujos conectados de comercio y servicios — implementación local
 
 Agent Teams implementó navegación del dueño con siete entradas y herramientas contextuales,
