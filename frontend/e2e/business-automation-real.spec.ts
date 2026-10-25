@@ -154,16 +154,26 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
     });
     await expect(publicLink).toBeVisible();
     const sharePath = await publicLink.getAttribute("href");
+    await page.getByLabel("Nombre del menú o negocio").fill("Menú actualizado integración E2E");
+    const updatePublication = page.waitForResponse(response =>
+      response.url().endsWith("/api/v1/storefront/settings") && response.request().method() === "PUT");
+    await page.getByRole("button", { name: "Guardar publicación" }).click();
+    const updatedPublication = await updatePublication;
+    expect(updatedPublication.ok()).toBe(true);
+    expect((await updatedPublication.json()).share_path).toBe(sharePath);
+    await expect(publicLink).toHaveAttribute("href", sharePath!);
     const publicContext = await browser.newContext();
     try {
       const publicPage = await publicContext.newPage();
       await publicPage.goto(new URL(sharePath!, baseURL).toString());
+      await expect(publicPage.getByRole("heading", { name: "Menú actualizado integración E2E", exact: true })).toBeVisible();
       await expect(
         publicPage.getByRole("heading", {
           name: prepared.product.name,
           exact: true,
         }),
       ).toBeVisible();
+      await publicPage.getByRole("button", { name: "Solo consultar", exact: true }).click();
       await publicPage.getByLabel("Tu nombre").fill("Consulta pública E2E");
       await publicPage.getByLabel("Teléfono o correo para responder").fill("cliente-e2e@example.com");
       await publicPage.getByLabel("¿Qué te gustaría consultar?").fill("Quiero cotizar el servicio para mi evento");

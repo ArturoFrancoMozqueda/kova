@@ -11,10 +11,14 @@ Para regenerar las imágenes, desde `frontend/` define `KOVA_CAPTURE_EMAIL` y `K
 El script:
 
 - conserva el AppShell completo y oculta el área de cuenta;
-- prepara localmente, sin cobrar, Cold brew + Capuchino mediano + Yogurt con granola = $186;
-- bloquea cualquier request de escritura después del inicio de sesión;
+- prepara localmente, sin cobrar, Cold brew + Capuchino mediano + Yogurt con granola y espera el total calculado con los precios reales;
+- bloquea cualquier request de escritura después del inicio de sesión (la telemetría se descarta para no contar la captura como uso);
+- marca como vistos los recorridos de primer uso, que sólo viven en `localStorage`, para que no tapen Caja;
 - espera encabezados, fuentes e imágenes antes de capturar;
-- rechaza correos visibles y valida que cada vista mida exactamente 1440×900;
+- rechaza correos visibles y valida el tamaño exacto de cada vista;
+- captura escritorio (1440×900) en `showcase/` y teléfono emulado (390×844, DPR 3, táctil) en `showcase/mobile/`; `KOVA_CAPTURE_DEVICES=desktop` o `mobile` limita la corrida;
 - extrae a `products/` las fotografías usadas por la demo local.
 
 Antes de publicar, revisar visualmente las cuatro capturas. No deben contener correos, nombres de personas, identificadores privados ni datos de clientes. Nunca pulsar `Cobrar`, `Cerrar turno`, `Ajustar`, `Aplicar` ni ninguna acción de escritura durante la captura.
+
+Las capturas de 2026-10-23 se tomaron en producción, sólo lectura, desde el navegador integrado: escritorio a 1440×900 (`*.png`), historias de la landing a 3200×1800 (`*-story.jpeg`, `sale-register.jpeg`) y teléfono a 1125×2436 en `mobile/`. La carpeta `mobile/` aún no está conectada a la landing.

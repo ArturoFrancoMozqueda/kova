@@ -4,12 +4,12 @@ import { getDashboardOverview } from "./api";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("dashboard overview transport", () => {
-  it("requests the selected period without caching private data", async () => {
+  it("requests all branches by default without caching private data", async () => {
     const payload = { timezone: "America/Tijuana" };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(payload)));
     vi.stubGlobal("fetch", fetchMock);
     expect(await getDashboardOverview("week")).toEqual(payload);
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith("/api/v1/reports/dashboard?period=week", { cache: "no-store" });
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith("/api/v1/reports/dashboard?period=week&branch_id=all", { cache: "no-store" });
   });
   it("allows the legacy read only when the endpoint is absent", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));

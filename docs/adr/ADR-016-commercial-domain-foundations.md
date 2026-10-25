@@ -3,7 +3,7 @@
 ## Estado
 
 Propuesto. Esta ADR define contratos para descubrimiento y futuras ramas; no activa funcionalidad.
-La implementación continúa bloqueada por los gates de `PLAN-GROWTH-EXECUTION` y
+La implementación continúa bloqueada por los gates de `PLAN-GROWTH-EXECUTION` (retirado del árbol el 2026-10-22; ver historial git) y
 `PLAN-KOVA-COPILOT`.
 
 ## Contexto

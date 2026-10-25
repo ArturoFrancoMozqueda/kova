@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { BILLING_VIEW_PERMISSION, REPORTS_VIEW_ALL_PERMISSION, permissionsForRole } from "@/auth/permissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -26,6 +26,11 @@ import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { BusinessActivityRecap } from "./BusinessActivityRecap";
+import { BusinessControlCenter } from "./BusinessControlCenter";
+import { DashboardVisualOverview, DashboardSalesMix } from "./DashboardVisualOverview";
+import { DashboardBranches, DashboardDeviceStatus, DashboardScopeToolbar, DashboardViewLink } from "./DashboardSupervision";
+import type { DashboardControl, DashboardScope, ControlBranch } from "./controlTypes";
+import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -62,6 +67,8 @@ type LoadState =
   | {
       status: "ready";
       identity: string | null;
+      scope: DashboardScope;
+      control: DashboardControl | null;
       summary: SalesSummary;
       yesterday: SalesSummary | null;
       payments: PaymentBreakdown;
@@ -428,13 +435,13 @@ function DashboardExecutiveSummary({
 
   return (
     <Card className="overflow-hidden border-0 ring-1 ring-kova-border">
-      <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.75fr)]">
-        <div className="min-w-0 bg-kova-ink p-5 text-kova-on-ink sm:p-7">
+      <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(180px,0.8fr)]">
+        <div className="min-w-0 bg-kova-ink p-5 text-kova-on-ink">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-kova-on-ink/80">
             {copy.dashboard.netSales}
           </p>
           <div className="mt-3 flex flex-wrap items-baseline gap-3">
-            <p className="break-all text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
+            <p aria-label="Ventas netas del periodo" className="break-words text-4xl font-semibold tracking-[-0.04em] tabular-nums sm:text-5xl">
               <CountUp value={currentNet} format={(value) => formatMoney(value)} />
             </p>
             <div className="rounded-kova-sm bg-white px-2.5 py-1.5">
@@ -444,14 +451,14 @@ function DashboardExecutiveSummary({
           <p className="mt-2 text-sm text-kova-on-ink/80 tabular-nums">
             {copy.dashboard.grossSuffix(formatMoney(summary.gross_sales))}
           </p>
-          <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/20 pt-4 text-sm">
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-white/20 pt-4 text-sm">
             <span className="text-kova-on-ink/80">{copy.dashboard.previousPeriod}</span>
             <span className="font-medium tabular-nums">{previousNet !== null ? formatMoney(previousNet) : copy.dashboard.noComparison}</span>
           </div>
         </div>
         <dl className="divide-y divide-kova-border">
           {secondaryMetrics.map((metric) => (
-            <div key={metric.label} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+            <div key={metric.label} className="flex items-center justify-between gap-3 px-5 py-4">
               <dt>
                 <span className="block text-sm text-kova-muted">{metric.label}</span>
                 <span className="mt-0.5 block text-xs text-kova-tertiary">{metric.detail}</span>
@@ -468,6 +475,7 @@ function DashboardExecutiveSummary({
 export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
+  const navigation = useOutletContext<WorkspaceNavigationContext | undefined>();
   const canManageBusiness = state.status === "authenticated"
     && (state.user.role === "owner" || state.user.role === "manager");
   const canViewBilling = state.status === "authenticated"
@@ -477,8 +485,12 @@ export default function DashboardView() {
   const canUseTaskActions = state.status === "authenticated" && state.sessionMode !== "offline";
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const identity = state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : null;
+  const [scopeSelection, setScopeSelection] = useState({ identity, value: "all" as DashboardScope });
+  const selectedScope = scopeSelection.identity === identity ? scopeSelection.value : "all";
+  const [scopeChoices, setScopeChoices] = useState<{ identity: string | null; branches: ControlBranch[]; canViewAll: boolean; effective: string }>({ identity: null, branches: [], canViewAll: true, effective: "all" });
+  const setSelectedScope = (value: DashboardScope) => setScopeSelection({ identity, value });
   const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const loadState: LoadState = storedLoadState.status === "ready" && storedLoadState.identity !== identity
+  const loadState: LoadState = storedLoadState.status === "ready" && (storedLoadState.identity !== identity || storedLoadState.scope !== selectedScope)
     ? { status: "loading" }
     : storedLoadState;
   const [period, setPeriod] = useState<Period>("day");
@@ -488,13 +500,15 @@ export default function DashboardView() {
     const requestId = ++requestIdRef.current;
     setLoadState({ status: "loading" });
     try {
-      const overview = await getDashboardOverview(selected);
+      const overview = await getDashboardOverview(selected, selectedScope);
       if (requestId !== requestIdRef.current) return;
       if (overview !== null) {
+        const control = overview.control_center ?? null;
+        if (control) setScopeChoices({ identity, branches: control.branches, canViewAll: control.scope.can_view_all, effective: control.scope.branch_id ?? "all" });
         const story = overview.story;
         const subscriptionStatus = overview.billing?.subscription?.status;
         setLoadState({
-          status: "ready", identity, story,
+          status: "ready", identity, story, scope: selectedScope, control,
           summary: summaryFromStory(story), yesterday: overview.previous_summary,
           payments: paymentsFromStory(story), hourly: overview.hourly,
           topProducts: topProductsFromStory(story),
@@ -553,6 +567,8 @@ export default function DashboardView() {
       setLoadState({
         status: "ready",
         identity,
+        scope: selectedScope,
+        control: null,
         summary,
         yesterday: previousSummary,
         payments,
@@ -579,7 +595,7 @@ export default function DashboardView() {
       if (requestId !== requestIdRef.current) return;
       setLoadState({ status: "error" });
     }
-  }, [identity]);
+  }, [identity, selectedScope]);
 
   useEffect(() => {
     void load(period);
@@ -588,15 +604,16 @@ export default function DashboardView() {
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
   const greeting = getGreeting(tenantTimezone);
+  const liveControl = loadState.status === "ready" ? loadState.control : null;
+  const choices = scopeChoices.identity === identity ? scopeChoices : null;
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
-      {/* Header — shared ViewHeader anatomy: greeting eyebrow, tenant title,
-          period subtitle, and the period toggle as the actions slot. */}
-      <div className="mb-8">
+      {/* Keep business identity and the selected sales period visible together. */}
+      <div className="mb-2">
         <ViewHeader
-          eyebrow={greeting}
-          title={tenantName || copy.app.dashboard}
+          eyebrow={`${tenantName ? `${greeting}, ${tenantName}` : greeting}${loadState.status === "ready" && !liveControl ? " · Sucursal operativa" : ""}`}
+          title="Centro de control"
           meta={periodSubtitle(period, tenantTimezone)}
           actions={
             <SegmentedControl
@@ -613,35 +630,68 @@ export default function DashboardView() {
         />
       </div>
 
-      {loadState.status === "ready" && (
-        <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-4">
-          <ArcKicker label={copy.dashboard.arcNow} />
-          <DashboardExecutiveSummary
-            summary={loadState.summary}
-            previous={loadState.yesterday}
-            compareLabel={loadState.compareLabel}
-          />
+      {canManageBusiness && canUseTaskActions && choices && (
+        <DashboardScopeToolbar
+          scope={liveControl?.scope.branch_id ?? (liveControl?.scope.kind === "all" ? "all" : selectedScope === "all" ? choices.effective : selectedScope)}
+          branches={choices.branches} canViewAll={choices.canViewAll}
+          loading={loadState.status === "loading"} generatedAt={liveControl?.generated_at ?? null}
+          timezone={tenantTimezone} onScope={setSelectedScope} onRefresh={() => void load(period)}
+        />
+      )}
+      {loadState.status === "ready" && liveControl && loadState.story && <>
+        <DashboardVisualOverview story={loadState.story} hourly={loadState.hourly} previous={loadState.yesterday}
+          compareLabel={loadState.compareLabel} byHour={period === "day"} control={liveControl} destinations={navigation?.destinations ?? []} />
+        <DashboardBranches control={liveControl} onScope={setSelectedScope} />
+        <DashboardSalesMix story={loadState.story} hourly={loadState.hourly} control={liveControl} />
+      </>}
+      {loadState.status === "ready" && !liveControl && (
+        <section aria-label={copy.dashboard.arcNow} className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <ArcKicker label={copy.dashboard.arcNow} />
+            {canManageBusiness && canUseTaskActions && navigation?.destinations.length ? (
+              <a href="#business-control" className="inline-flex min-h-11 items-center gap-1 rounded-kova-md px-2 text-sm font-medium text-kova-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
+                Explorar mi negocio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            ) : null}
+          </div>
+          <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(300px,1fr)]">
+            <div className="min-w-0 space-y-4">
+              <DashboardExecutiveSummary
+                summary={loadState.summary}
+                previous={loadState.yesterday}
+                compareLabel={loadState.compareLabel}
+              />
 
-          <InsightStrip
-            show="banner"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
+              <InsightStrip
+                show="banner"
+                suppressLowStock={Boolean(liveControl)}
+                summary={loadState.summary}
+                yesterday={loadState.yesterday}
+                hourly={loadState.hourly}
+                topProducts={loadState.topProducts}
+                lowStock={loadState.lowStockItems}
+                compareLabel={loadState.compareLabel}
+              />
 
-          {/* Priorities follow the evidence; no empty heading when all is clear. */}
-          <InsightStrip
-            show="actions"
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-            compareLabel={loadState.compareLabel}
-          />
+              {/* Priorities follow the evidence; no empty heading when all is clear. */}
+              {!liveControl && <InsightStrip
+                show="actions"
+                summary={loadState.summary}
+                yesterday={loadState.yesterday}
+                hourly={loadState.hourly}
+                topProducts={loadState.topProducts}
+                lowStock={loadState.lowStockItems}
+                compareLabel={loadState.compareLabel}
+              />}
+            </div>
+            <BusinessHealthCard
+              summary={loadState.summary}
+              yesterday={loadState.yesterday}
+              payments={loadState.payments}
+              lowStockCount={loadState.lowStockCount}
+              compareLabel={loadState.compareLabel}
+            />
+          </div>
         </section>
       )}
 
@@ -659,7 +709,7 @@ export default function DashboardView() {
         </div>
       )}
 
-      {canUseTaskActions && (
+      {canUseTaskActions && !liveControl && (
         <section className="mb-6 border-y border-kova-border py-3">
           <h2 className="sr-only">{copy.dashboard.quickActions}</h2>
           <div>
@@ -676,7 +726,7 @@ export default function DashboardView() {
                   { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: "Ver análisis", desc: copy.dashboard.viewReportsDesc },
                 ] : []),
               ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                <Link key={to} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
+                <DashboardViewLink key={to} control={liveControl} to={to} className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2">
                   <div className="flex h-full items-center gap-3 rounded-kova-md px-2 py-2 transition-colors duration-hover ease-standard hover:bg-white active:bg-kova-blue/5">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0 transition-transform duration-hover ease-standard group-hover:scale-105`}>
                       <Icon className="h-4 w-4" />
@@ -687,13 +737,29 @@ export default function DashboardView() {
                     </div>
                     <ArrowRight className="hidden h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[opacity,transform] duration-hover ease-standard group-hover:translate-x-0 group-hover:opacity-100 sm:block" />
                   </div>
-                </Link>
+                </DashboardViewLink>
               ))}
             </nav>
           </div>
         </section>
       )}
 
+      {loadState.status === "ready" && !liveControl && (
+        <p className="mb-3 text-xs text-kova-muted">Vista de la sucursal operativa. El resumen consolidado y los pendientes no están disponibles en esta consulta.</p>
+      )}
+      {canManageBusiness && canUseTaskActions && (
+        <BusinessControlCenter
+          control={liveControl}
+          destinations={navigation?.destinations ?? []}
+          snapshot={loadState.status === "ready" && loadState.activitySnapshotAvailable ? {
+            orderCount: loadState.summary.order_count,
+            activeCatalogCount: loadState.activeCatalogCount,
+            lowStockCount: loadState.lowStockCount,
+          } : null}
+        />
+      )}
+
+      {liveControl && <DashboardDeviceStatus />}
       {loadState.status === "loading" && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -749,21 +815,12 @@ export default function DashboardView() {
         </Card>
       )}
 
-      {loadState.status === "ready" && (
+      {loadState.status === "ready" && !liveControl && (
         // Sections settle in reading order once per resolved period (same
         // capped CSS sequence as Análisis; numbers never tween).
         <div className="kv-stagger space-y-6">
-          {/* Salud del negocio */}
-          <ArcKicker label={copy.dashboard.arcHealth} />
-          <BusinessHealthCard
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            payments={loadState.payments}
-            lowStockCount={loadState.lowStockCount}
-            compareLabel={loadState.compareLabel}
-          />
-
-          {canManageBusiness && loadState.activitySnapshotAvailable && (
+          <ArcKicker label="Detrás de tus resultados" />
+          {canManageBusiness && loadState.activitySnapshotAvailable && !liveControl && (
             <BusinessActivityRecap
               activeCatalogCount={loadState.activeCatalogCount}
               trackedInventoryCount={loadState.trackedInventoryCount}
@@ -794,13 +851,13 @@ export default function DashboardView() {
                   <p className="text-sm font-semibold">{copy.dashboard.noActivityTitle}</p>
                   <p className="max-w-md text-sm text-muted-foreground">{copy.dashboard.noActivityBody}</p>
                 </div>
-                <Link
+                <DashboardViewLink control={liveControl}
                   to="/register"
                   className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
                 >
                   {copy.dashboard.noActivityCta}
                   <ArrowRight className="h-4 w-4" />
-                </Link>
+                </DashboardViewLink>
               </CardContent>
             </Card>
           ) : (
@@ -871,13 +928,13 @@ export default function DashboardView() {
                               );
                             })}
                           </div>
-                          <Link
+                          <DashboardViewLink control={liveControl}
                             to="/reports"
                             className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-kova-md text-sm font-semibold text-[color:var(--kova-blue)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2"
                           >
                             {copy.dashboard.topHoursViewMore}
                             <ArrowRight className="h-4 w-4" />
-                          </Link>
+                          </DashboardViewLink>
                         </>
                       );
                     })()}

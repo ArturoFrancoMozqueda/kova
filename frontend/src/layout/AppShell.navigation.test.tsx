@@ -52,6 +52,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("simple task navigation and complete discovery", () => {
+  it.each(["owner", "manager"])("matches the owner-only loyalty API for %s", async role => {
+    auth.state.user.role = role;
+    host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "lealtad" } });
+    expect(navigation().queryAllByRole("link").some(link => link.getAttribute("href") === "/loyalty")).toBe(role === "owner");
+    await act(async () => {});
+  });
+
   it("finds an owner's task without more requests or changing rail preferences", async () => {
     host();
     const search = screen.getByRole("searchbox", { name: "Buscar sección" });

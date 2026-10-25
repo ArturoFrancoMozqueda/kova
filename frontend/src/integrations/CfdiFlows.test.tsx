@@ -6,13 +6,11 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CfdiConnectionPanel } from "./CfdiConnectionPanel";
 import { CfdiPreparationPanel } from "./CfdiPreparationPanel";
 import { CfdiDocumentsPanel } from "./CfdiDocumentsPanel";
 import { CfdiPanel } from "./CfdiPanel";
 import {
   cancelCfdi,
-  connectCfdi,
   downloadCfdi,
   getCfdiStatus,
   getManagedCfdiSetup,
@@ -30,7 +28,6 @@ import {
 vi.mock("./cfdiApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./cfdiApi")>()),
   cancelCfdi: vi.fn(),
-  connectCfdi: vi.fn(),
   downloadCfdi: vi.fn(),
   getCfdiStatus: vi.fn(),
   getManagedCfdiSetup: vi.fn(),
@@ -144,108 +141,6 @@ beforeEach(() => {
     recipient_snapshot: body.recipient ?? context.recipient,
   }));
   vi.mocked(issueCfdi).mockResolvedValue(document);
-});
-
-describe("Conexión fiscal", () => {
-  it("defaults to Test and clears an organization secret even on network failure", async () => {
-    const onStatus = vi.fn();
-    vi.mocked(connectCfdi).mockRejectedValue(
-      new Error("No pudimos verificar la organización"),
-    );
-    render(
-      <CfdiConnectionPanel
-        status={status}
-        environment="test"
-        onEnvironment={vi.fn()}
-        onStatus={onStatus}
-        issuerRfc={identity.rfc}
-      />,
-    );
-    expect(screen.getByLabelText("Ambiente fiscal")).toHaveValue("test");
-    const secret = screen.getByLabelText("Llave de organización Test");
-    expect(secret).toHaveAttribute("type", "password");
-    fireEvent.change(secret, {
-      target: { value: "sk_test_sensitive-example" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar conexión" }));
-    expect(secret).toHaveValue("");
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No pudimos verificar",
-    );
-    expect(connectCfdi).toHaveBeenCalledWith(
-      "test",
-      "sk_test_sensitive-example",
-    );
-    expect(onStatus).not.toHaveBeenCalled();
-    expect(localStorage.getItem("api_key")).toBeNull();
-  });
-  it("updates public status after verifying connection and rejects issuer mismatch in the UI", async () => {
-    const onStatus = vi.fn();
-    vi.mocked(connectCfdi).mockResolvedValue(connection);
-    render(
-      <CfdiConnectionPanel
-        status={{
-          ...status,
-          connections: [
-            {
-              ...connection,
-              environment: "live",
-              certificate_expires_at: "2099-01-01T00:00:00Z",
-            },
-          ],
-        }}
-        environment="live"
-        onEnvironment={vi.fn()}
-        onStatus={onStatus}
-        issuerRfc="AAA010101AAA"
-      />,
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "El RFC de la organización no coincide",
-    );
-    fireEvent.change(screen.getByLabelText("Llave de organización Live"), {
-      target: { value: "sk_live_new-key" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar conexión" }));
-    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(status));
-    expect(getCfdiStatus).toHaveBeenCalled();
-  });
-  it("clears the key when switching fiscal environment", () => {
-    const onEnvironment = vi.fn();
-    render(
-      <CfdiConnectionPanel
-        status={status}
-        environment="test"
-        onEnvironment={onEnvironment}
-        onStatus={vi.fn()}
-      />,
-    );
-    const secret = screen.getByLabelText("Llave de organización Test");
-    fireEvent.change(secret, { target: { value: "sk_test_private" } });
-    fireEvent.change(screen.getByLabelText("Ambiente fiscal"), {
-      target: { value: "live" },
-    });
-    expect(secret).toHaveValue("");
-    expect(onEnvironment).toHaveBeenCalledWith("live");
-    expect(connectCfdi).not.toHaveBeenCalled();
-  });
-  it("shows unavailable secure storage honestly and prevents credential submission", () => {
-    render(
-      <CfdiConnectionPanel
-        status={{ ...status, storage_available: false }}
-        environment="live"
-        onEnvironment={vi.fn()}
-        onStatus={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText("Llave de organización Live")).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Guardar conexión" }),
-    ).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "configuración del servidor",
-    );
-  });
 });
 
 async function completePreparation() {

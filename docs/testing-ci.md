@@ -125,7 +125,7 @@ Desde `backend/`: `uv sync --frozen` y `uv run pytest --durations=40 --junitxml=
 
 Desde `frontend/`: `npm ci`, `npm run lint`, `npm test -- --run`, `npm run test:release-contract`, `npm run build`, `npm run check:bundle-secrets`, `npm run test:e2e-preview:built`. `npm run test:e2e-preview` sigue construyendo primero para uso local.
 
-Stack real: `scripts/test-stack.sh` o `scripts/test-stack.ps1`. CI incluye el mismo stack con teardown incondicional. Los artefactos de diagnóstico contienen únicamente datos sintéticos del stack o mocks; el job de producción no sube traces, cookies, `.vercel` ni configuración de autenticación.
+Stack real: `scripts/test-stack.sh`. CI incluye el mismo stack con teardown incondicional. Los artefactos de diagnóstico contienen únicamente datos sintéticos del stack o mocks; el job de producción no sube traces, cookies, `.vercel` ni configuración de autenticación.
 
 Publicación: un job protegido captura el rollback y lo sube antes de preparar candidatos. El candidato Vercel se construye con configuración de producción y `--skip-domain`; Fly se despliega después. La fase se fija antes de cada posible modificación de producción: `candidate` para Fly/verificación, `promotion` antes del cambio de alias y `acceptance` antes de verificar el alias. La restauración de un deployment Vercel que ya sirvió producción utiliza `rollback`, no una segunda promoción, y no reconstruye el artefacto. La recuperación conserva un CI rojo aunque restaure correctamente; `RECOVERY_BLOCKED` exige intervención. Las pruebas de proveedores simulados cubren cada fallo y la restauración Vercel→Fly. Nunca se revierte automáticamente la base.
 

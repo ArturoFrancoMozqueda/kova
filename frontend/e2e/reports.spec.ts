@@ -740,6 +740,23 @@ test("reports scrolling never moves the app shell itself", async ({ page }) => {
   await page.emulateMedia({ media: "screen" });
 });
 
+test("reports separates detailed sections from the dashboard overview", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner", true);
+  await mockReports(page);
+  await page.goto("/reports");
+  const sections = page.getByRole("navigation", { name: "Secciones de análisis" });
+  await sections.getByRole("link", { name: "Productos y reposición", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Qué necesitas reponer", exact: true })).toBeInViewport();
+  await expect(page).toHaveURL(/#analisis-productos-reposicion$/);
+  await sections.getByRole("link", { name: "Rentabilidad", exact: true }).click();
+  await expect(page.getByTestId("margin-analysis")).toBeInViewport();
+  await expect(sections.getByRole("link", { name: "← Volver al panel" })).toHaveAttribute("href", "/dashboard");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("analysis-detail-mobile.png") });
+});
+
 test("reports page displays analytics dashboard layout", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");

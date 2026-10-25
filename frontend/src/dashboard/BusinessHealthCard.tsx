@@ -210,7 +210,7 @@ export function BusinessHealthCard({
         ? "text-warning-foreground"
         : band === "setup"
           ? "text-kova-blue"
-        : "text-destructive";
+        : "text-destructive-strong";
   const ringBg =
     band === "healthy"
       ? "bg-kova-growth/10"
@@ -283,13 +283,13 @@ export function BusinessHealthCard({
             return (
               <div
                 key={f.key}
-                className="flex items-center justify-between gap-3 border-b border-kova-border/60 py-2 last:border-0"
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-kova-border/60 py-2 last:border-0"
               >
                 <span className="flex min-w-0 items-center gap-2 text-sm text-kova-muted">
                   <Icon className="h-4 w-4 shrink-0 text-kova-tertiary" />
-                  <span className="truncate">{f.label}</span>
+                  <span>{f.label}</span>
                 </span>
-                <span className={`max-w-[65%] shrink-0 text-right text-sm font-semibold tabular-nums ${tone}`}>
+                <span className={`ml-auto text-right text-sm font-semibold tabular-nums ${tone}`}>
                   {f.detail}
                 </span>
               </div>

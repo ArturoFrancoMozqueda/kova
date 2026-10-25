@@ -45,8 +45,8 @@ export function RankBarChart({
   return (
     <ChartCard title={title} subtitle={subtitle} srSummary={srSummary} isEmpty={visible.length === 0} emptyLabel={emptyLabel}>
       <ResponsiveContainer width="100%" height={height}>
-        {/* No accessibilityLayer — see SalesTrendChart: it pins a tooltip on
-            touch/focus. The sr-only summary + detail panel stay accessible. */}
+        {/* No accessibilityLayer: it pins a tooltip on touch/focus. The
+            sr-only summary + detail panel stay accessible. */}
         <BarChart
           data={visible}
           layout="vertical"

@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy import func
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.auth.models import Membership
 from app.billing import service as billing_service
 from app.billing.schemas import BillingSubscriptionResponse
+from app.branches.models import Branch
+from app.branches.scope import active_branch_id, bind_branch, tenant_wide_branches
 from app.business_settings.models import BusinessProfile
 from app.catalog.models import Product
 from app.employees import service as employee_service
@@ -19,6 +22,8 @@ from app.onboarding import service as onboarding_service
 from app.onboarding.schemas import OnboardingStateResponse
 from app.rbac.permissions import Permission, has_permission
 from app.reports import service
+from app.reports.control import read_control
+from app.reports.control_schemas import ControlScope, DashboardControl
 from app.reports.presentation import business_story_copy
 from app.reports.schemas import BusinessStoryReportResponse, SalesByHourRow, SalesSummaryResponse
 from app.shared.timezone import tenant_timezone
@@ -39,9 +44,57 @@ class DashboardOverviewResponse(BaseModel):
     closed_shift_count: int = Field(ge=0, le=50)
     billing: BillingSubscriptionResponse | None
     onboarding: OnboardingStateResponse
+    control_center: DashboardControl | None = None
 
 
-def overview(db: Session, *, membership: Membership, period: DashboardPeriod):
+def overview(
+    db: Session,
+    *,
+    membership: Membership,
+    period: DashboardPeriod,
+    branch_id: UUID | Literal["all"] | None = None,
+):
+    if branch_id is None:
+        return _overview(db, membership=membership, period=period)
+    tenant, role, allowed = membership.tenant_id, membership.role, membership.allowed_branch_id
+    # Scalars survive the existing onboarding commit without one reload per branch.
+    options_query = db.query(Branch.id, Branch.name).filter(Branch.tenant_id == tenant)
+    if allowed is not None:
+        options_query = options_query.filter(Branch.id == allowed)
+    options = options_query.order_by(Branch.name, Branch.id).all()
+    original = active_branch_id(db, tenant)
+    with tenant_wide_branches(db):
+        selected = allowed if branch_id == "all" else branch_id
+        if selected is not None:
+            bind_branch(db, tenant_id=tenant, branch_id=selected)
+        scope = ControlScope(
+            kind="all" if selected is None else "branch",
+            branch_id=selected,
+            label="Todas las sucursales"
+            if selected is None
+            else next(branch.name for branch in options if branch.id == selected),
+            can_view_all=allowed is None,
+        )
+        result = _overview(db, membership=membership, period=period)
+        result.control_center = read_control(
+            db,
+            tenant=tenant,
+            role=role,
+            branches=[branch.id for branch in options if selected is None or branch.id == selected],
+            options=options,
+            scope=scope,
+            story=result.story,
+            now=datetime.now().astimezone(),
+            billing=result.billing,
+            catalog_count=result.active_catalog_count,
+            employee_count=result.active_employee_count,
+        )
+    # tenant_wide_branches restores the original operating scope, including on failure.
+    assert active_branch_id(db, tenant) == original
+    return result
+
+
+def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     # Capture ownership before existing onboarding/billing helpers may commit.
     tenant_id, role = membership.tenant_id, membership.role
     billing = None
@@ -58,18 +111,35 @@ def overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     start = today - timedelta(days=days - 1)
     previous_end = start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=days - 1)
-    story = BusinessStoryReportResponse.model_validate(business_story_copy(service.business_story(
-        db, tenant_id=tenant_id, start_date=start, end_date=today,
-    )))
-    previous = SalesSummaryResponse.model_validate(service.sales_summary(
-        db, tenant_id=tenant_id, start_date=previous_start, end_date=previous_end,
-    ))
+    story = BusinessStoryReportResponse.model_validate(
+        business_story_copy(
+            service.business_story(
+                db,
+                tenant_id=tenant_id,
+                start_date=start,
+                end_date=today,
+            )
+        )
+    )
+    previous = SalesSummaryResponse.model_validate(
+        service.sales_summary(
+            db,
+            tenant_id=tenant_id,
+            start_date=previous_start,
+            end_date=previous_end,
+        )
+    )
     hourly = service.sales_by_hour(db, tenant_id=tenant_id, start_date=start, end_date=today)
     stock = inventory_service.list_stock(db, tenant_id=tenant_id)
     low_stock = [InventoryStockItem.model_validate(item) for item in stock if item["is_low_stock"]]
-    active_catalog_count = db.query(func.count(Product.id)).filter(
-        Product.tenant_id == tenant_id, Product.is_active.is_(True),
-    ).scalar()
+    active_catalog_count = (
+        db.query(func.count(Product.id))
+        .filter(
+            Product.tenant_id == tenant_id,
+            Product.is_active.is_(True),
+        )
+        .scalar()
+    )
     active_employee_count = None
     if has_permission(role, Permission.USERS_MANAGE):
         active_employee_count = sum(
@@ -86,8 +156,15 @@ def overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     )
     del profile
     return DashboardOverviewResponse(
-        story=story, hourly=hourly, previous_summary=previous, timezone=str(tz),
-        active_catalog_count=active_catalog_count, tracked_inventory_count=len(stock),
-        low_stock_items=low_stock, active_employee_count=active_employee_count,
-        closed_shift_count=closed_shift_count, billing=billing, onboarding=onboarding,
+        story=story,
+        hourly=hourly,
+        previous_summary=previous,
+        timezone=str(tz),
+        active_catalog_count=active_catalog_count,
+        tracked_inventory_count=len(stock),
+        low_stock_items=low_stock,
+        active_employee_count=active_employee_count,
+        closed_shift_count=closed_shift_count,
+        billing=billing,
+        onboarding=onboarding,
     )

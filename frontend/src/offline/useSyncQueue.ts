@@ -12,6 +12,7 @@ const EMPTY_QUEUE = {
   pendingCount: 0,
   failedEntries: [] as OfflineSaleQueueItem[],
   quarantinedCount: 0,
+  loaded: { pending: false, failed: false, quarantined: false },
 };
 
 export function useSyncQueue(shiftId?: string) {
@@ -25,12 +26,13 @@ export function useSyncQueue(shiftId?: string) {
       return;
     }
     let cancelled = false;
-    const updateState = (patch: Partial<Omit<typeof EMPTY_QUEUE, "tenantId">>) => {
+    const updateState = (patch: Partial<Omit<typeof EMPTY_QUEUE, "tenantId" | "loaded">>, part: keyof typeof EMPTY_QUEUE.loaded) => {
       if (cancelled) return;
       setQueueState((current) => ({
         ...(current.tenantId === tenantId ? current : EMPTY_QUEUE),
         tenantId,
         ...patch,
+        loaded: { ...(current.tenantId === tenantId ? current.loaded : EMPTY_QUEUE.loaded), [part]: true },
       }));
     };
     const pendingSub = liveQuery(async () => {
@@ -39,7 +41,7 @@ export function useSyncQueue(shiftId?: string) {
         .anyOf([[tenantId, "pending"], [tenantId, "syncing"]])
         .toArray() as OfflineSaleQueueItem[];
       return shiftId ? entries.filter((entry) => entry.shift_id === shiftId).length : entries.length;
-    }).subscribe((count) => updateState({ pendingCount: count }));
+    }).subscribe((count) => updateState({ pendingCount: count }, "pending"));
 
     const failedSub = liveQuery(async () => {
       const entries = await offlineDb.offline_sales
@@ -47,14 +49,14 @@ export function useSyncQueue(shiftId?: string) {
         .equals([tenantId, "failed"])
         .sortBy("updated_at") as OfflineSaleQueueItem[];
       return shiftId ? entries.filter((entry) => entry.shift_id === shiftId) : entries;
-    }).subscribe((entries) => updateState({ failedEntries: entries }));
+    }).subscribe((entries) => updateState({ failedEntries: entries }, "failed"));
 
     // Legacy rows have no trustworthy tenant ownership. Show only their count
     // so the current login can ask for guided recovery without seeing payloads
     // or gaining a path that could sync/reassign them.
     const quarantinedSub = liveQuery(() =>
       offlineDb.offline_sales.where("status").equals("quarantined").count()
-    ).subscribe((count) => updateState({ quarantinedCount: count }));
+    ).subscribe((count) => updateState({ quarantinedCount: count }, "quarantined"));
 
     const onOnline = () => void triggerSync(tenantId);
     window.addEventListener("online", onOnline);
@@ -75,6 +77,7 @@ export function useSyncQueue(shiftId?: string) {
     pendingCount: visibleQueue.pendingCount,
     failedEntries: visibleQueue.failedEntries,
     quarantinedCount: visibleQueue.quarantinedCount,
+    ready: Object.values(visibleQueue.loaded).every(Boolean),
     syncNow: () => tenantId ? triggerSync(tenantId) : Promise.resolve(),
     retryDeadLetter: (clientUuid: string) => tenantId
       ? retryDeadLetter(tenantId, clientUuid)

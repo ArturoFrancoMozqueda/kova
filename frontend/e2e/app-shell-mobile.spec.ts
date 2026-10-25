@@ -22,7 +22,11 @@ async function openShell(page: Page) {
 
 test("closed mobile navigation stays out of the tab order and accessibility tree", async ({ page }) => {
   await openShell(page);
-  await expect(page.getByRole("link", { name: "Catálogo", exact: true })).toHaveCount(0);
+  // The dashboard also links to Catálogo; only the closed drawer must be inert.
+  const navigation = page.locator("#menu-de-navegacion");
+  await expect(navigation).toHaveAttribute("aria-hidden", "true");
+  await expect(navigation).toHaveAttribute("inert", "");
+  await expect(navigation.getByRole("link")).toHaveCount(0);
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Saltar al contenido" })).toBeFocused();
   await page.keyboard.press("Tab");

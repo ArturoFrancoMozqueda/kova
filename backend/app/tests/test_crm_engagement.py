@@ -11,7 +11,7 @@ from app.crm.engagement_models import CatalogRequest, FollowupTask
 from app.crm.models import ContactConsent, Opportunity
 from app.orders.models import Order
 from app.tests.test_customer_orders import _product, _signup_login
-from app.tests.test_storefront import _save
+from app.tests.test_storefront import _save, _seed_legacy_link_replacement
 
 pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
@@ -110,14 +110,14 @@ def test_public_intake_does_not_require_session_and_rejects_bad_origin_or_privat
 
 
 def test_intake_rejects_revoked_link_billing_and_unsafe_content(client, db):
-    tenant, product, saved, url, body = _public_setup(client)
+    tenant, _, _, url, body = _public_setup(client)
     assert client.post(url, json={**body, "name": "<script>x</script>"}).status_code == 422
     assert client.post(url, json={**body, "consent": True}).status_code == 422
-    rotated = _save(client, [product], version=saved["version"], rotate_link=True)
-    assert rotated.status_code == 200
+    _seed_legacy_link_replacement(db, tenant)
+    rotated = client.get("/api/v1/storefront/settings").json()
     assert client.post(url, json=body).status_code == 404
     new_url = (
-        rotated.json()["share_path"].replace("/catalogo/", "/api/v1/public/catalog/") + "/requests"
+        rotated["share_path"].replace("/catalogo/", "/api/v1/public/catalog/") + "/requests"
     )
     db.add(Subscription(tenant_id=tenant, status="canceled"))
     db.commit()
