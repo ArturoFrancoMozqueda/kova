@@ -2,6 +2,23 @@
 
 Last updated: 2026-10-25
 
+## Preparación de publicación — cierre de AbortSignal/Request
+
+Los dos errores de identidad quedan resueltos al reinstalar las dependencias exactas del
+lockfile: el entorno local conservaba Vitest 3.2.7 y el repositorio ya fija 4.1.11. No se
+cambian autenticación, setup, lockfile ni expectativas de identidad. Tres nuevas pruebas
+protegen Request/clones, motivo de cancelación y limpieza de listeners DOM con los globals reales.
+Validación completa: 1,428 unitarias frontend, 2,105 backend y 311 recorridos de navegador
+aprobados; 16 casos de integración se omiten deliberadamente en el perfil preview y se ejecutan
+contra API/PostgreSQL reales por separado. También se corrigen la espera del guardado final de
+postventa y una ruta de capturas exclusiva de macOS, conservando resultados y controles originales.
+
+Los cambios se integran con `main`, incluyendo el enlace/QR fijo del menú y el centro de control.
+El [PR #277](https://github.com/ArturoFrancoMozqueda/kova/pull/277) concentra la entrega; su gate
+`CI required` sobre el último commit es la autoridad para publicar. No se ha fusionado ni
+desplegado esta rama. [Evidencia y límites](audits/KOVA-RELEASE-READINESS-2026-10-25.md).
+WhatsApp permanece deshabilitado por defecto y requiere aceptación independiente del proveedor.
+
 ## Experiencia compartida y ciclo de negocio — validación local
 
 Agent Teams unifica controles, encabezados/acciones, estados vacíos y foco en Agenda,
@@ -15,8 +32,8 @@ El build pasó cuatro recorridos con API/PostgreSQL/RLS locales reales, incluido
 por UI: menú anónimo → solicitud → cliente → oportunidad → cotización → pedido → cobro → entrega
 → postventa → reposición → recepción parcial/total. Conservó una venta de $90 y existencias
 5→3→4→7. Se añade a CI de integración. Pasaron 47 regresiones de navegador con APIs interceptadas,
-TypeScript, ESLint, build/SSR/prerender y contratos. Suite unitaria completa: 1,407 aprobadas y
-los dos fallos preexistentes de AbortSignal/Request en identidad; el gate sigue pendiente.
+TypeScript, ESLint, build/SSR/prerender y contratos. El corte inicial tuvo 1,407 unitarias aprobadas
+y dos fallos de AbortSignal/Request, resueltos en la preparación de publicación descrita arriba.
 [Alcance, archivos, evidencia y límites](audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md).
 Sin publicación ni activación/certificación de proveedores externos por esta entrega.
 
@@ -37,8 +54,8 @@ credenciales en Secret store, publicación y entrega real siguen pendientes. Est
 Embedded Signup ni avisos automáticos con plantillas/postventa externa; las tareas internas y
 los contratos de venta/pago conservan su significado. Validación local: 117 pruebas backend
 focales y 75 con pg8000; 19 frontend focales, siete recorridos Chromium y 21 del controlador
-nativo aprobados. Suite frontend completa: 1,391 aprobadas y dos fallos de AbortSignal/Request
-en pruebas de identidad sin cambios; no se declara lista para release. TypeScript, ESLint,
+nativo aprobados. El corte inicial tuvo 1,391 unitarias aprobadas y dos fallos de AbortSignal/Request,
+resueltos en la preparación de publicación descrita arriba. TypeScript, ESLint,
 Ruff, build/SSR/prerender y contratos aprobados. [Evidencia y límites](audits/KOVA-WHATSAPP-PILOT-2026-10-23.md).
 
 ## Menú digital público — implementación local

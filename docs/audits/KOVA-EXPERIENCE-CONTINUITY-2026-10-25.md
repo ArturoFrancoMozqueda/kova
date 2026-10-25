@@ -2,6 +2,12 @@
 
 Fecha: 25 de octubre de 2026. Corte local sobre `main`, HEAD de referencia `ae16805a`, con cambios sin commit. No es un identificador de despliegue.
 
+Actualización posterior: los dos fallos de identidad descritos en este corte histórico quedaron
+resueltos reinstalando el lockfile existente, sin alterar sus aserciones. La suite integrada
+posterior pasa 1,428 unitarias frontend y 2,105 backend; véase el
+[cierre de preparación de publicación](KOVA-RELEASE-READINESS-2026-10-25.md) y el
+[PR #277](https://github.com/ArturoFrancoMozqueda/kova/pull/277) para el estado vigente.
+
 ## Resultado
 
 Se adoptó un lenguaje común de interacción en las áreas donde la auditoría detectó divergencias: controles, etiquetas/foco, encabezado con acción principal, estados vacíos, filtros por teclado y prioridad del trabajo diario sobre configuración. Se corrigió la contradicción de alertas detectada en la [aceptación productiva anterior](KOVA-COMPUTER-USE-E2E-2026-10-25.md).

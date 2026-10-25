@@ -4,6 +4,11 @@ Fecha: 2026-10-23. Fuente: copia de trabajo local, sin commit/release de esta en
 La visión comercial completa continúa abierta. No se configura una cuenta ni se activan envíos
 productivos con este cambio. El propietario confirmó que sólo tiene la app del celular.
 
+Actualización del 25 de octubre: los dos fallos históricos de AbortSignal/Request se resolvieron
+reinstalando el lockfile existente y la suite completa posterior pasa. El
+[cierre de preparación de publicación](KOVA-RELEASE-READINESS-2026-10-25.md) registra la
+validación vigente. La configuración y aceptación de WhatsApp real siguen pendientes.
+
 ## Resultado y archivos
 
 - `backend/app/messaging/connections.py`: registro de plataforma acotado en Secret store,

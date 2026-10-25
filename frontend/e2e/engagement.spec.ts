@@ -57,7 +57,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const width of [1440, 390, 320]) {
-  test(`WhatsApp contact can become a customer and receive an explicitly confirmed reply at ${width}px`, async ({ page }) => {
+  test(`WhatsApp contact can become a customer and receive an explicitly confirmed reply at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 950 });
     const conversation = {
       id: "whatsapp-1", customer_id: null as string | null, customer_name: null as string | null,
@@ -118,7 +118,7 @@ for (const width of [1440, 390, 320]) {
     const results = await page.evaluate(async () => window.axe.run(document.querySelector("main")!, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }));
     expect(results.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({ path: `/private/tmp/kova-whatsapp-${width}.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath(`kova-whatsapp-${width}.png`), fullPage: true });
   });
 }
 for (const width of [1440, 768, 390, 320]) {
