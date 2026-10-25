@@ -1,15 +1,21 @@
+import { ClipboardList } from "lucide-react";
+import { Link } from "react-router-dom";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
-import { useEffect, useState, type FormEvent } from "react";
+import { useId, useEffect, useState, type FormEvent } from "react";
 import {
   OperationsSession,
   type WorkspaceIdentity,
 } from "@/automations/workspace";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { ViewError } from "@/components/ui/view-states";
+import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Customer } from "@/customers/api";
 
@@ -42,8 +48,7 @@ const statuses = {
   completed: "Completada",
   dismissed: "Descartada",
 };
-const fieldClass =
-  "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
+const fieldClass = "mt-1 min-w-0";
 export default function FollowupsView() {
   useDocumentTitle("Postventa y seguimiento");
   return (
@@ -53,6 +58,7 @@ export default function FollowupsView() {
   );
 }
 function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const fieldId = useId();
   const linked = useLinkedRecord<Task>(
     identity,
     "task_id",
@@ -157,6 +163,17 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         eyebrow="Relación con clientes"
         title="Postventa y seguimiento"
         meta="Organiza reseñas, recompra e incidencias a partir de ventas reales."
+        actions={panel.data ? (
+          <Button
+            className="h-auto min-h-11 whitespace-normal"
+            disabled={panel.busy || !panel.online}
+            aria-expanded={incidentOpen}
+            aria-controls="followup-incident-form"
+            onClick={() => setIncidentOpen((value) => !value)}
+          >
+            Registrar incidencia
+          </Button>
+        ) : undefined}
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Las reglas crean pendientes internos. El equipo revisa el consentimiento
@@ -225,13 +242,6 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             >
               Generar pendientes
             </Button>
-            <Button
-              className="h-auto min-h-11 whitespace-normal text-left"
-              disabled={panel.busy}
-              onClick={() => setIncidentOpen((value) => !value)}
-            >
-              Registrar incidencia
-            </Button>
           </div>
         </section>
       )}
@@ -260,7 +270,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <h2 className="text-xl font-semibold">
             Confirmar regla de postventa
           </h2>
-          <label className="flex min-h-11 items-center gap-3">
+          <Label className="flex min-h-11 items-center gap-3">
             <input
               type="checkbox"
               checked={policy.enabled}
@@ -269,11 +279,11 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               }
             />
             Crear pendientes a partir de ventas reales
-          </label>
+          </Label>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
+            <Label htmlFor={`${fieldId}-1`} className="text-sm">
               Días para solicitar opinión
-              <input
+              <Input id={`${fieldId}-1`}
                 className={fieldClass}
                 type="number"
                 min="1"
@@ -287,10 +297,10 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   })
                 }
               />
-            </label>
-            <label className="text-sm">
+            </Label>
+            <Label htmlFor={`${fieldId}-2`} className="text-sm">
               Días para revisar recompra
-              <input
+              <Input id={`${fieldId}-2`}
                 className={fieldClass}
                 type="number"
                 min="2"
@@ -304,7 +314,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   })
                 }
               />
-            </label>
+            </Label>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -326,22 +336,23 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       )}
       {incidentOpen && (
         <form
+          id="followup-incident-form"
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void createIncident(event)}
         >
           <h2 className="text-xl font-semibold">Nueva incidencia</h2>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-3`} className="block text-sm">
             Buscar cliente
-            <input
+            <Input id={`${fieldId}-3`}
               className={fieldClass}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-          </label>
+          </Label>
           {customerError && <p role="alert">{customerError}</p>}
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-4`} className="block text-sm">
             Cliente de la incidencia
-            <select
+            <Select id={`${fieldId}-4`}
               className={fieldClass}
               required
               value={customerId}
@@ -353,37 +364,37 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {row.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
+            </Select>
+          </Label>
+          <Label htmlFor={`${fieldId}-5`} className="block text-sm">
             Asunto de la incidencia
-            <input
+            <Input id={`${fieldId}-5`}
               className={fieldClass}
               required
               maxLength={160}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
+          </Label>
+          <Label htmlFor={`${fieldId}-6`} className="block text-sm">
             Nota interna
-            <textarea
+            <Textarea id={`${fieldId}-6`}
               className={fieldClass}
               maxLength={1000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
+          </Label>
+          <Label htmlFor={`${fieldId}-7`} className="block text-sm">
             Fecha de seguimiento
-            <input
+            <Input id={`${fieldId}-7`}
               className={fieldClass}
               type="datetime-local"
               required
               value={dueAt}
               onChange={(event) => setDueAt(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="flex flex-wrap gap-3">
             <Button
               className="h-auto min-h-11 whitespace-normal text-left"
@@ -410,11 +421,12 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       )}
       <section className="space-y-4" aria-label="Pendientes de postventa">
         <h2 className="text-xl font-semibold">Pendientes del equipo</h2>
-        {panel.data?.tasks.length === 0 && (
-          <p className="rounded-2xl border border-kova-border bg-white p-6 text-sm text-kova-muted">
-            No hay tareas de postventa en esta página. Activa la regla cuando
-            estés listo o registra una incidencia.
-          </p>
+        {!panel.loading && !panel.error && panel.data?.tasks.length === 0 && (
+          <ViewEmpty
+            icon={<ClipboardList className="h-6 w-6" aria-hidden="true" />}
+            title="No hay tareas de postventa en esta página."
+            body="Activa la regla cuando estés listo o registra una incidencia."
+          />
         )}
         <div className="grid gap-4 lg:grid-cols-2">
           {panel.data?.tasks
@@ -436,15 +448,15 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           aria-label="Resolver seguimiento"
         >
           <h2 className="text-xl font-semibold">Resolver: {selected.title}</h2>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-8`} className="block text-sm">
             Resultado interno
-            <textarea
+            <Textarea id={`${fieldId}-8`}
               className={fieldClass}
               maxLength={1000}
               value={resolutionNote}
               onChange={(event) => setResolutionNote(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="flex flex-wrap gap-3">
             <Button
               className="h-auto min-h-11 whitespace-normal text-left"
@@ -524,6 +536,24 @@ function FollowupCard({
         <p className="break-all text-xs text-kova-muted">
           Venta de origen: {row.sale_order_id}
         </p>
+      )}
+      {online && (
+        <nav className="flex flex-wrap gap-2" aria-label={`Registros relacionados con ${row.title}`}>
+          <Link
+            className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11" })}
+            to={`/customers?customerId=${encodeURIComponent(row.customer_id)}`}
+          >
+            Ver cliente
+          </Link>
+          {row.sale_order_id && (
+            <Link
+              className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11" })}
+              to={`/orders/${encodeURIComponent(row.sale_order_id)}`}
+            >
+              Ver venta
+            </Link>
+          )}
+        </nav>
       )}
       {row.status === "pending" && (
         <Button

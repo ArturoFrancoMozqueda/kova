@@ -14,9 +14,9 @@ class SetupItem(BaseModel):
 
 class MessagingReadiness(BaseModel):
     provider: Literal["whatsapp_cloud_api"] = "whatsapp_cloud_api"
-    status: Literal["not_connected"] = "not_connected"
-    setup_status: Literal["setup_required"] = "setup_required"
-    account_mode: Literal["not_verified"] = "not_verified"
+    status: Literal["not_connected", "connected", "configuration_error"] = "not_connected"
+    setup_status: Literal["setup_required", "configured"] = "setup_required"
+    account_mode: Literal["not_verified", "verified"] = "not_verified"
     business_app_implies_cloud_api: bool = False
     send_enabled: bool = False
     webhook_enabled: bool = False

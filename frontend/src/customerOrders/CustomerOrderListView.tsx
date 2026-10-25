@@ -10,12 +10,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ViewHeader } from "@/components/ui/view-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { cn } from "@/lib/utils";
 import { useIsOnline } from "@/offline/useSyncQueue";
 import { formatDateTime, formatMoney } from "@/orders/format";
 import { listCustomerOrders } from "./api";
@@ -155,29 +155,20 @@ export default function CustomerOrderListView() {
         </div>
       ) : null}
 
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Estado del pedido">
-          {statuses.map((value) => (
-            <button
-              key={value ?? "all"}
-              type="button"
-              role="tab"
-              aria-selected={status === value}
-              onClick={() => { setStatus(value); setOffset(0); }}
-              className={cn(
-                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium",
-                status === value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/40",
-              )}
-            >
-              {value ? statusLabels[value] : "Activos y recientes"}
-              {value && data?.status_counts[value] !== undefined ? ` ${data.status_counts[value]}` : ""}
-            </button>
-          ))}
+      <div className="mb-4 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0 overflow-x-auto pb-1">
+          <SegmentedControl<CustomerOrderStatus | "all">
+            ariaLabel="Estado del pedido"
+            value={status ?? "all"}
+            onValueChange={(value) => { setStatus(value === "all" ? undefined : value); setOffset(0); }}
+            options={statuses.map((value) => ({
+              value: value ?? "all",
+              label: `${value ? statusLabels[value] : "Activos y recientes"}${value && data?.status_counts[value] !== undefined ? ` ${data.status_counts[value]}` : ""}`,
+            }))}
+          />
         </div>
         <form
-          className="flex w-full gap-2 lg:w-96"
+          className="flex w-full shrink-0 gap-2 xl:w-80"
           onSubmit={(event) => {
             event.preventDefault();
             setSubmittedSearch(search.trim());

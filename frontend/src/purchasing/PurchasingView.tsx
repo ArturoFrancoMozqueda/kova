@@ -1,6 +1,7 @@
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "@/auth/permissions";
 import { listProducts } from "@/catalog/api";
 import type { Product } from "@/catalog/types";
@@ -26,6 +27,13 @@ type DraftLine = { product_id: string; quantity: number; unit_cost: string };
 export default function PurchasingView() {
   useDocumentTitle("Compras y proveedores");
   const allowed = usePermission(INVENTORY_ADJUST_PERMISSION);
+  const [searchParams] = useSearchParams();
+  const linkedPurchaseId = searchParams.get("purchase_id");
+  const linkedPurchaseRef = useRef<HTMLDivElement>(null);
+  const [activeSetup, setActiveSetup] = useState<"purchase" | "supplier" | null>(null);
+  const purchasePanelId = useId();
+  const supplierPanelId = useId();
+  const setupPanelRef = useRef<HTMLDivElement>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -55,6 +63,20 @@ export default function PurchasingView() {
   }, [offset]);
   useEffect(() => { if (allowed) void load(); }, [allowed, load]);
   useEffect(() => {
+    if (!allowed || loading || !linkedPurchaseId) return;
+    const target = linkedPurchaseRef.current;
+    if (target) {
+      target.focus();
+      target.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [allowed, loading, linkedPurchaseId, purchases]);
+  useEffect(() => {
+    if (activeSetup && setupPanelRef.current) {
+      setupPanelRef.current.focus();
+      setupPanelRef.current.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [activeSetup]);
+  useEffect(() => {
     const changed = () => setOnline(navigator.onLine);
     window.addEventListener("online", changed); window.addEventListener("offline", changed);
     return () => { window.removeEventListener("online", changed); window.removeEventListener("offline", changed); };
@@ -80,11 +102,38 @@ export default function PurchasingView() {
   const disabled = busy || !online;
   if (!allowed) return <ViewPermissionDenied title="Compras y proveedores" description="Necesitas permiso para administrar inventario." />;
   return <ViewLayout className="space-y-6">
-    <ViewHeader title="Compras y proveedores" meta="Pide mercancía, recibe lo que llegó y conserva el costo de cada compra." />
+    <ViewHeader title="Compras y proveedores" meta="Pide mercancía, recibe lo que llegó y conserva el costo de cada compra." actions={<div className="flex flex-wrap gap-2">
+      <Button type="button" aria-expanded={activeSetup === "purchase"} aria-controls={purchasePanelId} onClick={() => setActiveSetup(current => current === "purchase" ? null : "purchase")}>Preparar compra</Button>
+      <Button type="button" variant="outline" aria-expanded={activeSetup === "supplier"} aria-controls={supplierPanelId} onClick={() => setActiveSetup(current => current === "supplier" ? null : "supplier")}>Nuevo proveedor</Button>
+    </div>} />
     {!online && <p role="status" className="rounded-kova-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">Conéctate a internet para crear compras y recibir mercancía.</p>}
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button></div>}
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
+      {linkedPurchaseId && !loading && !error && (
+        <p role="status" className="rounded-kova-md border border-kova-blue/20 bg-kova-blue/5 p-4 text-sm">
+          {purchases.some(purchase => purchase.id === linkedPurchaseId)
+            ? "Estás revisando la compra del enlace. Confirma la recepción sólo cuando llegue la mercancía."
+            : "La compra del enlace no aparece en esta página de la sucursal actual. Revisa otras páginas o verifica la sucursal; no se realizó ningún cambio."}
+        </p>
+      )}
+      {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
+      {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
+      {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra ${purchase.id.slice(0, 8)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
+        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
+        <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>
+        <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
+        {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
+      </CardContent></Card>)}
+      <div className="flex gap-3"><Button variant="outline" disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 100))}>Anteriores</Button><Button variant="outline" disabled={loading || purchases.length < 100} onClick={() => setOffset(value => value + 100)}>Más compras</Button></div>
+    </section>
+    {receiving && <Card><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Recibir compra de {receiving.supplier_name}</h2><p>Registra únicamente las unidades que llegaron. El resto quedará pendiente.</p>
+      <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (receiving.items.some(item => (quantities[item.id] ?? 0) > 0 && products.find(product => product.id === item.product_id)?.track_lots && !allocationValid(receiveLots[item.id] ?? [], quantities[item.id]))) { setError("Asigna a sus lotes todas las unidades a recibir."); return; } const items = receiving.items.filter(item => (quantities[item.id] ?? 0) > 0).map(item => ({ item_id: item.id, quantity: quantities[item.id], ...(products.find(product => product.id === item.product_id)?.track_lots ? { lot_allocations: receiveLots[item.id] ?? [] } : {}) })); void mutate({ receive: receiving.id, items, updateCost }, key => receivePurchase(receiving.id, items, updateCost, key), () => setReceiving(null)); }}>
+        {receiving.items.filter(item => item.quantity > item.received_quantity).map(item => <div key={item.id}><Label htmlFor={`receive-${item.id}`}>{item.product_name} · pendientes {item.quantity - item.received_quantity}</Label><Input id={`receive-${item.id}`} type="number" required min={0} max={item.quantity - item.received_quantity} step={1} value={quantities[item.id] ?? 0} onChange={e => setQuantities(rows => ({ ...rows, [item.id]: Number(e.target.value) }))} />{products.find(product => product.id === item.product_id)?.track_lots && (quantities[item.id] ?? 0) > 0 && <LotAllocationEditor productId={item.product_id} quantity={quantities[item.id] ?? 0} value={receiveLots[item.id] ?? []} onChange={parts => setReceiveLots(previous => ({ ...previous, [item.id]: parts }))} incoming canCreate />}</div>)}
+        <label className="flex items-start gap-3"><input type="checkbox" checked={updateCost} onChange={e => setUpdateCost(e.target.checked)} /><span>Actualizar el costo del catálogo con el costo unitario de esta compra. Las ventas anteriores conservan su costo registrado.</span></label>
+        <div className="flex gap-3"><Button disabled={disabled || !Object.values(quantities).some(value => value > 0)} type="submit">Confirmar recepción</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setReceiving(null)}>Cerrar</Button></div>
+      </form>
+    </CardContent></Card>}
+    {activeSetup === "supplier" && <Card id={supplierPanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Registrar proveedor" className="max-w-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>
         <form onSubmit={submitSupplier} className="space-y-3">
           <Label htmlFor="supplier-name">Nombre</Label><Input id="supplier-name" required maxLength={160} value={supplierName} onChange={e => setSupplierName(e.target.value)} />
           <Label htmlFor="supplier-contact">Teléfono o correo (opcional)</Label><Input id="supplier-contact" maxLength={200} value={contact} onChange={e => setContact(e.target.value)} />
@@ -94,8 +143,8 @@ export default function PurchasingView() {
           loading ? <p role="status" className="text-sm text-muted-foreground">Cargando proveedores…</p>
             : !error ? <p className="text-sm text-muted-foreground">Agrega tu primer proveedor para preparar una compra.</p> : null
         ) : <ul className="space-y-2 text-sm">{suppliers.map(s => <li key={s.id}><strong>{s.name}</strong>{s.contact && <p className="text-muted-foreground">{s.contact}</p>}</li>)}</ul>}
-      </CardContent></Card>
-      <Card className="lg:col-span-2"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
+    </CardContent></Card>}
+    {activeSetup === "purchase" && <Card id={purchasePanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Preparar compra pendiente" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
         <form onSubmit={submitPurchase} className="space-y-4">
           <Label htmlFor="purchase-supplier">Proveedor</Label><Select id="purchase-supplier" required value={supplierId} onChange={e => setSupplierId(e.target.value)}><option value="">Selecciona un proveedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
           {products.length === 0 && (
@@ -113,25 +162,6 @@ export default function PurchasingView() {
           <p className="flex items-baseline justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">Total de la compra <strong className="text-lg text-kova-ink tabular-nums">{formatPurchaseTotal(lines)}</strong></p>
           <Button type="submit" disabled={disabled || products.length === 0 || suppliers.length === 0}>Crear compra pendiente</Button>
         </form>
-      </CardContent></Card>
-    </div>
-    <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
-      {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
-      {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
-      {purchases.map(purchase => <Card key={purchase.id}><CardContent className="space-y-3 pt-6">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
-        <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>
-        <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
-        {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
-      </CardContent></Card>)}
-      <div className="flex gap-3"><Button variant="outline" disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 100))}>Anteriores</Button><Button variant="outline" disabled={loading || purchases.length < 100} onClick={() => setOffset(value => value + 100)}>Más compras</Button></div>
-    </section>
-    {receiving && <Card><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Recibir compra de {receiving.supplier_name}</h2><p>Registra únicamente las unidades que llegaron. El resto quedará pendiente.</p>
-      <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (receiving.items.some(item => (quantities[item.id] ?? 0) > 0 && products.find(product => product.id === item.product_id)?.track_lots && !allocationValid(receiveLots[item.id] ?? [], quantities[item.id]))) { setError("Asigna a sus lotes todas las unidades a recibir."); return; } const items = receiving.items.filter(item => (quantities[item.id] ?? 0) > 0).map(item => ({ item_id: item.id, quantity: quantities[item.id], ...(products.find(product => product.id === item.product_id)?.track_lots ? { lot_allocations: receiveLots[item.id] ?? [] } : {}) })); void mutate({ receive: receiving.id, items, updateCost }, key => receivePurchase(receiving.id, items, updateCost, key), () => setReceiving(null)); }}>
-        {receiving.items.filter(item => item.quantity > item.received_quantity).map(item => <div key={item.id}><Label htmlFor={`receive-${item.id}`}>{item.product_name} · pendientes {item.quantity - item.received_quantity}</Label><Input id={`receive-${item.id}`} type="number" required min={0} max={item.quantity - item.received_quantity} step={1} value={quantities[item.id] ?? 0} onChange={e => setQuantities(rows => ({ ...rows, [item.id]: Number(e.target.value) }))} />{products.find(product => product.id === item.product_id)?.track_lots && (quantities[item.id] ?? 0) > 0 && <LotAllocationEditor productId={item.product_id} quantity={quantities[item.id] ?? 0} value={receiveLots[item.id] ?? []} onChange={parts => setReceiveLots(previous => ({ ...previous, [item.id]: parts }))} incoming canCreate />}</div>)}
-        <label className="flex items-start gap-3"><input type="checkbox" checked={updateCost} onChange={e => setUpdateCost(e.target.checked)} /><span>Actualizar el costo del catálogo con el costo unitario de esta compra. Las ventas anteriores conservan su costo registrado.</span></label>
-        <div className="flex gap-3"><Button disabled={disabled || !Object.values(quantities).some(value => value > 0)} type="submit">Confirmar recepción</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setReceiving(null)}>Cerrar</Button></div>
-      </form>
     </CardContent></Card>}
   </ViewLayout>;
 }

@@ -53,11 +53,26 @@ class InboxMessageTransition(StrictModel):
     action: Literal["queue", "cancel"]
 
 
+class InboxHumanSend(StrictModel):
+    expected_version: int = Field(ge=1)
+
+
+class InboxCatalogDraft(StrictModel):
+    expected_version: int = Field(ge=1)
+
+
+class InboxConnectionStatus(BaseModel):
+    status: Literal["not_connected", "connected", "configuration_error"]
+    send_enabled: bool
+    receive_enabled: bool
+
+
 class InboxConversationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     customer_id: UUID | None
     customer_name: str | None
+    contact_phone: str | None = None
     subject: str
     origin: Literal["manual", "whatsapp"]
     status: Literal["open", "closed"]
@@ -106,7 +121,8 @@ class InboxMessageResponse(BaseModel):
 class InboxConversationList(BaseModel):
     items: list[InboxConversationResponse]
     has_more: bool
-    channel_status: Literal["not_connected"] = "not_connected"
+    channel_status: Literal["not_connected", "connected", "configuration_error"] = "not_connected"
+    send_enabled: bool = False
 
 
 class InboxMessageList(BaseModel):

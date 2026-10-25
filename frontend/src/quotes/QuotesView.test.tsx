@@ -299,6 +299,18 @@ it("shows the real commercial journey without treating POS payments as provider 
   expect(
     screen.getByText(/no acreditan un cobro electrónico verificado/),
   ).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver seguimiento" })).toHaveAttribute("href", "/crm?opportunity_id=opportunity-1");
+});
+
+it("does not imply an opportunity link when the quote has no commercial origin", async () => {
+  fetchMock.mockImplementation(async (url) => String(url).endsWith("/journey")
+    ? json({ quote_id: quote.id, catalog_request_id: null, opportunity_id: null, opportunity_stage: null, customer_order_id: null, customer_order_status: null, sale_order_id: null, sale_status: null, sale_total_amount: null, recorded_payments_amount: null, external_collection_verified: false })
+    : String(url).includes("/customers?") ? json([customer])
+      : String(url).endsWith("/catalog/products") ? json([product]) : json({ items: [quote], total: 1 }));
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Ver recorrido comercial" }));
+  expect(await screen.findByText(/Sin oportunidad de origen/)).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Ver seguimiento" })).not.toBeInTheDocument();
 });
 
 it("loads opportunities only for the selected quote customer", async () => {

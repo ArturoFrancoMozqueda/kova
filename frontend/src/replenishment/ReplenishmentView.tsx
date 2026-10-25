@@ -9,6 +9,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatPurchaseTotal } from "@/purchasing/formatPurchaseTotal";
+import type { Purchase } from "@/purchasing/api";
 
 type Suggestion = { product_id: string; product_name: string; available_quantity: number; reserved_quantity: number; incoming_quantity: number; low_stock_threshold: number; suggested_quantity: number; unit_cost: string | null; evidence_version: string };
 type Supplier = { id: string; name: string };
@@ -28,6 +29,7 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [createdPurchaseId, setCreatedPurchaseId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const alive = useRef(true);
@@ -52,11 +54,11 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     event.preventDefault();
     if (locked.current || !valid || !online) return;
     if (!reviewing) { setReviewing(true); return; }
-    locked.current = true; setBusy(true); setError(""); setNotice("");
+    locked.current = true; setBusy(true); setError(""); setNotice(""); setCreatedPurchaseId(null);
     key.current ??= crypto.randomUUID();
     try {
-      await request("/replenishment/approve-purchase", "POST", { supplier_id: supplier, items: selected.map(row => ({ product_id: row.product_id, quantity: Number(row.quantity), unit_cost: row.cost, evidence_version: row.evidence_version })) }, key.current);
-      if (alive.current) { await load(); setNotice("Compra pendiente creada. Revisa su recepción en Compras cuando llegue la mercancía."); }
+      const purchase = await request<Purchase>("/replenishment/approve-purchase", "POST", { supplier_id: supplier, items: selected.map(row => ({ product_id: row.product_id, quantity: Number(row.quantity), unit_cost: row.cost, evidence_version: row.evidence_version })) }, key.current);
+      if (alive.current) { await load(); if (alive.current) { setCreatedPurchaseId(purchase.id); setNotice("Compra pendiente creada. Revisa su recepción en Compras cuando llegue la mercancía."); } }
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos crear la compra."); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
@@ -64,7 +66,7 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     <ViewHeader eyebrow="Abastecimiento" title="Reponer con evidencia" meta="Revisa existencias, reservas y mercancía pendiente antes de preparar una compra." actions={<Button variant="outline" onClick={() => void load()} disabled={busy || !online || loading}>Actualizar datos</Button>} />
     <p className="max-w-2xl text-sm text-kova-muted">La sugerencia busca superar el mínimo configurado y descuenta compras pendientes. Revisa demanda, caducidad y tiempos del proveedor. Crear la compra no recibe mercancía, envía mensajes ni mueve dinero.</p>
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Revisar datos actuales" />}
-    {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice} <Link to="/purchasing" className="underline">Abrir Compras</Link></p>}
+    {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice} <Link to={createdPurchaseId ? `/purchasing?purchase_id=${encodeURIComponent(createdPurchaseId)}` : "/purchasing"} className="inline-flex min-h-11 items-center underline">Revisar compra creada</Link></p>}
     {!online && <p role="status">Conéctate para crear o actualizar una compra.</p>}
     {loading ? <p role="status">Consultando existencias y compras pendientes…</p> : rows.length === 0 ? <section className="rounded-2xl border bg-white p-7"><h2 className="font-semibold">Sin productos debajo del mínimo</h2><p className="mt-2 text-sm text-kova-muted">Configura mínimos de inventario para los productos que quieras supervisar.</p></section> : <form className="space-y-6" onSubmit={event => void submit(event)}>
       <fieldset disabled={busy || !online || reviewing} className="grid gap-4 md:grid-cols-2"><legend className="sr-only">Productos para reponer</legend>{rows.map(row => <article key={row.product_id} className="min-w-0 space-y-4 rounded-2xl border border-kova-border bg-white p-5"><label className="flex items-start gap-3 font-semibold"><input type="checkbox" className="mt-1" checked={row.selected} onChange={e => edit(row.product_id, { selected: e.target.checked })} />{row.product_name}</label><dl className="grid grid-cols-3 gap-2 text-sm"><div><dt className="text-kova-muted">Disponibles</dt><dd>{row.available_quantity}</dd></div><div><dt className="text-kova-muted">Reservados</dt><dd>{row.reserved_quantity}</dd></div><div><dt className="text-kova-muted">Por recibir</dt><dd>{row.incoming_quantity}</dd></div></dl><p className="text-sm text-kova-muted">Mínimo: {row.low_stock_threshold}. Sugerencia: {row.suggested_quantity} unidades.</p><div className="grid grid-cols-2 gap-3"><div><Label htmlFor={`qty-${row.product_id}`}>Cantidad</Label><Input id={`qty-${row.product_id}`} inputMode="numeric" value={row.quantity} onChange={e => edit(row.product_id, { quantity: e.target.value })} /></div><div><Label htmlFor={`cost-${row.product_id}`}>Costo unitario MXN</Label><Input id={`cost-${row.product_id}`} inputMode="decimal" placeholder="Captura el costo" value={row.cost} onChange={e => edit(row.product_id, { cost: e.target.value })} /></div></div>{row.unit_cost === null && <p className="text-sm text-kova-muted">No hay costo registrado. Confírmalo con el proveedor antes de seleccionar este producto.</p>}</article>)}</fieldset>

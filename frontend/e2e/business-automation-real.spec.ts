@@ -140,7 +140,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
 
     await page.goto("/settings/public-catalog");
     await page
-      .getByLabel("Nombre del catálogo")
+      .getByLabel("Nombre del menú o negocio")
       .fill("Catálogo integración E2E");
     await page
       .getByRole("checkbox", { name: new RegExp(prepared.product.name) })

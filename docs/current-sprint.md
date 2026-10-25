@@ -1,6 +1,71 @@
 # Current Sprint
 
-Last updated: 2026-10-22
+Last updated: 2026-10-25
+
+## Experiencia compartida y ciclo de negocio — validación local
+
+Agent Teams unifica controles, encabezados/acciones, estados vacíos y foco en Agenda,
+Atención postventa, Seguimiento y Bandeja. Compras prioriza registros/recepción y conserva
+borradores en paneles secundarios; Pedidos comparte filtros con teclado y el término Tarjeta
+manual con Caja. La continuación comercial y reposición/compra conservan el registro exacto.
+Se corrige la contradicción entre prioridad y severidad de una devolución única del 100%.
+El [contrato UI/UX](claude/ui-experience-contract.md) guía los módulos sin cambiar sus contratos.
+
+El build pasó cuatro recorridos con API/PostgreSQL/RLS locales reales, incluido el nuevo ciclo
+por UI: menú anónimo → solicitud → cliente → oportunidad → cotización → pedido → cobro → entrega
+→ postventa → reposición → recepción parcial/total. Conservó una venta de $90 y existencias
+5→3→4→7. Se añade a CI de integración. Pasaron 47 regresiones de navegador con APIs interceptadas,
+TypeScript, ESLint, build/SSR/prerender y contratos. Suite unitaria completa: 1,407 aprobadas y
+los dos fallos preexistentes de AbortSignal/Request en identidad; el gate sigue pendiente.
+[Alcance, archivos, evidencia y límites](audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md).
+Sin publicación ni activación/certificación de proveedores externos por esta entrega.
+
+## WhatsApp → cliente → catálogo → pedido — piloto asistido local
+
+Se implementa ingreso HTTPS con firma raw, routing por registro privado de plataforma y
+sesiones runtime/RLS por negocio/sucursal. La bandeja permite identificar el contacto exacto,
+vincular cliente, consultar historial y preparar pedido; genera borradores del catálogo publicado
+y admite respuesta humana con confirmación, autor/responsable vigente, consentimiento y ventana.
+Conexión/configuración y entrega se muestran por separado. Hay interruptor global y por conexión,
+límite diario conservador y estados inciertos sin reenvío ciego. No se agregan migraciones ni
+permisos de escritura de bindings al runtime; el alta asistida verifica la cuenta ante Meta con
+un script de operador. [Contrato](../specs/integrations/messaging-inbox.md) y
+[guía de alta/aceptación y pendientes](runbooks/whatsapp-assisted-pilot.md).
+
+El propietario sólo tiene WhatsApp Business en el celular. La app de Meta, número de prueba,
+credenciales en Secret store, publicación y entrega real siguen pendientes. Este corte no completa
+Embedded Signup ni avisos automáticos con plantillas/postventa externa; las tareas internas y
+los contratos de venta/pago conservan su significado. Validación local: 117 pruebas backend
+focales y 75 con pg8000; 19 frontend focales, siete recorridos Chromium y 21 del controlador
+nativo aprobados. Suite frontend completa: 1,391 aprobadas y dos fallos de AbortSignal/Request
+en pruebas de identidad sin cambios; no se declara lista para release. TypeScript, ESLint,
+Ruff, build/SSR/prerender y contratos aprobados. [Evidencia y límites](audits/KOVA-WHATSAPP-PILOT-2026-10-23.md).
+
+## Menú digital público — implementación local
+
+El catálogo se presenta como menú para armar solicitudes de pedido, a distancia o en el negocio:
+búsqueda, disponibilidad, cantidades, subtotal estimado y resumen adaptable a móvil/escritorio.
+El detalle llega a la bandeja existente de Kova con el contrato público actual, sin migraciones.
+Las consultas generales y el enlace secundario a WhatsApp se conservan. No crea automáticamente
+órdenes operativas, reservas ni pagos; el equipo revisa la solicitud antes de continuar.
+[Contrato y límites](../specs/storefront/public_catalog.md). Publicación y aceptación con un
+negocio real pendientes; las pruebas locales no acreditan pedidos productivos ni WhatsApp real.
+El ajuste móvil conserva el encabezado compacto y separa exploración de revisión sin duplicar formulario.
+El menú usa tarjetas en tres columnas en móvil/tablet con fotografías 4:3 a todo el ancho, nombres,
+precios y controles bajo la imagen. «N en pedido» abre el detalle para ajustar cantidades sin
+comprimir los botones; escritorio conserva sus controles directos. Un toque abre foto grande y descripción completa en el diálogo
+compartido. Sólo se muestran las fotos públicas reales del negocio; las capturas de demostración
+usan recursos existentes del proyecto desde una respuesta interceptada del test.
+Al volver conserva datos, selección, posición de desplazamiento y foco. Escritorio conserva la
+disposición con resumen lateral. La bandeja y los contratos no cambian.
+Validación: 32 pruebas focales, TypeScript, ESLint de archivos afectados y build/SSR/prerender
+aprobados. Ocho recorridos del catálogo sobre el build final, con APIs interceptadas, cubren
+320/390/768/1440 px, pedidos a distancia/presenciales, consultas, teclado, reintento y axe.
+Móvil verifica tres tarjetas por fila en 320/390/768 px, carga de fotografías, primer producto
+antes de 400 px, revisión separada y conservación de contacto/notas al regresar al menú.
+Las pruebas con fotografías verifican carga de píxeles reales, amplitud de imagen y navegación
+por teclado del detalle (foco, Tab/Shift+Tab y Escape), conservando la cobertura sin fotografías.
+Revisión visual de capturas móvil/escritorio completada; QR físico y WhatsApp real sin verificar.
 
 ## Flujos conectados de comercio y servicios — implementación local
 

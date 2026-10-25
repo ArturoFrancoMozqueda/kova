@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ClipboardCheck } from "lucide-react";
+import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import { Link } from "react-router-dom";
@@ -9,9 +10,13 @@ import {
 } from "@/automations/workspace";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { ViewError } from "@/components/ui/view-states";
+import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Customer } from "@/customers/api";
 import { utcToZonedInput, zonedInputToUtc } from "@/appointments/timezone";
@@ -24,8 +29,7 @@ import {
   type ServiceCaseStatus,
 } from "./types";
 
-const fieldClass =
-  "mt-1 min-h-11 w-full min-w-0 rounded-lg border border-input bg-white p-3";
+const fieldClass = "mt-1 min-w-0";
 const buttonClass = "h-auto min-h-11 whitespace-normal";
 const date = (value: string) => new Date(value).toLocaleString("es-MX");
 const money = (value: string) =>
@@ -47,6 +51,7 @@ export default function ServiceCasesView() {
   );
 }
 function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const fieldId = useId();
   const linked = useLinkedRecord<ServiceCase>(
     identity,
     "case_id",
@@ -221,6 +226,17 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         eyebrow="Relación con clientes"
         title="Atención postventa"
         meta="Da seguimiento a cada incidencia con un responsable y un historial claro."
+        actions={
+          <Button
+            className={buttonClass}
+            aria-expanded={createOpen}
+            aria-controls="service-case-create-form"
+            disabled={panel.busy || !panel.online}
+            onClick={() => setCreateOpen((value) => !value)}
+          >
+            {createOpen ? "Cerrar alta de atención" : "Nueva atención postventa"}
+          </Button>
+        }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Registra lo ocurrido, acuerda el siguiente paso y conserva las notas del
@@ -256,15 +272,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           Cargar más responsables
         </Button>
       )}
-      <Button
-        className={buttonClass}
-        disabled={panel.busy || !panel.online}
-        onClick={() => setCreateOpen((value) => !value)}
-      >
-        {createOpen ? "Cerrar alta de atención" : "Nueva atención postventa"}
-      </Button>
       {createOpen && (
         <form
+          id="service-case-create-form"
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void create(event)}
         >
@@ -275,17 +285,17 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
+            <Label htmlFor={`${fieldId}-1`} className="text-sm">
               Buscar cliente
-              <input
+              <Input id={`${fieldId}-1`}
                 className={fieldClass}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
-            </label>
-            <label className="text-sm">
+            </Label>
+            <Label htmlFor={`${fieldId}-2`} className="text-sm">
               Cliente de la atención
-              <select
+              <Select id={`${fieldId}-2`}
                 className={fieldClass}
                 required
                 value={customerId}
@@ -302,8 +312,8 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     {customer.name}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Label>
           </div>
           {customerError && <p role="alert">{customerError}</p>}
           <p className="text-sm text-kova-muted">
@@ -314,30 +324,30 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             antes de continuar. No se vinculan contactos por coincidencia de
             nombre o teléfono.
           </p>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-3`} className="block text-sm">
             Asunto de la atención
-            <input
+            <Input id={`${fieldId}-3`}
               className={fieldClass}
               required
               maxLength={160}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
+          </Label>
+          <Label htmlFor={`${fieldId}-4`} className="block text-sm">
             Nota inicial privada
-            <textarea
+            <Textarea id={`${fieldId}-4`}
               className={fieldClass}
               required
               maxLength={2000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
+            <Label htmlFor={`${fieldId}-5`} className="text-sm">
               Responsable de la atención
-              <select
+              <Select id={`${fieldId}-5`}
                 className={fieldClass}
                 value={assigneeId}
                 onChange={(event) => setAssigneeId(event.target.value)}
@@ -348,17 +358,17 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     {row.email}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="text-sm">
+              </Select>
+            </Label>
+            <Label htmlFor={`${fieldId}-6`} className="text-sm">
               Vencimiento de la atención (opcional)
-              <input
+              <Input id={`${fieldId}-6`}
                 className={fieldClass}
                 type="datetime-local"
                 value={dueAt}
                 onChange={(event) => setDueAt(event.target.value)}
               />
-            </label>
+            </Label>
           </div>
           <p className="text-sm text-kova-muted">
             El vencimiento usa la hora de este dispositivo: {deviceZone}. Puedes
@@ -385,9 +395,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               />
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm">
+              <Label htmlFor={`${fieldId}-7`} className="text-sm">
                 Venta relacionada
-                <select
+                <Select id={`${fieldId}-7`}
                   className={fieldClass}
                   value={saleId}
                   disabled={
@@ -406,11 +416,11 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                         {row.id.slice(0, 8)}
                       </option>
                     ))}
-                </select>
-              </label>
-              <label className="text-sm">
+                </Select>
+              </Label>
+              <Label htmlFor={`${fieldId}-8`} className="text-sm">
                 Pedido relacionado
-                <select
+                <Select id={`${fieldId}-8`}
                   className={fieldClass}
                   value={orderId}
                   disabled={
@@ -428,8 +438,8 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                         {row.folio}
                       </option>
                     ))}
-                </select>
-              </label>
+                </Select>
+              </Label>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button
@@ -495,9 +505,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           Pendientes e historial del equipo
         </h2>
         <div className="grid gap-4 rounded-xl border border-kova-border p-4 sm:grid-cols-2 sm:items-end xl:grid-cols-[minmax(0,1fr)_auto_auto]">
-          <label className="min-w-0 flex-1 text-sm">
+          <Label htmlFor={`${fieldId}-9`} className="min-w-0 flex-1 text-sm">
             Estado de atención
-            <select
+            <Select id={`${fieldId}-9`}
               className={fieldClass}
               value={status}
               onChange={(event) => {
@@ -512,9 +522,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+            </Select>
+          </Label>
+          <Label className="flex min-h-11 items-center gap-3 text-sm">
             <input
               type="checkbox"
               checked={overdueOnly}
@@ -525,7 +535,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               }}
             />
             Sólo atenciones vencidas
-          </label>
+          </Label>
           <Button
             className={buttonClass}
             variant="outline"
@@ -535,11 +545,12 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </Button>
         </div>
         {panel.loading && <p role="status">Consultando atenciones…</p>}
-        {panel.data?.items.length === 0 && (
-          <p className="rounded-2xl border border-kova-border bg-white p-6 text-sm text-kova-muted">
-            No hay atenciones con estos filtros. Registra una incidencia cuando
-            necesites dar seguimiento o consulta otros estados.
-          </p>
+        {!panel.loading && !panel.error && panel.data?.items.length === 0 && (
+          <ViewEmpty
+            icon={<ClipboardCheck className="h-6 w-6" aria-hidden="true" />}
+            title="No hay atenciones con estos filtros."
+            body="Registra una incidencia cuando necesites dar seguimiento o consulta otros estados."
+          />
         )}
         <div className="grid gap-4 lg:grid-cols-2">
           {panel.data?.items.map((row) => (
@@ -670,6 +681,7 @@ function ServiceCaseDetail({
   ) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const fieldId = useId();
   const detail = useRef<HTMLElement | null>(null);
   useEffect(() => {
     detail.current?.focus({ preventScroll: true });
@@ -836,9 +848,9 @@ function ServiceCaseDetail({
               {formError}
             </p>
           )}
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-10`} className="block text-sm">
             Nuevo estado de la atención
-            <select
+            <Select id={`${fieldId}-10`}
               className={fieldClass}
               value={status}
               onChange={(event) =>
@@ -853,11 +865,11 @@ function ServiceCaseDetail({
                   {serviceCaseStatuses[next]}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
+            </Select>
+          </Label>
+          <Label htmlFor={`${fieldId}-11`} className="block text-sm">
             Responsable para seguimiento
-            <select
+            <Select id={`${fieldId}-11`}
               className={fieldClass}
               value={assigneeId}
               onChange={(event) => setAssigneeId(event.target.value)}
@@ -874,17 +886,17 @@ function ServiceCaseDetail({
                   {row.email}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
+            </Select>
+          </Label>
+          <Label htmlFor={`${fieldId}-12`} className="block text-sm">
             Nuevo vencimiento (opcional)
-            <input
+            <Input id={`${fieldId}-12`}
               className={fieldClass}
               type="datetime-local"
               value={dueAt}
               onChange={(event) => setDueAt(event.target.value)}
             />
-          </label>
+          </Label>
           <p className="text-sm text-kova-muted">
             Hora del dispositivo: {deviceZone}. Dejar vacío retira el
             vencimiento. El servidor verifica si la atención está vencida.
@@ -1012,16 +1024,16 @@ function ServiceCaseDetail({
           onSubmit={(event) => void appendNote(event)}
         >
           <h3 className="font-semibold">Agregar una nota privada</h3>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-13`} className="block text-sm">
             Nueva nota del equipo
-            <textarea
+            <Textarea id={`${fieldId}-13`}
               className={fieldClass}
               required
               maxLength={2000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
+          </Label>
           {noteCommand &&
             noteCommand.note === note.trim() &&
             noteCommand.version !== record.version && (

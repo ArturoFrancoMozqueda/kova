@@ -1,7 +1,7 @@
 """Bounded signature verification and parsing for one trusted account binding.
 
-No HTTP ingress is exposed. Authenticity alone never establishes a tenant, replay
-protection, a customer-service window, consent, or permission to execute actions.
+The HTTP pilot supplies trusted account bindings. Authenticity alone never establishes
+a tenant, replay protection, a customer-service window, consent, or permission to execute actions.
 """
 
 import hashlib
@@ -124,6 +124,7 @@ def parse_verified_webhook(
     app_secret: SecretStr,
     expected_waba_id: str,
     expected_phone_number_id: str,
+    allow_other_accounts: bool = False,
 ) -> VerifiedEnvelope:
     # Verify RAW bytes first, before interpreting any account ID or message text.
     verify_signature(raw_body=raw_body, signature=signature, app_secret=app_secret)
@@ -144,6 +145,8 @@ def parse_verified_webhook(
         for entry in _list(payload.get("entry"), limit=50):
             entry = _mapping(entry)
             if entry.get("id") != expected_waba_id:
+                if allow_other_accounts:
+                    continue
                 raise ChannelError("webhook_account_mismatch")
             for change in _list(entry.get("changes"), limit=50):
                 change = _mapping(change)
@@ -151,6 +154,11 @@ def parse_verified_webhook(
                     continue
                 value = _mapping(change.get("value"))
                 metadata = _mapping(value.get("metadata"))
+                if (
+                    allow_other_accounts
+                    and metadata.get("phone_number_id") != expected_phone_number_id
+                ):
+                    continue
                 if (
                     value.get("messaging_product") != "whatsapp"
                     or metadata.get("phone_number_id") != expected_phone_number_id

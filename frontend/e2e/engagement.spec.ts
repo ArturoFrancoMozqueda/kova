@@ -55,6 +55,72 @@ test.beforeEach(async ({ page }) => {
     }),
   );
 });
+
+for (const width of [1440, 390, 320]) {
+  test(`WhatsApp contact can become a customer and receive an explicitly confirmed reply at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 950 });
+    const conversation = {
+      id: "whatsapp-1", customer_id: null as string | null, customer_name: null as string | null,
+      contact_phone: "525555555555", subject: "Consulta por WhatsApp", origin: "whatsapp",
+      status: "open", automation_paused: true, assigned_user_id: null as string | null, version: 1,
+    };
+    const messages: Record<string, unknown>[] = [{
+      id: "inbound-1", conversation_id: conversation.id, direction: "inbound", body: "¿Qué pasteles tienen?",
+      message_type: "text", state: "received", purpose: null, version: 1, error_code: null,
+      created_at: "2026-10-23T12:00:00Z", updated_at: "2026-10-23T12:00:00Z",
+    }];
+    let sends = 0;
+    await page.route("**/api/v1/messaging/conversations?**", route => route.fulfill({ json: {
+      items: [conversation], has_more: false, channel_status: "connected", send_enabled: true,
+    } }));
+    await page.route("**/api/v1/messaging/conversations/whatsapp-1/messages?**", route => route.fulfill({ json: { items: messages, has_more: false } }));
+    await page.route("**/api/v1/messaging/conversations/whatsapp-1", async route => {
+      const body = route.request().postDataJSON();
+      expect(body.expected_version).toBe(conversation.version);
+      if (body.customer_id) { conversation.customer_id = body.customer_id; conversation.customer_name = "Cliente de prueba"; }
+      if (body.assigned_user_id) conversation.assigned_user_id = body.assigned_user_id;
+      conversation.version += 1;
+      await route.fulfill({ json: conversation });
+    });
+    await page.route("**/api/v1/messaging/conversations/whatsapp-1/catalog-draft", async route => {
+      expect(route.request().postDataJSON()).toEqual({ expected_version: conversation.version });
+      const draft = {
+        ...messages[0], id: "catalog-1", direction: "outbound", purpose: "transactional",
+        state: "draft", body: "Puedes consultar nuestro catálogo aquí: https://example.com/catalogo/pasteleria",
+      };
+      messages.push(draft);
+      await route.fulfill({ status: 201, json: draft });
+    });
+    await page.route("**/api/v1/messaging/messages/catalog-1/send", async route => {
+      expect(route.request().postDataJSON()).toEqual({ expected_version: 1 });
+      sends += 1;
+      messages[1].state = "accepted";
+      messages[1].version = 3;
+      await route.fulfill({ json: messages[1] });
+    });
+    await page.goto("/inbox");
+    await page.getByRole("button", { name: /Consulta por WhatsApp/ }).click();
+    await expect(page.getByText("+525555555555")).toBeVisible();
+    await page.getByLabel("Cliente de esta conversación").selectOption("customer-1");
+    await page.getByRole("button", { name: "Vincular cliente" }).click();
+    await expect(page.getByRole("link", { name: "Ver cliente, compras y pendientes" })).toHaveAttribute("href", "/customers?customerId=customer-1");
+    await expect(page.getByRole("link", { name: "Preparar pedido con este cliente" })).toHaveAttribute("href", "/pedidos/nuevo?customerId=customer-1");
+    await page.getByRole("button", { name: "Asignarme conversación" }).click();
+    await expect(page.getByRole("button", { name: "Liberar mi asignación" })).toBeVisible();
+    await page.getByRole("button", { name: "Preparar enlace del catálogo" }).click();
+    await page.getByRole("button", { name: "Enviar por WhatsApp" }).click();
+    expect(sends).toBe(0);
+    await page.getByRole("button", { name: "Confirmar envío" }).click();
+    await expect(page.getByText("Equipo · Aceptado por proveedor")).toBeVisible();
+    expect(sends).toBe(1);
+    expect(conversation.automation_paused).toBe(true);
+    await page.evaluate(axe.source);
+    const results = await page.evaluate(async () => window.axe.run(document.querySelector("main")!, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }));
+    expect(results.violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `/private/tmp/kova-whatsapp-${width}.png`, fullPage: true });
+  });
+}
 for (const width of [1440, 768, 390, 320]) {
   test(`customer lifecycle stays accessible at ${width}px`, async ({
     page,
@@ -160,7 +226,7 @@ for (const width of [1440, 768, 390, 320]) {
     await page.goto("/inbox");
     await page.getByRole("button", { name: /Pedido de aniversario/ }).click();
     await expect(
-      page.getByRole("button", { name: "Preparar envío" }),
+      page.getByRole("button", { name: "Enviar por WhatsApp" }),
     ).toBeDisabled();
     await page
       .getByRole("button", { name: "Nueva conversación interna" })
@@ -205,6 +271,8 @@ for (const width of [1440, 768, 390, 320]) {
       route.fulfill({ json: { receipt_id: "receipt-1", status: "received" } }),
     );
     await page.goto("/catalogo/public-test");
+    if (width < 1024) await page.getByRole("button", { name: "Hacer una consulta" }).click();
+    await page.getByRole("button", { name: "Solo consultar" }).click();
     await page.getByLabel("Tu nombre").fill("Ana de prueba");
     await page
       .getByLabel("Teléfono o correo para responder")

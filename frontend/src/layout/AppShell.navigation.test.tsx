@@ -285,7 +285,8 @@ describe("simple task navigation and complete discovery", () => {
     expect(within(context()!).getByRole("link", { name: "Gestionar clientes" })).toHaveAttribute("href", "/customers");
     features.customer_orders = true; view.unmount();
     const enabled = host("/quotes");
-    expect(within(context()!).getByRole("link", { name: "Crear pedido" })).toHaveAttribute("href", "/pedidos/nuevo");
+    expect(within(context()!).getByRole("link", { name: "Revisar pedidos" })).toHaveAttribute("href", "/pedidos");
+    expect(within(context()!).queryByRole("link", { name: "Crear pedido" })).toBeNull();
     enabled.unmount(); auth.state.user.role = "manager";
     const manager = host("/quotes"); expect(context()).toBeInTheDocument();
     manager.unmount(); auth.state.user.role = "cashier";

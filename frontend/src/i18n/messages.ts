@@ -1865,6 +1865,8 @@ export const copy = {
       stockoutAction: "Reabastece hoy o mañana para no perder ventas.",
       stockoutImpact: (amount: string) => `${amount} de venta bruta estimada para 3 días al ritmo reciente; no es una pérdida confirmada.`,
       refundSpikeFinding: "Suben las devoluciones",
+      singleRefundFinding: "Revisa esta devolución",
+      singleRefundAction: "Confirma el motivo y el importe. Es un solo caso; todavía no indica un patrón.",
       refundSpikeEvidence: (count: number, amount: string, ratePct: number) =>
         `${count} ${count === 1 ? "devolución" : "devoluciones"} por ${amount} (${ratePct}% de tus ventas brutas).`,
       refundSpikeAction: "Revisa los motivos abajo y documenta el patrón antes del cierre.",

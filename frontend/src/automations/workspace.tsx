@@ -8,6 +8,9 @@ import {
 import { useAuth } from "@/auth/useAuth";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { ViewPermissionDenied } from "@/components/ui/view-states";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
+import { Card, CardContent } from "@/components/ui/card";
 import { csrfHeaders } from "@/lib/csrf";
 
 export type WorkspaceIdentity = {
@@ -35,9 +38,16 @@ export function OperationsSession({
   }
   if (state.sessionMode === "offline") {
     return (
-      <p className="p-6" role="status">
-        Conéctate para consultar y administrar el seguimiento del negocio.
-      </p>
+      <ViewLayout className="space-y-6">
+        <ViewHeader title="Seguimiento del negocio" />
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm leading-6 text-muted-foreground" role="status">
+              Conéctate para consultar y administrar el seguimiento del negocio.
+            </p>
+          </CardContent>
+        </Card>
+      </ViewLayout>
     );
   }
   const identity = {

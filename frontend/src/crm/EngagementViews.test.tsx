@@ -153,6 +153,58 @@ it("activates followup only after reviewing and confirming its policy", async ()
   expect(screen.getByText(/Registrar una incidencia no bloquea/)).toBeVisible();
 });
 
+it("continues a followup through its exact customer and sale without writing or inventing a sale", async () => {
+  const task = {
+    id: "followup-1",
+    customer_id: "customer-1",
+    customer_name: customer.name,
+    sale_order_id: "sale-1",
+    kind: "rebuy",
+    status: "pending",
+    title: "Revisar recompra",
+    note: null,
+    due_at: "2026-10-25T18:00:00Z",
+    version: 1,
+  };
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("/customers?")
+      ? json([customer])
+      : json({ policy, tasks: [task, { ...task, id: "followup-2", title: "Incidencia interna", sale_order_id: null }], has_more: false }),
+  );
+  mount(<FollowupsView />);
+
+  expect(await screen.findByRole("link", { name: "Ver venta" })).toHaveAttribute("href", "/orders/sale-1");
+  const customerLinks = screen.getAllByRole("link", { name: "Ver cliente" });
+  expect(customerLinks).toHaveLength(2);
+  customerLinks.forEach(link => expect(link).toHaveAttribute("href", "/customers?customerId=customer-1"));
+  expect(screen.getAllByRole("link", { name: "Ver venta" })).toHaveLength(1);
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  fireEvent(window, new Event("offline"));
+  await waitFor(() => expect(screen.queryByRole("link", { name: "Ver venta" })).not.toBeInTheDocument());
+  expect(screen.queryByRole("link", { name: "Ver cliente" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Registrar incidencia" })).toBeDisabled();
+});
+
+it("exposes and closes the internal conversation form from the primary action without sending", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("/customers?")
+      ? json([customer])
+      : json({ items: [], has_more: false, channel_status: "not_connected" }),
+  );
+  mount(<InboxView />);
+  const action = await screen.findByRole("button", { name: "Nueva conversación interna" });
+  expect(action).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(action);
+  expect(action).toHaveAttribute("aria-expanded", "true");
+  expect(document.getElementById(action.getAttribute("aria-controls")!)).toContainElement(screen.getByLabelText("Asunto de la conversación"));
+  fireEvent.click(action);
+  expect(action).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByLabelText("Asunto de la conversación")).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+});
+
 it("keeps drafts private and prevents send preparation for a disconnected channel", async () => {
   fetchMock.mockImplementation(async (url, init) => {
     if (String(url).includes("/customers?")) return json([customer]);
@@ -187,7 +239,7 @@ it("keeps drafts private and prevents send preparation for a disconnected channe
     await screen.findByRole("button", { name: /Pedido de aniversario/ }),
   );
   expect(await screen.findByText(/Equipo · Borrador privado/)).toBeVisible();
-  expect(screen.getByRole("button", { name: "Preparar envío" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Enviar por WhatsApp" })).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Respuesta del equipo"), {
     target: { value: "Confirmaremos tu pedido" },
   });
@@ -206,6 +258,56 @@ it("keeps drafts private and prevents send preparation for a disconnected channe
   expect(
     fetchMock.mock.calls.some(([url]) => String(url).includes("/transition")),
   ).toBe(false);
+});
+
+it("requires explicit confirmation to send a human reply while automation stays paused", async () => {
+  const connected = { ...conversation, origin: "whatsapp", assigned_user_id: "user-1" };
+  const message = {
+    id: "reply-1", conversation_id: conversation.id, direction: "outbound",
+    body: "Puedes recoger tu pedido", message_type: "text", state: "draft",
+    purpose: "transactional", version: 1, error_code: null,
+    created_at: "2026-10-23T12:00:00Z", updated_at: "2026-10-23T12:00:00Z",
+  };
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("/customers?")) return json([customer]);
+    if (String(url).endsWith("/send")) return json({ ...message, state: "accepted" });
+    if (String(url).includes("/messages?")) return json({ items: [message], has_more: false });
+    if (init?.method === "PATCH") return json(connected);
+    return json({ items: [connected], has_more: false, channel_status: "connected", send_enabled: true });
+  });
+  mount(<InboxView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Pedido de aniversario/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Enviar por WhatsApp" }));
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/send"))).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar envío" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) =>
+    url === "/api/v1/messaging/messages/reply-1/send" && init?.method === "POST" &&
+    init.body === JSON.stringify({ expected_version: 1 }),
+  )).toBe(true));
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  expect(screen.getByRole("link", { name: "Preparar pedido con este cliente" })).toHaveAttribute("href", "/pedidos/nuevo?customerId=customer-1");
+});
+
+it("links an incoming contact explicitly and prepares the catalog without sending it", async () => {
+  const incoming = { ...conversation, customer_id: null, customer_name: null, origin: "whatsapp", contact_phone: "525555555555" };
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("/customers?")) return json([customer]);
+    if (String(url).includes("/messages?")) return json({ items: [], has_more: false });
+    if (init?.method === "PATCH") return json({ ...incoming, customer_id: customer.id });
+    if (String(url).endsWith("/catalog-draft")) return json({ id: "catalog-draft" });
+    return json({ items: [incoming], has_more: false, channel_status: "connected", send_enabled: true });
+  });
+  mount(<InboxView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Pedido de aniversario/ }));
+  expect(screen.getByText("+525555555555")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Vincular cliente" })).toBeDisabled();
+  await screen.findByRole("option", { name: customer.name });
+  fireEvent.change(screen.getByLabelText("Cliente de esta conversación"), { target: { value: customer.id } });
+  fireEvent.click(screen.getByRole("button", { name: "Vincular cliente" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH" && init.body === JSON.stringify({ expected_version: 1, customer_id: customer.id }))).toBe(true));
+  fireEvent.click(screen.getByRole("button", { name: "Preparar enlace del catálogo" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => String(url).endsWith("/catalog-draft") && init?.body === JSON.stringify({ expected_version: 1 }))).toBe(true));
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/send"))).toBe(false);
 });
 
 it("uses expected version when releasing human handoff", async () => {

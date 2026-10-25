@@ -5920,6 +5920,49 @@
         "title": "InboxAutomationDraftCreate",
         "type": "object"
       },
+      "InboxCatalogDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "InboxCatalogDraft",
+        "type": "object"
+      },
+      "InboxConnectionStatus": {
+        "properties": {
+          "receive_enabled": {
+            "title": "Receive Enabled",
+            "type": "boolean"
+          },
+          "send_enabled": {
+            "title": "Send Enabled",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "not_connected",
+              "connected",
+              "configuration_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "send_enabled",
+          "receive_enabled"
+        ],
+        "title": "InboxConnectionStatus",
+        "type": "object"
+      },
       "InboxConversationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -5945,8 +5988,12 @@
       "InboxConversationList": {
         "properties": {
           "channel_status": {
-            "const": "not_connected",
             "default": "not_connected",
+            "enum": [
+              "not_connected",
+              "connected",
+              "configuration_error"
+            ],
             "title": "Channel Status",
             "type": "string"
           },
@@ -5960,6 +6007,11 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "send_enabled": {
+            "default": false,
+            "title": "Send Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -5986,6 +6038,17 @@
           "automation_paused": {
             "title": "Automation Paused",
             "type": "boolean"
+          },
+          "contact_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Phone"
           },
           "created_at": {
             "format": "date-time",
@@ -6129,6 +6192,21 @@
           "expected_version"
         ],
         "title": "InboxConversationUpdate",
+        "type": "object"
+      },
+      "InboxHumanSend": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "InboxHumanSend",
         "type": "object"
       },
       "InboxMessageCreate": {
@@ -8535,8 +8613,11 @@
       "MessagingReadiness": {
         "properties": {
           "account_mode": {
-            "const": "not_verified",
             "default": "not_verified",
+            "enum": [
+              "not_verified",
+              "verified"
+            ],
             "title": "Account Mode",
             "type": "string"
           },
@@ -8564,14 +8645,21 @@
             "type": "boolean"
           },
           "setup_status": {
-            "const": "setup_required",
             "default": "setup_required",
+            "enum": [
+              "setup_required",
+              "configured"
+            ],
             "title": "Setup Status",
             "type": "string"
           },
           "status": {
-            "const": "not_connected",
             "default": "not_connected",
+            "enum": [
+              "not_connected",
+              "connected",
+              "configuration_error"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -27259,6 +27347,27 @@
         ]
       }
     },
+    "/api/v1/messaging/connection": {
+      "get": {
+        "operationId": "channel_connection_api_v1_messaging_connection_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConnectionStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Channel Connection",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/api/v1/messaging/conversations": {
       "get": {
         "operationId": "list_conversations_api_v1_messaging_conversations_get",
@@ -27441,6 +27550,75 @@
         ]
       }
     },
+    "/api/v1/messaging/conversations/{conversation_id}/catalog-draft": {
+      "post": {
+        "operationId": "catalog_draft_api_v1_messaging_conversations__conversation_id__catalog_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxCatalogDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Catalog Draft",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/api/v1/messaging/conversations/{conversation_id}/messages": {
       "get": {
         "operationId": "list_messages_api_v1_messaging_conversations__conversation_id__messages_get",
@@ -27476,6 +27654,16 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Latest",
+              "type": "boolean"
             }
           }
         ],
@@ -27633,6 +27821,75 @@
         ]
       }
     },
+    "/api/v1/messaging/messages/{message_id}/send": {
+      "post": {
+        "operationId": "send_reply_api_v1_messaging_messages__message_id__send_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxHumanSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Reply",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/api/v1/messaging/messages/{message_id}/transition": {
       "post": {
         "operationId": "transition_message_api_v1_messaging_messages__message_id__transition_post",
@@ -27718,6 +27975,44 @@
           }
         },
         "summary": "Messaging Readiness",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/webhooks/whatsapp": {
+      "get": {
+        "operationId": "verify_whatsapp_api_v1_messaging_webhooks_whatsapp_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verify Whatsapp",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "post": {
+        "operationId": "receive_whatsapp_api_v1_messaging_webhooks_whatsapp_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Receive Whatsapp",
         "tags": [
           "messaging"
         ]

@@ -1,4 +1,4 @@
-"""Inbox/outbox with explicit human control. No credentials or live ingress wiring."""
+"""Inbox/outbox domain with explicit human control; credentials live in platform Secrets."""
 
 import hashlib
 import re
@@ -53,11 +53,13 @@ def _conversation_response(db, row):
     values = {
         key: getattr(row, key)
         for key in InboxConversationResponse.model_fields
-        if key != "customer_name"
+        if key not in {"customer_name", "contact_phone"}
     }
     customer = _customer(db, row.tenant_id, row.customer_id) if row.customer_id else None
     return InboxConversationResponse(
-        **values, customer_name=customer.name if customer else None
+        **values,
+        customer_name=customer.name if customer else None,
+        contact_phone=row.external_party if row.origin == "whatsapp" else None,
     ).model_dump(mode="json")
 
 
@@ -96,6 +98,9 @@ def _finish(db, tenant, actor, key, fingerprint, row, result, status, action):
 
 
 def conversations(db, tenant, *, limit=100, offset=0):
+    from app.messaging.connections import connection_status
+
+    channel = connection_status(db, tenant)
     rows = (
         _scope(db, tenant, Conversation)
         .order_by(Conversation.updated_at.desc(), Conversation.id)
@@ -106,7 +111,8 @@ def conversations(db, tenant, *, limit=100, offset=0):
     return {
         "items": [_conversation_response(db, row) for row in rows[:limit]],
         "has_more": len(rows) > limit,
-        "channel_status": "not_connected",
+        "channel_status": channel["status"],
+        "send_enabled": channel["send_enabled"],
     }
 
 
@@ -186,18 +192,25 @@ def update_conversation(db, tenant, actor, identifier, body, key):
     )
 
 
-def messages(db, tenant, identifier, *, limit=100, offset=0):
+def messages(db, tenant, identifier, *, limit=100, offset=0, latest=False):
     _conversation(db, tenant, identifier)
     rows = (
         _scope(db, tenant, Message)
         .filter_by(conversation_id=identifier)
-        .order_by(Message.created_at, Message.id)
+        .order_by(
+            *(
+                (Message.created_at.desc(), Message.id.desc())
+                if latest
+                else (Message.created_at, Message.id)
+            )
+        )
         .offset(offset)
         .limit(limit + 1)
         .all()
     )
+    page = reversed(rows[:limit]) if latest else rows[:limit]
     return {
-        "items": [_message_response(row) for row in rows[:limit]],
+        "items": [_message_response(row) for row in page],
         "has_more": len(rows) > limit,
     }
 
@@ -241,7 +254,48 @@ def _state(row, state, error=None):
     row.updated_at = now()
 
 
-def _send_policy(db, tenant, message, conversation, *, stamp):
+def catalog_draft(db, tenant, actor, identifier, body, key):
+    from app.config import settings
+    from app.storefront.router import _catalog, _settings
+
+    fingerprint, replay = _claim(db, tenant, key, f"catalog-draft.{identifier}", body)
+    if replay:
+        return replay.response_status, replay.response_body
+    _lock(db, tenant)
+    conversation = _conversation(db, tenant, identifier)
+    if conversation.version != body.expected_version or conversation.status != "open":
+        raise conflict("La conversación cambió; actualiza antes de compartir el catálogo")
+    catalog = _catalog(db, tenant)
+    if catalog is None or not catalog.enabled:
+        raise conflict("Publica el catálogo de esta sucursal antes de compartirlo")
+    share = _settings(db, catalog).share_path
+    if not share:
+        raise conflict("El catálogo no está disponible para compartir")
+    row = Message(
+        tenant_id=tenant,
+        conversation_id=conversation.id,
+        direction="outbound",
+        body=f"Puedes consultar nuestro catálogo aquí: {settings.frontend_url.rstrip('/')}{share}",
+        purpose="transactional",
+        state="draft",
+        requested_by_user_id=actor,
+    )
+    db.add(row)
+    db.flush()
+    return _finish(
+        db,
+        tenant,
+        actor,
+        key,
+        fingerprint,
+        row,
+        _message_response(row),
+        201,
+        "messaging.catalog.drafted",
+    )
+
+
+def _send_policy(db, tenant, message, conversation, *, stamp, human_actor=None):
     if message.source_run_id:
         try:
             _automation_source(db, tenant, conversation, message.source_run_id)
@@ -277,7 +331,14 @@ def _send_policy(db, tenant, message, conversation, *, stamp):
         member.allowed_branch_id is not None and member.allowed_branch_id != conversation.branch_id
     ):
         return "authorization_revoked", None
-    if conversation.status != "open" or conversation.automation_paused:
+    human_reply = (
+        human_actor is not None
+        and human_actor == message.requested_by_user_id
+        and human_actor == conversation.assigned_user_id
+    )
+    if human_actor is not None and not human_reply:
+        return "human_handoff", None
+    if conversation.status != "open" or (conversation.automation_paused and not human_reply):
         return "human_handoff", None
     if conversation.customer_id is None:
         return "customer_link_required", None
@@ -306,8 +367,9 @@ def _send_policy(db, tenant, message, conversation, *, stamp):
     return None, (binding, current, party)
 
 
-def transition_message(db, tenant, actor, identifier, body, key):
-    fingerprint, replay = _claim(db, tenant, key, f"message.transition.{identifier}", body)
+def transition_message(db, tenant, actor, identifier, body, key, *, human_reply=False):
+    command = "reply" if human_reply else "transition"
+    fingerprint, replay = _claim(db, tenant, key, f"message.{command}.{identifier}", body)
     if replay:
         return replay.response_status, replay.response_body
     _lock(db, tenant)
@@ -322,14 +384,34 @@ def transition_message(db, tenant, actor, identifier, body, key):
         if row.state != "draft":
             raise conflict("Sólo se puede autorizar un borrador")
         conversation = _conversation(db, tenant, row.conversation_id)
-        error, context = _send_policy(db, tenant, row, conversation, stamp=now())
+        error, context = _send_policy(
+            db,
+            tenant,
+            row,
+            conversation,
+            stamp=now(),
+            human_actor=actor if human_reply else None,
+        )
         if error:
+            explanations = {
+                "human_handoff": "Asígnate la conversación y prepara una respuesta con tu usuario",
+                "consent_required": "Registra o revisa el permiso de contacto del cliente",
+                "service_window_closed": (
+                    "La ventana de respuesta venció; espera un nuevo mensaje del cliente"
+                ),
+                "customer_link_required": "Vincula un cliente registrado antes de responder",
+                "contact_mismatch": "El teléfono del cliente no coincide con esta conversación",
+                "contact_changed": "El teléfono cambió; revisa el contacto y su autorización",
+                "approved_template_required": (
+                    "Este envío requiere una plantilla aprobada; aún no está habilitado"
+                ),
+                "channel_not_connected": "Conecta WhatsApp en esta sucursal antes de enviar",
+            }
             raise conflict(
                 {
                     "code": error,
-                    "message": (
-                        "El mensaje permanece como borrador; "
-                        "revisa canal, permiso y atención humana"
+                    "message": explanations.get(
+                        error, "Revisa el acceso del negocio y los permisos del responsable"
                     ),
                 }
             )
@@ -376,7 +458,14 @@ def _apply_receipts(db, tenant, message):
 
 
 def ingest_webhook(
-    db, *, tenant_id, binding_id, raw_body: bytes, signature: str, app_secret: SecretStr
+    db,
+    *,
+    tenant_id,
+    binding_id,
+    raw_body: bytes,
+    signature: str,
+    app_secret: SecretStr,
+    allow_other_accounts=False,
 ):
     """Internal caller must resolve tenant/binding from trusted configuration, never payload."""
     _lock(db, tenant_id)
@@ -389,6 +478,7 @@ def ingest_webhook(
         app_secret=app_secret,
         expected_waba_id=binding.waba_id,
         expected_phone_number_id=binding.phone_number_id,
+        allow_other_accounts=allow_other_accounts,
     )
     accepted = 0
     stamp = now()
@@ -468,11 +558,21 @@ def ingest_webhook(
     return {"accepted": accepted}
 
 
-def dispatch_one(db, *, tenant_id, message_id, provider=None, enabled=False):
-    """Worker-only. Persist sending BEFORE I/O; a crash never makes it eligible for resend.
+def dispatch_one(
+    db,
+    *,
+    tenant_id,
+    message_id,
+    provider=None,
+    enabled=False,
+    human_actor=None,
+    daily_send_limit=None,
+):
+    """Persist sending BEFORE I/O; a crash never makes it eligible for resend.
 
     Caller injects one adapter already resolved for the binding by its trusted resolver.
-    Disabled by default; no route or global settings can enable network delivery.
+    Disabled by default. The assisted HTTP pilot requires explicit human authorization;
+    the scheduler still never injects a provider or enables external delivery.
     """
     if not enabled or provider is None:
         return {"status": "disabled"}
@@ -481,7 +581,14 @@ def dispatch_one(db, *, tenant_id, message_id, provider=None, enabled=False):
     if row.state != "queued":
         return {"status": row.state}
     conversation = _conversation(db, tenant_id, row.conversation_id)
-    error, context = _send_policy(db, tenant_id, row, conversation, stamp=now())
+    error, context = _send_policy(
+        db,
+        tenant_id,
+        row,
+        conversation,
+        stamp=now(),
+        human_actor=human_actor,
+    )
     if error:
         _state(row, "suppressed", error)
         db.commit()
@@ -489,6 +596,26 @@ def dispatch_one(db, *, tenant_id, message_id, provider=None, enabled=False):
     binding, _contact, party = context
     if getattr(provider, "binding_id", None) != binding.id:
         raise ChannelError("provider_binding_mismatch")
+    if daily_send_limit is not None:
+        from datetime import UTC, datetime
+
+        start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        attempts = (
+            _scope(db, tenant_id, Message)
+            .filter(
+                Message.binding_id == binding.id,
+                Message.updated_at >= start,
+                Message.direction == "outbound",
+                Message.state.in_(
+                    ["sending", "accepted", "sent", "delivered", "read", "failed", "uncertain"]
+                ),
+            )
+            .count()
+        )
+        if attempts >= daily_send_limit:
+            _state(row, "suppressed", "daily_send_limit")
+            db.commit()
+            return {"status": row.state}
     _state(row, "sending")
     db.commit()
     try:

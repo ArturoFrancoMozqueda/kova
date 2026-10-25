@@ -1,5 +1,11 @@
 # Preparación del canal oficial de WhatsApp
 
+Actualización 2026-10-23: el [piloto asistido](../../docs/runbooks/whatsapp-assisted-pilot.md)
+implementa conexión por registro de servidor, webhook y respuesta humana explícita. Todo empieza
+desactivado y falta aceptación real de Meta. Las secciones del 18 de octubre siguientes son el
+contrato histórico de preparación; ver el [contrato actualizado](messaging-inbox.md) para las
+rutas y estados nuevos. Autoservicio y automatización mediante plantillas siguen pendientes.
+
 Estado al 2026-10-18: implementación local de preparación, sin conexión, envío ni recepción activa.
 Usar WhatsApp Business en el celular, Meta Business o un dominio no acredita acceso a Cloud API.
 La confirmación del propietario sobre su app no se convierte en configuración de todos los tenants.

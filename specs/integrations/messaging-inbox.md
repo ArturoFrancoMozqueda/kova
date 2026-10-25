@@ -1,5 +1,33 @@
 # Bandeja privada y outbox de comunicación
 
+Actualización 2026-10-23: el [piloto asistido](../../docs/runbooks/whatsapp-assisted-pilot.md)
+agrega ingreso HTTPS firmado y envío humano explícito, desactivados por defecto. La descripción
+del 18 de octubre que sigue documenta el corte anterior; ya no describe toda la superficie HTTP.
+El alcance automático de plantillas, campañas y postventa externa continúa pendiente.
+
+## Contrato adicional del piloto asistido
+
+- `GET /api/v1/messaging/connection`: estado real de configuración de la sucursal, sin tokens ni IDs Meta.
+- `GET /readiness`: conserva la guía y agrega estados `connected`/`configuration_error` según
+  registro de plataforma y binding DB. Configurado no afirma salud actual de Meta ni entrega.
+- `GET /conversations`: agrega `send_enabled` y amplía `channel_status` con esos estados;
+  la conversación expone `contact_phone` sólo a dueño/gerente autorizados para su sucursal.
+- `GET /conversations/{id}/messages?latest=true`: página reciente en orden cronológico;
+  offset sigue contando desde lo más reciente. Sin ese parámetro conserva el contrato anterior.
+- `POST /conversations/{id}/catalog-draft`: `expected_version`, Idempotency-Key; genera el
+  enlace desde el catálogo publicado de la sucursal, sin aceptar un destino del navegador.
+- `POST /messages/{id}/send`: `expected_version`, Idempotency-Key y confirmación humana.
+  Debe ser el autor del borrador y continuar asignado; no requiere quitar la pausa humana.
+  Revalida cuenta, sucursal, rol, billing, cliente exacto, consentimiento, ventana y fuente.
+  Envía sólo una vez; replay devuelve el estado durable actual, incluido `uncertain`.
+- `GET/POST /webhooks/whatsapp`: callback de Meta, límite de cuerpo, rate limit, challenge
+  y firma raw; el POST es la única excepción CSRF nueva y no usa cookies como autorización.
+
+No agrega migraciones ni grants. Runtime no puede provisionar, habilitar ni reasignar bindings.
+Registro/credenciales viven en Secrets de plataforma; aprovisionamiento asistido verifica el
+número ante Meta antes de guardar usando la conexión de operador. El primer tenant todavía
+requiere configurar Meta y aceptar entrega real antes de declarar el canal disponible.
+
 Entrega local, 2026-10-18. Complementa la [preparación de WhatsApp](whatsapp-cloud-preparation.md).
 No crea cuentas ni conexiones externas y no publica un webhook o dispatcher HTTP.
 

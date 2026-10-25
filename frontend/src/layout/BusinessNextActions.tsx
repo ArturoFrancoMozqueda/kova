@@ -27,7 +27,15 @@ const journeys: Journey[] = [
     { to: "/inventory", label: "Revisar existencias" },
     { to: "/register", label: "Cobrar una venta" },
   ] },
-  { paths: ["/commercial-requests", "/crm", "/quotes"], actions: [
+  { paths: ["/commercial-requests"], actions: [
+    { to: "/crm", label: "Continuar seguimiento comercial" },
+    { to: "/customers", label: "Gestionar clientes" },
+  ] },
+  { paths: ["/crm"], actions: [
+    { to: "/quotes", label: "Revisar cotizaciones" },
+    { to: "/customers", label: "Gestionar clientes" },
+  ] },
+  { paths: ["/quotes"], actions: [
     { to: "/pedidos", label: "Revisar pedidos" },
     { to: "/customers", label: "Gestionar clientes" },
   ] },
@@ -44,14 +52,13 @@ const journeys: Journey[] = [
   ] },
 ];
 
-export function BusinessNextActions({ pathname, destinations, canCreateCustomerOrders = false }: {
+export function BusinessNextActions({ pathname, destinations }: {
   pathname: string; destinations: readonly { to: string }[]; canCreateCustomerOrders?: boolean;
 }) {
   const journey = journeys.find(item => item.paths.includes(pathname));
   const allowed = new Set(destinations.map(item => item.to));
   const actions = journey?.actions.filter(action => allowed.has(action.to)
-    && pathname !== action.to && !pathname.startsWith(`${action.to}/`)).slice(0, 2).map(action => action.to === "/pedidos" && canCreateCustomerOrders
-      ? { to: "/pedidos/nuevo", label: "Crear pedido" } : action) ?? [];
+    && pathname !== action.to && !pathname.startsWith(`${action.to}/`)).slice(0, 2) ?? [];
   if (!actions.length) return null;
 
   return (

@@ -8,6 +8,8 @@ import {
   MIN_MONEY_BASE,
   calculateSafeGrowth,
   parseDaysUntilOut,
+  refundRatePct,
+  refundSeverityLevel,
 } from "./calculations";
 
 export type RecommendationPriority = "alta" | "media" | "baja";
@@ -139,24 +141,23 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
   }
 
   // --- R3: Pico de devoluciones (Alta) ---
-  const gross = Number(summary.gross_sales);
-  const refundRate = gross > 0 ? (Number(summary.refund_total) / gross) * 100 : 0;
+  const refundRate = refundRatePct(summary);
   const prevRefundCount = previousStory?.summary.refund_count ?? 0;
   const refundSpike =
     summary.refund_count >= 5 && prevRefundCount > 0 && summary.refund_count >= 2 * prevRefundCount;
-  if ((refundRate > 5 || refundSpike) && summary.refund_count > 1) {
+  if (summary.refund_count > 0 && (refundSeverityLevel(refundRate, summary.refund_count) === "high" || refundSpike)) {
     out.push({
       id: "R3",
       subjectId: "refunds",
       priority: "alta",
       tone: "risk",
-      finding: rec.refundSpikeFinding,
+      finding: summary.refund_count === 1 ? rec.singleRefundFinding : rec.refundSpikeFinding,
       evidence: rec.refundSpikeEvidence(
         summary.refund_count,
         formatMoney(summary.refund_total),
         Math.round(refundRate),
       ),
-      action: rec.refundSpikeAction,
+      action: summary.refund_count === 1 ? rec.singleRefundAction : rec.refundSpikeAction,
       estimatedImpactMxn: Number(summary.refund_total),
     });
   }

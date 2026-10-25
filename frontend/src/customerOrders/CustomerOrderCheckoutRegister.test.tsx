@@ -119,6 +119,18 @@ describe("CustomerOrderCheckoutRegister", () => {
     expect(screen.getByRole("radio", { name: "Transferencia" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("identifies manual card consistently in single and split payments without charging on selection", async () => {
+    renderCheckout();
+    const manualCard = await screen.findByRole("radio", { name: "Tarjeta manual" });
+    fireEvent.click(manualCard);
+    expect(manualCard).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Dividir pago" }));
+    const method = screen.getByRole("combobox", { name: "Método del pago 1" });
+    expect(method).toHaveValue("manual_card");
+    expect(screen.getByRole("option", { name: "Tarjeta manual" })).toHaveValue("manual_card");
+    expect(api.checkoutCustomerOrder).not.toHaveBeenCalled();
+  });
+
   it("keeps the successful checkout state when only receipt loading fails", async () => {
     api.checkoutCustomerOrder.mockResolvedValue({
       customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-1", version: 2 },

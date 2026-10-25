@@ -28,3 +28,9 @@ Kova frontend should feel premium, fast, clear, and trustworthy.
 - Do not bypass backend or RLS with direct unsafe data access.
 - Do not hardcode production data, analytics, subscription status, or tenant IDs.
 - Do not add fake/demo data to production views.
+
+## Shared experience
+
+- Follow `docs/claude/ui-experience-contract.md`: reuse shared view frames, headers, controls and states; prioritize daily operation before setup.
+- Preserve record-specific context when continuing a business workflow. General navigation must not replace a conversion carrying customer, source or transaction history.
+- Verify keyboard interaction and responsive layouts, and distinguish internal/manual records from externally verified messages, payments or fiscal documents.
