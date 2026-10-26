@@ -195,20 +195,12 @@ the ledger entry automatically because that would create misleading accounting h
 Run `39709835800` stopped after publishing backend `443fa3fc84bf` and before
 frontend promotion. Its exact `release-rollback-443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca`
 artifact captures the prior coherent release `b8b00c36b9697b9ae1009bd8cad57894d31a340a`.
-The manual `recover-interrupted-release.yml` workflow restores that backend using
-the existing candidate-phase recovery, then verifies the public site, direct
-backend/database and frontend API proxy. It never downgrades the database.
-
-After explicit operator approval, merge the recovery workflow and dispatch it
-from `main` with `approve_recovery=true`. It shares the normal release concurrency
-queue, uses the `production` environment, checks the exact downloaded artifact's
-SHA-256 and rejects a changed incident state before provider mutations. A failed
-or expired artifact check blocks recovery; never replace the snapshot with guessed
-versions. Retrying after partial recovery requires inspecting provider state.
-Only after successful recovery, rerun the latest `main` CI workflow to publish
-the tested UX changes. Confirm `/health` and `/version.json` match that run's SHA.
-On 2026-10-21 (Mexico City), the environment API reported no protection rules;
-the workflow's explicit approval input does not replace required reviewers.
+A one-off manual workflow restored that backend through the existing
+candidate-phase recovery, without downgrading the database. It was removed on
+2026-10-26 once production matched `main` again and the artifact was about to
+expire. For a future interruption, run `frontend/scripts/release-recovery.mjs`
+with that run's exact `release-rollback-<sha>` artifact from the `production`
+environment; never replace the snapshot with guessed versions.
 
 Recovery run `39809193983` restored the captured Worker versions and started the
 exact captured Container image rollout, but its five-minute readiness budget
@@ -217,8 +209,7 @@ allows up to 15 minutes to drain an old process. Native publication and recovery
 therefore allow 30 minutes for strict image/runtime/process readiness, covering
 both draining and provider propagation: this recovery took about 25 minutes
 before public convergence. Standalone cold provisioning keeps its five-minute
-budget. The release job allows 90 minutes for tooling, publication and recovery;
-the incident recovery job allows 35.
+budget. The release job allows 90 minutes for tooling, publication and recovery.
 Foreign SHAs, application errors and failed database/proxy checks still block.
 Inspect the active rollout before retrying a `RECOVERY_BLOCKED` run. A completed
 provider rollout must pass the full deployment verifier before normal CI resumes.
