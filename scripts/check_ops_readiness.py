@@ -76,6 +76,8 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         "github.event_name == 'push'", "github.ref == 'refs/heads/main'",
         "needs.changes.outputs.code == 'true'", "release-rollback-",
         "if-no-files-found: error", ".autoAssignCustomDomains",
+        # Provider tooling, a native rollout and its phase recovery.
+        "timeout-minutes: 90",
         'frontend/scripts/release.mjs --artifact "$RUNNER_TEMP/release-rollback.json"',
     )
     for marker in release_markers:

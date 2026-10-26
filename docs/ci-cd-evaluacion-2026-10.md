@@ -4,6 +4,18 @@ Fuente: `.github/workflows/*`, `scripts/ci_policy.py` y los últimos 40 runs de
 `CI and release` (21–26 oct). Los tiempos vienen de la API de GitHub y de los
 reportes JUnit del run 40350449370.
 
+## Avance en la branch `ci/evaluacion-pipeline`
+
+Implementado: política `backend`/`frontend` con sus tests, 4 workers en
+Playwright preview, un solo reintento en integración, eliminación del workflow
+de incidente (su presupuesto de 90 min del release pasa a
+`check_ops_readiness.py`) y `retention-days: 7` en `openapi-json`. Aplicada a
+los últimos 40 PRs, la política habría saltado el backend en 13 y el frontend
+en 1.
+
+Pendiente: ruleset de `main`, pytest-xdist y reutilizar el resultado del PR en
+`main`.
+
 ## Estado actual
 
 | Flujo | Tiempo de pared | Ruta crítica |
