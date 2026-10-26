@@ -76,6 +76,21 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
   }
 });
 
+test("WhatsApp pilot configuration is explicit and disabled when absent", () => {
+  const disabled = nativeEnvironment(settings());
+  assert.equal(Object.hasOwn(disabled, "KOVA_WHATSAPP_ENABLED"), false);
+  assert.equal(Object.hasOwn(disabled, "WHATSAPP_CONNECTIONS"), false);
+  const supplied = {
+    ...settings(), KOVA_WHATSAPP_ENABLED: "true", WHATSAPP_GRAPH_API_VERSION: "v26.0",
+    WHATSAPP_APP_SECRET: "synthetic-app-secret", WHATSAPP_WEBHOOK_VERIFY_TOKEN: "synthetic-verify-token",
+    WHATSAPP_CONNECTIONS: "synthetic-secret-registry",
+  };
+  const configured = nativeEnvironment(supplied);
+  for (const key of ["KOVA_WHATSAPP_ENABLED", "WHATSAPP_GRAPH_API_VERSION", "WHATSAPP_APP_SECRET", "WHATSAPP_WEBHOOK_VERIFY_TOKEN", "WHATSAPP_CONNECTIONS"]) {
+    assert.equal(configured[key], supplied[key]);
+  }
+});
+
 test("image identities cannot be overridden even by future Settings allowlist entries", () => {
   const originalKeys = [...settingsKeys];
   try {

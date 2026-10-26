@@ -229,6 +229,30 @@ describe("ReportsView", () => {
     });
   });
 
+  it("shows an actionable priority alongside the high rate of a single full refund", async () => {
+    const story = makeStory({
+      summary: {
+        ...makeStory().summary,
+        completed_orders: 1, gross_sales: "10", refund_total: "10",
+        net_sales: "0", average_ticket: "0", refund_count: 1,
+      },
+      product_drivers: [], sales_by_day: [], sales_by_daypart: [], peak_hour: null,
+      payment_mix: [{
+        method: "transfer", amount: "10", refunded_amount: "10", net_amount: "0",
+        payment_count: 1, sales_share_pct: 100,
+      }],
+    });
+    (getBusinessStory as Mock).mockResolvedValue(story);
+    renderView();
+
+    const priority = await screen.findByTestId("priority-recommendation");
+    expect(priority).toHaveTextContent(copy.reportsView.rec.singleRefundFinding);
+    expect(priority).toHaveTextContent(copy.reportsView.rec.singleRefundAction);
+    expect(screen.getByText(copy.reportsView.refundRateHigh)).toBeInTheDocument();
+    expect(screen.queryByText(copy.reportsView.recommendationsEmpty)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.reportsView.rec.refundSpikeFinding)).not.toBeInTheDocument();
+  });
+
   it("shows exact margin only when the tenant flag is enabled", async () => {
     (useFeature as Mock).mockReturnValue(true);
     (getBusinessStory as Mock).mockResolvedValue(

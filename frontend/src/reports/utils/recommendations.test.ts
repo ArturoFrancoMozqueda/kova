@@ -103,6 +103,36 @@ describe("buildRecommendations", () => {
     expect(ids(emptyInput(lone, null))).not.toContain("R3");
   });
 
+  it("prioritizes a single full refund without claiming a growing pattern", () => {
+    const story = makeStory({
+      summary: {
+        ...makeStory().summary,
+        completed_orders: 1, gross_sales: "10", refund_total: "10",
+        net_sales: "0", average_ticket: "0", refund_count: 1,
+      },
+    });
+    const result = buildRecommendations(emptyInput(story, null));
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: "R3", priority: "alta", tone: "risk",
+      finding: "Revisa esta devolución",
+      evidence: "1 devolución por $10.00 (100% de tus ventas brutas).",
+      action: "Confirma el motivo y el importe. Es un solo caso; todavía no indica un patrón.",
+      estimatedImpactMxn: 10,
+    });
+  });
+
+  it("preserves the refund-count spike signal even when the amount rate is low", () => {
+    const story = makeStory({
+      summary: { ...makeStory().summary, refund_total: "80", refund_count: 6 },
+    });
+    const previous = makeStory({
+      summary: { ...makeStory().summary, refund_total: "40", refund_count: 3 },
+    });
+    expect(ids(emptyInput(story, previous))).toContain("R3");
+    expect(ids(emptyInput(story, null))).not.toContain("R3");
+  });
+
   it("fires R6 only when cash dominates with enough transactions", () => {
     const cashHeavy = makeStory({
       payment_mix: [

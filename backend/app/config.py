@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     assistant_tenant_ids: str = ""
     # Deterministic internal tasks have their own opt-in scheduler cohort.
     automation_tenant_ids: str = ""
+    # Assisted WhatsApp pilot. Connections are provisioned by platform operators,
+    # never from browser-supplied account IDs. Tokens stay in the host secret store.
+    kova_whatsapp_enabled: bool = False
+    whatsapp_graph_api_version: str = Field(default="", pattern=r"^(?:v[1-9][0-9]{0,2}\.0)?$")
+    whatsapp_app_secret: SecretStr | None = None
+    whatsapp_webhook_verify_token: SecretStr | None = None
+    whatsapp_connections: SecretStr | None = None
     assistant_cloudflare_account_id: str = ""
     assistant_cloudflare_token: SecretStr | None = None
     assistant_r2_access_key: SecretStr | None = None

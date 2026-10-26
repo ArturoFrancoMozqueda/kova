@@ -1,6 +1,62 @@
 # Current Sprint
 
-Last updated: 2026-10-23
+Last updated: 2026-10-25
+
+## Preparación de publicación — cierre de AbortSignal/Request
+
+Los dos errores de identidad quedan resueltos al reinstalar las dependencias exactas del
+lockfile: el entorno local conservaba Vitest 3.2.7 y el repositorio ya fija 4.1.11. No se
+cambian autenticación, setup, lockfile ni expectativas de identidad. Tres nuevas pruebas
+protegen Request/clones, motivo de cancelación y limpieza de listeners DOM con los globals reales.
+Validación completa: 1,428 unitarias frontend, 2,105 backend y 311 recorridos de navegador
+aprobados; 16 casos de integración se omiten deliberadamente en el perfil preview y se ejecutan
+contra API/PostgreSQL reales por separado. También se corrigen la espera del guardado final de
+postventa y una ruta de capturas exclusiva de macOS, conservando resultados y controles originales.
+
+Los cambios se integran con `main`, incluyendo el enlace/QR fijo del menú y el centro de control.
+El [PR #277](https://github.com/ArturoFrancoMozqueda/kova/pull/277) concentra la entrega; su gate
+`CI required` sobre el último commit es la autoridad para publicar. No se ha fusionado ni
+desplegado esta rama. [Evidencia y límites](audits/KOVA-RELEASE-READINESS-2026-10-25.md).
+WhatsApp permanece deshabilitado por defecto y requiere aceptación independiente del proveedor.
+
+## Experiencia compartida y ciclo de negocio — validación local
+
+Agent Teams unifica controles, encabezados/acciones, estados vacíos y foco en Agenda,
+Atención postventa, Seguimiento y Bandeja. Compras prioriza registros/recepción y conserva
+borradores en paneles secundarios; Pedidos comparte filtros con teclado y el término Tarjeta
+manual con Caja. La continuación comercial y reposición/compra conservan el registro exacto.
+Se corrige la contradicción entre prioridad y severidad de una devolución única del 100%.
+El [contrato UI/UX](claude/ui-experience-contract.md) guía los módulos sin cambiar sus contratos.
+
+El build pasó cuatro recorridos con API/PostgreSQL/RLS locales reales, incluido el nuevo ciclo
+por UI: menú anónimo → solicitud → cliente → oportunidad → cotización → pedido → cobro → entrega
+→ postventa → reposición → recepción parcial/total. Conservó una venta de $90 y existencias
+5→3→4→7. Se añade a CI de integración. Pasaron 47 regresiones de navegador con APIs interceptadas,
+TypeScript, ESLint, build/SSR/prerender y contratos. El corte inicial tuvo 1,407 unitarias aprobadas
+y dos fallos de AbortSignal/Request, resueltos en la preparación de publicación descrita arriba.
+[Alcance, archivos, evidencia y límites](audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md).
+Sin publicación ni activación/certificación de proveedores externos por esta entrega.
+
+## WhatsApp → cliente → catálogo → pedido — piloto asistido local
+
+Se implementa ingreso HTTPS con firma raw, routing por registro privado de plataforma y
+sesiones runtime/RLS por negocio/sucursal. La bandeja permite identificar el contacto exacto,
+vincular cliente, consultar historial y preparar pedido; genera borradores del catálogo publicado
+y admite respuesta humana con confirmación, autor/responsable vigente, consentimiento y ventana.
+Conexión/configuración y entrega se muestran por separado. Hay interruptor global y por conexión,
+límite diario conservador y estados inciertos sin reenvío ciego. No se agregan migraciones ni
+permisos de escritura de bindings al runtime; el alta asistida verifica la cuenta ante Meta con
+un script de operador. [Contrato](../specs/integrations/messaging-inbox.md) y
+[guía de alta/aceptación y pendientes](runbooks/whatsapp-assisted-pilot.md).
+
+El propietario sólo tiene WhatsApp Business en el celular. La app de Meta, número de prueba,
+credenciales en Secret store, publicación y entrega real siguen pendientes. Este corte no completa
+Embedded Signup ni avisos automáticos con plantillas/postventa externa; las tareas internas y
+los contratos de venta/pago conservan su significado. Validación local: 117 pruebas backend
+focales y 75 con pg8000; 19 frontend focales, siete recorridos Chromium y 21 del controlador
+nativo aprobados. El corte inicial tuvo 1,391 unitarias aprobadas y dos fallos de AbortSignal/Request,
+resueltos en la preparación de publicación descrita arriba. TypeScript, ESLint,
+Ruff, build/SSR/prerender y contratos aprobados. [Evidencia y límites](audits/KOVA-WHATSAPP-PILOT-2026-10-23.md).
 
 ## Menú digital público — implementación local
 
@@ -181,4 +237,3 @@ retiraron del árbol el 2026-10-22 y se conservan en el historial de git.
 - No duplicar criterios de aceptación detallados aquí; enlazar la spec, runbook o plan dueño.
 - Setup, comandos de prueba, arquitectura y puntos de entrada operativos viven en
   [`engineering-operations-index.md`](engineering-operations-index.md).
-

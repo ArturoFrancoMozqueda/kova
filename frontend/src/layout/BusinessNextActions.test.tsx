@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { BusinessNextActions } from "./BusinessNextActions";
 
-const destinations = ["/settings/public-catalog", "/commercial-requests", "/catalog", "/inventory", "/purchasing", "/replenishment", "/register", "/pedidos", "/customers", "/service-cases", "/reports", "/operations-queue"].map(to => ({ to }));
+const destinations = ["/settings/public-catalog", "/commercial-requests", "/crm", "/quotes", "/catalog", "/inventory", "/purchasing", "/replenishment", "/register", "/pedidos", "/customers", "/service-cases", "/reports", "/operations-queue"].map(to => ({ to }));
 function Location() { return <output aria-label="Destino actual">{useLocation().pathname}</output>; }
 function host(pathname: string, allowed = destinations) {
   return render(<MemoryRouter initialEntries={[pathname]}>
@@ -18,6 +18,8 @@ describe("next actions within existing business sections", () => {
     ["/inventory", ["Planear reposición", "Preparar compra"]],
     ["/replenishment", ["Preparar compra", "Revisar existencias"]],
     ["/purchasing", ["Revisar existencias", "Cobrar una venta"]],
+    ["/commercial-requests", ["Continuar seguimiento comercial", "Gestionar clientes"]],
+    ["/crm", ["Revisar cotizaciones", "Gestionar clientes"]],
     ["/quotes", ["Revisar pedidos", "Gestionar clientes"]],
     ["/orders", ["Atender incidencias", "Revisar resultados"]],
     ["/inbox", ["Atender pendientes", "Gestionar clientes"]],
@@ -63,14 +65,22 @@ describe("next actions within existing business sections", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
   });
 
-  it("offers direct order creation only with create permission and the parent feature destination", () => {
+  it("keeps the order history as the next step even with create permission, preserving record conversions", () => {
     const view = render(<MemoryRouter><BusinessNextActions pathname="/quotes" destinations={[{ to: "/pedidos" }]} canCreateCustomerOrders /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: "Crear pedido" })).toHaveAttribute("href", "/pedidos/nuevo");
+    expect(screen.queryByRole("link", { name: "Crear pedido" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Revisar pedidos" })).toHaveAttribute("href", "/pedidos");
     view.rerender(<MemoryRouter><BusinessNextActions pathname="/quotes" destinations={[{ to: "/pedidos" }]} canCreateCustomerOrders={false} /></MemoryRouter>);
     expect(screen.queryByRole("link", { name: "Crear pedido" })).toBeNull();
     expect(screen.getByRole("link", { name: "Revisar pedidos" })).toHaveAttribute("href", "/pedidos");
     view.rerender(<MemoryRouter><BusinessNextActions pathname="/quotes" destinations={[]} canCreateCustomerOrders /></MemoryRouter>);
     expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("does not substitute a missing commercial stage with a disconnected order", () => {
+    host("/commercial-requests", [{ to: "/pedidos" }, { to: "/customers" }]);
+    expect(screen.queryByRole("link", { name: "Revisar pedidos" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Crear pedido" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Gestionar clientes" })).toBeVisible();
   });
 
 });

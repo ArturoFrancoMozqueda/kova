@@ -38,6 +38,8 @@ _EXEMPT_PATHS = frozenset(
         "/api/v1/auth/password-reset/request",
         "/api/v1/auth/password-reset/confirm",
         "/api/v1/billing/webhooks/stripe",
+        # Only this exact machine-to-machine path; raw HMAC is mandatory.
+        "/api/v1/messaging/webhooks/whatsapp",
     }
 )
 

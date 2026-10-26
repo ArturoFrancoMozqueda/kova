@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { MessagesSquare } from "lucide-react";
+import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   OperationsSession,
@@ -7,9 +8,13 @@ import {
 } from "@/automations/workspace";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { ViewError } from "@/components/ui/view-states";
+import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { AutomationsData, AutomationRun } from "@/automations/types";
 import type { Customer } from "@/customers/api";
@@ -18,6 +23,7 @@ type Conversation = {
   id: string;
   customer_id: string | null;
   customer_name: string | null;
+  contact_phone?: string | null;
   subject: string;
   origin: "manual" | "whatsapp";
   status: "open" | "closed";
@@ -28,7 +34,8 @@ type Conversation = {
 type InboxData = {
   items: Conversation[];
   has_more: boolean;
-  channel_status: "not_connected";
+  channel_status: "not_connected" | "connected" | "configuration_error";
+  send_enabled?: boolean;
 };
 type MessageState =
   | "received"
@@ -70,8 +77,18 @@ const stateLabels: Record<MessageState, string> = {
   cancelled: "Cancelado",
   suppressed: "Ya no aplica",
 };
-const fieldClass =
-  "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
+const errorLabels: Record<string, string> = {
+  daily_send_limit: "Alcanzaste el límite diario de envíos de esta sucursal.",
+  provider_result_ambiguous: "El proveedor no confirmó el resultado. Revisa la entrega antes de volver a contactar al cliente.",
+  provider_rejected: "El proveedor rechazó el mensaje. Revisa la conexión antes de preparar una nueva respuesta.",
+  interrupted_delivery: "El envío se interrumpió. Es necesario comprobar el resultado.",
+  consent_required: "El permiso de contacto ya no está vigente.",
+  contact_changed: "El teléfono del cliente cambió. Revisa su autorización.",
+  human_handoff: "La conversación está en atención humana. El responsable debe confirmar la respuesta.",
+  conversation_changed: "La conversación cambió y se canceló la autorización anterior.",
+  source_changed: "El pedido cambió. Prepara un aviso con sus datos actuales.",
+};
+const fieldClass = "mt-1 min-w-0";
 export default function InboxView() {
   useDocumentTitle("Bandeja de atención");
   return (
@@ -81,6 +98,7 @@ export default function InboxView() {
   );
 }
 function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const fieldId = useId();
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<InboxData>(
     "/api/v1/messaging",
@@ -111,10 +129,20 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     "transactional",
   );
   const [confirm, setConfirm] = useState<{
-    action: "queue" | "cancel";
+    action: "queue" | "send" | "cancel";
     message: Message;
   } | null>(null);
   const requestGeneration = useRef(0);
+  const loadConversations = panel.load;
+  useEffect(() => {
+    if (!panel.online || panel.busy) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void loadConversations();
+      setRevision((value) => value + 1);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [panel.online, panel.busy, loadConversations]);
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => {
@@ -144,7 +172,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     setMessagesError("");
     if (selectedId)
       void request<{ items: Message[]; has_more: boolean }>(
-        `/conversations/${selectedId}/messages?limit=100&offset=${messageOffset}`,
+        `/conversations/${selectedId}/messages?limit=100&offset=${messageOffset}&latest=true`,
       )
         .then((result) => {
           if (active && generation === requestGeneration.current)
@@ -208,10 +236,12 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     if (!confirm) return;
     if (
       await panel.mutate(
-        `/messages/${confirm.message.id}/transition`,
+        `/messages/${confirm.message.id}/${confirm.action === "send" ? "send" : "transition"}`,
         "POST",
-        { expected_version: confirm.message.version, action: confirm.action },
-        confirm.action === "queue"
+        { expected_version: confirm.message.version, ...(confirm.action === "send" ? {} : { action: confirm.action }) },
+        confirm.action === "send"
+          ? "Respuesta procesada. Revisa el estado del mensaje para confirmar la entrega."
+          : confirm.action === "queue"
           ? "Solicitud de envío registrada. Consulta el estado real de entrega."
           : "Mensaje cancelado.",
       )
@@ -226,13 +256,38 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         eyebrow="Atención al cliente"
         title="Bandeja de atención"
         meta="Conserva el contexto, prepara respuestas y controla cuándo interviene el equipo."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="h-auto min-h-11 whitespace-normal"
+              variant="outline"
+              disabled={panel.loading || panel.busy || !panel.online}
+              onClick={() => { void panel.load(); setRevision(value => value + 1); }}
+            >
+              Actualizar conversaciones y mensajes
+            </Button>
+            <Button
+              className="h-auto min-h-11 whitespace-normal"
+              disabled={panel.busy || !panel.online}
+              aria-expanded={newOpen}
+              aria-controls="inbox-conversation-form"
+              onClick={() => setNewOpen((value) => !value)}
+            >
+              Nueva conversación interna
+            </Button>
+          </div>
+        }
       />
       <div className="rounded-2xl border border-kova-border bg-kova-mist p-5">
-        <h2 className="font-semibold">WhatsApp sin conectar</h2>
+        <h2 className="font-semibold">{panel.data?.channel_status === "connected" ? "WhatsApp configurado" : "WhatsApp sin conectar"}</h2>
         <p className="mt-2 text-sm text-kova-muted">
+          {panel.data?.channel_status === "connected" ? (panel.data.send_enabled
+            ? "Vincula al cliente, asígnate la conversación y prepara tu respuesta. Cada envío requiere tu confirmación; la atención humana puede permanecer activada."
+            : "Puedes revisar los mensajes recibidos. Los envíos de esta sucursal están pausados.") : <>
           Puedes organizar conversaciones internas y guardar borradores. Los
           mensajes externos aparecerán cuando el canal esté verificado. Un
           borrador no representa contacto con el cliente.
+          </>}
         </p>
         <Link
           className="mt-2 inline-flex min-h-11 items-center text-sm underline"
@@ -254,31 +309,25 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </p>
       )}
       {panel.loading && <p role="status">Cargando conversaciones…</p>}
-      <Button
-        className="h-auto min-h-11 whitespace-normal text-left"
-        disabled={panel.busy || !panel.online}
-        onClick={() => setNewOpen((value) => !value)}
-      >
-        Nueva conversación interna
-      </Button>
       {newOpen && (
         <form
+          id="inbox-conversation-form"
           onSubmit={(event) => void create(event)}
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
         >
           <h2 className="text-xl font-semibold">Preparar conversación</h2>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-1`} className="block text-sm">
             Buscar cliente
-            <input
+            <Input id={`${fieldId}-1`}
               className={fieldClass}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-          </label>
+          </Label>
           {customerError && <p role="alert">{customerError}</p>}
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-2`} className="block text-sm">
             Cliente registrado
-            <select
+            <Select id={`${fieldId}-2`}
               className={fieldClass}
               required
               value={customerId}
@@ -290,18 +339,18 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {row.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
+            </Select>
+          </Label>
+          <Label htmlFor={`${fieldId}-3`} className="block text-sm">
             Asunto de la conversación
-            <input
+            <Input id={`${fieldId}-3`}
               className={fieldClass}
               maxLength={160}
               required
               value={subject}
               onChange={(event) => setSubject(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="flex flex-wrap gap-3">
             <Button
               className="h-auto min-h-11 whitespace-normal text-left"
@@ -325,11 +374,12 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)]">
         <section aria-label="Conversaciones" className="space-y-3">
           <h2 className="text-xl font-semibold">Conversaciones</h2>
-          {panel.data?.items.length === 0 && (
-            <p className="rounded-2xl border border-kova-border bg-white p-5 text-sm text-kova-muted">
-              Todavía no hay conversaciones. Crea una interna para preparar la
-              atención de un cliente.
-            </p>
+          {!panel.loading && !panel.error && panel.data?.items.length === 0 && (
+            <ViewEmpty
+              icon={<MessagesSquare className="h-6 w-6" aria-hidden="true" />}
+              title="Todavía no hay conversaciones."
+              body="Crea una interna para preparar la atención de un cliente."
+            />
           )}
           {panel.data?.items.map((row) => (
             <button
@@ -339,6 +389,9 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 setMessageOffset(0);
                 setBody("");
                 setConfirm(null);
+                setCustomerId("");
+                setSearch("");
+                setAutomationOpen(false);
               }}
               aria-pressed={selectedId === row.id}
               className="block w-full min-w-0 space-y-2 rounded-2xl border border-kova-border bg-white p-5 text-left hover:border-kova-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-kova-blue"
@@ -347,7 +400,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 {row.subject}
               </span>
               <span className="block break-words text-sm">
-                {row.customer_name ?? "Cliente sin vincular"}
+                {row.customer_name ?? row.contact_phone ?? "Cliente sin vincular"}
               </span>
               <span className="block text-xs text-kova-muted">
                 {row.status === "open" ? "Abierta" : "Cerrada"} ·{" "}
@@ -394,6 +447,23 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             <h2 className="break-words text-xl font-semibold">
               {selected.subject}
             </h2>
+            {selected.customer_id ? <div className="flex flex-wrap gap-4 text-sm">
+              <Link className="inline-flex min-h-11 items-center underline" to={`/customers?customerId=${encodeURIComponent(selected.customer_id)}`}>Ver cliente, compras y pendientes</Link>
+              <Link className="inline-flex min-h-11 items-center underline" to={`/pedidos/nuevo?customerId=${encodeURIComponent(selected.customer_id)}`}>Preparar pedido con este cliente</Link>
+              <Link className="inline-flex min-h-11 items-center underline" to={`/crm?customer_id=${encodeURIComponent(selected.customer_id)}`}>Oportunidades y permisos de contacto</Link>
+            </div> : <form className="space-y-3 rounded-xl bg-kova-mist p-4" onSubmit={event => {
+              event.preventDefault();
+              if (customerId) void patchConversation({ customer_id: customerId }, "Cliente vinculado. Revisa sus permisos de contacto antes de enviar.");
+            }}>
+              <h3 className="font-semibold">Identifica al cliente para continuar</h3>
+              {selected.contact_phone && <p className="text-sm">WhatsApp del contacto: <span className="break-all font-medium">+{selected.contact_phone}</span></p>}
+              <p className="text-sm text-kova-muted">Selecciona un cliente registrado con el mismo teléfono exacto. El mensaje no crea un cliente ni autoriza comunicaciones futuras.</p>
+              <Label htmlFor={`${fieldId}-4`} className="block text-sm">Buscar cliente para vincular<Input id={`${fieldId}-4`} className={fieldClass} value={search} onChange={event => setSearch(event.target.value)} /></Label>
+              {customerError && <p role="alert">{customerError}</p>}
+              <Label htmlFor={`${fieldId}-5`} className="block text-sm">Cliente de esta conversación<Select id={`${fieldId}-5`} className={fieldClass} required value={customerId} onChange={event => setCustomerId(event.target.value)}><option value="">Selecciona al cliente</option>{customers.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></Label>
+              <Button disabled={!customerId || panel.busy || !panel.online}>Vincular cliente</Button>
+              <Link className="ml-4 inline-flex min-h-11 items-center text-sm underline" to="/customers">Registrar cliente</Link>
+            </form>}
             <div className="flex flex-wrap gap-3">
               <Button
                 className="h-auto min-h-11 whitespace-normal text-left"
@@ -487,7 +557,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     </p>
                     {message.error_code && (
                       <p className="break-words text-sm">
-                        Detalle: {message.error_code}
+                        {errorLabels[message.error_code] ?? "Revisa la conexión, el contacto y los permisos antes de preparar otro mensaje."}
                       </p>
                     )}
                     {["draft", "queued"].includes(message.state) && (
@@ -500,15 +570,19 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                             disabled={
                               panel.busy ||
                               !panel.online ||
-                              panel.data?.channel_status === "not_connected" ||
-                              selected.automation_paused ||
+                              panel.data?.channel_status !== "connected" ||
+                              !panel.data.send_enabled ||
+                              selected.origin !== "whatsapp" ||
+                              !selected.customer_id ||
+                              selected.assigned_user_id !== identity.userId ||
+                              message.purpose !== "transactional" ||
                               selected.status !== "open"
                             }
                             onClick={() =>
-                              setConfirm({ action: "queue", message })
+                              setConfirm({ action: "send", message })
                             }
                           >
-                            Preparar envío
+                            Enviar por WhatsApp
                           </Button>
                         )}
                         <Button
@@ -539,7 +613,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   setMessageOffset((value) => Math.max(0, value - 100))
                 }
               >
-                Mensajes anteriores
+                Mensajes más recientes
               </Button>
               <Button
                 className="h-auto min-h-11 whitespace-normal"
@@ -547,11 +621,14 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 disabled={!messages?.has_more}
                 onClick={() => setMessageOffset((value) => value + 100)}
               >
-                Más mensajes
+                Mensajes anteriores
               </Button>
             </nav>
             {selected.status === "open" && (
               <div className="space-y-4">
+                <Button variant="outline" disabled={panel.busy || !panel.online} onClick={() => {
+                  void panel.mutate(`/conversations/${selected.id}/catalog-draft`, "POST", { expected_version: selected.version }, "Enlace del catálogo guardado como borrador. Revísalo antes de enviarlo.").then(saved => { if (saved) setRevision(value => value + 1); });
+                }}>Preparar enlace del catálogo</Button>
                 <Button
                   className="h-auto min-h-11 whitespace-normal"
                   variant="outline"
@@ -578,19 +655,19 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 <h3 className="font-semibold">
                   Guardar respuesta para revisar
                 </h3>
-                <label className="block text-sm">
+                <Label htmlFor={`${fieldId}-6`} className="block text-sm">
                   Respuesta del equipo
-                  <textarea
+                  <Textarea id={`${fieldId}-6`}
                     className={fieldClass}
                     required
                     maxLength={4000}
                     value={body}
                     onChange={(event) => setBody(event.target.value)}
                   />
-                </label>
-                <label className="block text-sm">
+                </Label>
+                <Label htmlFor={`${fieldId}-7`} className="block text-sm">
                   Finalidad del mensaje
-                  <select
+                  <Select id={`${fieldId}-7`}
                     className={fieldClass}
                     value={purpose}
                     onChange={(event) =>
@@ -603,8 +680,8 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     <option value="marketing">
                       Marketing con consentimiento independiente
                     </option>
-                  </select>
-                </label>
+                  </Select>
+                </Label>
                 <p className="text-sm text-kova-muted">
                   Guardar no envía. El canal y el consentimiento se verifican
                   nuevamente al solicitar un envío.
@@ -623,12 +700,12 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 className="space-y-3 rounded-xl border border-kova-border p-4"
               >
                 <h3 className="font-semibold">
-                  {confirm.action === "queue"
-                    ? "Confirmar solicitud de envío"
+                  {confirm.action === "send"
+                    ? "Confirmar envío por WhatsApp"
                     : "Confirmar cancelación"}
                 </h3>
                 <p className="text-sm">
-                  {confirm.action === "queue"
+                  {confirm.action === "send"
                     ? "Se verificará el canal, la ventana de atención y el consentimiento. El estado del proveedor confirmará el resultado."
                     : "Este mensaje dejará de estar disponible para nuevos envíos."}
                 </p>
@@ -639,7 +716,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     onClick={() => void transition()}
                   >
                     Confirmar{" "}
-                    {confirm.action === "queue" ? "solicitud" : "cancelación"}
+                    {confirm.action === "send" ? "envío" : "cancelación"}
                   </Button>
                   <Button
                     className="h-auto min-h-11 whitespace-normal text-left"
@@ -668,6 +745,7 @@ function AutomationDraft({
   conversationId: string;
   onSaved: () => void;
 }) {
+  const fieldId = useId();
   const automation = useOperationsPanel<AutomationsData>(
     "/api/v1/automations",
     identity,
@@ -761,9 +839,9 @@ function AutomationDraft({
           {notice}
         </p>
       )}
-      <label className="block text-sm">
+      <Label htmlFor={`${fieldId}-8`} className="block text-sm">
         Tarea de pedido
-        <select
+        <Select id={`${fieldId}-8`}
           className={fieldClass}
           required
           value={runId}
@@ -775,8 +853,8 @@ function AutomationDraft({
               {run.title}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Label>
       <Button
         className="h-auto min-h-11 whitespace-normal"
         disabled={!runId || busy || !automation.online}

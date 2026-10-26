@@ -188,9 +188,15 @@ test.describe("atención postventa con API, Postgres y RLS reales", () => {
     await page
       .getByLabel("Nueva nota del equipo")
       .fill("Se conserva una aclaración privada después del cierre.");
+    const finalNoteResponse = page.waitForResponse(
+      (response) => response.url().endsWith(`/service-cases/${created.id}/notes`)
+        && response.request().method() === "POST",
+    );
     await page
       .getByRole("button", { name: "Agregar nota al historial" })
       .click();
+    expect((await finalNoteResponse).ok()).toBe(true);
+    await expect(page.getByLabel("Nueva nota del equipo")).toHaveValue("");
     await expect(
       page.getByText("Se conserva una aclaración privada después del cierre."),
     ).toBeVisible();

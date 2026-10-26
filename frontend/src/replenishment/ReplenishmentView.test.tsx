@@ -48,8 +48,8 @@ beforeEach(() => {
     value: true,
   });
   vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockImplementation(async (url) =>
-    String(url).endsWith("/purchasing/suppliers")
+  fetchMock.mockImplementation(async (url, init) =>
+    init?.method === "POST" ? json({ id: "purchase-created-1", status: "pending" }) : String(url).endsWith("/purchasing/suppliers")
       ? json([supplier])
       : json([suggestion]),
   );
@@ -94,6 +94,7 @@ it("requires a supplier and two-step review before creating a pending purchase",
     ],
   });
   expect(await screen.findByText(/Compra pendiente creada/)).toBeVisible();
+  expect(screen.getByRole("link", { name: "Revisar compra creada" })).toHaveAttribute("href", "/purchasing?purchase_id=purchase-created-1");
 });
 
 it("blocks a stale purchase and requires reviewing current evidence again", async () => {

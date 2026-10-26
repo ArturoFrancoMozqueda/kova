@@ -121,6 +121,31 @@ it("creates a booking using the selected resource zone, never the device clock",
     "Idempotency-Key": expect.any(String),
   });
 });
+it("preserves a new appointment draft when its header action folds and reopens the form", async () => {
+  render(<MemoryRouter><AppointmentsView /></MemoryRouter>);
+  const action = await screen.findByRole("button", { name: "Nueva cita" });
+  fireEvent.click(action);
+  await screen.findByRole("option", { name: customer.name });
+  const fields = {
+    "Recurso de la cita": resource.id,
+    "Cliente de la cita": customer.id,
+    "Motivo de la cita": "Consulta por confirmar",
+    "Inicio de la cita": "2099-10-20T10:00",
+    "Fin de la cita": "2099-10-20T11:00",
+    "Nota interna de la cita": "Conservar el acuerdo antes de confirmar.",
+  };
+  for (const [label, value] of Object.entries(fields)) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  }
+  fireEvent.click(action);
+  expect(screen.queryByLabelText("Motivo de la cita")).not.toBeInTheDocument();
+  fireEvent.click(action);
+  for (const [label, value] of Object.entries(fields)) {
+    expect(screen.getByLabelText(label)).toHaveValue(value);
+  }
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+});
+
 it("reprograms with expected version and keeps resource timezone visible", async () => {
   render(
     <MemoryRouter>

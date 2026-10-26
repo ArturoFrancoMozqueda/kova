@@ -324,9 +324,11 @@ test("mobile owner creates supplier and purchase then receives only units delive
     },
   );
   await page.goto("/purchasing");
+  await page.getByRole("button", { name: "Nuevo proveedor", exact: true }).click();
   await page.getByLabel("Nombre", { exact: true }).fill(supplier.name);
   await page.getByLabel("Teléfono o correo (opcional)").fill(supplier.contact);
   await page.getByRole("button", { name: "Guardar proveedor" }).click();
+  await page.getByRole("button", { name: "Preparar compra", exact: true }).click();
   await page.getByLabel("Proveedor", { exact: true }).selectOption(supplier.id);
   await page.getByLabel("Producto", { exact: true }).selectOption(productId);
   await page.getByLabel("Unidades", { exact: true }).fill("10");

@@ -822,9 +822,11 @@ function QuoteJourney({
               ? "Oportunidad comercial vinculada"
               : "Sin oportunidad de origen"}
             .{" "}
-            <Link to="/crm" className="underline">
-              Ver seguimiento
-            </Link>
+            {data.opportunity_id && (
+              <Link to={`/crm?opportunity_id=${encodeURIComponent(data.opportunity_id)}`} className="underline">
+                Ver seguimiento
+              </Link>
+            )}
           </p>
           <p>
             {data.customer_order_id

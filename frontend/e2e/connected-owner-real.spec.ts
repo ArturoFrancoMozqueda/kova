@@ -166,7 +166,7 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
     await expect(page.getByLabel("Cliente registrado", { exact: true })).toHaveCount(0);
     await page.goBack();
     await page.getByRole("button", { name: "Cobrar en Caja", exact: true }).click();
-    await page.getByRole("radio", { name: "Tarjeta", exact: true }).click();
+    await page.getByRole("radio", { name: "Tarjeta manual", exact: true }).click();
     const checkoutResponse = page.waitForResponse(response => response.url().endsWith(`/api/v1/customer-orders/${created.id}/checkout`)
       && response.request().method() === "POST");
     await page.getByRole("button", { name: "Cobrar $80.00", exact: true }).click();

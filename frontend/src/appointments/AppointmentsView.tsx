@@ -1,6 +1,7 @@
+import { CalendarDays } from "lucide-react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   OperationsSession,
   useOperationsRequest,
@@ -8,9 +9,13 @@ import {
 } from "@/automations/workspace";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { ViewError } from "@/components/ui/view-states";
+import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { resolveActiveCustomer, type Customer } from "@/customers/api";
 import { Link, useSearchParams } from "react-router-dom";
@@ -28,8 +33,7 @@ import {
   zonedInputToUtc,
 } from "./timezone";
 
-const fieldClass =
-  "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
+const fieldClass = "mt-1 min-w-0";
 const buttonClass = "h-auto min-h-11 whitespace-normal";
 const statuses = {
   scheduled: "Programada",
@@ -49,6 +53,7 @@ export default function AppointmentsView() {
   );
 }
 function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const fieldId = useId();
   const [reminderRevision, setReminderRevision] = useState(0);
   const linked = useLinkedRecord<Appointment>(identity, "appointmentId", "/api/v1/appointments");
   const [params, setParams] = useSearchParams();
@@ -218,6 +223,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         setBookingOpen(false);
         setReminderRevision((value) => value + 1);
         setEditing(null);
+        setResourceId("");
+        setCustomerId("");
         setTitle("");
         setNote("");
         setStartsAt("");
@@ -246,6 +253,35 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         eyebrow="Servicio y atención"
         title="Agenda del negocio"
         meta="Reserva el tiempo del equipo sin cruces de horario."
+        actions={
+          <Button
+            className={buttonClass}
+            aria-expanded={bookingOpen}
+            aria-controls="appointment-booking-form"
+            disabled={
+              panel.busy ||
+              !panel.online ||
+              !resources.some((row) => row.is_active)
+            }
+            onClick={() => {
+              setFormError("");
+              if (editing) {
+                setEditing(null);
+                setResourceId("");
+                setCustomerId("");
+                setTitle("");
+                setNote("");
+                setStartsAt("");
+                setEndsAt("");
+                setBookingOpen(true);
+              } else {
+                setBookingOpen((value) => !value);
+              }
+            }}
+          >
+            Nueva cita
+          </Button>
+        }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Cada recurso conserva su zona horaria. Las citas son internas: no envían
@@ -342,19 +378,19 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           onSubmit={(event) => void createResource(event)}
         >
           <h2 className="text-xl font-semibold">Nuevo recurso</h2>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-1`} className="block text-sm">
             Nombre del recurso
-            <input
+            <Input id={`${fieldId}-1`}
               className={fieldClass}
               required
               maxLength={120}
               value={resourceName}
               onChange={(event) => setResourceName(event.target.value)}
             />
-          </label>
-          <label className="block text-sm">
+          </Label>
+          <Label htmlFor={`${fieldId}-2`} className="block text-sm">
             Zona horaria del recurso
-            <select
+            <Select id={`${fieldId}-2`}
               className={fieldClass}
               value={resourceTimezone}
               onChange={(event) => setResourceTimezone(event.target.value)}
@@ -364,8 +400,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {zone.label} ({zone.value})
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Label>
           <p className="text-sm text-kova-muted">
             Confirma la zona donde se prestará el servicio. Después de crear el
             recurso, su zona se conserva para proteger las citas.
@@ -388,31 +424,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </div>
         </form>
       )}
-      <div className="flex flex-wrap gap-3">
-        <Button
-          className={buttonClass}
-          disabled={
-            panel.busy ||
-            !panel.online ||
-            !resources.some((row) => row.is_active)
-          }
-          onClick={() => {
-            setEditing(null);
-            setResourceId("");
-            setCustomerId("");
-            setTitle("");
-            setNote("");
-            setStartsAt("");
-            setEndsAt("");
-            setFormError("");
-            setBookingOpen((value) => !value);
-          }}
-        >
-          Nueva cita
-        </Button>
-      </div>
       {bookingOpen && (
         <form
+          id="appointment-booking-form"
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void saveBooking(event)}
         >
@@ -431,9 +445,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </p>
           ) : (
             <>
-              <label className="block text-sm">
+              <Label htmlFor={`${fieldId}-3`} className="block text-sm">
                 Recurso de la cita
-                <select
+                <Select id={`${fieldId}-3`}
                   className={fieldClass}
                   required
                   value={resourceId}
@@ -451,20 +465,20 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                         {row.name} · {zoneLabel(row.timezone)}
                       </option>
                     ))}
-                </select>
-              </label>
-              <label className="block text-sm">
+                </Select>
+              </Label>
+              <Label htmlFor={`${fieldId}-4`} className="block text-sm">
                 Buscar cliente
-                <input
+                <Input id={`${fieldId}-4`}
                   className={fieldClass}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
-              </label>
+              </Label>
               {customerError && <p role="alert">{customerError}</p>}
-              <label className="block text-sm">
+              <Label htmlFor={`${fieldId}-5`} className="block text-sm">
                 Cliente de la cita
-                <select
+                <Select id={`${fieldId}-5`}
                   className={fieldClass}
                   required
                   value={customerId}
@@ -476,18 +490,18 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                       {row.name}
                     </option>
                   ))}
-                </select>
-              </label>
-              <label className="block text-sm">
+                </Select>
+              </Label>
+              <Label htmlFor={`${fieldId}-6`} className="block text-sm">
                 Motivo de la cita
-                <input
+                <Input id={`${fieldId}-6`}
                   className={fieldClass}
                   required
                   maxLength={160}
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                 />
-              </label>
+              </Label>
             </>
           )}
           <p className="rounded-xl bg-kova-mist p-4 text-sm">
@@ -496,9 +510,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               : "Selecciona primero el recurso para conocer la zona de la cita."}
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
+            <Label htmlFor={`${fieldId}-7`} className="text-sm">
               Inicio de la cita
-              <input
+              <Input id={`${fieldId}-7`}
                 className={fieldClass}
                 type="datetime-local"
                 required
@@ -506,10 +520,10 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 value={startsAt}
                 onChange={(event) => setStartsAt(event.target.value)}
               />
-            </label>
-            <label className="text-sm">
+            </Label>
+            <Label htmlFor={`${fieldId}-8`} className="text-sm">
               Fin de la cita
-              <input
+              <Input id={`${fieldId}-8`}
                 className={fieldClass}
                 type="datetime-local"
                 required
@@ -517,17 +531,17 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 value={endsAt}
                 onChange={(event) => setEndsAt(event.target.value)}
               />
-            </label>
+            </Label>
           </div>
-          <label className="block text-sm">
+          <Label htmlFor={`${fieldId}-9`} className="block text-sm">
             Nota interna de la cita
-            <textarea
+            <Textarea id={`${fieldId}-9`}
               className={fieldClass}
               maxLength={1000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="flex flex-wrap gap-3">
             <Button
               className={buttonClass}
@@ -595,9 +609,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             Cada cita conserva la hora local de su recurso.
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-0 flex-1 text-sm">
+            <Label htmlFor={`${fieldId}-10`} className="min-w-0 flex-1 text-sm">
               Zona del período
-              <select
+              <Select id={`${fieldId}-10`}
                 className={fieldClass}
                 value={filterTimezone}
                 onChange={(event) => setFilterTimezone(event.target.value)}
@@ -607,21 +621,21 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     {zone.label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="min-w-0 flex-1 text-sm">
+              </Select>
+            </Label>
+            <Label htmlFor={`${fieldId}-11`} className="min-w-0 flex-1 text-sm">
               Desde
-              <input
+              <Input id={`${fieldId}-11`}
                 className={fieldClass}
                 required
                 type="date"
                 value={windowStart}
                 onChange={(event) => setWindowStart(event.target.value)}
               />
-            </label>
-            <label className="min-w-0 flex-1 text-sm">
+            </Label>
+            <Label htmlFor={`${fieldId}-12`} className="min-w-0 flex-1 text-sm">
               Hasta
-              <input
+              <Input id={`${fieldId}-12`}
                 className={fieldClass}
                 required
                 type="date"
@@ -629,7 +643,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 value={windowEnd}
                 onChange={(event) => setWindowEnd(event.target.value)}
               />
-            </label>
+            </Label>
             <Button className={buttonClass} variant="outline">
               Consultar período
             </Button>
@@ -641,10 +655,12 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           )}
         </form>
         {panel.loading && <p role="status">Consultando agenda…</p>}
-        {visibleAppointments.length === 0 && !linked.loading && (
-          <p className="rounded-2xl border border-kova-border bg-white p-6 text-sm text-kova-muted">
-            No hay citas en este período. Crea una cita o consulta otras fechas.
-          </p>
+        {!panel.loading && !panel.error && visibleAppointments.length === 0 && !linked.loading && (
+          <ViewEmpty
+            icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
+            title="No hay citas en este período."
+            body="Crea una cita o consulta otras fechas."
+          />
         )}
         <div className="grid gap-4 lg:grid-cols-2">
           {visibleAppointments.map((row) => (

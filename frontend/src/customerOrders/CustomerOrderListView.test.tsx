@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CustomerOrderListItem, CustomerOrderListResponse } from "./types";
@@ -72,6 +72,26 @@ describe("CustomerOrderListView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
     expect(await screen.findByText("PED-BUSCADO")).toBeInTheDocument();
     expect(mocks.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: "PED-BUSCADO", offset: 0 }));
+  });
+
+  it("filters by keyboard with one tab stop and resets pagination without creating a different order", async () => {
+    mocks.list.mockImplementation(async ({ offset }: { offset: number }) => list([order("PED-PRIMERO")], 26, offset));
+    renderList();
+    await screen.findByText("PED-PRIMERO");
+    fireEvent.click(screen.getByRole("button", { name: /Siguiente/ }));
+    await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 25 })));
+    const filter = screen.getByRole("radiogroup", { name: "Estado del pedido" });
+    const initial = within(filter).getByRole("radio", { name: "Activos y recientes" });
+    initial.focus();
+    fireEvent.keyDown(initial, { key: "ArrowRight" });
+    await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: "new", offset: 0 })));
+    const selected = within(filter).getByRole("radio", { name: /^Nuevo/ });
+    expect(selected).toHaveFocus();
+    expect(selected).toHaveAttribute("aria-checked", "true");
+    expect(within(filter).getAllByRole("radio").filter(radio => radio.tabIndex === 0)).toEqual([selected]);
+    fireEvent.keyDown(selected, { key: "Home" });
+    await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: undefined, offset: 0 })));
+    expect(initial).toHaveFocus();
   });
 
   it("reports an online query failure and recovers on retry without claiming the device is offline", async () => {

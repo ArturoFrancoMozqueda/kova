@@ -140,6 +140,7 @@ it("does not fetch administrative data for a cashier or offline session", () => 
   session.role = "owner";
   session.mode = "offline";
   mount();
+  expect(screen.getByRole("main")).toContainElement(screen.getByRole("heading", { name: "Seguimiento del negocio" }));
   expect(screen.getByText(/Conéctate para consultar/)).toBeVisible();
   expect(fetchMock).not.toHaveBeenCalled();
 });

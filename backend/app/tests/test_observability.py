@@ -100,3 +100,21 @@ def test_sentry_event_redacts_exception_request_and_customer_canaries():
     frame = sanitized["exception"]["values"][0]["stacktrace"]["frames"][0]
     assert frame["vars"] == "[redacted]"
     assert "PRIVATE" not in rendered
+
+
+def test_whatsapp_verification_and_provider_headers_are_redacted(capsys):
+    configure_logging()
+    logging.getLogger("app.test.whatsapp").info(
+        "callback?hub.verify_token=verify-canary&hub.challenge=123 access_token=access-canary"
+    )
+    logging.getLogger("httpx").info("provider-account-id-canary")
+    captured = capsys.readouterr().err
+    assert "verify-canary" not in captured
+    assert "access-canary" not in captured
+    assert "provider-account-id-canary" not in captured
+    event = sanitize_sentry_event({"request": {
+        "query_string": "hub.verify_token=verify-canary&hub.challenge=123",
+        "headers": {"X-Hub-Signature-256": "signature-canary"},
+    }})
+    assert "verify-canary" not in json.dumps(event)
+    assert "signature-canary" not in json.dumps(event)
