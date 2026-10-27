@@ -18,6 +18,7 @@ from check_native_photo_resources import (
     persisted_rows_match,
     require_local_ci,
     seed,
+    server_timings,
     synthetic_photos,
     verify,
     wait_persisted,
@@ -135,6 +136,61 @@ class PhotoResourcesTests(unittest.TestCase):
         ticks = iter([0, 3.001])
         with self.assertRaisesRegex(VerificationError, "3000ms"):
             self.run_verify(clock=lambda: next(ticks))
+
+    def test_success_records_only_whitelisted_numeric_server_timings(self):
+        result = self.run_verify(lambda request: self.response(
+            request, timing='image-db;dur=1.250, image-cache;dur=0, image-resize;dur=2200.125, '
+                            'secret-account;desc="never expose this";dur=7',
+        ))
+        for row in result["requests"]:
+            self.assertEqual(row["serverTimingMs"],
+                             {"image-db": 1.25, "image-cache": 0.0, "image-resize": 2200.125})
+        self.assertNotIn("never expose", json.dumps(result))
+        self.assertIsNone(self.run_verify()["requests"][0]["serverTimingMs"])
+
+    def test_contract_failure_preserves_budget_and_safe_phase_diagnostics(self):
+        ticks = iter([0, 3.001])
+        with self.assertRaises(VerificationError) as caught:
+            self.run_verify(lambda request: self.response(
+                request, timing='image-db;dur=1.050, image-resize;dur=2997.85, '
+                                'secret;desc="never expose"',
+            ), clock=lambda: next(ticks))
+        message, raw = str(caught.exception).split("; diagnostics=", 1)
+        self.assertEqual(message, "Photo response failed resident/MIME/status/3000ms contract")
+        self.assertEqual(json.loads(raw), {
+            "kind": "jpeg-exif", "width": 400, "repeat": False,
+            "elapsed_ms": 3001.0, "status": 200,
+            "server_timing_ms": {"image-db": 1.05, "image-cache": None, "image-resize": 2997.85},
+        })
+        self.assertNotIn("never expose", raw)
+        self.assertNotIn(self.photos[0]["path"], raw)
+
+    def test_transport_failure_has_fixed_message_without_exception_or_response_payload(self):
+        def unavailable(request):
+            raise httpx.ReadTimeout("secret token and private body", request=request)
+        ticks = iter([0, 3.001])
+        with self.assertRaises(VerificationError) as caught:
+            self.run_verify(unavailable, clock=lambda: next(ticks))
+        message, raw = str(caught.exception).split("; diagnostics=", 1)
+        self.assertEqual(message, "Local photo request failed or exceeded 3000ms")
+        self.assertEqual(json.loads(raw), {
+            "kind": "jpeg-exif", "width": 400, "repeat": False,
+            "elapsed_ms": 3001.0, "status": None, "server_timing_ms": None,
+        })
+        self.assertNotIn("secret", str(caught.exception))
+        self.assertNotIn(self.photos[0]["path"], raw)
+
+    def test_timing_diagnostics_reject_ambiguous_non_numeric_or_oversized_values(self):
+        self.assertIsNone(server_timings(None))
+        self.assertIsNone(server_timings("x" * 2049))
+        for value in ("NaN", "Infinity", "-1", "1e3", "+1", "1.2.3", "3600001",
+                      '1;desc="secret token"', "000000000000001"):
+            with self.subTest(value=value):
+                parsed = server_timings("image-resize;dur=" + value)
+                self.assertEqual(parsed, {"image-db": None, "image-cache": None,
+                                          "image-resize": None})
+                self.assertNotIn("secret", json.dumps(parsed))
+        self.assertIsNone(server_timings("image-resize;dur=1, image-resize;dur=2")["image-resize"])
 
     def test_repeat_must_have_identical_bytes(self):
         def changed(request):
