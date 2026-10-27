@@ -461,6 +461,57 @@ _EXPORT_TABLES = (
         ),
     ),
 )
+# Explicit forward-compatible portability fields. Metadata only decides whether
+# these reviewed fields exist; it never discovers additional exportable data.
+_COMPAT_EXPORT_TABLES = (
+    ExportTable("loyalty_reward_revisions", _columns(
+        "id tenant_id branch_id version enabled title points_cost discount_amount "
+        "authorized_by_user_id effective_at")),
+    ExportTable("loyalty_reward_redemptions", _columns(
+        "id tenant_id branch_id customer_id sale_order_id reward_revision_id ledger_entry_id "
+        "title points_cost discount_amount created_by_user_id created_at")),
+    ExportTable("loyalty_enrollment_policies", _columns(
+        "id tenant_id branch_id version enabled authorized_by_user_id created_at")),
+    ExportTable("loyalty_members", _columns(
+        "id tenant_id branch_id customer_id enrollment_policy_id code created_at expires_at")),
+)
+_COMPAT_REQUEST_COLUMNS = _columns("order_lines origin customer_order_id")
+_COMPAT_DELETE_ORDER = (
+    "loyalty_members",
+    "loyalty_enrollment_policies",
+    "loyalty_reward_redemptions",
+    "loyalty_reward_revisions",
+)
+
+
+def _export_specs(db: Session) -> tuple[ExportTable, ...]:
+    available: dict[str, set[str]] = {}
+    for table, column in db.execute(text(
+        "SELECT c.relname,a.attname FROM pg_catalog.pg_class c "
+        "JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+        "JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid "
+        "WHERE n.nspname='public' AND a.attnum>0 AND NOT a.attisdropped AND c.relname IN "
+        "('crm_catalog_requests','loyalty_reward_revisions','loyalty_reward_redemptions',"
+        "'loyalty_enrollment_policies','loyalty_members')"
+    )):
+        available.setdefault(table, set()).add(column)
+    specs = []
+    for spec in _EXPORT_TABLES:
+        if spec.name == "crm_catalog_requests":
+            present = available.get(spec.name, set()) & set(_COMPAT_REQUEST_COLUMNS)
+            if present:
+                if present != set(_COMPAT_REQUEST_COLUMNS):
+                    raise RuntimeError("account export compatibility schema is incomplete")
+                spec = ExportTable(spec.name, (*spec.columns, *_COMPAT_REQUEST_COLUMNS))
+        specs.append(spec)
+    for spec in _COMPAT_EXPORT_TABLES:
+        if spec.name in available:
+            if not set(spec.columns) <= available[spec.name]:
+                raise RuntimeError("account export compatibility schema is incomplete")
+            specs.append(spec)
+    return tuple(specs)
+
+
 _EXPORTABLE_TENANT_TABLES = frozenset(spec.name for spec in _EXPORT_TABLES) | {
     "memberships",
     # Exported through the explicit refunds join below; tenant_id is now stored
@@ -579,7 +630,7 @@ _TENANT_DELETE_ORDER = (
     "ops_notes",
     "branches",
 )
-_PURGE_TENANT_TABLES = frozenset(_TENANT_DELETE_ORDER) | {
+_PURGE_TENANT_TABLES = frozenset(_TENANT_DELETE_ORDER) | frozenset(_COMPAT_DELETE_ORDER) | {
     "account_deletion_requests",
     "refund_items",
 }
@@ -639,7 +690,7 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
         "tables": {},
     }
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for spec in _EXPORT_TABLES:
+        for spec in _export_specs(db):
             columns_sql = ", ".join(f'"{column}"' for column in spec.columns)
             result = db.execute(
                 text(f'SELECT {columns_sql} FROM "{spec.name}" WHERE tenant_id = :tenant_id'),
@@ -921,7 +972,9 @@ def _purge_account_graph(
         ),
         {"tenant_id": tenant_id},
     )
-    for table_name in _TENANT_DELETE_ORDER:
+    for table_name in (*_COMPAT_DELETE_ORDER, *_TENANT_DELETE_ORDER):
+        if table_name in _COMPAT_DELETE_ORDER and table_name not in schema_tables:
+            continue
         db.execute(
             text(f'DELETE FROM "{table_name}" WHERE tenant_id = :tenant_id'),
             {"tenant_id": tenant_id},

@@ -43,7 +43,7 @@ class CatalogRequestResponse(BaseModel):
     contact: str
     message: str
     product_ids: list[UUID]
-    status: Literal["new", "converted", "dismissed"]
+    status: Literal["new", "converted", "dismissed", "accepted"]
     customer_id: UUID | None
     opportunity_id: UUID | None
     version: int

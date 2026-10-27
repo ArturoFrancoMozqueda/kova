@@ -32,7 +32,7 @@ class LoyaltyAccountSummary(BaseModel):
 
 class LoyaltyEntryResponse(BaseModel):
     id: UUID
-    kind: Literal["accrual", "refund", "void", "redemption"]
+    kind: Literal["accrual", "refund", "void", "redemption", "reward_return"]
     points: int
     sale_order_id: UUID | None
     benefit: str | None

@@ -18,6 +18,7 @@ from app.inventory import lots
 from app.inventory import repository as inventory_repo
 from app.inventory.lot_schemas import LotAllocation
 from app.inventory.service import _validate_movement_range
+from app.loyalty.rollback_compatibility import guard_reward_reversal
 from app.modifiers import service as modifier_service
 from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
@@ -655,6 +656,8 @@ def create_refund(
     if not order:
         raise not_found("Order not found")
 
+    guard_reward_reversal(db, tenant_id=tenant_id, order=order)
+
     if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
         raise conflict("Cancela o resuelve el CFDI vigente antes de devolver esta venta.")
 
@@ -955,6 +958,8 @@ def create_void(
     order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
+
+    guard_reward_reversal(db, tenant_id=tenant_id, order=order)
 
     if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
         raise conflict("Cancela o resuelve el CFDI vigente antes de anular esta venta.")

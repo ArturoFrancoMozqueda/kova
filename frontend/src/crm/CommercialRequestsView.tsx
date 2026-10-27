@@ -18,7 +18,7 @@ type RequestRow = {
   contact: string;
   message: string;
   product_ids: string[];
-  status: "new" | "converted" | "dismissed";
+  status: "new" | "converted" | "dismissed" | "accepted";
   customer_id: string | null;
   opportunity_id: string | null;
   version: number;
@@ -29,6 +29,7 @@ const labels = {
   new: "Por revisar",
   converted: "Oportunidad creada",
   dismissed: "Descartada",
+  accepted: "Pedido creado",
 };
 export default function CommercialRequestsView() {
   useDocumentTitle("Solicitudes del catálogo");
