@@ -16,6 +16,13 @@ const SHARED_BACKGROUND_ALLOWLIST = [
   { method: "GET", path: /^\/api\/v1\/catalog\/(products|categories|modifier-groups)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/reports\/(sales-by-hour|sales-summary|business-story|branches)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/customers$/, status: 503 },
+  // Reward discovery is an optional read added to client-aware register and
+  // loyalty screens. Existing scenarios exercise its unavailable state; reward
+  // stories override it explicitly. Mutating endpoints remain strictly mocked.
+  { method: "GET", path: /^\/api\/v1\/loyalty\/rewards(?:\/offer)?$/, status: 503 },
+  // Public enrollment has its own owner opt-in. Legacy loyalty stories verify
+  // unavailable settings; enrollment stories supply their explicit policy.
+  { method: "GET", path: /^\/api\/v1\/loyalty\/enrollment-policy$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/branches\/transfers$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(stock|low-stock)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(velocity|movements)$/, status: 503 },

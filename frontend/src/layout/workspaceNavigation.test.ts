@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildWorkspaceNavigation, workspaceGroupForPath, workspaceGroups } from "./workspaceNavigation";
+import { buildWorkspaceNavigation, readExpandedNavigationGroups, workspaceGroupForPath, workspaceGroups } from "./workspaceNavigation";
 
 describe("task workspaces", () => {
+  it.each(["invalid-json", "null", "[]", '{"sales":"false","customers":true,"unknown":true}'])("validates stored preferences: %s", stored => {
+    window.localStorage.setItem("group-preference-test", stored);
+    expect(readExpandedNavigationGroups("group-preference-test")).toEqual(stored.includes('"customers"') ? { customers: true } : {});
+    window.localStorage.removeItem("group-preference-test");
+  });
   it.each([
-    ["/pedidos/nuevo", "sales"], ["/purchasing/orders/123", "operation"],
-    ["/appointments/123", "customers"], ["/settings/public-catalog", "customers"],
-    ["/settings/public-catalog/preview", "customers"], ["/settings/channels", "settings"],
+    ["/pedidos/nuevo", undefined], ["/purchasing/orders/123", "operation"],
+    ["/appointments/123", "customers"], ["/settings/public-catalog", "sales"],
+    ["/settings/public-catalog/preview", "sales"], ["/settings/channels", "settings"],
     ["/settings/receipt", "settings"], ["/reports", "analysis"], ["/register", undefined],
     ["/customers-unrelated", undefined],
   ])("finds the precise scope of %s", (path, expected) => {

@@ -439,6 +439,8 @@ it("persists an explicitly selected sale with the appointment version and preser
   fireEvent.click(await screen.findByRole("button", { name: "Vincular venta existente" }));
   expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   const select = await screen.findByLabelText("Venta que corresponde a la cita");
+  expect(select).not.toHaveTextContent(sale.id);
+  expect(select).toHaveTextContent("$450.00");
   fireEvent.change(select, { target: { value: sale.id } });
   fireEvent.click(screen.getByRole("button", { name: "Confirmar vínculo de venta" }));
   expect(await screen.findByRole("link", { name: "Ver venta y comprobante" })).toHaveAttribute("href", `/orders/${sale.id}`);
@@ -457,4 +459,16 @@ it("shows linked voids and refunds as financial facts separately from attendance
   expect(screen.getByText(/Devoluciones registradas:/)).toHaveTextContent("150");
   expect(screen.getByText("Atendida")).toBeVisible();
   expect(screen.queryByRole("link", { name: "Cobrar al cliente" })).not.toBeInTheDocument();
+});
+
+it("guides an empty agenda directly to adding a person or space and focuses the name", async () => {
+  fetchMock.mockImplementation(async url => String(url).includes("/resources") ? json({ items: [] }) : route(url));
+  render(<MemoryRouter><AppointmentsView /></MemoryRouter>);
+  const action = await screen.findByRole("button", { name: "Agregar persona o espacio" });
+  expect(action).toBeEnabled();
+  fireEvent.click(action);
+  expect(screen.getByLabelText("Nombre del recurso")).toHaveFocus();
+  expect(screen.getByRole("heading", { name: "Nuevo recurso" })).toBeVisible();
+  expect(action).toHaveAttribute("aria-controls", "appointment-resource-form");
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
 });

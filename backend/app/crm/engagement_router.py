@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.crm import engagement as service
 from app.crm.engagement_schemas import (
+    CatalogOrderAccept,
+    CatalogOrderAcceptance,
+    CatalogOrderPreview,
     CatalogRequestList,
     CatalogRequestResponse,
     FollowupOverview,
@@ -17,9 +20,41 @@ from app.crm.engagement_schemas import (
     RequestResolve,
 )
 from app.crm.router import require_crm
+from app.customer_orders.router import require_customer_orders
 from app.db import get_db
+from app.rbac.permissions import Permission
 
 router = APIRouter(prefix="/api/v1/crm", tags=["crm-engagement"])
+
+
+def require_order_intake(
+    ctx=Depends(require_crm),
+    _orders=Depends(require_customer_orders(Permission.CUSTOMER_ORDERS_CREATE)),
+):
+    return ctx
+
+
+@router.get("/requests/{request_id}/order-preview", response_model=CatalogOrderPreview)
+def order_preview(
+    request_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_order_intake),
+):
+    from app.crm import order_intake
+
+    return order_intake.preview(db, ctx[1].tenant_id, request_id)
+
+
+@router.post("/requests/{request_id}/accept-order", response_model=CatalogOrderAcceptance)
+def accept_order(
+    request_id: UUID, body: CatalogOrderAccept, response: Response,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db), ctx=Depends(require_order_intake),
+):
+    from app.crm import order_intake
+
+    response.status_code, result = order_intake.accept(
+        db, ctx[1].tenant_id, ctx[0].id, request_id, body, key,
+    )
+    return result
 
 
 @router.get("/requests", response_model=CatalogRequestList)

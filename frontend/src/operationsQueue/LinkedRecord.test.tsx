@@ -132,7 +132,7 @@ it.each([
   async (search) => {
     mount(undefined, search);
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "identificador de registro válido",
+      "Este enlace no es válido. Abre el registro desde su lista.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   },

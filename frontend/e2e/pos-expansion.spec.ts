@@ -330,16 +330,20 @@ test("mobile owner creates supplier and purchase then receives only units delive
     },
   );
   await page.goto("/purchasing");
-  await page.getByRole("button", { name: "Nuevo proveedor", exact: true }).click();
-  await page.getByLabel("Nombre", { exact: true }).fill(supplier.name);
-  await page.getByLabel("Teléfono o correo (opcional)").fill(supplier.contact);
-  await page.getByRole("button", { name: "Guardar proveedor" }).click();
   await page.getByRole("button", { name: "Preparar compra", exact: true }).click();
-  await page.getByLabel("Proveedor", { exact: true }).selectOption(supplier.id);
   await page.getByLabel("Producto", { exact: true }).selectOption(productId);
   await page.getByLabel("Unidades", { exact: true }).fill("10");
   await page.getByLabel("Costo unitario MXN").fill("12.50");
   await page.getByLabel("Referencia o notas (opcional)").fill(purchase.notes);
+  await page.getByRole("button", { name: "Registrar proveedor sin perder la compra" }).click();
+  await page.getByLabel("Nombre", { exact: true }).fill(supplier.name);
+  await page.getByLabel("Teléfono o correo (opcional)").fill(supplier.contact);
+  await page.getByRole("button", { name: "Guardar proveedor" }).click();
+  await expect(page.getByLabel("Proveedor", { exact: true })).toHaveValue(supplier.id);
+  await expect(page.getByLabel("Producto", { exact: true })).toHaveValue(productId);
+  await expect(page.getByLabel("Unidades", { exact: true })).toHaveValue("10");
+  await expect(page.getByLabel("Costo unitario MXN")).toHaveValue("12.50");
+  await expect(page.getByLabel("Referencia o notas (opcional)")).toHaveValue(purchase.notes);
   await noOverflow(page);
   await page.getByRole("button", { name: "Crear compra pendiente" }).click();
   await expect(
@@ -367,14 +371,16 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
   page,
 }) => {
   await shell(page);
-  await page.route("**/api/v1/integrations/cfdi/setup", (route) =>
-    route.fulfill({ json: {
+  const setupRequests: string[] = [];
+  await page.route("**/api/v1/integrations/cfdi/setup", (route) => {
+    setupRequests.push(route.request().method());
+    return route.fulfill({ json: {
       available: false, state: "not_started", issuer: null,
       organization_created: false, test_connected: false, live_connected: false,
       production_ready: false, certificate_expires_at: null,
       last_error_code: null, manifest_url: null,
-    } }),
-  );
+    } });
+  });
   await page.route("**/api/v1/integrations/cfdi/status", (route) =>
     route.fulfill({
       json: {
@@ -506,8 +512,13 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
     page.getByText("Solicitud registrada · Consulta el estado del documento"),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Facturación CFDI · Sin conectar" }),
+    page.getByRole("heading", { name: "Solicitudes de factura", exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Datos y solicitudes fiscales", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Activar facturación", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Ambiente fiscal")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Terminal bancaria/ })).toHaveCount(0);
+  expect(setupRequests).toEqual([]);
   await expect(
     requestSection
       .getByLabel("Venta completada")
@@ -558,7 +569,7 @@ test("manager sees fiscal readiness but cannot create requests or expose recipie
   await noOverflow(page);
 });
 
-test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconciles one pending document", async ({
+test("mobile CFDI Test resumes fiscal history, corrects receiver, previews and reconciles one pending document", async ({
   page,
 }) => {
   await shell(page);
@@ -629,6 +640,13 @@ test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconc
     xml_available: false,
     last_error_code: null,
     cancellation_status: null,
+  };
+  // New-provider activation is intentionally hidden for a business without
+  // fiscal history. This scenario preserves recovery for an existing rejected
+  // attempt, then retains every review, confirmation and reconciliation gate.
+  const historicalDocument = {
+    ...document, id: "99999999-9999-4999-8999-999999999999",
+    recipient_snapshot: recipient, state: "rejected", provider_id: null,
   };
   let connected = false;
   let emissions = 0;
@@ -729,7 +747,7 @@ test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconc
     });
   });
   await page.route("**/api/v1/integrations/cfdi/documents", async (route) => {
-    if (route.request().method() === "GET") return route.fulfill({ json: [] });
+    if (route.request().method() === "GET") return route.fulfill({ json: [historicalDocument] });
     expect(route.request().method()).toBe("POST");
     expect(route.request().postDataJSON()).toEqual(body);
     expect(route.request().headers()["idempotency-key"]).toBeTruthy();
@@ -761,6 +779,7 @@ test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconc
   );
   await page.goto("/settings/integrations");
   await expect(page.getByLabel("Ambiente fiscal")).toHaveValue("test");
+  await expect(page.getByText("Rechazado · Sin emitir", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Los documentos Test no tienen validez fiscal.", { exact: true }),
   ).toBeVisible();
@@ -823,7 +842,8 @@ test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconc
     page.getByText("Emitido · UUID confirmado", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Test · Sin validez fiscal · $116.00", { exact: true }),
+    page.getByRole("listitem").filter({ has: page.getByText("Emitido · UUID confirmado", { exact: true }) })
+      .getByText("Test · Sin validez fiscal · $116.00", { exact: true }),
   ).toBeVisible();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar XML" }).click();

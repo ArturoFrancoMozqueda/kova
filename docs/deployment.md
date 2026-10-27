@@ -1,14 +1,25 @@
 # Deployment
 
-Sprint 0A delivers only the *documented* deployment path. No staging or production infrastructure is provisioned this sprint, and no Supabase resources are created automatically.
+Operational references updated 2026-10-26. The current deployment uses Cloudflare Workers Static
+Assets for the frontend and a resident FastAPI Container behind Cloudflare for the API. Vercel
+remains the protected release candidate/fallback. Fly was retired on 2026-10-19 and is not a
+deployment or recovery provider. The original Sprint 0A notes below describe historical scope,
+not a statement that production is unprovisioned.
+
+Authoritative implementation: [frontend](../deploy/cloudflare/README.md),
+[resident backend](../deploy/cloudflare-native/README.md), [CI release](../.github/workflows/ci.yml),
+[release/recovery scripts](../frontend/scripts/release.mjs) and [current acceptance](current-sprint.md).
 
 ## Database Provider: Supabase
 
-This project uses **Supabase Postgres** as the hosted database for staging and production. The application connects to Supabase as a plain PostgreSQL database via `DATABASE_URL` — there is no Supabase-specific code path. Local Docker Postgres (in [../docker-compose.yml](../docker-compose.yml)) is for **local development and tests only** and is never used as the staging or production database.
+This project uses **Supabase Postgres** as the hosted database for staging and production. The
+application connects as PostgreSQL with separate `APP_DATABASE_URL` and `MIGRATION_DATABASE_URL`;
+`DATABASE_URL` is the legacy/local fallback described below. Local Docker Postgres (in
+[../docker-compose.yml](../docker-compose.yml)) is for **local development and tests only**.
 
 Supabase features that are **not** in scope for Sprint 0A:
 
-- Supabase Auth (a future auth sprint will decide whether to use it or build on top of it)
+- Supabase Auth (Kova's current authentication uses its own FastAPI/Postgres sessions and cookies)
 - Supabase Storage
 - Supabase Edge Functions
 - Supabase Realtime
@@ -28,16 +39,17 @@ GitHub Actions  ──build──►  container registry / static host
                                 └──► Frontend host (static build of Vite output)
 ```
 
-## Recommended Hosting (Beta)
+## Current Hosting
 
 | Component | Choice | Notes |
 |---|---|---|
 | Database | **Supabase Postgres** | One project per environment (e.g. `pos-staging`, `pos-prod`). |
-| Backend | Fly.io (Docker, region near Mexico) | Render or Railway are acceptable alternatives. |
-| Frontend | Vercel | Netlify or Cloudflare Pages are acceptable alternatives. |
+| Backend | Cloudflare resident FastAPI Container and gateway | Existing runtime roles, bindings and exact-version recovery; no Fly fallback. |
+| Frontend | Cloudflare Workers Static Assets | Vercel is the protected release candidate/fallback; use the integrated release workflow. |
 | Secrets | Hosting-provider secret store + Supabase dashboard | No secrets in repo, ever. |
 
-We are **not** using Terraform in Sprint 0A. Provisioning is documented and manual.
+The original Sprint 0A did not provision resources. New infrastructure or database provisioning
+still requires a separately reviewed operator procedure; do not rerun one-time native provisioning.
 
 ## Supabase Setup (One-Time, Manual, per Environment)
 
@@ -74,7 +86,9 @@ For pooled connections:
 postgresql+psycopg://postgres.<PROJECT-REF>:<PASSWORD>@<region>.pooler.supabase.com:6543/postgres
 ```
 
-Pick one consistently per environment. Pooler URLs are typically the right default for hosted backends.
+These are format examples, not an instruction to rotate active connections or switch ports.
+Use the target's verified native/Workers configuration, keep runtime and owner credentials separate,
+and use the session/direct connection required by the restore/backup runbooks for those tools.
 
 ## Environment Variables (Staging / Production)
 
@@ -106,18 +120,19 @@ change, plus weekly and manually through `CI maintenance`. It blocks release
 when applicable. Ordinary product changes retain real-stack container startup
 validation without repeating the reproducibility exercise. The comparison uses
 `SOURCE_DATE_EPOCH=0`, `rewrite-timestamp=true` and separate commit-addressed SBOM
-artifacts; it does not claim that the separately built Fly image has the same digest.
+artifacts; release acceptance separately verifies the actual published Container's identity.
 
-The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
-`frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
-required for current API calls.
+The frontend uses same-origin relative API paths (`/api/v1/...`). The public Cloudflare frontend
+Worker proxies them to the Cloudflare API; `frontend/vercel.json` preserves the protected candidate
+path. Neither forwards database credentials to the browser. No `VITE_API_BASE_URL` is required.
 
-Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when adopted) `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+Session, Sentry and Stripe configuration belongs to the existing backend/provider secret stores.
+The current runtime does not use Supabase Auth or expose Supabase database credentials in Vite.
 
-## Deploy Procedure (Manual, Beta)
+## Current Release Procedure
 
 For pushes to `main`, `.github/workflows/ci.yml` is now the release source of truth. The manual
-steps below are recovery/reference steps only; do not run them in parallel with CI.
+historical Fly steps below are retired, not an alternative manual production path. Do not race CI.
 
 ### Automated release gate
 
@@ -130,12 +145,13 @@ See [testing-ci.md](testing-ci.md) for the test inventory, removal rationale and
 
 After **CI required** passes on `main`, one protected release job captures and
 uploads the exact rollback artifact, builds and stages Vercel with production
-configuration, deploys Fly, verifies the candidate, promotes it without rebuilding,
-and verifies the public alias. `frontend/scripts/release.mjs` sets its recovery
+configuration, runs migrations with the separate owner connection, publishes the Cloudflare
+backend, verifies the candidate, promotes its same static artifact to Cloudflare, and verifies
+the public site/API/database. `frontend/scripts/release.mjs` sets its recovery
 phase before a provider can change production and calls the existing recovery
 implementation on failure. A failed candidate build/upload leaves production alone.
-Fly receives `KOVA_RELEASE_SHA` and exposes the full SHA in `/health`; Vercel
-`version.json` exposes the first 12 characters. Verification checks public HTML,
+The resident image carries `KOVA_RELEASE_SHA` and must match the controller's `KOVA_BUILD_SHA`;
+`/health` exposes the full SHA and frontend `version.json` its first 12 characters. Verification checks public HTML,
 direct backend/database and same-origin API proxy paths. Each request has a
 20-second timeout so unreachable endpoints enter recovery instead of hanging.
 
@@ -146,7 +162,10 @@ alter GitHub branch or environment settings.
 
 Configure a protected GitHub `production` environment with required reviewers and these secrets:
 
-- `FLY_API_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_URL`.
+- Existing Cloudflare deployment credentials and native runtime/migration bindings per the
+  [resident backend](../deploy/cloudflare-native/README.md). The workflow uses
+  `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and the separate migration-only `SUPABASE_DB_URL`.
+- `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` for the captured candidate/fallback.
 - `VERCEL_AUTOMATION_BYPASS_SECRET` for read-only verification of the protected staged candidate.
 
 Authenticated production QA uses an explicitly authorized human account and the manual checklist;
@@ -158,16 +177,17 @@ tested candidate or its CI-controlled promotion. The Vercel project also keeps
 `autoAssignCustomDomains` disabled; the capture gate verifies that setting before every release, and
 candidate deployment uses `--skip-domain` until the explicit promotion step. Keep credentials only
 in the protected environment.
-Before any deployment, CI persists `release-rollback-<sha>` with the exact prior Fly image, immutable
-Vercel deployment URL and coherent release SHA. Empty or inconsistent capture fails before a
+Before any deployment, CI persists `release-rollback-<sha>` with the exact prior Cloudflare frontend
+and backend Worker versions, native Container snapshot, immutable Vercel deployment URL and
+coherent release SHA. Empty or inconsistent capture fails before a
 candidate is created.
 
 Recovery is selected by the last phase reached:
 
-- **candidate:** production Vercel was not promoted, so restore only the exact prior Fly image;
-- **promotion:** the alias change may have partially completed, so restore the captured Vercel
-  deployment first and then Fly;
-- **acceptance:** both new artifacts were serving, so restore both in the same order.
+- **candidate:** frontend promotion has not begun; restore the captured backend Worker/Container state;
+- **promotion / acceptance:** first restore the captured Cloudflare frontend version and Vercel
+  deployment, then the backend Worker/Container state, as implemented in
+  [release-recovery.mjs](../frontend/scripts/release-recovery.mjs).
 
 `frontend/scripts/release-recovery.mjs` validates the complete artifact before the first provider
 command and verifies the restored site, direct backend, database and frontend API proxy against the
@@ -179,18 +199,20 @@ application artifacts.
 If a manual sale is explicitly authorized, use a unique traceable reference. Do not delete or void
 the ledger entry automatically because that would create misleading accounting history.
 
-1. Tag a release: `git tag vX.Y.Z && git push --tags`.
-2. CI builds the backend image and a frontend bundle.
-3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project. The `release_command` in `backend/fly.toml` runs `alembic upgrade head` against `DATABASE_URL` automatically before the new version is promoted; if the migration fails the deploy is aborted and the previous version keeps serving traffic. For long-running backfills, skip the auto-migration by deploying with `flyctl deploy --no-release-command` and run the migration manually via `fly ssh console`.
-4. Deploy the frontend candidate from the CI workflow; connected Git deployments are disabled.
-5. Verify:
-   - `curl https://api.<domain>/health`
-   - `curl https://api.<domain>/health/db` — proves the backend can reach Supabase.
-   - Browse the frontend domain.
+### Retired manual Fly procedure (historical)
+
+The former tag → Fly deploy/release-command → Vercel sequence is retired. Its exact commands and
+configuration remain in git history; they must not be used to deploy, wake or recover production.
+Use the current integrated CI release and captured rollback procedure above. Browser acceptance
+is documented separately in the [production smoke contract](../specs/ops/production_smoke.md);
+its default mode does not create financial records or validate Stripe live Checkout.
 
 ## Rollback
 
 ### Interrupted release on 2026-10-22
+
+Historical incident record, closed by the public verification recorded below. Its hard-coded
+recovery workflow is scoped to that captured incident and is not a general command to run today.
 
 Run `39709835800` stopped after publishing backend `443fa3fc84bf` and before
 frontend promotion. Its exact `release-rollback-443fa3fc84bf24b9bddb35c449c3fe1ec918b1ca`
@@ -223,14 +245,15 @@ existing rolling strategy and exact captured artifact remain unchanged.
 - **Coordinated release:** use the `release-rollback-<sha>` artifact from the failed workflow and the
   phase-aware recovery job. A missing artifact is a blocking incident, not permission to infer a
   target from “latest”.
-- **Backend:** `fly releases` → `fly deploy --image <previous-tag> --skip-release-command` only for a
-  separately reviewed manual incident recovery.
+- **Backend:** restore the exact captured Cloudflare backend versions and native Container
+  snapshot through phase-aware recovery; the retired Fly commands are not a fallback.
 - **Database (Supabase):** every migration in `backend/alembic/versions/` must implement `downgrade()`. CI's `migrations` job verifies up→down→up reversibility on every PR. To roll a migration back in staging: `alembic downgrade -1` against the staging `DATABASE_URL`. Do **not** roll back destructive migrations in production without a tested data-preservation plan. Supabase also provides point-in-time recovery on paid plans — confirm the plan/retention before relying on it.
-- **Frontend:** promote the exact captured deployment URL; do not select an unverified build by age.
+- **Frontend:** restore the captured Cloudflare version and Vercel deployment together when the
+  recovery phase requires it; do not select an unverified build by age or change DNS ad hoc.
 
-The repository tests exercise recovery with fake providers. A supervised staging release must still
-prove the real Fly/Vercel credentials, artifact retention/download and provider commands before this
-operational gate can be considered closed.
+Repository fake-provider tests do not establish current provider permissions or artifact retention.
+The dated incident above records actual Cloudflare recovery; each later release must still capture
+its own exact state and pass public acceptance. Missing/expired artifacts remain a blocking incident.
 
 ## Backups
 
@@ -266,7 +289,10 @@ Before broader paid beta, document and execute a **restore drill**:
 3. Point a throwaway backend instance at the restored DB.
 4. Confirm `/health/db` and representative read queries work.
 
-Use `docs/runbooks/restore-supabase-backup.md` for the detailed procedure. This remains a hard gate.
+Use the [restore runbook](runbooks/restore-supabase-backup.md) for the detailed procedure and the
+[2026-10-10 evidence](audits/KOVA-R2-REAL-RESTORE-2026-10-10.md) for the completed logical R2 restore.
+That evidence does not close fresh-host/provider-resource recovery, traffic switching or full
+service RTO. Those remaining operational checks must keep their exact scope in the paid-beta gate.
 
 ## Production Data Hygiene Scripts
 
@@ -276,7 +302,9 @@ The one-off Audit Sprint 6 hygiene scripts (`clamp_negative_stock.py`, `fix_cate
 
 ## Pre-Beta Hard Gates (Running Checklist)
 
-These must be addressed before exposing real tenants — not Sprint 0A work:
+Use the [current release checklist](claude/release-ga-checklist.md) and
+[operational gate](runbooks/ops-beta-gate.md) for dated evidence. The original pre-beta checks below
+remain requirements, not claims that the latest commit has been accepted in production:
 
 - Tenant isolation tests passing
 - Auth/session tests passing
@@ -286,7 +314,10 @@ These must be addressed before exposing real tenants — not Sprint 0A work:
 - Uptime monitor configured
 - ✅ RLS policies authored, **forced**, and enforced at runtime (PLAN-02): the app connects as the non-owner `kova_app` role, every tenant-scoped table has `FORCE ROW LEVEL SECURITY` + `WITH CHECK`, and `app/tests/test_rls_enforcement.py` proves cross-tenant reads/writes are blocked at the SQL layer. Remaining ops step per environment: run `provision_app_role.sql` on Supabase and set `APP_DATABASE_URL`/`MIGRATION_DATABASE_URL`.
 
-## Out of Scope of Sprint 0A
+## Historical Scope of Sprint 0A
+
+This section records the original planning boundary; it does not describe current hosting,
+observability or production-readiness status.
 
 - Provisioning Supabase projects (manual, one-time, performed by an operator)
 - Supabase Auth, Storage, Edge Functions, Realtime

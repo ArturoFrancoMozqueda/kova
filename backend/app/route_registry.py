@@ -14,10 +14,17 @@ ROUTERS = (
     ('app.crm.engagement_router', ('/api/v1/crm',)),
     ('app.messaging.router', ('/api/v1/messaging',)),
     ('app.appointments.router', ('/api/v1/appointments',)),
+    ('app.loyalty.enrollment_router', (
+        '/api/v1/loyalty/enrollment-policy', '/api/v1/loyalty/members',
+        '/api/v1/public/loyalty/membership',
+    )),
     ('app.loyalty.router', ('/api/v1/loyalty',)),
+    ('app.loyalty.public_router', ('/api/v1/public/loyalty',)),
     ('app.service_cases.router', ('/api/v1/service-cases',)),
     ('app.operations_queue.router', ('/api/v1/operations',)),
-    ('app.storefront.router', ('/api/v1/storefront', '/api/v1/public/catalog')),
+    ('app.storefront.router', (
+        '/api/v1/storefront', '/api/v1/public/catalog', '/api/v1/public/order-tracking',
+    )),
     ('app.assistant.router', ('/api/v1/assistant',)),
     ('app.billing.router', ('/api/v1/billing',)),
     ('app.branches.router', ('/api/v1/branches',)),

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { formatLotDate, allocationValid, classifyLot, listLots, proposeLots, saveLot, suggestDates, type Lot, type LotAllocation, type LotWrite } from "./lots";
 
 export function LotPicker({ rows, value, quantity, onChange, incoming = false, physical = false, disabled = false }: {
@@ -50,7 +51,7 @@ export function LotForm({ productId, initial, onSaved, onCancel }: { productId: 
     const payload = JSON.stringify(body);
     if (attempt.current?.payload !== payload) attempt.current = { payload, key: crypto.randomUUID() };
     try { await saveLot(productId, body, attempt.current.key, initial?.id); onSaved(); }
-    catch (err) { setError(err instanceof Error ? err.message : "No pudimos guardar el lote."); }
+    catch (err) { setError(resolveUserFacingError(err, "No pudimos guardar el lote. Revisa el código y las fechas.")); }
     finally { setPending(false); }
   };
   return <div role="group" className="space-y-3 rounded-lg border p-3">
@@ -83,7 +84,7 @@ export function LotAllocationEditor({ productId, quantity, value, onChange, bran
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     let alive = true; setLoading(true); setRows([]); setError("");
-    void listLots(productId, branchId).then(result => { if (alive) setRows(result); }).catch(err => { if (alive) setError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); }).finally(() => { if (alive) setLoading(false); });
+    void listLots(productId, branchId).then(result => { if (alive) setRows(result); }).catch(err => { if (alive) setError(resolveUserFacingError(err, "No pudimos cargar los lotes. Vuelve a consultar.")); }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [productId, branchId, refresh]);
   return <div className="space-y-3">
@@ -102,13 +103,13 @@ export function LotsPanel({ productId, canAdjust }: { productId: string; canAdju
   const [quantity, setQuantity] = useState("1"); const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const attempt = useRef<{ payload: string; key: string } | null>(null);
-  useEffect(() => { if (!expanded) return; let alive = true; void listLots(productId).then(result => { if (alive) { setRows(result); setError(""); } }).catch(err => { if (alive) setError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); }); return () => { alive = false; }; }, [productId, refresh, expanded]);
+  useEffect(() => { if (!expanded) return; let alive = true; void listLots(productId).then(result => { if (alive) { setRows(result); setError(""); } }).catch(err => { if (alive) setError(resolveUserFacingError(err, "No pudimos cargar los lotes. Vuelve a consultar.")); }); return () => { alive = false; }; }, [productId, refresh, expanded]);
   const classify = async (event: FormEvent) => {
     event.preventDefault(); if (pending) return; setPending(true); setError("");
     const payload = JSON.stringify({ source, destination, quantity, reason });
     if (attempt.current?.payload !== payload) attempt.current = { payload, key: crypto.randomUUID() };
     try { await classifyLot(productId, source, destination, Number(quantity), reason, attempt.current.key); attempt.current = null; setRefresh(refresh + 1); }
-    catch (err) { setError(err instanceof Error ? err.message : "No pudimos clasificar las unidades."); }
+    catch (err) { setError(resolveUserFacingError(err, "No pudimos clasificar las unidades. Revisa los lotes y la cantidad.")); }
     finally { setPending(false); }
   };
   const id = useId();

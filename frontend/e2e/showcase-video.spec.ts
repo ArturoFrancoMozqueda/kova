@@ -25,7 +25,7 @@ test("showcase export keeps the register anatomy and auto-advances scenes", asyn
   const showcase = page.locator(".ksw-stage");
   await showcase.scrollIntoViewIfNeeded();
   await expect(showcase).toHaveAttribute("data-hydrated", "true");
-  await expect(showcase.getByText("Demo interactiva", { exact: true })).toBeVisible();
+  await expect(showcase.getByText("Prueba la caja", { exact: true })).toBeVisible();
   await expect(showcase.getByText(/no registra ventas/i)).toBeVisible();
   await expect(showcase.getByPlaceholder(/sku \/ nombre del producto/i)).toBeVisible();
   await expect(showcase.getByText("Cold brew", { exact: true }).first()).toBeVisible();

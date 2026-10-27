@@ -30,6 +30,10 @@ TENANT_SCOPED_TABLES = (
     "appointment_reminders",
     "loyalty_policy_revisions",
     "loyalty_entries",
+    "loyalty_reward_revisions",
+    "loyalty_reward_redemptions",
+    "loyalty_members",
+    "loyalty_enrollment_policies",
 
     "automation_rules",
     "automation_runs",
@@ -141,6 +145,14 @@ _EXPECTED_ANONYMOUS_TELEMETRY_EXPRESSION = (
     "'name'::text,'phone'::text,'password'::text,'amount'::text,"
     "'total_amount'::text,'amount_minor_units'::text,'query'::text,"
     "'query_string'::text,'full_url'::text]"
+)
+# pg_dump/pg_restore reparses the same IN predicate with per-element text
+# casts instead of the array-wide cast. Permit only that complete known form;
+# do not strip casts from arbitrary policy expressions.
+_EXPECTED_ANONYMOUS_TELEMETRY_RESTORED_EXPRESSION = (
+    _EXPECTED_ANONYMOUS_TELEMETRY_EXPRESSION
+    .replace("::charactervarying", "::charactervarying::text")
+    .replace("]::text[]ANDNOT", "]ANDNOT")
 )
 RLS_PROTECTED_TABLES = (
     *TENANT_SCOPED_TABLES,
@@ -485,11 +497,15 @@ def _rls_posture_errors(
             )
             if required
         ]
+        accepted_expressions = {expected_expression}
+        if table == "anonymous_telemetry_events":
+            accepted_expressions.add(_EXPECTED_ANONYMOUS_TELEMETRY_RESTORED_EXPRESSION)
         if any(expression.lower() in {"true", "1=1"} for expression in normalized_expressions):
             errors.append(f"{table}: canonical policy has unsafe expression")
-        elif expected_expression is not None and set(normalized_expressions) != {
-            expected_expression
-        }:
+        elif expected_expression is not None and (
+            len(set(normalized_expressions)) != 1
+            or normalized_expressions[0] not in accepted_expressions
+        ):
             errors.append(f"{table}: canonical policy has unsafe expression")
         if additional_spec is not None:
             (

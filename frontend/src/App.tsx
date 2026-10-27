@@ -47,6 +47,8 @@ const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
 const AppointmentsView = lazy(() => import("./appointments/AppointmentsView"));
 const LoyaltyView = lazy(() => import("./loyalty/LoyaltyView"));
+const LoyaltyCardView = lazy(() => import("./loyaltyCard/LoyaltyCardView"));
+const OrderTrackingView = lazy(() => import("./orderTracking/OrderTrackingView"));
 const ServiceCasesView = lazy(() => import("./serviceCases/ServiceCasesView"));
 const OperationsQueueView = lazy(() => import("./operationsQueue/OperationsQueueView"));
 const AppShell = lazy(() => import("./layout/AppShell"));
@@ -100,6 +102,8 @@ export function AppRoutes() {
 
             <Route path="/" element={<Home />} />
             <Route path="/catalogo/:token" element={<StorefrontView />} />
+            <Route path="/lealtad" element={<LoyaltyCardView />} />
+            <Route path="/seguimiento" element={<OrderTrackingView />} />
             {/* Isolated marketing showcase for video export (noindex). */}
             <Route path="/kova-showcase-video" element={<KovaShowcaseVideo />} />
             <Route path="/privacy" element={<LegalPage variant="privacy" />} />

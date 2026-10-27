@@ -132,3 +132,22 @@ describe("dashboard supervision", () => {
     expect(selector).toHaveValue(northId);
   });
 });
+
+it("never promotes zero or negative hours as peak sales and wraps the last hour at midnight", async () => {
+  const data = overview();
+  data.hourly = [{ hour: 0, net_sales: "0.00", order_count: 0 }, { hour: 15, net_sales: "-12.50", order_count: 1 }, { hour: 23, net_sales: "45.00", order_count: 1 }];
+  vi.mocked(getDashboardOverview).mockResolvedValue(data);
+  host();
+  const hours = within(await screen.findByRole("region", { name: "Horas con más venta" }));
+  expect(hours.getByText("23:00–00:00")).toBeVisible();
+  expect(hours.queryByText("00:00–01:00")).not.toBeInTheDocument();
+  expect(hours.queryByText("15:00–16:00")).not.toBeInTheDocument();
+});
+
+it("uses an empty state rather than a ranking when all hourly net sales are zero", async () => {
+  const data = overview(); data.hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, net_sales: "0.00", order_count: 0 }));
+  vi.mocked(getDashboardOverview).mockResolvedValue(data); host();
+  const hours = within(await screen.findByRole("region", { name: "Horas con más venta" }));
+  expect(hours.getByText("Sin ventas registradas en este desglose.")).toBeVisible();
+  expect(hours.queryByRole("list")).not.toBeInTheDocument();
+});

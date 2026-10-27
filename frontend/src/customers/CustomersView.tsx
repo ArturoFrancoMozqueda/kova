@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Users } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -97,7 +98,7 @@ function CustomersWorkspace() {
         else if (active) setProfileError("No pudimos confirmar el cliente del enlace.");
       })
       .catch((error: unknown) => {
-        if (active) setProfileError(error instanceof Error ? error.message : t.loadError);
+        if (active) setProfileError(resolveUserFacingError(error, t.loadError));
       })
       .finally(() => { if (active) setProfileLoading(false); });
     return () => { active = false; controller.abort(); };
@@ -110,7 +111,7 @@ function CustomersWorkspace() {
     void customerHistory(selected.id, 0, { signal: controller.signal })
       .then((result) => { if (active) setHistory(result); })
       .catch((error: unknown) => {
-        if (active) setProfileError(error instanceof Error ? error.message : t.historyError);
+        if (active) setProfileError(resolveUserFacingError(error, t.historyError));
       })
       .finally(() => { if (active) setHistoryLoading(false); });
     return () => { active = false; controller.abort(); };
@@ -137,7 +138,7 @@ function CustomersWorkspace() {
         })
         .catch((e: unknown) => {
           if (active)
-            setError(e instanceof Error ? e.message : t.loadError);
+            setError(resolveUserFacingError(e, t.loadError));
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -172,7 +173,7 @@ function CustomersWorkspace() {
       setEditing(undefined);
       setRevision((n) => n + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.saveError);
+      setError(resolveUserFacingError(e, t.saveError));
     } finally {
       setSaving(false);
     }
@@ -185,7 +186,7 @@ function CustomersWorkspace() {
       const result = await customerHistory(id, historyOffset);
       if (requestId === historyRequest.current) setHistory(result);
     } catch (e) {
-      if (requestId === historyRequest.current) setError(e instanceof Error ? e.message : t.historyError);
+      if (requestId === historyRequest.current) setError(resolveUserFacingError(e, t.historyError));
     } finally {
       if (requestId === historyRequest.current) setHistoryLoading(false);
     }
@@ -204,7 +205,7 @@ function CustomersWorkspace() {
       );
       setRevision((n) => n + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.updateError);
+      setError(resolveUserFacingError(e, t.updateError));
     } finally {
       setSaving(false);
     }
@@ -235,7 +236,7 @@ function CustomersWorkspace() {
               <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
             </div>
             {profileLoading && <p role="status" className="text-sm text-muted-foreground">Cargando cliente…</p>}
-            {profileError && <p role="alert" className="text-sm text-destructive-strong">{profileError}</p>}
+            {profileError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive-strong">{profileError}</p><Button variant="outline" size="sm" disabled={profileLoading} onClick={() => setRevision((value) => value + 1)}>Reintentar cliente</Button></div>}
             {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
             {selected?.is_active && <div className="flex flex-wrap gap-2">
               {canSell && <Link className={buttonVariants()} to={`/register?customerId=${encodeURIComponent(selected.id)}`}>Nueva venta</Link>}
@@ -265,8 +266,7 @@ function CustomersWorkspace() {
                     <div>
                       <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
                       <Link to={`/orders/${sale.id}`} className="text-xs text-primary underline underline-offset-4">
-                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}{" "}
-                        · {sale.id.slice(0, 8)}
+                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}
                       </Link>
                     </div>
                     <div className="text-right tabular-nums">

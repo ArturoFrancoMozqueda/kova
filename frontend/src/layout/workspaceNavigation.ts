@@ -1,4 +1,5 @@
 export type WorkspaceGroupId = "sales" | "customers" | "operation" | "analysis" | "settings";
+export const primaryNavigationPaths = ["/register", "/pedidos", "/orders", "/dashboard"] as const;
 
 /** Already filtered by AppShell's role, feature, capability and session gates. */
 export type WorkspaceNavigationContext = {
@@ -8,19 +9,32 @@ export type WorkspaceNavigationContext = {
 // These are navigation scopes, not access rules. AppShell supplies only the
 // destinations already allowed by role, feature, permission and session mode.
 export const workspaceGroups: readonly { id: WorkspaceGroupId; paths: readonly string[] }[] = [
-  { id: "sales", paths: ["/orders", "/pedidos", "/quotes", "/shifts"] },
-  { id: "customers", paths: ["/customers", "/settings/public-catalog", "/commercial-requests", "/crm", "/inbox", "/appointments", "/service-cases", "/followups", "/loyalty"] },
+  { id: "sales", paths: ["/settings/public-catalog", "/commercial-requests", "/quotes", "/shifts"] },
+  { id: "customers", paths: ["/customers", "/crm", "/inbox", "/appointments", "/service-cases", "/followups", "/loyalty"] },
   { id: "operation", paths: ["/operations-queue", "/catalog", "/inventory", "/purchasing", "/replenishment"] },
   { id: "analysis", paths: ["/reports", "/expenses", "/reconciliation", "/assistant"] },
   { id: "settings", paths: ["/settings", "/automations", "/settings/billing", "/settings/integrations", "/settings/channels"] },
 ];
 
 export function workspaceGroupForPath(pathname: string): WorkspaceGroupId | undefined {
-  // Prefer the most specific route: the public catalog belongs to Customers,
+  // Prefer the most specific route: the public catalog belongs to Sales,
   // while the rest of /settings belongs to Configuration.
   return workspaceGroups.flatMap(group => group.paths.map(path => ({ id: group.id, path })))
     .filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`))
     .sort((a, b) => b.path.length - a.path.length)[0]?.id;
+}
+
+export type ExpandedNavigationGroups = Partial<Record<WorkspaceGroupId, boolean>>;
+
+export function readExpandedNavigationGroups(key: string): ExpandedNavigationGroups {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    return Object.fromEntries(workspaceGroups.flatMap(({ id }) => {
+      const value = (stored as Record<string, unknown>)[id];
+      return typeof value === "boolean" ? [[id, value]] : [];
+    }));
+  } catch { return {}; }
 }
 
 export function buildWorkspaceNavigation<T extends { to: string }>(destinations: readonly T[]) {

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { ViewPermissionDenied } from "@/components/ui/view-states";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { copy } from "@/i18n/messages";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { getOrder, listOrders } from "@/orders/api";
 import { formatDateTime, formatMoney } from "@/orders/format";
 import type { Order, OrderListItem } from "@/orders/types";
@@ -152,7 +154,7 @@ export function IntegrationContents({
         }
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) setError(resolveUserFacingError(e, "No pudimos consultar los datos fiscales. Intenta de nuevo."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -168,7 +170,9 @@ export function IntegrationContents({
     try {
       await action();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar.");
+      const fallback = "No pudimos confirmar si se guardó la solicitud. Consulta su estado antes de repetirla.";
+      const message = resolveUserFacingError(e, fallback);
+      setError(message === fallback ? message : `${message} Consulta el estado antes de repetir esta operación.`);
     } finally {
       setBusy(false);
     }
@@ -176,33 +180,21 @@ export function IntegrationContents({
   return (
     <ViewLayout width="focused" className="space-y-6">
       <ViewHeader
-        title="Facturación e integraciones"
+        title={copy.nav.integrations}
         meta="Prepara los datos de tu negocio y registra solicitudes de factura."
       />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
-          <h2 className="font-semibold">
-            Facturación CFDI · {connectionLabel}
-          </h2>
+      <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
+          <h2 className="font-semibold">Datos y solicitudes fiscales</h2>
           <p className="mt-2 text-sm">
-            Activa la facturación desde Kova con los datos fiscales y el
-            certificado de sello digital de tu negocio. Kova administra la
-            conexión con el proveedor que certifica tus facturas.
+            Conserva los datos fiscales de tu negocio y registra qué ventas
+            requieren factura para darles seguimiento.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            No generan un CFDI ni un folio fiscal por sí solas. La emisión
-            requiere revisar los conceptos y confirmar el envío al proveedor.
+            Las solicitudes no generan un CFDI ni un folio fiscal por sí solas.
+            Registrar una solicitud no significa que la factura esté emitida.
           </p>
-        </section>
-        <section className="rounded-kova-lg border-[0.5px] border-kova-border bg-white p-5 shadow-kova-card">
-          <h2 className="font-semibold">Terminal bancaria · Sin conectar</h2>
-          <p className="mt-2 text-sm">
-            Para cobrar desde Kova se requiere un proveedor y una terminal
-            compatibles. Registrar tarjeta en una venta solo registra el método
-            de pago.
-          </p>
-        </section>
-      </div>
+          {connectionLabel !== "Sin conectar" && <h3 className="mt-3 text-sm font-semibold">Facturación CFDI · {connectionLabel}</h3>}
+      </section>
       {error && (
         <p
           role="alert"
@@ -321,8 +313,7 @@ export function IntegrationContents({
                       ) && (
                         <option value={linkedSale.id}>
                           Venta del ticket ·{" "}
-                          {formatMoney(linkedSale.total_amount)} · Folio{" "}
-                          {linkedSale.id.slice(0, 8)}
+                          {formatMoney(linkedSale.total_amount)}
                         </option>
                       )}
                     {sales
@@ -335,8 +326,7 @@ export function IntegrationContents({
                       .map((sale) => (
                         <option key={sale.id} value={sale.id}>
                           {formatDateTime(sale.created_at)} ·{" "}
-                          {formatMoney(sale.total_amount)} · Folio{" "}
-                          {sale.id.slice(0, 8)}
+                          {formatMoney(sale.total_amount)}
                         </option>
                       ))}
                   </select>
@@ -405,12 +395,12 @@ export function IntegrationContents({
                         {item.recipient_snapshot.legal_name}
                       </p>
                       <p className="text-sm">
-                        Folio {item.order_id.slice(0, 8)} ·{" "}
-                        {formatMoney(item.total_amount)}
+                        {formatDateTime(item.created_at)} · {formatMoney(item.total_amount)}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Solicitud registrada · Consulta el estado del documento
                       </p>
+                      <Link to={`/orders/${encodeURIComponent(item.order_id)}`} className="inline-flex min-h-11 items-center text-sm font-medium text-kova-blue underline underline-offset-4">Ver venta</Link>
                     </li>
                   ))}
                 </ul>
@@ -424,7 +414,7 @@ export function IntegrationContents({
 }
 
 export function IntegrationsPage() {
-  useDocumentTitle("Facturación e integraciones");
+  useDocumentTitle(copy.nav.integrations);
   const [searchParams] = useSearchParams();
   const linkedOrder = searchParams.get("order_id") ?? "";
   const initialOrderId =
@@ -438,7 +428,7 @@ export function IntegrationsPage() {
   if (user?.role !== "owner" && user?.role !== "manager")
     return (
       <ViewPermissionDenied
-        title="Facturación e integraciones"
+        title={copy.nav.integrations}
         description="No tienes permiso para consultar esta sección."
       />
     );

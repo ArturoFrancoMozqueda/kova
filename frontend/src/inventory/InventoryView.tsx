@@ -287,7 +287,9 @@ export default function InventoryView() {
                   id: `low-${item.product_id}`,
                   productId: item.product_id,
                   title: item.product_name,
-                  detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
+                  detail: item.stock_on_hand > 0 && item.available_quantity <= 0
+                    ? "Todas las unidades están reservadas para pedidos."
+                    : copy.inventoryView.lowStockDetail(item.available_quantity ?? item.stock_on_hand, item.low_stock_threshold),
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
                   stockItem: item,
                 })),
@@ -541,6 +543,7 @@ function StockCard({
             <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
           ) : null}
         </div>
+        <div className="lg:text-right">
         <div className="flex items-baseline gap-2 lg:justify-end">
           <span
             className={cn(
@@ -551,6 +554,8 @@ function StockCard({
             {item.stock_on_hand}
           </span>
           <span className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.onHand}</span>
+        </div>
+        {item.reserved_quantity > 0 && <p className="mt-1 text-xs text-muted-foreground">{item.available_quantity} disponibles · {item.reserved_quantity} reservados</p>}
         </div>
         <p className="text-xs text-muted-foreground lg:text-right lg:text-sm lg:tabular-nums">
           <span className="lg:sr-only">{copy.inventoryView.threshold}: </span>{item.low_stock_threshold ?? "—"}
@@ -657,7 +662,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   useEffect(() => {
     if (!modal.item.track_lots || modal.type !== "stockTake") return;
     let alive = true;
-    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); });
+    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(resolveApiErrorMessage(err, "No pudimos cargar los lotes. Cierra el conteo y vuelve a intentarlo.")); });
     return () => { alive = false; };
   }, [modal.item.product_id, modal.item.track_lots, modal.type]);
   // An adjustment starts empty: a prefilled "0" was itself invalid, so the

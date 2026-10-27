@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { csrfHeaders } from "@/lib/csrf";
 
 export type Identity = { tenantId: string; userId: string; branchId: string };
@@ -41,7 +42,8 @@ export function assistantApi(identity: Identity, signal?: AbortSignal | (() => A
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { detail?: string | { message?: string } };
       const detail = typeof payload.detail === "string" ? payload.detail : payload.detail?.message;
-      throw new Error(detail ?? (response.status === 429 ? "Se alcanzó un límite. Espera antes de volver a intentar." : "No pudimos completar esta acción."));
+      const fallback = response.status === 429 ? "Se alcanzó un límite. Espera antes de volver a intentar." : "No pudimos completar esta acción.";
+      throw Object.assign(new Error(resolveApiErrorMessage({ status: response.status }, safeUserMessage(detail, fallback))), { status: response.status });
     }
     return (response.status === 204 ? undefined : await response.json()) as T;
   };

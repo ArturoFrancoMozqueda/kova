@@ -33,6 +33,54 @@ Deferred scope lives in `docs/deferred-scope.md`.
 
 Risks live in `docs/risk-register.md`.
 
+## Recorrido conectado del cliente — 2026-10-26
+
+Dirección del propietario: que Kova cubra el negocio desde quien escanea el menú hasta su
+siguiente compra. La sensación de control debe venir de pasos conectados y resultados reales.
+Este bloque actualiza la dirección futura; el alcance ejecutable y sus pruebas viven en
+[`current-sprint.md`](current-sprint.md), y los gates comerciales/operativos siguen vigentes.
+
+### Qué conservar y qué retirar temporalmente
+
+| Superficie | Capacidad respaldada por código | Presentación de este corte |
+|---|---|---|
+| Caja, turnos, ventas e inventario | Registro de venta, cobro manual, devoluciones, ajustes y existencias | Conservar. Tarjeta manual no implica procesamiento bancario. |
+| Compras, clientes, cotizaciones, pedidos y análisis | Registros reales y continuaciones internas | Conservar sus permisos, gates y estados vacíos. |
+| Menú QR | Fotos/precios/disponibilidad publicados y solicitudes revisables | Optimizar búsqueda/orden y revisión; no venderlo como checkout. |
+| Agenda, seguimiento, pendientes y lealtad | Operación interna con contratos propios | Conservar; una tarea interna no acredita aviso o beneficio entregado. |
+| Tarjeta de puntos | Nueva consulta privada de saldo/regla por enlace emitido por dueño | Consulta local con recompensa POS opcional definida por dueño; no equivale a Wallet. |
+| Terminal bancaria | No hay procesamiento contratado/aceptado en el alcance comprobado | Retirar promoción de la UI. |
+| WhatsApp integrado | Piloto y dominio interno; aceptación externa pendiente | Retirar acceso general/promoción ausente; conservar conexiones existentes desde Bandeja. |
+| CFDI | Datos/solicitudes y recuperación fiscal implementados | Presentar solicitudes; ocultar activación sin conexión ni documentos existentes. |
+| Asistente | Respuestas locales y capacidades devueltas por backend | Conservar gate de capacidades; no anunciar generación/documentos/correo apagados. |
+
+### Orden de entrega propuesto
+
+| Prioridad | Experiencia que falta | Criterio de aceptación y áreas afectadas |
+|---|---|---|
+| Ahora | Menú rápido y tarjeta consultable | Búsqueda sin acentos por varias palabras, cantidades conservadas y fotografías reales; dueño emite tarjeta, cliente ve saldo correcto, pausa/reversas y regreso al menú. `storefront`, `loyalty`, ruta pública y contratos. Implementado localmente; gates en sprint. |
+| Implementado local · P1 | Solicitud → pedido aceptado → estado del cliente | Decisión explícita del equipo conserva productos/cantidades y cliente; aceptación idempotente con precio/stock revisados, sin recaptura ni salto obligatorio por CRM/cotización. Enlace de seguimiento privado muestra aceptación/preparación/entrega real, errores y cancelación. Contrato, seguridad pública y recorrido con API/RLS aprobados; publicación pendiente. |
+| Implementado local · P1 | Recompensa cumplida desde caja | Dueño define un beneficio real; cliente ve qué obtiene y progreso. Canje autorizado descuenta puntos y entrega el beneficio en la misma venta una sola vez, con devolución/anulación y concurrencia verificadas. Nada de equivalencia monetaria implícita. Contrato, fiscalidad vigente, concurrencia y devolución con API/RLS aprobados; publicación pendiente. |
+| Siguiente · P1 | Dueño sabe qué atender y cuánto ganó | Costos reales completos, gastos y diferencias de caja; cada señal abre el registro correcto y distingue venta neta, margen y efectivo. No llamar utilidad neta al margen bruto. El reporte de margen ya abre el producto exacto sin costo, sin reescribir ventas históricas. La higiene y reglas reales siguen siendo decisión del negocio; el resto conserva sus contratos de análisis, reposición, caja y gastos. |
+| Después · P2 | Pago y comprobante verificados | Proveedor de pagos elegido, confirmación firmada/idempotente, estados inciertos, devolución y conciliación. CFDI sólo tras emisor, Test y aceptación Live. Stripe SaaS sigue separado del cobro al comprador. |
+| Después · P2 | Avisos útiles al cliente | WhatsApp con número/cuenta aceptados, consentimiento, ventana/plantilla, recibos de entrega y pausa; notificar pedido listo y seguimiento autorizado, sin equiparar borrador con envío. Conservar el enlace manual actual hasta entonces. |
+| Fuera de alcance por decisión del dueño | Apple/Google Wallet | El propietario descarta membresías y proveedores de pases. Se prioriza tarjeta web personal desde el menú, con saldo y recompensa reales; no identificar puntos sólo con teléfono público. Reactivar Wallet requiere nueva decisión explícita. |
+
+QA transversal: 320/390/768/1440 px, teclado, contraste y errores; móvil/tablet/escritorio
+reales para QR, impresora y pérdida/reconexión de red. Pruebas con APIs interceptadas acreditan
+UI; las de PostgreSQL acreditan dominio/RLS; ninguna reemplaza un cobro o entrega de proveedor.
+Los cortes P1 de pedido/seguimiento y recompensa ingresaron al sprint por autorización del dueño y tienen specs propias; los flujos futuros restantes necesitan su entrada explícita.
+
+### Hallazgos de la lectura productiva
+
+Se inició sesión con la cuenta autorizada y se consultaron Panel, Caja y publicación/menú,
+sin modificar datos del negocio ni enviar solicitudes. El menú tiene 13 productos seleccionados
+y el título público «Mi catálogo»: cambiarlo al nombre elegido por el negocio requiere una
+decisión de contenido, no una corrección automática sobre producción. Caja conserva productos
+con prefijo QA; revisarlos con el dueño sin borrar ventas, inventario o historial. La aparición
+de «WhatsApp externo · Sin conexión» en el panel motiva la limpieza de presentación.
+La política y los beneficios de lealtad siguen siendo decisiones explícitas del propietario.
+
 ## Unified Planning Map
 
 Use these documents as the planning source of truth:

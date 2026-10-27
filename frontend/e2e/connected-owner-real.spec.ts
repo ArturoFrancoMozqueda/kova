@@ -40,6 +40,7 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       // preference before continuing through client-side navigation.
       await page.reload();
       if (width < 1280) await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+      await page.locator("aside nav").getByRole("button", { name: "Clientes y atención", exact: true }).click();
       await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
       await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
       const profile = page.getByRole("region", { name: "Ficha del cliente" });
@@ -104,7 +105,10 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       await expect(profile).toContainText("Cliente recorrido local");
       await expect(profile.getByRole("region", { name: "Actividad del cliente" }).getByRole("link", { name: "Atención del recorrido local", exact: true }))
         .toHaveAttribute("href", `/appointments?appointmentId=${booking.id}`);
-      await expect(page.locator("main").getByRole("link", { name: new RegExp(sale.id.slice(0, 8)) })).toHaveAttribute("href", `/orders/${sale.id}`);
+      // The product intentionally hides internal IDs; the human label still opens the exact sale.
+      const saleHistoryLink = page.locator("main").getByRole("link", { name: "Venta completada", exact: true });
+      await expect(saleHistoryLink).toHaveAttribute("href", `/orders/${sale.id}`);
+      await expect(saleHistoryLink).not.toContainText(sale.id.slice(0, 8));
       await expect(page.getByRole("button", { name: "Ver cliente", exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
       await page.screenshot({ path: testInfo.outputPath(`connected-owner-${width}.png`), fullPage: true });
@@ -140,7 +144,8 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       return { customer_id: customer.id as string, product_id: product.id as string };
     }, signup.dev_verification_token);
     await page.reload();
-    await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
+    await page.locator("aside nav").getByRole("button", { name: "Clientes y atención", exact: true }).click();
+      await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
     await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
     await page.getByRole("region", { name: "Ficha del cliente" }).getByRole("link", { name: "Nuevo pedido", exact: true }).click();
     await expect(page.getByLabel("Cliente registrado", { exact: true })).toHaveValue(prepared.customer_id);
@@ -185,8 +190,9 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
     await page.getByRole("link", { name: "Ver historial y atención del cliente", exact: true }).click();
     await expect(page.getByRole("region", { name: "Actividad del cliente" }).getByRole("link", { name: created.folio, exact: true }))
       .toHaveAttribute("href", `/pedidos/${created.id}`);
-    await expect(page.locator("main").getByRole("link", { name: new RegExp(checkout.sale_order.id.slice(0, 8)) }))
-      .toHaveAttribute("href", `/orders/${checkout.sale_order.id}`);
+    const saleHistoryLink = page.locator("main").getByRole("link", { name: "Venta completada", exact: true });
+    await expect(saleHistoryLink).toHaveAttribute("href", `/orders/${checkout.sale_order.id}`);
+    await expect(saleHistoryLink).not.toContainText(checkout.sale_order.id.slice(0, 8));
     expect((await (await page.request.get("/api/v1/orders")).json()).total).toBe(1);
     await expect(page.getByRole("button", { name: "Ver cliente", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

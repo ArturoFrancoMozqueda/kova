@@ -14,6 +14,24 @@ Guía para mantener una experiencia común entre módulos. Conserva los contrato
 
 Caja conserva su disposición especializada para vender rápido; comparte controles y significado financiero con el cobro de Pedidos. El menú público conserva su experiencia de cliente y no expone cantidades exactas, costos ni herramientas administrativas.
 
+## Navegación por rol
+
+- Caja, Pedidos y Ventas son accesos directos en la barra lateral y en el pie móvil;
+  Pedidos conserva su permiso y feature flag. Panel permanece directo para dueño y gerente.
+- Los accesos diarios permanecen fijos mientras se desplazan las categorías. En ventanas
+  de hasta 700 px de alto, el menú completo admite desplazamiento para conservar acceso a
+  todas las categorías; el pie móvil mantiene Caja/Pedidos/Ventas al cerrar el menú. Menú y ventas,
+  Clientes y atención, Productos y operación, Análisis y finanzas y Configuración se abren
+  con botones de flecha y `aria-expanded`, sin navegar a otra pantalla.
+- La categoría de una ruta directa se abre automáticamente. Las demás conservan la elección
+  del usuario; las preferencias se separan por negocio, persona y rol y no contienen sesiones.
+- Una categoría con una sola opción se muestra como enlace directo. Cajeros y colaboradores
+  conservan así una lista corta con Clientes y Turnos, según su acceso existente.
+- La barra compacta conserva nombres accesibles; abrir una categoría expande la barra sin
+  cambiar de página. El menú móvil conserva el foco, Escape y cierre al elegir destino.
+- La búsqueda encuentra también opciones dentro de grupos cerrados. Ningún grupo, resultado
+  o acceso contextual debe ampliar permisos, capacidades, funciones contratadas o sesión offline.
+
 ## Continuidad del trabajo
 
 Los enlaces por registro llevan al cliente, oportunidad, pedido, venta o compra exactos. Un enlace general sirve para explorar; no sustituye una conversión que conserva origen, identidad y auditoría. No crear un pedido separado al continuar desde una cotización existente.
@@ -21,7 +39,7 @@ Los enlaces por registro llevan al cliente, oportunidad, pedido, venta o compra 
 | Recorrido | Condición y continuación |
 |---|---|
 | Mostrador | Catálogo → Caja → venta y recibo → inventario, resultados e historial. No exigir oportunidad o cotización para una venta directa. |
-| Solicitud del menú | Menú → bandeja → revisión y cliente explícito → oportunidad. Enviar solicitud no reserva mercancía, genera venta ni concede permiso de campañas. |
+| Solicitud del menú | El cliente envía y continúa al seguimiento de su solicitud. El equipo abre Solicitudes desde Pedidos, revisa productos y elige o registra al cliente antes de crear el pedido; una consulta general puede continuar como oportunidad. Enviar solicitud no reserva mercancía, genera venta ni concede permiso de campañas. |
 | Propuesta comercial | Oportunidad → cotización → registro de comunicación/aceptación → pedido vinculado. Registrar que se compartió una propuesta no envía un mensaje. Aceptarla no cobra. |
 | Pedido | Nuevo → confirmación y reserva → cobro → preparación → listo → entrega. Conservar cliente y referencias. Entregar y cobrar son estados separados; nunca deducir uno del otro. |
 | Servicio con cita | Cliente → cita con recurso/horario → venta en Caja → vínculo explícito de venta → historial. Asistencia, atención y cobro conservan su significado. |

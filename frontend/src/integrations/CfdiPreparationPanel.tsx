@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { moneyToCents } from "@/lib/money";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { formatMoney } from "@/orders/format";
 import {
   getInvoiceContext,
@@ -98,9 +99,7 @@ export function CfdiPreparationPanel({
       .catch((e: unknown) => {
         if (active)
           setError(
-            e instanceof Error
-              ? e.message
-              : "No pudimos cargar los conceptos de la venta.",
+            resolveUserFacingError(e, "No pudimos cargar los conceptos de la venta."),
           );
       })
       .finally(() => {
@@ -163,11 +162,9 @@ export function CfdiPreparationPanel({
     try {
       await action();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "No pudimos completar la operación. Consulta el estado antes de reintentar.",
-      );
+      const fallback = "No pudimos completar la operación. Consulta el estado antes de reintentar.";
+      const message = resolveUserFacingError(e, fallback);
+      setError(message === fallback ? message : `${message} Consulta el estado antes de reintentar.`);
     } finally {
       setBusy(false);
       onBusy(false);

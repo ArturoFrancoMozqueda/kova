@@ -57,7 +57,10 @@ describe("IntegrationsPage", () => {
       ).not.toBeInTheDocument(),
     );
     expect(listInvoiceRequests).not.toHaveBeenCalled();
-    expect(screen.getByText(/No generan un CFDI/)).toBeInTheDocument();
+    expect(screen.getByText(/Las solicitudes no generan un CFDI/)).toBeInTheDocument();
+    expect(screen.queryByText(/Terminal bancaria/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Activa la facturación/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sin conectar/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Guardar solicitud pendiente" }),
     ).not.toBeInTheDocument();
@@ -77,7 +80,7 @@ describe("IntegrationsPage", () => {
         <IntegrationsPage />
       </MemoryRouter>,
     );
-    expect(document.title).toBe("Facturación e integraciones · Kova");
+    expect(document.title).toBe("Solicitudes de factura · Kova");
     expect(
       await screen.findByRole("heading", {
         name: "Facturación CFDI · Conectada en Live",
@@ -137,8 +140,9 @@ async function prepareRequest() {
     name: "Venta completada",
   });
   expect(
-    screen.getByRole("option", { name: /Folio 00112233/ }),
+    screen.getByRole("option", { name: /100.00/ }),
   ).toHaveTextContent("$100.00");
+  expect(screen.getByRole("option", { name: /100.00/ })).not.toHaveTextContent("00112233");
   expect(screen.queryByLabelText(/ID de la venta/)).not.toBeInTheDocument();
   fireEvent.change(selector, { target: { value: sale.id } });
   const section = screen
@@ -209,9 +213,18 @@ describe("invoice request user flow", () => {
     expect(calls[0][0]).toBe(sale.id);
     expect(selector).toHaveValue("");
     expect(screen.getByText("Cliente real")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver venta" })).toHaveAttribute("href", `/orders/${sale.id}`);
+    expect(screen.queryByText(/Folio 00112233/)).not.toBeInTheDocument();
     expect(listInvoiceRequests).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+});
+
+it.each(["Unexpected token '<', invalid JSON", "Failed to fetch: backend postgres connection failed"])("keeps technical fiscal read errors out of the screen: %s", async diagnostic => {
+  vi.mocked(getReadiness).mockRejectedValueOnce(new Error(diagnostic));
+  render(<IntegrationContents />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos consultar los datos fiscales. Intenta de nuevo.");
+  expect(screen.queryByText(diagnostic)).not.toBeInTheDocument();
 });
 
 describe("invoice preparation from an existing ticket", () => {

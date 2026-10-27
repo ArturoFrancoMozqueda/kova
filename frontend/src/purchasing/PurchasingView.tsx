@@ -20,8 +20,10 @@ import { formatMoney } from "@/orders/format";
 import { cancelPurchase, createPurchase, createSupplier, listPurchases, listSuppliers, receivePurchase, type Purchase, type Supplier } from "./api";
 
 import { formatPurchaseTotal } from "./formatPurchaseTotal";
+import { resolveUserFacingError } from "@/lib/apiError";
 
 const statusLabel = { pending: "Pendiente", partial: "Recibida parcialmente", received: "Recibida", cancelled: "Cancelada" };
+const purchaseDate = (value: string) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 type DraftLine = { product_id: string; quantity: number; unit_cost: string };
 
 export default function PurchasingView() {
@@ -38,6 +40,7 @@ export default function PurchasingView() {
   const [products, setProducts] = useState<Product[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
@@ -58,7 +61,7 @@ export default function PurchasingView() {
       const [s, p, o] = await Promise.all([listSuppliers(), listProducts(), listPurchases(offset)]);
       setSuppliers(s); setProducts(p.filter(item => item.is_active && item.track_inventory)); setPurchases(o);
       setError("");
-    } catch (e) { setError(e instanceof Error ? e.message : "No pudimos cargar tus compras."); }
+    } catch (e) { setError(resolveUserFacingError(e, "No pudimos cargar tus compras. Actualiza para volver a consultar.")); }
     finally { setLoading(false); }
   }, [offset]);
   useEffect(() => { if (allowed) void load(); }, [allowed, load]);
@@ -81,19 +84,23 @@ export default function PurchasingView() {
     window.addEventListener("online", changed); window.addEventListener("offline", changed);
     return () => { window.removeEventListener("online", changed); window.removeEventListener("offline", changed); };
   }, []);
-  async function mutate(payload: unknown, action: (key: string) => Promise<unknown>, done: () => void) {
+  async function mutate<T>(payload: unknown, action: (key: string) => Promise<T>, done: (result: T) => void) {
     if (busy || !navigator.onLine) return;
     const signature = JSON.stringify(payload);
     const key = keys.current.get(signature) ?? crypto.randomUUID();
     keys.current.set(signature, key);
-    setBusy(true); setError("");
-    try { await action(key); keys.current.delete(signature); done(); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "No pudimos guardar el cambio."); }
+    setBusy(true); setError(""); setNotice("");
+    try { const result = await action(key); keys.current.delete(signature); done(result); await load(); }
+    catch (e) { setError(resolveUserFacingError(e, "No pudimos guardar el cambio. Revisa los datos e intenta de nuevo.")); }
     finally { setBusy(false); }
   }
   function submitSupplier(event: FormEvent) {
     event.preventDefault();
-    void mutate({ supplierName, contact }, key => createSupplier(supplierName, contact, key), () => { setSupplierName(""); setContact(""); });
+    void mutate({ supplierName, contact }, key => createSupplier(supplierName, contact, key), supplier => {
+      setSuppliers(current => [...current.filter(row => row.id !== supplier.id), supplier]);
+      setSupplierId(supplier.id); setSupplierName(""); setContact(""); setActiveSetup("purchase");
+      setNotice(`${supplier.name} está listo para tu compra. Conservamos los productos y las notas que habías capturado.`);
+    });
   }
   function submitPurchase(event: FormEvent) {
     event.preventDefault();
@@ -107,6 +114,7 @@ export default function PurchasingView() {
       <Button type="button" variant="outline" aria-expanded={activeSetup === "supplier"} aria-controls={supplierPanelId} onClick={() => setActiveSetup(current => current === "supplier" ? null : "supplier")}>Nuevo proveedor</Button>
     </div>} />
     {!online && <p role="status" className="rounded-kova-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">Conéctate a internet para crear compras y recibir mercancía.</p>}
+    {notice && <p role="status" className="rounded-kova-md bg-kova-growth/10 p-4 text-sm text-kova-growth-strong">{notice}</p>}
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button></div>}
     <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
       {linkedPurchaseId && !loading && !error && (
@@ -118,9 +126,9 @@ export default function PurchasingView() {
       )}
       {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
       {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
-      {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra ${purchase.id.slice(0, 8)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
-        <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>
+      {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra de ${purchase.supplier_name} · ${purchaseDate(purchase.created_at)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
+        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{purchaseDate(purchase.created_at)}</span></div>
+        {purchase.notes && <p className="text-sm text-muted-foreground">{purchase.notes}</p>}
         <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
         {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
       </CardContent></Card>)}
@@ -147,6 +155,7 @@ export default function PurchasingView() {
     {activeSetup === "purchase" && <Card id={purchasePanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Preparar compra pendiente" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
         <form onSubmit={submitPurchase} className="space-y-4">
           <Label htmlFor="purchase-supplier">Proveedor</Label><Select id="purchase-supplier" required value={supplierId} onChange={e => setSupplierId(e.target.value)}><option value="">Selecciona un proveedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
+          <Button type="button" variant="link" className="px-0" disabled={disabled} onClick={() => setActiveSetup("supplier")}>Registrar proveedor sin perder la compra</Button>
           {products.length === 0 && (
             loading ? <p role="status" className="text-sm text-muted-foreground">Cargando productos con inventario…</p>
               : !error ? <p className="text-sm">Activa el control de inventario de tus productos en Catálogo para comprarlos.</p> : null

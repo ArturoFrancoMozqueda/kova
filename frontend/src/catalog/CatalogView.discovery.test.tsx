@@ -42,6 +42,24 @@ beforeEach(() => {
 });
 
 describe("catalog publication discovery", () => {
+  it("opens only the exact product requested from analysis and consumes the edit intent", async () => {
+    vi.mocked(listProducts).mockResolvedValueOnce([{ id: "product-cost", tenant_id: "tenant-discovery", category_id: null, name: "Muffin", description: null, sku: "MUFFIN-REAL", price_amount: "45.00", cost_price: null, track_inventory: false, low_stock_threshold: null, is_active: true, modifier_groups: [], image_url: null, image_position_x: 50, image_position_y: 50, image_zoom: 1 }]);
+    taskHost("/catalog?edit=product-cost&search=Muffin#productos");
+    const dialog = await screen.findByRole("dialog", { name: "Editar producto" });
+    expect(within(dialog).getByDisplayValue("MUFFIN-REAL")).toBeVisible();
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent(/^\/catalog\?search=Muffin#productos$/));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Editar producto" })).not.toBeInTheDocument());
+    expect(listProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not open an edit form for an unavailable product or without update permission", async () => {
+    auth.state.user.role = "cashier";
+    taskHost("/catalog?edit=another-tenant-product");
+    await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog", { name: "Editar producto" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("edit=another-tenant-product");
+  });
 
   it("preserves the existing anchor while consuming a creation command", async () => {
     taskHost("/catalog?search=concha&new=product#productos");

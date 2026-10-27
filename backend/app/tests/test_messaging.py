@@ -389,3 +389,15 @@ def test_readiness_route_requires_session_role_and_commercial_access(client, db,
     assert client.get("/api/v1/messaging/readiness").status_code == 200
     monkeypatch.setattr(settings, "billing_trial_days", -1)
     assert client.get("/api/v1/messaging/readiness").status_code == 402
+
+
+def test_readiness_explains_the_business_steps_without_exposing_developer_setup():
+    data = readiness().model_dump()
+    assert len(data["checklist"]) == 8
+    copy = " ".join(row["title"] + " " + row["description"] for row in data["checklist"])
+    for term in ("WABA", "Phone Number ID", "Graph", "HTTPS", "callback", "Cloud API"):
+        assert term not in copy
+    assert "Elige la sucursal" in copy
+    assert "No compartas contraseñas" in copy
+    assert data["status"] == "not_connected"
+    assert not data["send_enabled"] and not data["webhook_enabled"]

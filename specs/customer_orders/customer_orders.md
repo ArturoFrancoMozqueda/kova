@@ -52,6 +52,10 @@ El flujo normal es `new → confirmed → in_progress → ready → fulfilled`. 
 - Disponibilidad es `stock_on_hand - reserved_quantity` y Caja respeta reservas activas ajenas.
 - Un ajuste físico es la verdad y puede dejar reservas insuficientes. El pedido queda en conflicto
   y no puede cobrarse hasta corregir artículos o inventario.
+- Si falla la consulta de inventario, la captura informa disponibilidad por consultar; no muestra
+  agotado como resultado de ese error. Permite reintentar únicamente existencias sin perder
+  artículos, notas ni cliente. La disponibilidad de un pedido confirmado conserva sus propias
+  reservas y sigue descontando las de otros pedidos después del reintento.
 
 ## Conversión a venta
 

@@ -1,3 +1,4 @@
+import { resolveUserFacingError, safeUserMessage } from "@/lib/apiError";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Brain, FileText, LockKeyhole, MessageCircle, Plus, Settings2, ShieldCheck, Target, Trash2 } from "lucide-react";
@@ -38,6 +39,8 @@ function displayValue(key: string, value: unknown) {
   if (typeof value === "boolean") return value ? "Activado" : "Desactivado";
   if (key === "category_id") return String(value).startsWith("$step:") ? "Categoría creada en un paso anterior" : "Categoría seleccionada";
   if (key === "document_id") return "Mismo archivo de la vista previa";
+  if (key === "role") return ({ owner: "Dueño", manager: "Administrador", cashier: "Cajero" } as Record<string, string>)[String(value)] ?? "Acceso del equipo";
+  if (typeof value === "object") return "Revisar antes de aplicar";
   if (key === "price_amount" || key === "cost_price") return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(value));
   return String(value);
 }
@@ -138,7 +141,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
           const recovered = await api<Resource>(`/runs/${initialRun.current}`);
           if (alive.current) setRun(recovered);
         }
-      } catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : "No pudimos cargar el asistente."); }
+      } catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(resolveUserFacingError(e, "No pudimos cargar el asistente.")); }
     })();
   }, [api, refresh, loadConversation]);
 
@@ -163,7 +166,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
         // its conversation first so that cleanup cannot discard the answer.
         setRun(result);
         await refresh();
-      } catch (e) { if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos recuperar la consulta."); }
+      } catch (e) { if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos recuperar la consulta.")); }
     };
     timer = setTimeout(() => void poll(), 2000);
     return () => { stopped = true; clearTimeout(timer); };
@@ -178,7 +181,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
         const [todo, targets] = await Promise.all([api<Resource[]>("/tasks"), api<Resource[]>("/goals")]);
         if (!stopped && alive.current) { setTasks(todo); setGoals(targets); }
       } catch (e) {
-        if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos actualizar el seguimiento.");
+        if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos actualizar el seguimiento."));
       }
     };
     void updateSignals();
@@ -189,7 +192,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   const act = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true); setError("");
-    try { await action(); } catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : "No pudimos completar esta acción."); }
+    try { await action(); } catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(resolveUserFacingError(e, "No pudimos completar esta acción.")); }
     finally { if (alive.current) setBusy(false); }
   };
   const send = (event: FormEvent) => {
@@ -259,10 +262,10 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
         <label className="block text-sm">Seleccionar archivo<input type="file" className={`${fieldClass} mt-2`} accept={purpose === "catalog" ? ".csv,.xlsx" : ".pdf,.docx,.txt,.md"} disabled={busy || !capabilities.documents || purpose === "knowledge" && !preferences.document_consent} onChange={event => { const file = event.target.files?.[0]; if (!file) return; event.target.value = ""; void act(async () => { await api(`/documents?filename=${encodeURIComponent(file.name)}&purpose=${purpose}${replacement ? `&replaces=${replacement}` : ""}`, "POST", file); if (alive.current) setReplacement(null); await refresh(); }); }} /></label>
         <Button variant="outline" disabled={busy} onClick={() => void act(refresh)}>Actualizar estado</Button>
         {documents.length === 0 ? <p className="text-sm text-kova-muted">Todavía no hay archivos. Sube una política, un manual o tu catálogo.</p> : documents.map(doc => <div key={doc.id} className="space-y-3 rounded-kova-md border border-kova-border p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="break-all font-medium">{doc.data.filename}</h3><p className="text-xs text-kova-muted">{statuses[doc.status] ?? doc.status} · {doc.shared ? "Compartido con administradores" : "Privado"}</p></div><Button variant="ghost" disabled={busy || !doc.can_edit} onClick={() => void act(async () => { await api(`/documents/${doc.id}`, "DELETE"); await refresh(); })}><Trash2 />Retirar</Button></div>
-          {doc.data.error ? <p role="alert" className="text-sm text-kova-danger">{doc.data.error}</p> : null}{doc.data.ocr ? <p className="text-sm text-kova-muted">Texto obtenido por OCR. Revisa cifras y nombres antes de usarlos.</p> : null}
+          {doc.data.error ? <p role="alert" className="text-sm text-kova-danger">{safeUserMessage(doc.data.error, "No pudimos preparar este archivo. Revisa su formato e intenta de nuevo.")}</p> : null}{doc.data.ocr ? <p className="text-sm text-kova-muted">Texto extraído del documento. Revisa cifras y nombres antes de usarlos.</p> : null}
           {doc.can_edit && doc.data.purpose === "knowledge" && doc.status === "ready" ? <Button variant="outline" disabled={busy} onClick={() => { setPurpose("knowledge"); setReplacement(doc.id); }}>Reemplazar versión</Button> : null}
           {doc.can_edit && doc.data.purpose === "knowledge" && doc.status === "ready" ? <Button variant="outline" disabled={busy} onClick={() => void act(async () => { await api(`/documents/${doc.id}/sharing`, "PATCH", { shared: !doc.shared }); await refresh(); })}>{doc.shared ? "Volver privado" : "Compartir con administradores"}</Button> : null}
-          {doc.data.preview ? <><p className="text-sm">{doc.data.preview.valid_rows} productos válidos · {doc.data.preview.error_rows} filas con errores</p><div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="text-left text-xs text-kova-muted">Primeras filas del archivo. La importación valida el archivo completo.</caption><thead><tr><th className="p-2">Fila</th><th className="p-2">Producto</th><th className="p-2">Revisión</th></tr></thead><tbody>{doc.data.preview.rows.slice(0, 25).map((row, i) => <tr key={i}><td className="p-2">{row.row_number}</td><td className="p-2">{row.normalized?.name ?? "Sin nombre"}</td><td className="p-2">{row.errors.length ? row.errors.join(" · ") : "Listo"}</td></tr>)}</tbody></table></div><Button disabled={busy || doc.data.preview.error_rows > 0 || !capabilities.configuration} onClick={() => void act(async () => { const proposal = await api<Resource>("/proposals", "POST", { steps: [{ action: "catalog_import", values: { document_id: doc.id } }] }); if (alive.current) setSelectedProposal(proposal); await refresh(); })}>Revisar importación</Button></> : null}
+          {doc.data.preview ? <><p className="text-sm">{doc.data.preview.valid_rows} productos válidos · {doc.data.preview.error_rows} filas con errores</p><div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="text-left text-xs text-kova-muted">Primeras filas del archivo. La importación valida el archivo completo.</caption><thead><tr><th className="p-2">Fila</th><th className="p-2">Producto</th><th className="p-2">Revisión</th></tr></thead><tbody>{doc.data.preview.rows.slice(0, 25).map((row, i) => <tr key={i}><td className="p-2">{row.row_number}</td><td className="p-2">{row.normalized?.name ?? "Sin nombre"}</td><td className="p-2">{row.errors.length ? row.errors.map(error => safeUserMessage(error, "Revisa los datos de esta fila.")).join(" · ") : "Listo"}</td></tr>)}</tbody></table></div><Button disabled={busy || doc.data.preview.error_rows > 0 || !capabilities.configuration} onClick={() => void act(async () => { const proposal = await api<Resource>("/proposals", "POST", { steps: [{ action: "catalog_import", values: { document_id: doc.id } }] }); if (alive.current) setSelectedProposal(proposal); await refresh(); })}>Revisar importación</Button></> : null}
         </div>)}
       </Card> : null}
       {tab === "memory" ? <div className="grid gap-4 lg:grid-cols-2"><Card className="space-y-4 p-5"><h2 className="text-lg font-semibold">Qué recuerda</h2><p className="text-sm text-kova-muted">Solo guardamos lo que confirmas aquí. Puedes corregirlo u olvidarlo cuando quieras.</p><form onSubmit={event => { event.preventDefault(); void act(async () => { await api(editingMemory ? `/memory/${editingMemory}` : "/memory", editingMemory ? "PUT" : "POST", { content: memoryText, shared: memoryShared }); if (alive.current) { setMemoryText(""); setEditingMemory(null); } await refresh(); }); }} className="space-y-3"><label className="block text-sm">Acuerdo o preferencia<textarea className={`${fieldClass} mt-2 min-h-24`} value={memoryText} maxLength={2000} required onChange={event => setMemoryText(event.target.value)} /></label><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={memoryShared} onChange={event => setMemoryShared(event.target.checked)} />Compartir con administradores del negocio</label><Button type="submit" disabled={busy}>{editingMemory ? "Guardar corrección" : "Confirmar recuerdo"}</Button></form>
@@ -275,7 +278,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
       {proposals.length > 0 ? <Card className="space-y-3 p-5"><h2 className="font-semibold">Cambios propuestos</h2>{proposals.map(proposal => <div key={proposal.id} className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-kova-border p-3"><p className="text-sm">{proposal.data.steps?.length} pasos · {statuses[proposal.status] ?? proposal.status}</p><Button variant="outline" onClick={() => { setSelectedProposal(proposal); setEditingProposal(false); }}>{proposal.status === "completed" ? "Ver comprobante" : "Revisar cambios"}</Button></div>)}</Card> : null}
       <Dialog open={selectedProposal !== null} onClose={() => { if (!busy) setSelectedProposal(null); }} className="sm:max-w-xl">
         <DialogTitle>{selectedProposal?.status === "completed" ? "Configuración guardada" : "Revisa antes de aplicar"}</DialogTitle><DialogDescription className="mt-2 mb-5">{tenantName} · Sucursal activa. Solo se aplicarán estos pasos; las ventas, caja y suscripción conservan sus flujos.</DialogDescription>
-        {editingProposal && selectedProposal ? <ConfigurationDraft key={selectedProposal.id} initial={selectedProposal.data.steps} busy={busy} onCancel={() => setEditingProposal(false)} onPreview={steps => void act(async () => { const revised = await api<Resource>(`/proposals/${selectedProposal.id}/revise`, "POST", { steps }); if (alive.current) { setSelectedProposal(revised); setEditingProposal(false); } await refresh(); })} /> : <ChangeList steps={selectedProposal?.data.steps ?? []} />}{selectedProposal?.data.error ? <p role="alert" className="mt-4 text-sm text-kova-danger">{selectedProposal.data.error}</p> : null}
+        {editingProposal && selectedProposal ? <ConfigurationDraft key={selectedProposal.id} initial={selectedProposal.data.steps} busy={busy} onCancel={() => setEditingProposal(false)} onPreview={steps => void act(async () => { const revised = await api<Resource>(`/proposals/${selectedProposal.id}/revise`, "POST", { steps }); if (alive.current) { setSelectedProposal(revised); setEditingProposal(false); } await refresh(); })} /> : <ChangeList steps={selectedProposal?.data.steps ?? []} />}{selectedProposal?.data.error ? <p role="alert" className="mt-4 text-sm text-kova-danger">{safeUserMessage(selectedProposal.data.error, "No pudimos aplicar los cambios. Revisa su estado antes de intentar de nuevo.")}</p> : null}
         <div className="mt-5 flex flex-wrap gap-3">{!editingProposal && selectedProposal && ["pending_approval", "partial", "approved"].includes(selectedProposal.status) ? <>{selectedProposal.status === "pending_approval" ? <Button variant="outline" disabled={busy} onClick={() => setEditingProposal(true)}>Corregir propuesta</Button> : null}<Button disabled={busy} onClick={confirm}>{busy ? "Aplicando…" : selectedProposal.status === "partial" ? "Confirmar pasos pendientes" : "Aplicar configuración"}</Button><Button variant="outline" disabled={busy} onClick={() => void act(async () => { await api(`/proposals/${selectedProposal.id}/reject`, "POST"); if (alive.current) setSelectedProposal(null); await refresh(); })}>Rechazar pendientes</Button></> : <Button variant="outline" onClick={() => setSelectedProposal(null)}>Cerrar</Button>}</div>
       </Dialog>
     </>}

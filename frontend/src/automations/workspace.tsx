@@ -12,6 +12,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { csrfHeaders } from "@/lib/csrf";
+import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 
 export type WorkspaceIdentity = {
   tenantId: string;
@@ -117,15 +118,16 @@ export function useOperationsRequest(
         const payload = (await response.json().catch(() => ({}))) as {
           detail?: string | { message?: string };
         };
-        const detail =
+        const rawDetail =
           typeof payload.detail === "string"
             ? payload.detail
             : payload.detail?.message;
+        const fallback = "No pudimos completar esta acción. Inténtalo de nuevo.";
+        const detail = response.status < 500 ? safeUserMessage(rawDetail, fallback) : fallback;
         throw new OperationsError(
           response.status === 409
-            ? "Los datos cambiaron. Revisa la versión actual antes de volver a intentar."
-            : (detail ??
-              "No pudimos completar esta acción. Inténtalo de nuevo."),
+            ? "Los datos cambiaron. Revisa la información actualizada antes de volver a intentar."
+            : resolveApiErrorMessage({ status: response.status }, detail),
           response.status,
           detail,
         );

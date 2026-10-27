@@ -91,7 +91,8 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
         product_ids: [prepared.productId],
         message: expect.stringContaining("2 × Producto ciclo completo local"),
       });
-      await expect(publicPage.getByRole("status").filter({ hasText: "Solicitud de pedido recibida" })).toBeVisible();
+      await expect(publicPage).toHaveURL(/\/seguimiento#.+$/);
+      await expect(publicPage.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toHaveText("Solicitud recibida");
       await publicPage.screenshot({ path: testInfo.outputPath("lifecycle-public-mobile.png"), fullPage: true });
     } finally {
       await publicContext.close();
@@ -181,11 +182,14 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
     const profile = page.getByRole("region", { name: "Ficha del cliente", exact: true });
     await expect(profile).toContainText("Cliente ciclo completo local");
     await expect(profile.getByRole("link", { name: delivered.folio, exact: true })).toHaveAttribute("href", `/pedidos/${orderId}`);
-    await expect(page.locator("main").getByRole("link", { name: new RegExp(saleId.slice(0, 8)) })).toHaveAttribute("href", `/orders/${saleId}`);
+    // Internal IDs stay in the exact destination, never in the customer-facing label.
+    const saleHistoryLink = page.locator("main").getByRole("link", { name: "Venta completada", exact: true });
+    await expect(saleHistoryLink).toHaveAttribute("href", `/orders/${saleId}`);
+    await expect(saleHistoryLink).not.toContainText(saleId.slice(0, 8));
 
     // The real sidebar connects customer work to after-sales attention. Closing
     // the case never means refunding the sale or contacting the customer.
-    await page.locator("aside nav").getByRole("link", { name: "Atención postventa", exact: true }).click();
+    await page.locator("aside nav").getByRole("link", { name: "Casos de atención", exact: true }).click();
     await page.getByRole("button", { name: "Nueva atención postventa", exact: true }).click();
     await page.getByLabel("Cliente de la atención").selectOption(prepared.customerId);
     await page.getByLabel("Venta relacionada").selectOption(saleId);
@@ -206,7 +210,7 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
 
     // Replenishment is an independent loop. Approving a draft must not change
     // physical stock; partial/total receipts only add the units acknowledged.
-    await page.locator("aside nav").getByRole("link", { name: "Operación", exact: true }).click();
+    await page.locator("aside nav").getByRole("button", { name: "Productos y operación", exact: true }).click();
     await page.locator("aside nav").getByRole("link", { name: "Reposición", exact: true }).click();
     const suggestion = page.getByRole("article").filter({ has: page.getByRole("checkbox", { name: "Producto ciclo completo local", exact: true }) });
     await expect(suggestion).toContainText("Disponibles");
@@ -229,7 +233,9 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
     await assertStock(3, 0, 3);
     await page.getByRole("link", { name: "Revisar compra creada", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/purchasing\\?purchase_id=${purchase.id}$`));
-    const purchaseCard = page.getByRole("region", { name: `Compra ${purchase.id.slice(0, 8)}`, exact: true });
+    const purchaseDate = await page.evaluate((createdAt: string) => new Date(createdAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }), purchase.created_at);
+    const purchaseCard = page.getByRole("region", { name: `Compra de ${purchase.supplier_name} · ${purchaseDate}`, exact: true });
+    await expect(purchaseCard).not.toContainText(purchase.id.slice(0, 8));
     await expect(purchaseCard).toBeFocused();
     await purchaseCard.getByRole("button", { name: "Recibir mercancía", exact: true }).click();
     await page.getByLabel("Producto ciclo completo local · pendientes 4", { exact: true }).fill("1");

@@ -83,4 +83,5 @@ The backend README documents the preventive budget pause and its limitations.
 FastAPI/psycopg/SQLAlchemy support in Python Workers makes a later API experiment
 possible. Existing bcrypt CPU requirements, threaded helpers, binary packages and
 the Docker-isolated document parser have not passed Workers Free runtime tests.
-Do not shut down Fly or weaken those controls as part of this frontend cutover.
+Fly remains permanently retired. Any further backend runtime experiment must preserve
+those controls and the existing resident Container release and recovery procedure.

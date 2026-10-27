@@ -261,7 +261,7 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
 
-  await expect(page.getByRole("status")).toContainText(/en cola/i);
+  await expect(page.getByRole("status")).toContainText(/Venta guardada en este dispositivo/i);
 
   const printableReceipt = page.locator(".print-receipt-root");
   await expect(printableReceipt).toHaveCount(1);

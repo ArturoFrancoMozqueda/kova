@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useAuth } from "@/auth/useAuth";
 import {
   OperationsSession,
@@ -12,6 +14,9 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Customer } from "@/customers/api";
+import { DigitalCardShare } from "./DigitalCardShare";
+import { RewardSettings } from "./rewards/RewardSettings";
+import { EnrollmentSettings } from "@/loyaltyCard/EnrollmentSettings";
 
 type LoyaltyPolicy = {
   enabled: boolean;
@@ -31,7 +36,7 @@ type LoyaltyOverview = {
 };
 type LoyaltyEntry = {
   id: string;
-  kind: "accrual" | "refund" | "void" | "redemption";
+  kind: "accrual" | "refund" | "void" | "redemption" | "reward_return";
   points: number;
   sale_order_id: string | null;
   benefit: string | null;
@@ -47,6 +52,7 @@ const kinds = {
   refund: "Reversión por devolución",
   void: "Reversión por anulación",
   redemption: "Canje registrado",
+  reward_return: "Puntos restituidos",
 };
 const fieldClass =
   "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
@@ -89,6 +95,8 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [customerError, setCustomerError] = useState("");
+  const [customerLoading, setCustomerLoading] = useState(true);
+  const [customerAttempt, setCustomerAttempt] = useState(0);
   const [customerId, setCustomerId] = useState("");
   const [ledger, setLedger] = useState<LoyaltyLedger | null>(null);
   const [ledgerError, setLedgerError] = useState("");
@@ -100,6 +108,9 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [confirmed, setConfirmed] = useState(false);
   useEffect(() => {
     let active = true;
+    setCustomers([]);
+    setCustomerError("");
+    setCustomerLoading(true);
     const timer = window.setTimeout(() => {
       void customersRequest<Customer[]>(`?q=${encodeURIComponent(search)}`)
         .then((rows) => {
@@ -109,17 +120,20 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           }
         })
         .catch(() => {
-          if (active)
+          if (active) {
+            setCustomers([]);
             setCustomerError(
-              "No pudimos buscar clientes. Cambia la búsqueda para reintentar.",
+              "No pudimos buscar clientes. Vuelve a intentar para consultar resultados actuales.",
             );
-        });
+          }
+        })
+        .finally(() => { if (active) setCustomerLoading(false); });
     }, 200);
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [customersRequest, search]);
+  }, [customersRequest, search, customerAttempt]);
   useEffect(() => {
     let active = true;
     setLedger(null);
@@ -134,9 +148,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         .catch((e: unknown) => {
           if (active)
             setLedgerError(
-              e instanceof Error
-                ? e.message
-                : "No pudimos consultar los puntos del cliente.",
+              resolveUserFacingError(e, "No pudimos consultar los puntos del cliente."),
             );
         });
     return () => {
@@ -221,9 +233,9 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         meta="Consulta puntos respaldados por ventas y conserva el historial de cada canje."
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Los puntos no son dinero ni saldo a favor. Un canje registra su débito;
-        no aplica descuentos en POS, acredita la entrega de un beneficio ni
-        modifica cobros.
+        Los puntos no son dinero ni saldo a favor. Las recompensas de caja se
+        confirman con la venta; los canjes manuales sólo registran un débito y
+        deben entregarse por separado.
       </p>
       {panel.error && (
         <ViewError
@@ -237,6 +249,8 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
+      <RewardSettings key={`${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />
+      <EnrollmentSettings key={`enrollment:${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />
       {panel.loading && <p role="status">Consultando lealtad…</p>}
       {panel.data && (
         <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
@@ -420,15 +434,19 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
-        {customerError && <p role="alert">{customerError}</p>}
+        {customerLoading && <p role="status" className="text-sm text-kova-muted">Buscando clientes…</p>}
+        {customerError && <div className="space-y-2"><p role="alert">{customerError}</p><Button type="button" variant="outline" onClick={() => setCustomerAttempt(value => value + 1)}>Volver a buscar clientes</Button></div>}
         <label className="block text-sm">
           Cliente del programa
           <select
+            aria-label="Cliente del programa"
             className={fieldClass}
             value={customerId}
+            disabled={customerLoading || Boolean(customerError)}
             onChange={(event) => chooseCustomer(event.target.value)}
           >
             <option value="">Selecciona un cliente registrado</option>
+            {customerId && !customers.some(customer => customer.id === customerId) && <option value={customerId} disabled>{ledger?.customer_name ?? "Cliente seleccionado"}</option>}
             {customers.map((row) => (
               <option key={row.id} value={row.id}>
                 {row.name}
@@ -461,6 +479,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           >
             {points(ledger.balance)} puntos
           </output>
+          <DigitalCardShare key={ledger.customer_id} identity={identity} customerId={ledger.customer_id} online={panel.online} disabled={panel.busy} />
           {ledger.adjustments_pending && (
             <p role="status" className="text-sm text-warning-strong">
               Procesa devoluciones o anulaciones pendientes antes de canjear.
@@ -516,9 +535,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   </p>
                 )}
                 {entry.sale_order_id && (
-                  <p className="break-all text-xs text-kova-muted">
-                    Venta de origen: {entry.sale_order_id}
-                  </p>
+                  <Link to={`/orders/${encodeURIComponent(entry.sale_order_id)}`} className="inline-flex min-h-11 items-center text-xs font-medium text-kova-blue underline underline-offset-4">Ver venta de origen</Link>
                 )}
               </li>
             ))}

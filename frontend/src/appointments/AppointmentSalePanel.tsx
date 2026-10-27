@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useOperationsRequest, type WorkspaceIdentity } from "@/automations/workspace";
@@ -29,7 +30,7 @@ export function AppointmentSalePanel({ appointment, identity, busy, online, onLi
     void request<{ items: AppointmentSale[]; has_more: boolean }>(`/sales?limit=20&offset=${offset}`)
       .then((result) => { if (active) setPage(result); })
       .catch((caught: unknown) => {
-        if (active) setError(caught instanceof Error ? caught.message : "No pudimos consultar las ventas.");
+        if (active) setError(resolveUserFacingError(caught, "No pudimos consultar las ventas."));
       });
     return () => { active = false; };
   }, [open, online, appointment.sale, request, offset, revision]);
@@ -53,7 +54,7 @@ export function AppointmentSalePanel({ appointment, identity, busy, online, onLi
             {page.items.length === 0 ? <p className="text-sm">No hay ventas disponibles en esta página. Puedes cobrar al cliente en Caja y después vincular su venta.</p> : <label className="block text-sm">Venta que corresponde a la cita
               <select className="mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3" value={selected} onChange={(event) => setSelected(event.target.value)}>
                 <option value="">Selecciona una venta</option>
-                {page.items.map((item) => <option key={item.id} value={item.id}>{formatAppointmentTime(item.created_at, appointment.timezone)} · {formatMoney(item.total_amount)} · {item.id}{Number(item.refunded_amount) > 0 ? ` · Devoluciones ${formatMoney(item.refunded_amount)}` : ""}</option>)}
+                {page.items.map((item) => <option key={item.id} value={item.id}>{formatAppointmentTime(item.created_at, appointment.timezone)} · {formatMoney(item.total_amount)}{Number(item.refunded_amount) > 0 ? ` · Devoluciones ${formatMoney(item.refunded_amount)}` : ""}</option>)}
               </select>
             </label>}
             <div className="flex flex-wrap gap-2">

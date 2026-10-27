@@ -1,7 +1,8 @@
 import { LotConflictRecovery } from "./LotConflictRecovery";
 import { useEffect, useState } from "react";
 import { copy } from "../i18n/messages";
-import { formatDateTime } from "../orders/format";
+import { formatDateTime, formatMoney } from "../orders/format";
+import { safeUserMessage } from "@/lib/apiError";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 import { readCatalogCache } from "./catalogCache";
 import { useAuth } from "@/auth/useAuth";
@@ -49,7 +50,7 @@ export default function SyncQueueView() {
 
   // Nombres reales del catalogo offline (solo lectura) para que las lineas de
   // ventas fallidas digan "Concha" en vez de un id truncado. No toca la cola
-  // ni su logica de reintento — si el cache esta vacio/viejo, cae al id.
+  // ni su logica de reintento; sin cache usamos una descripción neutral.
   const [productNames, setProductNames] = useState<{
     tenantId: string;
     names: Map<string, string>;
@@ -186,7 +187,7 @@ export default function SyncQueueView() {
                     {entry.last_error && (
                       <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3 shrink-0" />
-                        {entry.last_error}
+                        {safeUserMessage(entry.last_error, "No pudimos enviar esta venta. Revisa sus datos antes de reintentar.")}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-2">
@@ -201,9 +202,7 @@ export default function SyncQueueView() {
                     <details className="mt-1 text-[11px] text-muted-foreground/70">
                       <summary className="cursor-pointer select-none">{copy.syncQueue.technicalDetail}</summary>
                       <p className="mt-1 tabular-nums">
-                        {entry.sale.items.map((i) => `${i.quantity}x${i.product_id.slice(0, 8)}`).join(", ")}
-                        {" — "}
-                        {entry.sale.payments.map((p) => `${p.method}:${p.amount}`).join(" + ")}
+                        {entry.sale.payments.map((payment) => `${payment.method === "cash" ? "Efectivo" : payment.method === "bank_transfer" ? "Transferencia" : payment.method === "manual_card" ? "Tarjeta manual" : "Otro medio"}: ${formatMoney(payment.amount)}`).join(" · ")}
                       </p>
                     </details>
                   </div>

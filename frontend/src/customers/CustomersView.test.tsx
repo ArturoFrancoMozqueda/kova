@@ -89,6 +89,7 @@ describe("Clientes", () => {
     expect(await screen.findByText("Compras de Ana")).toBeInTheDocument();
     expect(screen.getByText("Devuelto: $5.00")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Venta completada/ })).toHaveAttribute("href", "/orders/sale-12345678");
+    expect(screen.getByRole("link", { name: /Venta completada/ })).not.toHaveTextContent("sale-123");
     expect(screen.getByRole("link", { name: "Nueva venta" })).toHaveAttribute("href", `/register?customerId=${customer.id}`);
     expect(screen.getByRole("link", { name: "Agendar cita" })).toHaveAttribute("href", `/appointments?customerId=${customer.id}`);
     expect(screen.getByRole("link", { name: "Nuevo pedido" })).toHaveAttribute("href", `/pedidos/nuevo?customerId=${customer.id}`);
@@ -183,4 +184,16 @@ describe("Clientes", () => {
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Ana" })).not.toBeInTheDocument());
     expect(customerHistory).not.toHaveBeenCalled();
   });
+
+it("oculta diagnósticos al consultar un cliente y conserva una salida comprensible", async () => {
+  vi.mocked(getCustomer).mockRejectedValueOnce(new Error("SELECT * FROM customers WHERE tenant_id=interno"));
+  renderCustomers(`/customers?customerId=${customer.id}`);
+  expect(await screen.findByRole("alert")).not.toHaveTextContent(/SELECT|tenant_id/);
+  const retry = screen.getByRole("button", { name: "Reintentar cliente" });
+  expect(retry).toBeEnabled();
+  fireEvent.click(retry);
+  expect(await screen.findByRole("heading", { name: "Ana" })).toBeVisible();
+  expect(getCustomer).toHaveBeenCalledTimes(2);
+});
+
 });

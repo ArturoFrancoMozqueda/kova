@@ -1,3 +1,4 @@
+import { copy } from "@/i18n/messages";
 import {
   act,
   fireEvent,
@@ -248,7 +249,7 @@ it("shows a missing source as incomplete instead of inventing an empty result", 
   mockData(data);
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Esta área no apareció en la respuesta",
+    "No pudimos consultar esta área",
   );
   expect(
     screen.queryByText(
@@ -262,7 +263,7 @@ it("recovers a failed read through an explicit retry", async () => {
   );
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Consulta temporalmente no disponible",
+    copy.errors.server,
   );
   fireEvent.click(screen.getByRole("button", { name: "Consultar de nuevo" }));
   expect(await screen.findByText("Revisar entrega")).toBeVisible();
@@ -278,7 +279,7 @@ it("hides the previous sample after a failed refresh", async () => {
     screen.getByRole("button", { name: "Actualizar pendientes" }),
   );
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Acceso comercial bloqueado",
+    copy.errors.permission,
   );
   expect(screen.queryByText("Revisar entrega")).not.toBeInTheDocument();
 });
@@ -381,7 +382,7 @@ it("formats dates in the configured business zone independently of the device", 
   expect(await screen.findByText(`Consulta del ${expected}`)).toBeVisible();
   expect(
     screen.getByText(
-      new RegExp(`Fechas en la zona horaria del negocio: ${timezone}`),
+      /Fechas en el horario del negocio/,
     ),
   ).toBeVisible();
   expect(expected).not.toBe(

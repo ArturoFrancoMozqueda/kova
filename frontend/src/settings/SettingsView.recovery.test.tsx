@@ -195,6 +195,22 @@ describe("SettingsView safe loading and action recovery", () => {
     expect(screen.getByRole("combobox", { name: "Rol de caja@example.com" })).toHaveValue("cashier");
   });
 
+  it.each([["staff", "Colaborador"], ["future_role", "Integrante del equipo"]])("presents %s as a human role in confirmation without changing the available roles or payload", async (role, label) => {
+    const employee: api.Employee = { membership_id: "member-1", user_id: "user-1", email: "equipo@example.com", role: role as api.Employee["role"], is_active: true, created_at: "2026-10-08" };
+    vi.mocked(api.listEmployees).mockResolvedValue([employee]);
+    vi.mocked(api.updateEmployeeRole).mockResolvedValue({ ...employee, role: "manager" });
+    renderSettings("/settings/employees");
+    const selector = await screen.findByRole("combobox", { name: "Rol de equipo@example.com" });
+    expect(Array.from(selector.querySelectorAll("option")).map(option => option.value)).toEqual(["owner", "manager", "cashier"]);
+    fireEvent.change(selector, { target: { value: "manager" } });
+    const dialog = screen.getByRole("dialog", { name: copy.settings.roleChangeConfirmTitle });
+    expect(dialog).toHaveTextContent(copy.settings.roleChangeConfirmBody(employee.email, label, copy.settings.roleManager));
+    expect(dialog).not.toHaveTextContent(role);
+    expect(api.updateEmployeeRole).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.roleChangeConfirmAction }));
+    await waitFor(() => expect(api.updateEmployeeRole).toHaveBeenCalledExactlyOnceWith("member-1", "manager"));
+  });
+
   it("discards an old business confirmation and ignores its completion after another confirmation opens", async () => {
     const update = deferred<api.Employee>();
     const oldEmployee: api.Employee = { membership_id: "member-1", user_id: "user-1", email: "anterior@example.com", role: "cashier", is_active: true, created_at: "2026-10-08" };

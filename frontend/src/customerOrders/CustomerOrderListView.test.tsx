@@ -5,13 +5,14 @@ import type { CustomerOrderListItem, CustomerOrderListResponse } from "./types";
 
 const mocks = vi.hoisted(() => ({
   online: true,
+  role: "owner",
   list: vi.fn(),
   readCache: vi.fn(),
   saveCache: vi.fn(),
 }));
 
 vi.mock("@/auth/useAuth", () => ({
-  useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant", user: { id: "owner" } } }),
+  useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant", user: { id: "owner", role: mocks.role } } }),
 }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => true }));
 vi.mock("@/branches/activeBranch", () => ({ getActiveBranchId: () => "branch" }));
@@ -53,6 +54,7 @@ function deferred<T>() {
 describe("CustomerOrderListView", () => {
   beforeEach(() => {
     mocks.online = true;
+    mocks.role = "owner";
     mocks.list.mockReset().mockResolvedValue(list([order("PED-PRIMERO")]));
     mocks.readCache.mockReset().mockResolvedValue(undefined);
     mocks.saveCache.mockReset().mockResolvedValue(undefined);
@@ -190,4 +192,17 @@ describe("CustomerOrderListView", () => {
     expect(screen.queryByText("PED-SIN-FECHA")).not.toBeInTheDocument();
     expect(mocks.readCache).toHaveBeenLastCalledWith("tenant", "branch");
   });
+
+it("lets managers discover menu requests from orders while preserving cashier access", async () => {
+  mocks.role = "manager";
+  const view = renderList();
+  await screen.findByText("PED-PRIMERO");
+  expect(screen.getByRole("link", { name: "Solicitudes del menú" })).toHaveAttribute("href", "/commercial-requests");
+  view.unmount();
+  mocks.role = "cashier";
+  renderList(); await screen.findByText("PED-PRIMERO");
+  expect(screen.queryByRole("link", { name: "Solicitudes del menú" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Nuevo pedido" })).toBeVisible();
+});
+
 });

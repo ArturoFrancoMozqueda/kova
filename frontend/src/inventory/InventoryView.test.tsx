@@ -335,3 +335,17 @@ describe("inventory ambiguous-response retries", () => {
     expect(vi.mocked(adjustStock).mock.calls[0][4]).not.toBe(vi.mocked(adjustStock).mock.calls[1][4]);
   });
 });
+
+it.each([4, 10])("distinguishes physical stock from available units with %s reserved", async reservedQuantity => {
+  const available = 10 - reservedQuantity;
+  const reserved = { ...item, stock_on_hand: 10, reserved_quantity: reservedQuantity, available_quantity: available, low_stock_threshold: 8, is_low_stock: true };
+  vi.mocked(listStock).mockResolvedValue([reserved]);
+  vi.mocked(listLowStock).mockResolvedValue([reserved]);
+  renderView();
+  expect(await screen.findByText(`${available} disponibles · ${reservedQuantity} reservados`)).toBeVisible();
+  expect(screen.getByText(available === 0 ? "Todas las unidades están reservadas para pedidos." : copy.inventoryView.lowStockDetail(available, 8))).toBeVisible();
+  expect(screen.queryByText(copy.inventoryView.lowStockDetail(10, 8))).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+  fireEvent.change(screen.getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: "1" } });
+  expect(screen.getByText(copy.inventoryModal.resultingStock(10, 11))).toBeVisible();
+});

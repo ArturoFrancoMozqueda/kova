@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCheck, CirclePause, RefreshCw, Workflow } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -59,9 +60,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          e instanceof Error
-            ? e.message
-            : "No pudimos cargar las automatizaciones.",
+          resolveUserFacingError(e, "No pudimos cargar las automatizaciones."),
         );
     } finally {
       if (mounted.current && revision === generation.current) setLoading(false);
@@ -92,7 +91,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       if (e instanceof OperationsError && e.status === 409) await load();
       if (mounted.current)
         setError(
-          e instanceof Error ? e.message : "No pudimos guardar los cambios.",
+          resolveUserFacingError(e, "No pudimos guardar los cambios."),
         );
     } finally {
       locked.current = false;
@@ -224,9 +223,6 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${rule.enabled ? "bg-kova-growth/10 text-kova-growth-strong" : "bg-muted text-muted-foreground"}`}
                     >
                       {rule.enabled ? "Activa" : "Pausada"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Versión {rule.version}
                     </span>
                   </div>
                   <h3 className="mt-4 font-semibold">{rule.title}</h3>

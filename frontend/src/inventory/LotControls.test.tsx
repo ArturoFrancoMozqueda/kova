@@ -54,3 +54,15 @@ describe("lot date editing", () => {
     expect(within(form).getByLabelText("Caducidad")).toHaveValue("2026-10-30");
   });
 });
+
+it("preserves a useful duplicate-lot message and hides unexpected technical errors", async () => {
+  vi.mocked(saveLot).mockRejectedValueOnce(new Error("Ya existe ese lote para el producto; selecciónalo para recibir más unidades"));
+  render(<LotForm productId="product" onCancel={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText("Identificador del lote"), { target: { value: "A" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar fechas y guardar" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Ya existe ese lote");
+  vi.mocked(saveLot).mockRejectedValueOnce(new Error("SELECT tenant_id FROM inventory_lots"));
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar fechas y guardar" }));
+  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No pudimos guardar el lote. Revisa el código y las fechas."));
+  expect(screen.getByRole("alert")).not.toHaveTextContent(/SELECT|tenant_id|inventory_lots/);
+});

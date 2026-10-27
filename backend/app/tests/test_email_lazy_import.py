@@ -49,6 +49,7 @@ def test_lazy_delivery_preserves_provider_configuration_and_payload(monkeypatch)
     assert sent == [{
         "from": "Kova QA <qa@example.com>", "to": "customer@example.com",
         "subject": "Verifica tu correo", "html": "<p>Contenido</p>",
+        "text": "Contenido", "reply_to": service.SUPPORT_EMAIL,
     }]
 
 

@@ -24,7 +24,7 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
     reason: refund.reason,
     refunded_amount: refund.refunded_amount,
     items: refund.items.map((item) => ({
-      label: itemNames.get(item.order_item_id) ?? item.order_item_id,
+      label: itemNames.get(item.order_item_id) ?? "Producto de la devolución",
       quantity: item.quantity,
     })),
   }));
@@ -49,6 +49,7 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
             paperWidthMm={receipt.paper_width_mm ?? 80}
             items={receipt.items}
             discountAmount={receipt.discount_amount}
+            loyaltyReward={receipt.loyalty_reward}
             taxRate={receipt.tax_rate}
             taxAmount={receipt.tax_amount}
             subtotalAmount={receipt.subtotal_amount}

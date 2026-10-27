@@ -115,7 +115,8 @@ def _provision_kova_app() -> None:
     inline SQL here because the .sql file uses psql meta-commands (\\if, \\set)
     that a raw driver can't run."""
     db_name = make_url(settings.database_url).database
-    provision_test_runtime_role(settings.database_url)
+    if not os.environ.get("PYTEST_XDIST_WORKER"):
+        provision_test_runtime_role(settings.database_url)
     with _engine.begin() as conn:
         conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
         conn.execute(text("GRANT USAGE ON SCHEMA public,extensions,assistant_control TO kova_app"))
@@ -148,6 +149,8 @@ def _provision_kova_app() -> None:
                 "public_catalog_links "
                 "service_cases service_case_events "
                 "appointment_resources appointments appointment_sales appointment_history appointment_reminders loyalty_policy_revisions loyalty_entries "
+                "loyalty_reward_revisions loyalty_reward_redemptions "
+                "loyalty_enrollment_policies loyalty_members "
                 "crm_catalog_requests crm_followup_policies crm_followup_tasks "
                 "messaging_conversations messaging_messages messaging_channel_events "
                 "automation_rules automation_runs business_events "
@@ -187,7 +190,7 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE(starts_at, ends_at, note, status, version, updated_at) ON appointments TO kova_app"))
         conn.execute(text("GRANT UPDATE(status, version, resolved_at) ON appointment_reminders TO kova_app"))
 
-        conn.execute(text("GRANT UPDATE(status, customer_id, opportunity_id, version, resolved_at) ON crm_catalog_requests TO kova_app"))
+        conn.execute(text("GRANT UPDATE(status, customer_id, opportunity_id, customer_order_id, version, resolved_at) ON crm_catalog_requests TO kova_app"))
         conn.execute(text("GRANT UPDATE(enabled, review_delay_days, rebuy_delay_days, version, authorized_by_user_id, enabled_since, updated_at) ON crm_followup_policies TO kova_app"))
         conn.execute(text("GRANT UPDATE(status, note, due_at, assigned_user_id, version, resolved_at) ON crm_followup_tasks TO kova_app"))
         conn.execute(text("GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id, last_inbound_at, version, updated_at) ON messaging_conversations TO kova_app"))

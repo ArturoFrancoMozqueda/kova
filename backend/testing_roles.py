@@ -29,6 +29,9 @@ def provision_test_runtime_role(database_url: str) -> None:
                 "CREATE ROLE kova_app LOGIN NOSUPERUSER NOBYPASSRLS "
                 "NOCREATEDB NOCREATEROLE; END IF; END $$;"
             ))
-            connection.execute(text("ALTER ROLE kova_app WITH PASSWORD 'kova_app'"))
+            connection.execute(text(
+                "ALTER ROLE kova_app WITH LOGIN PASSWORD 'kova_app' "
+                "NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
+            ))
     finally:
         engine.dispose()

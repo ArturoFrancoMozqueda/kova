@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
-import { login, signup, verifyEmail, ApiError } from "./api";
+import { login, signup, ApiError } from "./api";
 import { passwordExceedsByteLimit } from "./passwordRules";
 import { useAuth } from "./useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,7 @@ type ActionState =
   | "idle"
   | "submitting"
   | "error"
-  | "created"
-  | "verified";
+  | "created";
 
 type SignupValidationFailure = {
   field: SignupValidationField;
@@ -136,7 +135,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
   const [signupFieldErrors, setSignupFieldErrors] = useState<SignupFieldErrors>({});
@@ -271,7 +269,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;
       }
-      const response = await signup({
+      await signup({
         email,
         password,
         tenant_name: tenantName,
@@ -280,7 +278,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
       if (!active.current) return;
       // Signup intentionally gives the same answer for every account state.
       // Only a successful password login may establish that this person has access.
-      setVerificationToken(response.dev_verification_token ?? "");
       setResendCountdown(30);
       if (await enterProduct()) return;
       if (!active.current) return;
@@ -313,14 +310,13 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const resendVerification = async () => {
     if (resendCountdown > 0 || mode !== "signup") return;
     try {
-      const response = await signup({
+      await signup({
         email,
         password,
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
       });
       if (!active.current) return;
-      setVerificationToken(response.dev_verification_token ?? "");
       setState("created");
       setResendCountdown(30);
     } catch (err) {
@@ -334,18 +330,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
           ? copy.auth.loginRateLimited
           : copy.auth.operationError,
       );
-      setState("error");
-    }
-  };
-
-  const verify = async () => {
-    setState("submitting");
-    try {
-      await verifyEmail(verificationToken);
-      if (!active.current) return;
-      setState("verified");
-    } catch {
-      if (!active.current) return;
       setState("error");
     }
   };
@@ -570,26 +554,8 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                   className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  {verificationToken ? copy.auth.devVerifyReady : copy.auth.signupReceived}
+                  {copy.auth.signupReceived}
                 </div>
-                {verificationToken && (
-                  <div className="space-y-2">
-                    <Label htmlFor="verificationToken">{copy.auth.verificationToken}</Label>
-                    <Input
-                      id="verificationToken"
-                      value={verificationToken}
-                      onChange={(event) => setVerificationToken(event.target.value)}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => void verify()}
-                      disabled={!verificationToken}
-                      className="w-full"
-                    >
-                      {copy.auth.verifyEmail}
-                    </Button>
-                  </div>
-                )}
                 <Link
                   to={`/login?email=${encodeURIComponent(email)}`}
                   className="block text-center text-sm font-medium text-kova-blue hover:underline"
@@ -613,16 +579,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                     ? copy.auth.resendVerificationCountdown(resendCountdown)
                     : copy.auth.resendVerification}
                 </Button>
-              </div>
-            )}
-
-            {state === "verified" && (
-              <div
-                role="status"
-                className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success animate-fade-in"
-              >
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {copy.auth.verified}
               </div>
             )}
 

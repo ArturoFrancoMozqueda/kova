@@ -134,6 +134,10 @@ BEGIN
             ('appointment_reminders', 'SELECT, INSERT'),
             ('loyalty_policy_revisions', 'SELECT, INSERT'),
             ('loyalty_entries', 'SELECT, INSERT'),
+            ('loyalty_reward_revisions', 'SELECT, INSERT'),
+            ('loyalty_reward_redemptions', 'SELECT, INSERT'),
+            ('loyalty_enrollment_policies', 'SELECT, INSERT'),
+            ('loyalty_members', 'SELECT, INSERT'),
             ('crm_followup_policies', 'SELECT, INSERT'),
             ('crm_followup_tasks', 'SELECT, INSERT'),
             ('messaging_channel_bindings', 'SELECT'),
@@ -238,7 +242,7 @@ DO $$ BEGIN
                       updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app;
     END IF;
     IF to_regclass('public.crm_catalog_requests') IS NOT NULL THEN
-        GRANT UPDATE(status, customer_id, opportunity_id, version, resolved_at)
+        GRANT UPDATE(status, customer_id, opportunity_id, customer_order_id, version, resolved_at)
             ON crm_catalog_requests TO kova_app;
         GRANT UPDATE(enabled, review_delay_days, rebuy_delay_days, version,
                      authorized_by_user_id, enabled_since, updated_at)

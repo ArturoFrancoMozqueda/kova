@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,7 @@ export function EmployeeBranchAccess() {
       setSaved("Acceso por sucursal actualizado.");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No pudimos guardar el acceso.",
+        resolveUserFacingError(err, "No pudimos guardar el acceso."),
       );
     } finally {
       setBusy("");

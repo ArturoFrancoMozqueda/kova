@@ -77,7 +77,7 @@ test("sync queue view shows empty state when no offline sales exist", async ({ p
   );
 
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ventas pendientes", exact: true, level: 1 })).toBeVisible();
   await expect(page.getByText(/sin ventas pendientes o fallidas/i)).toBeVisible();
 });
 
@@ -274,7 +274,7 @@ test("network-error sale remains recoverable and clears on retry", async ({
 
   // Open the queue while the worker is eligible to retry in the background.
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ventas pendientes", exact: true, level: 1 })).toBeVisible();
 
   // The first worker may still be unwinding when the queue view appears. Retry
   // the explicit action until that lease is released, or until the scheduled
@@ -366,7 +366,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   // rather than restore a cart that can record the same paid sale again.
   await expect(page.getByRole("alert")).toHaveText(/la venta sigue guardada en este dispositivo y requiere revisión/i);
   await expect(page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /ver cola/i }).first()).toHaveAttribute("href", "/sync-queue");
+  await expect(page.getByRole("link", { name: /revisar ventas pendientes/i }).first()).toHaveAttribute("href", "/sync-queue");
   await expect.poll(readStoredSales).toEqual([{
     client_uuid: capturedClientUuid,
     status: "failed",
@@ -379,7 +379,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 
   // Navigate to sync queue — should show Failed section
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ventas pendientes", exact: true, level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: /^fallidas$/i })).toBeVisible();
 
   // Retry the dead-letter entry — second sync call succeeds

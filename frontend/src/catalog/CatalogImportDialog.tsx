@@ -3,13 +3,14 @@ import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload }
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { apiErrorDetailText, apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
+import { apiErrorDetailText, apiErrorStatus, resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { copy } from "../i18n/messages";
 import { catalogImportTemplateUrl, commitCatalogImport, previewCatalogImport } from "./api";
 import type { CatalogImportResponse } from "./types";
 import { useOptionalAuth } from "../auth/useAuth";
 import { catalogImportFingerprint } from "./importFingerprint";
+import { catalogImportFeedback } from "./importFeedback";
 
 type Props = {
   open: boolean;
@@ -98,7 +99,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
         ? apiErrorDetailText(cause)
         : null;
-      setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importPreviewError));
+      setError(resolveApiErrorMessage(cause, safeUserMessage(detail, copy.catalog.importPreviewError)));
     } finally {
       if (version === requestVersion.current) {
         requestPending.current = false;
@@ -138,7 +139,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
         ? apiErrorDetailText(cause)
         : null;
-      setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importCommitError));
+      setError(resolveApiErrorMessage(cause, safeUserMessage(detail, copy.catalog.importCommitError)));
     } finally {
       if (version === requestVersion.current) {
         requestPending.current = false;
@@ -239,7 +240,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
                   </div>
                   {row.errors.length > 0 && (
                     <ul className="mt-2 space-y-1 text-xs text-destructive-strong">
-                      {row.errors.map((message) => <li key={message}>• {message}</li>)}
+                      {row.errors.map((message, index) => <li key={`${index}:${message}`}>• {catalogImportFeedback(message)}</li>)}
                     </ul>
                   )}
                 </div>

@@ -49,10 +49,21 @@ test("signup keeps a neutral recovery screen when auto-login is rate limited", a
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ status: 429, body: "Too many requests" });
   });
+  const verificationRequests: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/api/v1/auth/verify")) verificationRequests.push(request.url());
+  });
+
   await page.goto("/signup");
   await fillSignupForm(page);
   await expect(page.getByRole("status").filter({ hasText: /Solicitud recibida/i })).toBeVisible();
+  const resend = page.getByRole("button", { name: /^Reenviar en \d+s$/i });
+  await expect(resend).toBeVisible();
+  await expect(resend).toBeDisabled();
   await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveCount(0);
+  await expect(page.getByText("verify-token-1", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^verificar correo$/i })).toHaveCount(0);
+  expect(verificationRequests).toEqual([]);
   await page.getByRole("link", { name: /¿Olvidaste tu contraseña/i }).click();
   await expect(page).toHaveURL("/forgot-password");
   await expect(page.getByRole("heading", { name: /Recupera tu acceso/i })).toBeVisible();

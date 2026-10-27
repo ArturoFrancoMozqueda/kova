@@ -84,6 +84,7 @@ describe("PWA update helpers", () => {
   it("defers reloads on every route that owns a form or mutation intent", () => {
     for (const path of [
       "/catalog",
+      "/catalogo/cafeteria?pedido=abierto",
       "/inventory",
       "/expenses",
       "/pedidos",

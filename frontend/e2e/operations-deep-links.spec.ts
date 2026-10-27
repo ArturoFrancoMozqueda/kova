@@ -212,6 +212,16 @@ for (const width of [320, 390, 768, 1440])
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      // The linked record and the list/empty state load independently. Audit
+      // their rendered colors after finite entrance animations have completed;
+      // measuring a partially transparent empty state produces a timing-dependent
+      // contrast value instead of the screen's final accessible appearance.
+      await page.locator("main").evaluate(async (main) => {
+        const entrances = main.getAnimations({ subtree: true }).filter((animation) =>
+          animation.effect?.getComputedTiming().iterations !== Infinity,
+        );
+        await Promise.all(entrances.map((animation) => animation.finished.catch(() => undefined)));
+      });
       await page.addScriptTag({ content: axe.source });
       const violations = await page.evaluate(
         async () =>

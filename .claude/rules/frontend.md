@@ -28,6 +28,12 @@ Kova frontend should feel premium, fast, clear, and trustworthy.
 - Do not bypass backend or RLS with direct unsafe data access.
 - Do not hardcode production data, analytics, subscription status, or tenant IDs.
 - Do not add fake/demo data to production views.
+- Customer and merchant screens must look finished: show business names, dates, amounts and
+  useful links instead of database IDs, truncated UUIDs, internal versions or developer labels.
+  Show a loyalty QR first; reveal its card number only through an explicit manual alternative.
+  Keep operational folios, SKUs, RFCs and legally meaningful fiscal identifiers when needed.
+- Never render raw network/JSON/SQL errors or internal status codes. Use the shared public-error
+  presentation helpers and keep actionable validation, recovery and financial warnings intact.
 
 ## Shared experience
 

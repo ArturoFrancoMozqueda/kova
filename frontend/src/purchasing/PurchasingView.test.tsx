@@ -8,7 +8,7 @@ vi.mock("@/catalog/api", () => ({ listProducts: vi.fn() }));
 vi.mock("./api", () => ({ listSuppliers: vi.fn(), listPurchases: vi.fn(), createSupplier: vi.fn(), createPurchase: vi.fn(), receivePurchase: vi.fn(), cancelPurchase: vi.fn() }));
 
 import { listProducts } from "@/catalog/api";
-import { listPurchases, listSuppliers, receivePurchase, type Supplier } from "./api";
+import { listPurchases, listSuppliers, receivePurchase, createSupplier, type Supplier } from "./api";
 import type { Product } from "@/catalog/types";
 import PurchasingView from "./PurchasingView";
 
@@ -103,7 +103,9 @@ it("keeps a load failure distinct from empty results and clears it after a succe
 
 it("prioritizes existing purchases and opens setup only from the header actions", async () => {
   mount();
-  const record = await screen.findByRole("region", { name: "Compra purchase" });
+  const record = await screen.findByRole("region", { name: /^Compra de Molino ·/ });
+  expect(record).not.toHaveTextContent("purchase-1");
+  expect(record).not.toHaveTextContent("Referencia purchase");
   const prepare = screen.getByRole("button", { name: "Preparar compra" });
   const supplier = screen.getByRole("button", { name: "Nuevo proveedor" });
   expect(prepare).toHaveAttribute("aria-expanded", "false");
@@ -123,7 +125,7 @@ it("prioritizes existing purchases and opens setup only from the header actions"
 
 it("preserves supplier and purchase drafts when folding or switching setup panels", async () => {
   mount();
-  await screen.findByRole("region", { name: "Compra purchase" });
+  await screen.findByRole("region", { name: /^Compra de Molino ·/ });
   const supplier = screen.getByRole("button", { name: "Nuevo proveedor" });
   const purchase = screen.getByRole("button", { name: "Preparar compra" });
   fireEvent.click(supplier);
@@ -146,7 +148,7 @@ it("preserves supplier and purchase drafts when folding or switching setup panel
 
 it("opens the exact purchase from replenishment without receiving anything, including on a fresh mount", async () => {
   const view = mount("/purchasing?purchase_id=purchase-1");
-  const record = await screen.findByRole("region", { name: "Compra purchase" });
+  const record = await screen.findByRole("region", { name: /^Compra de Molino ·/ });
   await waitFor(() => expect(record).toHaveFocus());
   expect(screen.getByRole("status")).toHaveTextContent("Estás revisando la compra del enlace");
   expect(screen.queryByRole("button", { name: "Confirmar recepción" })).not.toBeInTheDocument();
@@ -154,14 +156,42 @@ it("opens the exact purchase from replenishment without receiving anything, incl
   view.unmount();
 
   mount("/purchasing?purchase_id=purchase-1");
-  await waitFor(() => expect(screen.getByRole("region", { name: "Compra purchase" })).toHaveFocus());
+  await waitFor(() => expect(screen.getByRole("region", { name: /^Compra de Molino ·/ })).toHaveFocus());
   expect(receivePurchase).not.toHaveBeenCalled();
 });
 
 it("does not substitute another purchase when the link is outside the loaded page or branch", async () => {
   mount("/purchasing?purchase_id=another-purchase");
   await screen.findByText(/La compra del enlace no aparece en esta página/);
-  expect(screen.getByRole("region", { name: "Compra purchase" })).not.toHaveFocus();
+  expect(screen.getByRole("region", { name: /^Compra de Molino ·/ })).not.toHaveFocus();
   expect(screen.queryByRole("button", { name: "Confirmar recepción" })).not.toBeInTheDocument();
   expect(receivePurchase).not.toHaveBeenCalled();
+});
+
+it("keeps raw network and database diagnostics out of the purchasing screen", async () => {
+  vi.mocked(listSuppliers).mockRejectedValueOnce(new TypeError("Failed to fetch https://private.invalid/api"));
+  mount();
+  expect(await screen.findByRole("alert")).not.toHaveTextContent(/Failed to fetch|private.invalid|\/api/);
+  expect(screen.getByRole("alert")).toHaveTextContent(/conexión|internet|conect/i);
+});
+
+
+it("returns to the purchase with the saved supplier selected and the full draft preserved", async () => {
+  const supplier = { id: "supplier-created", name: "Molino del Centro", contact: null, is_active: true };
+  vi.mocked(createSupplier).mockResolvedValue(supplier);
+  vi.mocked(listSuppliers).mockResolvedValue([supplier]).mockResolvedValueOnce([]);
+  mount(); await screen.findByRole("region", { name: /^Compra de Molino ·/ });
+  fireEvent.click(screen.getByRole("button", { name: "Preparar compra" }));
+  fireEvent.change(screen.getByLabelText("Unidades"), { target: { value: "8" } });
+  fireEvent.change(screen.getByLabelText("Costo unitario MXN"), { target: { value: "25.50" } });
+  fireEvent.change(screen.getByLabelText("Referencia o notas (opcional)"), { target: { value: "Entrega el viernes" } });
+  fireEvent.click(screen.getByRole("button", { name: "Registrar proveedor sin perder la compra" }));
+  fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: supplier.name } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar proveedor" }));
+  await waitFor(() => expect(screen.getByLabelText("Proveedor")).toHaveValue(supplier.id));
+  expect(screen.getByLabelText("Unidades")).toHaveValue(8);
+  expect(screen.getByLabelText("Costo unitario MXN")).toHaveValue(25.5);
+  expect(screen.getByLabelText("Referencia o notas (opcional)")).toHaveValue("Entrega el viernes");
+  expect(screen.getByRole("region", { name: "Preparar compra pendiente" })).toHaveFocus();
+  expect(createSupplier).toHaveBeenCalledWith(supplier.name, "", expect.any(String));
 });

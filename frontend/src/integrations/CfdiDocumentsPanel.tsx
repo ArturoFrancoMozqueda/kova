@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { formatDateTime, formatMoney } from "@/orders/format";
+import { resolveUserFacingError } from "@/lib/apiError";
 import {
   cancelCfdi,
   downloadCfdi,
@@ -22,6 +23,13 @@ export const documentLabels: Record<CfdiDocument["state"], string> = {
   canceled: "Cancelación confirmada",
   rejected: "Rechazado · Sin emitir",
   integrity_error: "Documento por verificar · No confirmado",
+};
+const cancellationLabels: Record<string, string> = {
+  pending: "Solicitud pendiente",
+  verifying: "Solicitud en revisión",
+  rejected: "Solicitud rechazada",
+  expired: "Solicitud vencida",
+  accepted: "Solicitud aceptada",
 };
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,11 +56,9 @@ export function CfdiDocumentsPanel({
     try {
       await action();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "No pudimos completar la operación. Consulta el estado antes de repetirla.",
-      );
+      const fallback = "No pudimos completar la operación. Consulta el estado antes de repetirla.";
+      const message = resolveUserFacingError(e, fallback);
+      setError(message === fallback ? message : `${message} Consulta el estado antes de repetirla.`);
     } finally {
       setBusy(false);
     }
@@ -131,8 +137,7 @@ export function CfdiDocumentsPanel({
                   {documentLabels[document.state]}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Venta {document.order_id.slice(0, 8)} ·{" "}
-                  {formatDateTime(document.updated_at)}
+                  Última actualización: {formatDateTime(document.updated_at)}
                 </p>
                 {document.recipient_snapshot && (
                   <p className="text-sm break-words">
@@ -146,13 +151,12 @@ export function CfdiDocumentsPanel({
                 )}
                 {document.last_error_code && (
                   <p className="text-sm text-destructive">
-                    Referencia del error: {document.last_error_code}. Consulta
-                    el estado antes de intentar otra emisión.
+                    La operación fiscal requiere revisión. Consulta el estado antes de intentar otra emisión.
                   </p>
                 )}
                 {document.cancellation_status && (
                   <p className="text-sm">
-                    Respuesta de cancelación: {document.cancellation_status}
+                    Respuesta de cancelación: {cancellationLabels[document.cancellation_status] ?? "Estado por verificar"}
                   </p>
                 )}
                 {(document.state === "unknown" ||

@@ -112,3 +112,21 @@ Archivos principales de este cierre: `.github/workflows/{ci,ci-maintenance,nativ
 `test_runtime_role_provisioning.py`, `backend/app/catalog/image_router.py`,
 `test_product_image_striped_resize.py`, `frontend/e2e/catalog.spec.ts` y el comando
 `test:integration` de `frontend/package.json`. No se cambiaron migraciones ni seeds de producto.
+
+## Integración para el PR
+
+La rama `feature/security-remediation` incorpora `origin/main` en `34b7df6e`, posterior al
+snapshot AMD64 anterior. Conserva navegación por rol, pedidos, lealtad y sus migraciones
+ya existentes en main. No añade migraciones ni cambia los gates de producción.
+
+Los conflictos se resolvieron preservando signup uniforme con entrada inmediata, recuperación
+sin tokens visibles, navegación comercial bloqueada y provisión del rol de pruebas antes de
+iniciar workers, con el lock común en postgres. La revisión cruzada no detectó gaps materiales
+en las rutas públicas nuevas de tarjeta, inscripción o seguimiento de pedidos.
+
+Sobre la integración aprobaron 168 pruebas backend focales con Python 3.12 / PostgreSQL y cuatro
+workers, 250 frontend focales, 42 recorridos browser desktop/móvil y 88 pruebas de scripts.
+También npm ci, uv --frozen, Ruff, TypeScript, ESLint focal, build/SSR/prerender, comprobación
+OpenAPI y scanner de secretos de los cambios. Las cifras completas de AMD64 de arriba
+corresponden a 459d20f6; el head integrado requiere su propia CI de PR. No se fusiona ni
+despliega al crear el PR.

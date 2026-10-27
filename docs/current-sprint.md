@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-## Correcciones de seguridad con Agent Teams — validación local y AMD64 sin despliegue
+## Correcciones de seguridad con Agent Teams — validación AMD64 y PR sin despliegue
 
 Se corrige la reconciliación de facturación para aplicar la suscripción actual de Stripe,
 con protección contra checkouts históricos, eventos de suscripciones sustituidas y carreras
@@ -30,6 +30,234 @@ El resize RGBA reduce memoria temporal conservando bytes exactos; no se afirma u
 de CPU ni se retiran los gates por la variabilidad entre runners. No hubo despliegue ni
 cambios en producción. [Cierre AMD64](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
 [Archivos, evidencia y límites](audits/KOVA-SECURITY-REMEDIATION-2026-10-26.md).
+
+La publicación del PR integra `main` posterior a esa validación, preservando navegación por rol,
+pedidos y lealtad. Las cifras AMD64 anteriores corresponden al snapshot `459d20f6`; el head
+integrado aprobó 168 pruebas backend focales, 250 frontend y 42 recorridos de navegador;
+su CI de PR valida el conjunto completo antes de una futura fusión.
+No se fusiona ni despliega por esta tarea.
+
+## Navegación visible por rol y categorías desplegables — 2026-10-27
+
+El propietario autoriza implementar, validar por navegador y publicar la navegación nueva.
+Caja, Pedidos y Ventas quedan directos y fijos, también en el pie móvil; el dueño y gerente
+conservan Panel. El resto se presenta en categorías desplegables, con apertura de la ruta
+actual y preferencias por negocio/persona/rol. Una sola opción se presenta directamente.
+Se distinguen Casos de atención y Seguimientos de postventa, sin cambiar sus rutas.
+
+La [auditoría de navegación](audits/KOVA-ROLE-NAVIGATION-2026-10-27.md) registra cambios,
+permisos, teclado, preferencias, móvil y aceptación con API/PostgreSQL reales. Se mantienen
+los filtros existentes y el alcance offline. PR #285 fusionado; release `18255a3f1834`
+publicado y aceptado en producción. Frontend/API/base/proxy coinciden, los 25 contratos
+residentes pasan y el navegador verifica accesos, desplegables, preferencias y catálogo
+restaurado sin escrituras de negocio. El primer intento se revirtió automáticamente
+tras un 429 de aceptación; el segundo pasó los mismos controles sin cambios de código.
+
+## Publicación y aceptación productiva de pedidos — 2026-10-26
+
+PR #283 fusionado y release `4ae7c8f7182d` publicado por el flujo coordinado, con reversión
+exacta capturada y verificación pública de frontend/API/base/proxy aprobada. El pedido
+PED-564580CF por $24.00 abrió automáticamente el seguimiento desde el menú productivo.
+Confirmado, preparación, listo y entregado se reflejaron sin pulsar Actualizar; notas,
+reserva, cobro vinculado y reapertura anónima se verificaron en navegador.
+
+La [aceptación productiva](audits/KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md) documenta
+la devolución manual identificada de la comprobación: neto $0.00 e inventario restituido,
+con venta y devolución conservadas. Esta aceptación no representa movimientos de fondos
+externos ni activación de Stripe, WhatsApp, CFDI o hardware físico.
+
+## Revisión para dueños, operadores y cajeros — 2026-10-26
+
+Se amplía la revisión a los recorridos diarios: panel/horas con ventas reales, inventario
+disponible frente a reservado, primera configuración de Agenda, proveedor dentro de la compra,
+prerrequisitos de reposición y lenguaje comprensible en operación, WhatsApp y suscripción.
+La descripción del gerente coincide con el permiso de empleados exclusivo del propietario.
+Se mantienen contratos financieros, permisos, cookies, RLS y sincronización.
+
+La [auditoría por rol](audits/KOVA-ROLE-UX-REVIEW-2026-10-26.md) registra pantallas productivas
+revisadas, cambios y aceptación con frontend/API/PostgreSQL reales: 20 recorridos y cuatro
+recorridos adicionales de propietario, gerente, cajero y colaborador. Backend completo:
+2,232 pruebas y seis subpruebas aprobadas. Frontend completo: 1,660 pruebas; navegador sobre
+build: 332 escenarios aprobados. Build, lint, contrato API y bundle aprobados. La publicación
+y aceptación posteriores están documentadas en la sección productiva anterior.
+
+## Continuidad de pedidos y revisión de operación — 2026-10-26
+
+El dueño pide una revisión real en navegador para reducir fricción de clientes y operadores.
+Se revisa la sesión productiva existente y se implementa localmente la entrada directa al
+seguimiento al enviar, actualización cada 30 segundos, copia del enlace, alta de cliente
+sin salir de la revisión, acceso a solicitudes desde Pedidos, notas originales visibles
+al preparar y textos sobre la siguiente acción. Se conserva la restricción de cobrar antes
+de entregar, además de privacidad pública, permisos, RLS e idempotencia.
+
+La [auditoría del recorrido](audits/KOVA-ORDER-FLOW-UX-2026-10-26.md) documenta archivos,
+contrato opcional del mensaje original, evidencia, referentes y registros de QA detectados
+en producción. Validación focal: 173 pruebas frontend, 50 backend, 30 escenarios de navegador
+y tres integraciones con API/PostgreSQL reales. Publicación y aceptación posteriores
+registradas en la evidencia productiva anterior.
+
+## Presentación terminada y aceptación de producto real
+
+El propietario pide quitar referencias internas de todo Kova, no sólo de la tarjeta.
+La revisión con agentes cubre más de 200 TSX: QR como identificación principal, número manual
+desplegable, datos de negocio en lugar de UUID/versiones, errores comprensibles, recuperación
+sin tokens de desarrollo y roles traducidos. Se conservan folios/SKU/RFC/UUID fiscales útiles,
+contratos financieros, reintentos, controles de acceso y los diagnósticos privados de soporte.
+
+La [auditoría del corte](audits/KOVA-PRODUCT-PRESENTATION-2026-10-26.md) registra cambios,
+pruebas, revisión con Browser y límites de salida. No se declara GA ni publicación por una
+validación local: siguen pendientes el release final y la aceptación de Stripe live, correo,
+recuperación completa y operación comercial. Se corrigen runbooks de infraestructura retirada
+y se documenta qué comprueba realmente el smoke, sin activar servicios ni hacer cobros.
+
+## Tarjeta desde el menú y continuidad en Caja — alcance autorizado
+
+El propietario descarta Wallet y suscripciones a proveedores de pases. Autoriza una tarjeta web
+que el cliente obtenga desde el menú y un trabajo con agentes sobre el recorrido completo.
+Implementado y validado localmente; publicación y pruebas con equipos físicos pendientes:
+
+- Alta pública opcional por sucursal, desactivada hasta decisión del dueño. Requiere programa
+  de puntos autorizado y menú publicado; no configura tasas ni beneficios automáticamente.
+- Tarjeta personal nueva desde el menú, saldo y recompensa reales. No busca ni recupera un
+  cliente existente por nombre/teléfono no verificados. Acceso de dispositivo mediante cookie
+  HttpOnly separada del comercio, consentimiento explícito, CSRF, caducidad y revocación.
+- Código de socio que sirve para identificar al cliente en Caja autenticada, sin conceder
+  consulta pública ni servir como contraseña. Cliente asociado visible durante el cobro.
+- Navegación descubre tarjetas, recompensas y menú QR dentro de los permisos existentes.
+- Pedidos distingue error de inventario de productos agotados y reintenta sin perder el borrador;
+  Lealtad descarta resultados anteriores al cambiar una búsqueda de clientes.
+
+Se conservan el enlace privado emitido por el dueño, contratos de venta/offline, RLS y billing.
+Wallet, NFC, proveedores nuevos y recuperación automática entre dispositivos quedan fuera.
+La comprobación usa datos de prueba locales; no cambia configuración ni datos productivos.
+
+Contrato: [alta pública por dispositivo](../specs/loyalty/public_enrollment.md). El dueño permite
+altas desde Lealtad sin activar automáticamente tasas ni beneficios. El cliente elige un alias y
+acepta crear su tarjeta; una cookie HttpOnly por programa conserva su acceso durante 180 días.
+La tarjeta mantiene el formato compacto, muestra saldo real, avance hasta la meta y beneficio
+disponible, y despliega un QR PNG generado localmente con su código de socio. Ese código sólo
+identifica al cliente ante personal autenticado; no permite consultar puntos públicamente.
+
+Abrir la tarjeta en otra pestaña conserva cantidades y formulario del menú. Recargar tras una
+respuesta incierta recupera la misma alta: sessionStorage sólo guarda la clave de operación,
+nunca cookies, grants, nombre ni una credencial de sesión. Sin almacenamiento funcional se bloquea
+el envío antes de crear una ficha. Pausar altas conserva el acceso de los miembros vigentes;
+revocación de cliente/autorizante, billing, expiración y aislamiento de sucursal siguen vigentes.
+La proyección pausa la acumulación si su autorizante pierde acceso, sin editar puntos históricos.
+
+Archivos principales: `backend/app/loyalty/enrollment*.py`, migración 0098, modelos/contratos,
+catálogo, grants y lifecycle; `frontend/src/loyaltyCard`, `loyalty/LoyaltyView`, identificación y
+resumen de cliente en `register`, menú, búsqueda de navegación y captura de Pedidos.
+
+Validación final: 1,566 unitarias frontend y 2,186 backend (más seis subtests) aprobadas; backend
+completo en base nueva y aislada. Setenta focales de API y cinco de migración/RLS verifican
+concurrencia real, CSRF comercial/público, origen estricto, cookies, revocación y export/purga.
+La pasada completa del build aprobó 331 recorridos de navegador; veinte integraciones se omiten
+en preview. Cuatro integraciones reales se ejecutaron aparte: tarjeta emitida por dueño,
+alta desde menú y compra/canje, recompensa con devolución y pedido hasta entrega. Las otras
+dieciséis integraciones no se repitieron. Tras acotar el texto de avance a su meta se revalidaron
+23 recorridos focales sobre el build final a 320/390/768/1440 px, con teclado y axe incluyendo
+el diálogo público. El selector de estado del test de recompensa se limita a su propia región
+porque la búsqueda de clientes ahora anuncia su carga; conserva la expectativa financiera.
+
+El E2E nuevo sin interceptar APIs conserva un solo cliente, dos ventas ($125.50 y $100.50),
+un canje de ocho puntos por $25 y acumulaciones de 10 y 8 puntos. Browser completa otra alta
+real local desde el menú, confirma el pedido conservado y revisa código/QR sin desbordamiento.
+TypeScript, ESLint, Ruff, build/SSR/prerender, OpenAPI y bundle sin secretos aprobados.
+No se acredita lectura de QR con hardware físico, recuperación entre dispositivos ni publicación.
+
+## Continuación autorizada — pedido directo, seguimiento y recompensa en caja
+
+El propietario aprobó la tarjeta pulida y pidió continuar con el resto del recorrido.
+Los siguientes cortes están implementados y validados localmente; publicación y aceptación
+en dispositivos físicos siguen pendientes:
+
+- Solicitud estructurada del menú, revisión de precios/stock y aceptación idempotente en Pedidos,
+  sin recaptura ni paso obligatorio por oportunidad/cotización. Consultas anteriores conservan
+  su flujo. Contrato: [aceptación y seguimiento](../specs/storefront/order_acceptance_tracking.md).
+- Seguimiento público privado de esa solicitud/pedido, desde recepción hasta entrega o cancelación,
+  con capability de lectura propia y sin contactos, historial privado ni cobros inferidos.
+- Beneficio de lealtad definido explícitamente por el dueño y cumplido en caja, con puntos y venta
+  atómicos, idempotencia, permisos y reversas verificadas. Contrato:
+  [recompensas en POS](../specs/loyalty/pos_rewards.md). No se asignan tasas ni beneficios a un negocio
+  sin decisión de su dueño. La venta offline anterior conserva su contrato.
+- Análisis abre el producto exacto para completar un costo faltante, con el permiso de edición
+  existente. No cambia costos históricos ni métricas: [contrato](../specs/reports/missing_cost_review.md).
+
+La comprobación usa PostgreSQL y API locales, además de UI responsive y seguridad. Las migraciones
+son aditivas, con RLS, propiedad, exportación y purga. Este alcance no activa un proveedor de pagos,
+WhatsApp, timbrado fiscal ni Wallet; sus gates y aceptación externa conservan su vigencia.
+
+Tres E2E nuevos usan API/PostgreSQL reales y rol runtime con RLS: venta y tarjeta de 10 puntos;
+venta de $125.50, beneficio explícito de 8 puntos/$25, cobro de $100.50, replay y devolución;
+y solicitud de dos productos de $45, revisión con cliente, reserva, cobro y entrega de $90.
+El último conserva una sola venta/pedido y stock 5→3, con seguimiento anónimo entregado.
+La recuperación incierta conserva cuerpo/clave en un registro separado de la cola offline,
+bloquea editar la venta y permite reintentar tras recargar. El aviso queda visible y recibe
+foco también en móvil. El recibo conserva el beneficio aplicado y los puntos usados.
+
+Validación de cierre: 1,516 pruebas frontend y 2,167 backend (más seis subtests) aprobadas;
+backend completo en una base local nueva. Las migraciones 0065/0096/0097, concurrencia real,
+RLS, exportación y purga con dos negocios tienen comprobaciones propias aprobadas.
+ESLint, TypeScript, build/SSR/prerender, contrato OpenAPI y bundle sin secretos aprobados.
+Browser confirma tarjeta/recompensa y seguimiento con datos reales locales a 390/1440 px.
+La pasada completa del build aprueba 325 recorridos de navegador, con 19 integraciones omitidas
+por el perfil preview; las tres integraciones nuevas se ejecutaron aparte y aprobaron sobre
+API/PostgreSQL reales. Las otras 16 integraciones existentes no se repitieron en este cierre.
+El humo de producción se excluye de ese perfil local; no se acredita publicación ni proveedores.
+
+Se actualizaron expectativas de landing y dos fixtures fiscales por el retiro autorizado de
+activación/promoción, conservando precio, revisión, confirmación, idempotencia y recuperación
+de documentos existentes. El test de enlaces operativos espera que termine el fade-in antes
+de medir contraste con axe; mantiene reglas WCAG, IDs exactos, recarga y ausencia de escrituras.
+
+## Alcance disponible, menú y tarjeta digital — ejecución autorizada
+
+El propietario pidió retirar temporalmente la presentación de funciones no disponibles,
+optimizar el menú digital y construir con agentes una tarjeta de lealtad de puntos.
+Este corte incorpora la [tarjeta digital](../specs/loyalty/digital_card.md) al alcance activo:
+el dueño comparte un enlace de consulta por cliente/sucursal, con saldo y regla reales.
+El corte inicial no incorporó inscripción pública, sellos, Wallet ni canjes con descuentos POS;
+estos últimos se añaden en la continuación descrita arriba.
+
+La presentación conserva los módulos internos existentes. Se retiran el acceso general a
+Canales, la promoción de terminal bancaria y la activación fiscal sin conexión o historial.
+Las solicitudes fiscales y la recuperación de conexiones/documentos existentes se conservan.
+Bandeja describe conversaciones y borradores internos cuando no hay canal conectado;
+el centro de control reutiliza esos destinos y deja de destacar el canal ausente.
+La landing explica ventas/inventario/análisis sin prometer toda la operación automatizada.
+
+El menú conserva contratos y tres columnas móviles; agrega búsqueda por varias palabras,
+orden por precio/nombre, limpieza con foco y primera fotografía prioritaria. La tarjeta
+consulta por capability en fragmento y cuerpo POST, sin cookies, caché, contactos ni ledger
+privado. Su lectura no acumula puntos; devoluciones pendientes y saldos negativos son visibles.
+Se conservan RLS, billing, permisos y separación de sesiones, sin nuevas migraciones.
+
+Validación final integrada: 1,468 unitarias frontend, 51 pruebas backend con PostgreSQL real
+y dependencias del lockfile, Ruff, ESLint, TypeScript, build/SSR/prerender, OpenAPI y revisión
+del bundle aprobados. Treinta recorridos del build cubren menú, tarjeta, panel y SEO;
+teclado y axe en 320/390/768/1440 px, y panel hasta 1920 px. La revisión visual confirma
+filtros legibles durante su cambio, tarjeta compacta y menú visible en la primera pantalla.
+Los avisos de actualización del comercio no se muestran en menú o tarjeta públicos.
+Los cambios de expectativas de landing/SSR
+corresponden al copy solicitado, sin modificar resultados financieros ni controles de seguridad.
+
+Un E2E nuevo sin APIs interceptadas completa publicación del menú, venta UI de $125.50,
+acumulación única de 10 puntos, emisión del enlace, consulta anónima y regreso al menú.
+Usa tenant desechable, API/PostgreSQL locales y rol runtime `kova_app`; ya forma parte de
+`test:integration`. Verifica también ausencia de cookies, referrer y datos privados.
+No es una operación en producción. La revisión productiva con Browser fue de lectura y
+selección en memoria en Panel, Caja, publicación/menú, Lealtad y Análisis, sin enviar
+solicitudes, crear ventas ni cambiar políticas. La lectura confirmó que lealtad está
+desactivada y el menú público conserva un título genérico.
+
+La tarjeta prioriza identidad comercial, saldo y regreso al menú. Reglas y vigencia están
+en un desplegable; ajustes pendientes y saldos negativos permanecen visibles. La versión
+final vuelve a aprobar los 30 recorridos con API interceptada y el ciclo real de 10 puntos.
+Browser confirma la tarjeta con datos del tenant local y sin desbordamiento a 390 px.
+La publicación y aceptación de dispositivos físicos
+siguen pendientes. El [siguiente alcance de producto](sprint-planning.md#recorrido-conectado-del-cliente--2026-10-26)
+distingue lo implementado de las dependencias externas aún pendientes.
 
 ## Preparación de publicación — cierre de AbortSignal/Request
 

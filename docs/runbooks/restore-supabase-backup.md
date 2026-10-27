@@ -30,6 +30,12 @@ Supabase project provisioning, provider-schema recovery, migrations to the lates
 revision, traffic switching, or regional disaster recovery. Keep the fresh-project procedure
 below for those remaining checks and record the exact scope in the dated drill evidence.
 
+The [2026-10-10 real R2 restore evidence](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md)
+already establishes a logical restore, runtime RLS and cleanup for its recorded snapshots.
+It does not close fresh-host recovery, provider-managed schemas, latest-release migration or full
+service RTO. Keep those limits distinct in the [paid-beta gate](ops-beta-gate.md); the absence of a
+fresh-project drill must not be described as absence of any real backup restore.
+
 ---
 
 ## When to use this
@@ -203,9 +209,11 @@ psql "$RESTORE_URL" -c "select max(created_at) as latest_order from orders;"
 Cross-check the `latest_order` timestamp against the backup filename. For an active tenant, it
 should be reasonably close to the daily backup window unless there were no recent orders.
 
-Optional but recommended:
+For application-service acceptance, also verify the restored schema against the intended release,
+apply any required later migrations only on the disposable target, and re-establish the checked-in
+runtime role/grants and tenant-isolation checks. Do not serve API requests with the restore owner.
 
-1. Deploy a throwaway backend instance (locally or on a Fly preview app) pointing at `$RESTORE_URL`.
+1. Start an isolated local backend using the [existing development setup](../engineering-operations-index.md#desarrollo-local), pointing only at the disposable database with the proper runtime/migration roles. Do not create a new hosted backend or change public routing as part of this procedure.
 2. Hit `GET /health/db` and confirm it returns 200.
 3. Run a representative read query through the API (e.g., dashboard KPI endpoint).
 
@@ -214,7 +222,14 @@ Optional but recommended:
 ## Step 6 — Decide what to do with the restored project
 
 - **Drill (no incident)**: document the run in [../deployment.md](../deployment.md) under the backup table, then **delete the Supabase project** to avoid leaking PII into a long-lived clone.
-- **Recovery (real incident)**: do **not** point production traffic at the restored project until you have reconciled with the team and (a) re-pointed `DATABASE_URL` in Fly secrets, or (b) used Supabase's project migration flow. Coordinate explicitly — restoring is the easy part, swapping in is the risky part.
+- **Recovery (real incident)**: changing production database bindings or traffic is a separate,
+  explicitly approved incident procedure. The current API is the [Cloudflare resident backend](../../deploy/cloudflare-native/README.md),
+  with separate sealed `APP_DATABASE_URL` and `MIGRATION_DATABASE_URL`; Fly is retired. Review
+  schema compatibility, runtime RLS, missing provider-owned resources and the rollback plan before
+  changing any connection. The [release provider](../../frontend/scripts/cloudflare-backend-provider.mjs)
+  checks the runtime/migration binding names and uses a separate owner connection for migrations.
+  Existing release recovery restores captured application/Worker versions; it does not restore a
+  database or reverse its traffic cutover. Never replace a missing capture with guessed versions.
 
 ---
 
@@ -252,4 +267,5 @@ Record every drill execution here (store detailed evidence in restricted storage
 
 | Date (UTC) | Operator | Backup restored | RTO | RPO | RLS/read smoke | Cleanup | Notes |
 |---|---|---|---|---|---|---|---|
+| 2026-10-10 | Authorized operator | Two real R2 snapshots, revisions 0078/0079 | Logical drill only; full service RTO not established | Snapshot ages recorded; service RPO not established | Runtime RLS, payment/lot checks passed | Verified | [Dated aggregate evidence](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md); no new Supabase host, Auth/Storage/Vault or traffic recovery |
 | _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |

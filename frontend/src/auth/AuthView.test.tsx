@@ -1,3 +1,4 @@
+import { copy } from "@/i18n/messages";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -691,4 +692,27 @@ describe("AuthView signup recovery flows", () => {
     const results = await axe(container);
     expect(results.violations).toEqual([]);
   });
+});
+
+it.each(["account_created", "verification_resent"])("ignora tokens de prueba en la respuesta %s y conserva la verificación por correo", async (reason) => {
+  const devToken = "dummy-development-verification-token-do-not-display";
+  const fetchMock = mockFetch((input) => {
+    const url = String(input);
+    if (url.endsWith("/auth/signup")) return new Response(JSON.stringify({ message: "accepted", reason, dev_verification_token: devToken }), { status: reason === "account_created" ? 201 : 200 });
+    if (url.endsWith("/auth/login")) return new Response(JSON.stringify({ detail: "Invalid credentials" }), { status: 401 });
+    return new Response(JSON.stringify({ authenticated: false }), { status: 200 });
+  });
+  renderAt("/signup");
+  fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), { target: { value: "Café del Patio" } });
+  fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+  fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "S3cur3pass!" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+  // Account state and legacy response reasons must not change the public acknowledgement.
+  expect(await screen.findByRole("status")).toHaveTextContent(copy.auth.signupReceived);
+  expect(screen.queryByText(devToken)).not.toBeInTheDocument();
+  expect(screen.queryByDisplayValue(devToken)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(copy.auth.verificationToken)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: copy.auth.verifyEmail })).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/auth/verify"))).toBe(false);
 });
