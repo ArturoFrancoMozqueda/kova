@@ -2,6 +2,19 @@
 
 Last updated: 2026-10-26
 
+## Publicación y aceptación productiva de pedidos — 2026-10-26
+
+PR #283 fusionado y release `4ae7c8f7182d` publicado por el flujo coordinado, con reversión
+exacta capturada y verificación pública de frontend/API/base/proxy aprobada. El pedido
+PED-564580CF por $24.00 abrió automáticamente el seguimiento desde el menú productivo.
+Confirmado, preparación, listo y entregado se reflejaron sin pulsar Actualizar; notas,
+reserva, cobro vinculado y reapertura anónima se verificaron en navegador.
+
+La [aceptación productiva](audits/KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md) documenta
+la devolución manual identificada de la comprobación: neto $0.00 e inventario restituido,
+con venta y devolución conservadas. Esta aceptación no representa movimientos de fondos
+externos ni activación de Stripe, WhatsApp, CFDI o hardware físico.
+
 ## Revisión para dueños, operadores y cajeros — 2026-10-26
 
 Se amplía la revisión a los recorridos diarios: panel/horas con ventas reales, inventario
@@ -14,8 +27,8 @@ La [auditoría por rol](audits/KOVA-ROLE-UX-REVIEW-2026-10-26.md) registra panta
 revisadas, cambios y aceptación con frontend/API/PostgreSQL reales: 20 recorridos y cuatro
 recorridos adicionales de propietario, gerente, cajero y colaborador. Backend completo:
 2,232 pruebas y seis subpruebas aprobadas. Frontend completo: 1,660 pruebas; navegador sobre
-build: 332 escenarios aprobados. Build, lint, contrato API y bundle aprobados. Preparado
-localmente; publicación y smoke posteriores pendientes.
+build: 332 escenarios aprobados. Build, lint, contrato API y bundle aprobados. La publicación
+y aceptación posteriores están documentadas en la sección productiva anterior.
 
 ## Continuidad de pedidos y revisión de operación — 2026-10-26
 
@@ -29,7 +42,8 @@ de entregar, además de privacidad pública, permisos, RLS e idempotencia.
 La [auditoría del recorrido](audits/KOVA-ORDER-FLOW-UX-2026-10-26.md) documenta archivos,
 contrato opcional del mensaje original, evidencia, referentes y registros de QA detectados
 en producción. Validación focal: 173 pruebas frontend, 50 backend, 30 escenarios de navegador
-y tres integraciones con API/PostgreSQL reales. Publicación y smoke posteriores pendientes.
+y tres integraciones con API/PostgreSQL reales. Publicación y aceptación posteriores
+registradas en la evidencia productiva anterior.
 
 ## Presentación terminada y aceptación de producto real
 
