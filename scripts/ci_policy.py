@@ -14,18 +14,22 @@ import subprocess
 from pathlib import Path
 
 
+KEYS = ("code", "backend", "frontend", "parser", "supply")
+
+
+def _docs(path: str) -> bool:
+    return path in {"README.md", "CHANGELOG.md"} or (
+        path.startswith("docs/") and path.endswith(".md"))
+
+
 def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
     if not paths:
-        return dict(code="true", parser="true", supply="true")
+        return dict.fromkeys(KEYS, "true")
     if any(not path.startswith(("docs/", "backend/", "frontend/", "specs/", ".github/",
                                 "scripts/", ".claude/"))
            and path not in {"README.md", "CHANGELOG.md"} for path in paths):
-        return dict(code="true", parser="true", supply="true")
-    docs_only = all(
-        path in {"README.md", "CHANGELOG.md"}
-        or (path.startswith("docs/") and path.endswith(".md"))
-        for path in paths
-    )
+        return dict.fromkeys(KEYS, "true")
+    docs_only = all(_docs(path) for path in paths)
     infrastructure = any(
         path.startswith((".github/", "scripts/", "backend/scripts/"))
         or "docker" in path.lower()
@@ -36,6 +40,14 @@ def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
         path.endswith(("package.json", "package-lock.json", "pyproject.toml", "uv.lock"))
         for path in paths
     )
+    # A side may skip only when every changed path is docs or owned by the
+    # other side; shared paths (specs/, .claude/, non-Markdown docs) run both.
+    shared = main or infrastructure or dependencies or any(
+        not _docs(path) and not path.startswith(("backend/", "frontend/"))
+        for path in paths
+    )
+    backend = shared or any(path.startswith("backend/") for path in paths)
+    frontend = shared or any(path.startswith("frontend/") for path in paths)
     parser = main or infrastructure or dependencies or any(
         path.startswith(("backend/app/assistant/", "backend/assistant-parser/",
                          "frontend/src/assistant/", "backend/app/tests/test_assistant"))
@@ -43,9 +55,9 @@ def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
         for path in paths
     )
     supply = infrastructure or dependencies
-    return {key: str(value).lower() for key, value in
-            {"code": not docs_only, "parser": parser and not docs_only,
-             "supply": supply and not docs_only}.items()}
+    return {key: str(value and not docs_only).lower() for key, value in
+            {"code": True, "backend": backend, "frontend": frontend,
+             "parser": parser, "supply": supply}.items()}
 
 
 def gate_errors(policy: dict[str, str], needs: dict) -> list[str]:
@@ -53,18 +65,18 @@ def gate_errors(policy: dict[str, str], needs: dict) -> list[str]:
         "changes": True,
         "repository": True,
         "security": True,
-        "backend-integration": policy.get("code") == "true",
-        "backend-workers": policy.get("code") == "true",
-        "backend-native": policy.get("code") == "true",
-        "frontend": policy.get("code") == "true",
-        "frontend-unit": policy.get("code") == "true",
+        "backend-integration": policy.get("backend") == "true",
+        "backend-workers": policy.get("backend") == "true",
+        "backend-native": policy.get("backend") == "true",
+        "frontend": policy.get("frontend") == "true",
+        "frontend-unit": policy.get("frontend") == "true",
         "integration": policy.get("code") == "true",
-        "migrations": policy.get("code") == "true",
+        "migrations": policy.get("backend") == "true",
         "assistant-parser": policy.get("parser") == "true",
         "supply-chain": policy.get("supply") == "true",
     }
     errors = []
-    if set(policy) != {"code", "parser", "supply"} or any(
+    if set(policy) != set(KEYS) or any(
         value not in {"true", "false"} for value in policy.values()
     ):
         errors.append("missing or invalid change policy")
