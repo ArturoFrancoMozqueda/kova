@@ -439,6 +439,8 @@ it("persists an explicitly selected sale with the appointment version and preser
   fireEvent.click(await screen.findByRole("button", { name: "Vincular venta existente" }));
   expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   const select = await screen.findByLabelText("Venta que corresponde a la cita");
+  expect(select).not.toHaveTextContent(sale.id);
+  expect(select).toHaveTextContent("$450.00");
   fireEvent.change(select, { target: { value: sale.id } });
   fireEvent.click(screen.getByRole("button", { name: "Confirmar vínculo de venta" }));
   expect(await screen.findByRole("link", { name: "Ver venta y comprobante" })).toHaveAttribute("href", `/orders/${sale.id}`);

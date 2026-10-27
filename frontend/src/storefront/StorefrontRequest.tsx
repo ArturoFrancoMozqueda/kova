@@ -7,7 +7,8 @@ import {
 } from "./menu";
 import { MenuQuantity } from "./MenuQuantity";
 
-type Receipt = { receipt_id: string; status: "received" };
+type Receipt = { receipt_id: string; status: "received"; tracking_path?: string; tracking_expires_at?: string };
+class RequestFeedbackError extends Error {}
 
 export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBusy, received, onReceived, mode, setMode, onBrowse }: {
   token: string;
@@ -63,35 +64,37 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
     const fields = {
       name: name.trim(), contact: contact.trim(), message,
       product_ids: lines.map(({ product }) => product.id),
+      ...(isOrder ? { order_lines: lines.map(({ product, quantity }) => ({ product_id: product.id, quantity })), origin: origin === "onsite" ? "in_store" : "remote" } : {}),
     };
     const fingerprint = JSON.stringify(fields);
     if (command.current?.fingerprint !== fingerprint)
       command.current = { fingerprint, id: crypto.randomUUID() };
     try {
       const response = await fetch(`/api/v1/public/catalog/${encodeURIComponent(token)}/requests`, {
-        method: "POST", credentials: "omit", cache: "no-store",
+        method: "POST", credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer",
         signal: controller.current.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...fields, submission_id: command.current.id }),
       });
-      if (!response.ok) throw new Error(response.status === 429
+      if (!response.ok) throw new RequestFeedbackError(response.status === 429
         ? "Recibimos varias solicitudes. Espera un momento antes de volver a intentar."
-        : response.status === 404
+        : response.status === 404 || response.status === 410
           ? "Este menú ya no está disponible para solicitudes."
           : "No pudimos registrar tu solicitud. Revisa los datos y vuelve a intentar.");
       const result = await response.json() as Receipt;
       if (result.status !== "received" || typeof result.receipt_id !== "string" || !result.receipt_id)
-        throw new Error("No pudimos confirmar la recepción. Vuelve a intentar con los mismos datos.");
+        throw new RequestFeedbackError("No pudimos confirmar la recepción. Vuelve a intentar con los mismos datos.");
       if (!controller.current.signal.aborted) { setReceipt(result); onReceived(); }
     } catch (e) {
-      if (!controller.current.signal.aborted) setError(e instanceof Error
-        ? e.message : "No pudimos registrar tu solicitud.");
+      if (!controller.current.signal.aborted) setError(e instanceof RequestFeedbackError
+        ? e.message : "No pudimos confirmar si recibimos tu solicitud. Revisa tu conexión y vuelve a intentar con los mismos datos.");
     } finally {
       lock.current = false;
       if (!controller.current.signal.aborted) setBusy(false);
     }
   };
   const field = "mt-2 min-h-11 w-full rounded-xl border border-kova-border bg-white px-3 py-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue";
+  const trackingPath = receipt?.tracking_path && /^\/seguimiento#[A-Za-z0-9._~-]+$/.test(receipt.tracking_path) ? receipt.tracking_path : null;
 
   return <section id="mi-pedido" tabIndex={-1} aria-label="Tu pedido"
     className="scroll-mt-6 overflow-hidden rounded-3xl border border-kova-border bg-white shadow-sm">
@@ -132,10 +135,10 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
         <CheckCircle2 className="mb-3 h-7 w-7 text-kova-growth-strong" aria-hidden="true" />
         <h3 role="status" className="font-semibold">{isOrder ? "Solicitud de pedido recibida" : "Solicitud recibida"}</h3>
         <p className="mt-2 text-sm leading-relaxed">{isOrder
-          ? "El negocio recibió tu selección en Kova. Falta que la revise y acepte; te contactará con los datos que dejaste para continuar."
+          ? trackingPath ? "El negocio recibió tu selección en Kova. Falta que la revise y acepte; puedes consultar su avance desde el enlace de seguimiento." : "El negocio recibió tu selección en Kova. Falta que la revise y acepte; podrá contactarte con los datos que dejaste para continuar."
           : "El negocio recibió tu consulta en Kova y podrá responder al contacto que indicaste."}</p>
         <p className="mt-3 text-xs text-kova-muted">No se ha reservado inventario ni realizado un cobro.</p>
-        {receipt && <p className="mt-3 break-all text-xs text-kova-muted">Referencia de solicitud: {receipt.receipt_id}</p>}
+        {trackingPath && <div className="mt-4 space-y-2"><a href={trackingPath} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-kova-blue px-4 py-3 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue">Ver estado de mi solicitud</a><p className="text-xs leading-relaxed text-kova-muted">Guarda el enlace de seguimiento para consultar cuando el negocio revise y prepare tu pedido.</p></div>}
       </div> : <form className="mt-5 space-y-4 lg:mt-6 lg:space-y-5" onSubmit={event => void submit(event)}>
         <fieldset disabled={busy} className="min-w-0 space-y-4 lg:space-y-5">
           <legend className="sr-only">Datos de tu solicitud</legend>

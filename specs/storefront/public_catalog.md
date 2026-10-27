@@ -44,6 +44,17 @@ La API también impide reemplazar el enlace, sin reactivar rutas retiradas hist�
 acentos por nombre/descripción y filtro de disponibilidad. Los productos agotados se muestran,
 pero no pueden agregarse. No se inventan categorías, fotografías, horarios ni formas de entrega.
 
+Optimización del 2026-10-26: la búsqueda admite varias palabras en cualquier orden, repartidas
+entre nombre y descripción, sin distinguir acentos, mayúsculas ni espacios repetidos. Todas las
+palabras deben coincidir. El contador anuncia cuántos productos cumplen la búsqueda/filtro sobre
+el total publicado; limpiar o Escape conserva foco y selección. El control compacto «Ordenar menú»
+permite orden del negocio (predeterminado), precio ascendente/descendente y nombre es-MX. Ordenar
+sólo cambia la exploración, nunca el catálogo fuente, cantidades, subtotal o contenido de la
+solicitud. La primera fotografía tiene carga prioritaria; las restantes conservan carga diferida.
+No agrega lecturas de APIs privadas, categorías inferidas ni recomendaciones de productos ficticias.
+Los filtros cambian fondo y texto a la vez para conservar contraste durante la selección;
+las transiciones de presión y foco se conservan sin fundir ambos colores a gris.
+
 El visitante puede armar una solicitud de pedido con cantidades (1–99 por producto, hasta 20
 productos distintos), revisar un subtotal estimado en MXN e indicar si pide a distancia o está
 en el negocio. Puede añadir notas, por ejemplo una referencia de mesa; esto no administra mesas.
@@ -64,17 +75,28 @@ El formulario no ocupa espacio en la exploración:
 «Hacer una consulta» abre directamente la modalidad de consulta, también con menú vacío.
 En escritorio el resumen sigue visible junto al menú. La navegación entre vistas no envía datos.
 
-El envío usa el contrato existente `POST /api/v1/public/catalog/{token}/requests`, sin cookies:
+El envío usa `POST /api/v1/public/catalog/{token}/requests`, sin cookies:
 nombre, contacto, IDs de productos, UUID de envío y mensaje legible con cantidades, origen,
-subtotal estimado y notas. No se agregan campos ni se cambia el esquema de datos. El mensaje
+subtotal estimado y notas. Las solicitudes de pedido añaden `order_lines` con IDs/cantidades y
+`origin` (`remote` o `in_store`); las consultas conservan el contrato legado sin esos campos.
+El servidor valida y conserva los renglones; el mensaje no se interpreta para crear pedidos. El mensaje
 completo respeta el límite de 1,000 caracteres: si lo supera se bloquea el envío sin truncarlo.
 Las consultas generales siguen disponibles mediante «Solo consultar», incluso con menú vacío.
 
 El equipo recibe el detalle en `/commercial-requests` y conserva la revisión y vinculación
-explícitas de cliente antes de continuar como oportunidad. **Una solicitud de pedido no crea
+explícitas de cliente. Una solicitud estructurada permite revisar productos/precios vigentes y crear
+un pedido nuevo con confirmación explícita, sin recapturar cantidades ni pasar por CRM/cotización.
+El fingerprint de revisión impide aceptar precios distintos a los revisados. El pedido creado queda
+pendiente de confirmar desde Pedidos y todavía no reserva inventario ni cobra. Las consultas y
+solicitudes legadas conservan la conversión a oportunidad.
+**Una solicitud de pedido no crea
 automáticamente una orden en Pedidos, reserva, venta, pago ni consentimiento de campañas.**
-La recepción muestra la referencia de solicitud y aclara que falta aceptación del negocio.
-No equivale a un flujo de aceptación, preparación o cobro integrado al menú.
+La recepción muestra la referencia y, sólo si lo devuelve el backend, un enlace privado de
+seguimiento `/seguimiento#capability`. La vista consulta mediante POST sin cookies/caché/referrer,
+no expone contacto, IDs privados ni pagos, y distingue recepción, registro pendiente de confirmar,
+confirmación, preparación, listo, entrega, cancelación y descarte. El total es desconocido hasta
+registrar el pedido. La lectura informa cambios registrados por el equipo, no confirma un cobro.
+Contratos y límites: [aceptación y seguimiento](order_acceptance_tracking.md).
 
 El reintento del mismo contenido conserva el UUID tras errores de red; editar el contenido
 genera otro. El envío bloquea ediciones concurrentes y doble clic. Cambiar de catálogo aborta
@@ -84,6 +106,10 @@ en memoria mientras la página siga abierta, se informa al visitante y se bloque
 El enlace al WhatsApp elegido permanece como consulta secundaria. Abrir WhatsApp no envía la
 solicitud a Kova y no declara integración con WhatsApp Cloud API. `checkout_available` sigue en
 `false`; no hay cobro público ni confirmación automática de inventario.
+
+El menú público no inicia la precarga de la PWA del comercio ni muestra avisos de actualización
+de Caja. Si el visitante ya tiene el Worker instalado, las API continúan sin caché y la ruta
+pública queda fuera del fallback offline; la selección sólo se conserva en la página abierta.
 
 ## Aceptación y QA
 

@@ -10,6 +10,7 @@ import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatPurchaseTotal } from "@/purchasing/formatPurchaseTotal";
 import type { Purchase } from "@/purchasing/api";
+import { resolveUserFacingError } from "@/lib/apiError";
 
 type Suggestion = { product_id: string; product_name: string; available_quantity: number; reserved_quantity: number; incoming_quantity: number; low_stock_threshold: number; suggested_quantity: number; unit_cost: string | null; evidence_version: string };
 type Supplier = { id: string; name: string };
@@ -42,7 +43,7 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       if (!alive.current) return;
       setRows(suggestions.map(row => ({ ...row, selected: row.suggested_quantity > 0 && row.unit_cost !== null, quantity: String(row.suggested_quantity), cost: row.unit_cost ?? "" })));
       setSuppliers(providers); setReviewing(false); key.current = null; setError("");
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos consultar la reposición."); }
+    } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos consultar la reposición. Revisa los datos actuales e intenta de nuevo.")); }
     finally { if (alive.current) setLoading(false); }
   }, [request]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [load]);
@@ -59,7 +60,7 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     try {
       const purchase = await request<Purchase>("/replenishment/approve-purchase", "POST", { supplier_id: supplier, items: selected.map(row => ({ product_id: row.product_id, quantity: Number(row.quantity), unit_cost: row.cost, evidence_version: row.evidence_version })) }, key.current);
       if (alive.current) { await load(); if (alive.current) { setCreatedPurchaseId(purchase.id); setNotice("Compra pendiente creada. Revisa su recepción en Compras cuando llegue la mercancía."); } }
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos crear la compra."); }
+    } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos crear la compra. Revisa las cantidades y el proveedor.")); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
   return <ViewLayout className="space-y-6">

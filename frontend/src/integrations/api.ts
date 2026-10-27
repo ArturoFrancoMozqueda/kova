@@ -31,6 +31,9 @@ export type InvoiceRequest = {
   fiscal_status: "not_issued";
   created_at: string;
 };
+class IntegrationRequestError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/v1/integrations/${path}`, {
     ...init,
@@ -42,10 +45,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(
+    throw new IntegrationRequestError(
       typeof data?.detail === "string"
         ? data.detail
         : "Revisa los datos e inténtalo de nuevo.",
+      response.status,
     );
   }
   return response.json() as Promise<T>;

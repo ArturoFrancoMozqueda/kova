@@ -41,6 +41,18 @@ message or change POS data. Source and local validation are recorded in the
 [customer service delivery](../audits/KOVA-SERVICE-CASES-2026-10-19.md); release acceptance remains
 separate from implementation, and the full E2E roadmap is not declared complete.
 
+The 2026-10-26 scope adds an owner-issued [digital points card](../../specs/loyalty/digital_card.md)
+for the customer to read their actual balance and return to the published menu. It is locally
+validated, with production acceptance pending. The authorized continuation adds reviewed menu intake
+directly into operational orders, private customer tracking, and owner-defined POS rewards with
+atomic checkout and refund restoration. Missing-cost analysis opens the exact catalog record;
+historical financial snapshots remain unchanged. The owner then excluded Wallet and paid pass
+providers and authorized device-based web cards from the menu. Enrollment is owner opt-in,
+creates a new customer with an alias, and uses a separate HttpOnly cookie. A public member code/QR
+identifies the customer only in authenticated POS; it cannot authenticate a public balance lookup.
+Verified-contact recovery across devices and external provider acceptance remain future work.
+Current validation and availability live in the active sprint.
+
 ## Target user
 
 The main user is a small or medium business owner in Mexico. They may not be technical. They need clear flows, trustworthy data, and a product that feels professional.
@@ -56,6 +68,12 @@ The product should feel:
 - Fast.
 - Worth paying for.
 - Simple without feeling basic.
+
+The owner explicitly requires a finished product throughout Kova: no database UUIDs, technical
+versions, raw exceptions or implementation labels in ordinary customer/merchant screens.
+Prefer business context and record links. A card presents its QR; its number is an explicit
+manual alternative. Preserve useful folios, SKU, RFC and fiscal identifiers, and honest billing,
+connection and payment states. Diagnostics belong in protected support/operations context.
 
 ## Copy voice
 

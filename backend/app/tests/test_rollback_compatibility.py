@@ -1,7 +1,8 @@
-"""Old application readers and reversals remain safe with the forward data contract.
+"""Bridge readers remain safe while the full release restores real reward points.
 
-Test-only SQL represents the additive 0096–0098 projections. No forward migration
-or feature route is shipped by this bridge. DDL rolls back with the test fixture.
+Reuse the complete migrated 0098 schema in the full release. The conditional SQL
+also preserves the bridge's original pre-migration projection coverage. The legacy
+helper blocks unsupported reversals; the full financial API performs restitution.
 """
 
 import io
@@ -32,6 +33,13 @@ pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 @pytest.fixture
 def forward_schema(db):
+    existing = [
+        db.scalar(text("SELECT to_regclass(:table)"), {"table": f"public.{table}"}) is not None
+        for table in lifecycle._COMPAT_DELETE_ORDER
+    ]
+    if any(existing):
+        assert all(existing), "The forward ownership graph must be complete"
+        return db
     # Only schema fields consumed by bridge readers/tooling are represented.
     # Child FKs deliberately enforce the future purge dependency order.
     ddl = """
@@ -167,7 +175,7 @@ def reward(db, tenant, user, customer, order):
     db.commit()
 
 
-def test_reward_return_and_accepted_are_readable_without_new_feature_routes(
+def test_reward_return_and_accepted_are_readable_and_unknown_menu_stays_private(
     client, db, forward_schema
 ):
     tenant, user, customer, order = sale(client, db)
@@ -203,32 +211,27 @@ def test_reward_return_and_accepted_are_readable_without_new_feature_routes(
         created_at=datetime.now(UTC),
     )
     assert request_response(row)["status"] == "accepted"
+    # Full release has this route; a nonexistent menu must still disclose nothing.
     assert client.get("/api/v1/public/loyalty/membership?menu=none").status_code == 404
 
 
 @pytest.mark.parametrize("operation", ["refunds", "void"])
-def test_reward_sale_reversal_is_blocked_before_money_stock_or_points_change(
+def test_legacy_guard_blocks_but_full_reversal_restores_real_reward_once(
     client, db, forward_schema, operation
 ):
-    tenant, user, customer, order = sale(client, db, operation)
-    reward(db, tenant, user, customer, order)
-    body = (
-        {"reason": "operator_error"}
-        if operation == "void"
-        else {
-            "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
-            "reason": "customer_return",
-            "refund_payment_method": "cash",
-        }
-    )
-    result = client.post(
-        f"/api/v1/orders/{order['id']}/{operation}",
-        json=body,
-        headers={"Idempotency-Key": str(uuid4())},
-    )
-    assert result.status_code == 409, result.text
-    assert "restituir los puntos" in result.json()["detail"]
-    assert db.get(Order, UUID(order["id"])).status == "completed"
+    from app.tests.test_loyalty_rewards import checkout, checkout_body, program
+
+    # This is an actual reward checkout: 50 gross - 10 reward = 40 paid,
+    # against the program's ten earned points. Never synthesize financial effects.
+    tenant, customer, product, benefit = program(client)
+    response = checkout(client, checkout_body(customer, product, benefit))
+    assert response.status_code == 201, response.text
+    order = response.json()
+    assert order["total_amount"] == "40.00"
+    with pytest.raises(HTTPException) as blocked:
+        guard_reward_reversal(db, tenant_id=tenant, order=db.get(Order, UUID(order["id"])))
+    assert blocked.value.status_code == 409
+    assert "restituir los puntos" in blocked.value.detail
     for table in ("refunds", "voids"):
         assert (
             db.scalar(
@@ -236,12 +239,35 @@ def test_reward_sale_reversal_is_blocked_before_money_stock_or_points_change(
             )
             == 0
         )
+    assert db.query(LoyaltyEntry).filter_by(tenant_id=tenant, kind="reward_return").count() == 0
+    body = (
+        {"reason": "operator_error"}
+        if operation == "void"
+        else {
+            "items": [{"order_item_id": order["items"][0]["id"], "quantity": 2}],
+            "reason": "customer_return",
+            "refund_payment_method": "cash",
+        }
+    )
+    headers = {"Idempotency-Key": str(uuid4())}
+    result = client.post(f"/api/v1/orders/{order['id']}/{operation}", json=body, headers=headers)
+    assert result.status_code == 201, result.text
+    if operation == "refunds":
+        assert result.json()["refunded_amount"] == "40.00"
+    replay = client.post(f"/api/v1/orders/{order['id']}/{operation}", json=body, headers=headers)
+    assert replay.status_code == 201 and replay.json() == result.json()
+    db.expire_all()
+    assert db.get(Order, UUID(order["id"])).status == (
+        "voided" if operation == "void" else "completed"
+    )
+    returned = db.query(LoyaltyEntry).filter_by(tenant_id=tenant, kind="reward_return").all()
+    assert len(returned) == 1 and returned[0].points == 5
     assert (
         db.scalar(
             text("SELECT sum(points) FROM loyalty_entries WHERE tenant_id=:tenant"),
             {"tenant": tenant},
         )
-        == -8
+        == 10
     )
 
 
@@ -273,6 +299,7 @@ def test_compatibility_export_and_purge_preserve_private_credentials_and_unknown
     reward(db, tenant, user, customer, order)
     archive = lifecycle.build_account_export(db, tenant_id=tenant)
     with zipfile.ZipFile(io.BytesIO(archive.read())) as zip_file:
+        assert len(zip_file.namelist()) == len(set(zip_file.namelist()))
         manifest = json.loads(zip_file.read("manifest.json"))
         assert all(name in manifest["tables"] for name in lifecycle._COMPAT_DELETE_ORDER)
         members = zip_file.read("datos/loyalty_members.csv").decode()
@@ -280,6 +307,12 @@ def test_compatibility_export_and_purge_preserve_private_credentials_and_unknown
         assert "private-" not in members and "credential_hash" not in members
         requests = zip_file.read("datos/crm_catalog_requests.csv").decode()
         assert "order_lines" in requests and "customer_order_id" in requests
+        import csv
+
+        for name in zip_file.namelist():
+            if name.endswith(".csv"):
+                columns = next(csv.reader(io.StringIO(zip_file.read(name).decode())))
+                assert len(columns) == len(set(columns)), name
     request = AccountDeletionRequest(
         tenant_id=tenant,
         requested_by_user_id=user,
@@ -327,7 +360,7 @@ def test_guard_is_scoped_to_tenant_and_branch_and_uses_the_locked_order(client, 
 
 
 def test_known_future_grants_stay_append_only_and_metadata_does_not_hide_inaccessible_tables(
-    db, forward_schema
+    client, db, forward_schema
 ):
     import re
     from pathlib import Path
@@ -351,16 +384,16 @@ def test_known_future_grants_stay_append_only_and_metadata_does_not_hide_inacces
                 text("SELECT has_table_privilege('kova_app',:table,:privilege)"),
                 {"table": table, "privilege": privilege},
             ) is (privilege in {"SELECT", "INSERT"})
-    tenant, foreign = uuid4(), uuid4()
-    db.execute(
-        text("INSERT INTO tenants(id,name,slug) VALUES(:id,'Scope',:slug)"),
-        {"id": tenant, "slug": str(tenant)},
-    )
+    tenant, user, _, _ = sale(client, db, "scope-grants")
+    foreign = uuid4()
     db.execute(
         text(
-            "INSERT INTO loyalty_reward_revisions(id,tenant_id,branch_id) VALUES(:id,:tenant,:tenant)"
+            "INSERT INTO loyalty_reward_revisions "
+            "(id,tenant_id,branch_id,version,enabled,title,points_cost,discount_amount,"
+            "authorized_by_user_id,effective_at) "
+            "VALUES(:id,:tenant,:tenant,1,true,'Scope',8,25,:user,now())"
         ),
-        {"id": uuid4(), "tenant": tenant},
+        {"id": uuid4(), "tenant": tenant, "user": user},
     )
     db.execute(text("SET LOCAL ROLE kova_app"))
     db.execute(text("SELECT set_config('app.tenant_id',:tenant,true)"), {"tenant": str(foreign)})
@@ -404,7 +437,7 @@ def test_guard_observes_a_redemption_committed_while_the_order_lock_is_contended
         migrated = _migrate(target, "upgrade", "head")
         assert migrated.returncode == 0, migrated.stderr
         engine = create_engine(target)
-        tenant, order_id = uuid4(), uuid4()
+        tenant, order_id, user, customer, revision, debit = (uuid4() for _ in range(6))
         with Session(engine) as setup:
             forward_schema.__wrapped__(setup)
             setup.execute(
@@ -416,6 +449,45 @@ def test_guard_observes_a_redemption_committed_while_the_order_lock_is_contended
                     "INSERT INTO orders(id,tenant_id,status,subtotal_amount,total_amount) VALUES(:id,:tenant,'completed',10,10)"
                 ),
                 {"id": order_id, "tenant": tenant},
+            )
+            # Complete forward FK graph: no nullable stand-ins for the real 0098 schema.
+            setup.execute(
+                text("INSERT INTO users(id,email,hashed_password) VALUES(:id,:email,'test-only')"),
+                {"id": user, "email": f"{user}@example.com"},
+            )
+            setup.execute(
+                text(
+                    "INSERT INTO memberships(id,tenant_id,user_id,role) VALUES(:id,:tenant,:user,'owner')"
+                ),
+                {"id": uuid4(), "tenant": tenant, "user": user},
+            )
+            setup.execute(
+                text(
+                    "INSERT INTO customers(id,tenant_id,name) VALUES(:id,:tenant,'Lock customer')"
+                ),
+                {"id": customer, "tenant": tenant},
+            )
+            setup.execute(
+                text(
+                    "INSERT INTO loyalty_reward_revisions "
+                    "(id,tenant_id,branch_id,version,enabled,title,points_cost,discount_amount,"
+                    "authorized_by_user_id,effective_at) "
+                    "VALUES(:id,:tenant,:tenant,1,true,'Lock benefit',8,1,:user,now())"
+                ),
+                {"id": revision, "tenant": tenant, "user": user},
+            )
+            setup.add(
+                LoyaltyEntry(
+                    id=debit,
+                    tenant_id=tenant,
+                    branch_id=tenant,
+                    customer_id=customer,
+                    kind="redemption",
+                    source_id=order_id,
+                    points=-8,
+                    benefit="Lock benefit",
+                    recorded_by_user_id=user,
+                )
             )
             setup.commit()
         started = Event()
@@ -441,9 +513,21 @@ def test_guard_observes_a_redemption_committed_while_the_order_lock_is_contended
             source.execute(text("SELECT id FROM orders WHERE id=:id FOR UPDATE"), {"id": order_id})
             source.execute(
                 text(
-                    "INSERT INTO loyalty_reward_redemptions(id,tenant_id,branch_id,sale_order_id) VALUES(:id,:tenant,:tenant,:sale)"
+                    "INSERT INTO loyalty_reward_redemptions "
+                    "(id,tenant_id,branch_id,customer_id,sale_order_id,reward_revision_id,"
+                    "ledger_entry_id,title,points_cost,discount_amount,created_by_user_id,created_at) "
+                    "VALUES(:id,:tenant,:tenant,:customer,:sale,:revision,:debit,"
+                    "'Lock benefit',8,1,:user,now())"
                 ),
-                {"id": uuid4(), "tenant": tenant, "sale": order_id},
+                {
+                    "id": uuid4(),
+                    "tenant": tenant,
+                    "sale": order_id,
+                    "customer": customer,
+                    "revision": revision,
+                    "debit": debit,
+                    "user": user,
+                },
             )
             thread = Thread(target=worker)
             thread.start()
@@ -475,9 +559,14 @@ def test_guard_observes_a_redemption_committed_while_the_order_lock_is_contended
         admin.close()
 
 
-def test_pre0097_order_void_remains_available_without_future_tables(client, db):
-    _, _, _, order = sale(client, db, "legacy-void")
+def test_legacy_guard_handles_absent_table_and_full_ordinary_void_remains_available(client, db):
+    tenant, _, _, order = sale(client, db, "legacy-void")
+    # Prove the old helper's pre-0097 path separately from full API behavior.
+    # Transactional rename preserves the complete graph and restores it before HTTP.
+    db.execute(text("ALTER TABLE loyalty_reward_redemptions RENAME TO test_forward_redemptions"))
     assert db.scalar(text("SELECT to_regclass('public.loyalty_reward_redemptions')")) is None
+    guard_reward_reversal(db, tenant_id=tenant, order=db.get(Order, UUID(order["id"])))
+    db.execute(text("ALTER TABLE test_forward_redemptions RENAME TO loyalty_reward_redemptions"))
     result = client.post(
         f"/api/v1/orders/{order['id']}/void",
         json={"reason": "operator_error"},

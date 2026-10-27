@@ -16,6 +16,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { resolveUserFacingError } from "@/lib/apiError";
 import type { AutomationsData, AutomationRun } from "@/automations/types";
 import type { Customer } from "@/customers/api";
 
@@ -181,9 +182,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         .catch((e: unknown) => {
           if (active)
             setMessagesError(
-              e instanceof Error
-                ? e.message
-                : "No pudimos cargar los mensajes.",
+              resolveUserFacingError(e, "No pudimos cargar los mensajes."),
             );
         });
     return () => {
@@ -279,22 +278,21 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         }
       />
       <div className="rounded-2xl border border-kova-border bg-kova-mist p-5">
-        <h2 className="font-semibold">{panel.data?.channel_status === "connected" ? "WhatsApp configurado" : "WhatsApp sin conectar"}</h2>
+        <h2 className="font-semibold">{panel.data?.channel_status === "connected" ? "WhatsApp configurado" : "Conversaciones internas"}</h2>
         <p className="mt-2 text-sm text-kova-muted">
           {panel.data?.channel_status === "connected" ? (panel.data.send_enabled
             ? "Vincula al cliente, asígnate la conversación y prepara tu respuesta. Cada envío requiere tu confirmación; la atención humana puede permanecer activada."
             : "Puedes revisar los mensajes recibidos. Los envíos de esta sucursal están pausados.") : <>
-          Puedes organizar conversaciones internas y guardar borradores. Los
-          mensajes externos aparecerán cuando el canal esté verificado. Un
-          borrador no representa contacto con el cliente.
+          Organiza notas de atención y prepara borradores para tu equipo.
+          Guardar un borrador no envía un mensaje al cliente.
           </>}
         </p>
-        <Link
+        {panel.data?.channel_status === "connected" && <Link
           className="mt-2 inline-flex min-h-11 items-center text-sm underline"
           to="/settings/channels"
         >
-          Revisar preparación del canal
-        </Link>
+          Revisar conexión del canal
+        </Link>}
       </div>
       {panel.error && (
         <ViewError
@@ -799,10 +797,11 @@ function AutomationDraft({
         onSaved();
       }
     } catch (e) {
-      if (active.current)
-        setError(
-          e instanceof Error ? e.message : "No pudimos preparar el aviso.",
-        );
+      if (active.current) {
+        const fallback = "No pudimos confirmar si se preparó el aviso. Consulta los borradores antes de repetirlo.";
+        const message = resolveUserFacingError(e, fallback);
+        setError(message === fallback ? message : `${message} Consulta los borradores antes de repetirlo.`);
+      }
     } finally {
       locked.current = false;
       if (active.current) setBusy(false);

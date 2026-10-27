@@ -15,18 +15,15 @@ export default function ForgotPasswordView() {
   useDocumentTitle(copy.documentTitles.forgotPassword);
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>("idle");
-  const [devToken, setDevToken] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (state === "submitting") return;
     setState("submitting");
-    setDevToken(null);
     // Accepted requests stay generic for existing and unknown accounts.
     // Transport/service failures need a retry; they do not reveal account state.
     try {
-      const response = await requestPasswordReset(email.trim());
-      setDevToken(response.dev_reset_token ?? null);
+      await requestPasswordReset(email.trim());
       setState("sent");
     } catch {
       setState("error");
@@ -41,19 +38,6 @@ export default function ForgotPasswordView() {
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{copy.auth.forgotPasswordSent}</span>
                 </div>
-                {devToken && (
-                  <div className="rounded-lg border border-dashed border-warning/40 bg-warning/5 px-3 py-2.5 text-xs space-y-1.5">
-                    <p className="font-semibold text-warning-foreground">{copy.auth.devResetReady}</p>
-                    <p className="break-all text-[11px] text-muted-foreground">{devToken}</p>
-                    <Link
-                      to={`/reset-password?token=${encodeURIComponent(devToken)}`}
-                      className="inline-flex items-center gap-1 font-medium text-kova-blue hover:underline"
-                    >
-                      {copy.auth.devResetOpen}
-                      <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  </div>
-                )}
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-1 text-sm font-medium text-kova-blue hover:underline"

@@ -3,14 +3,21 @@ import { allocationValid, proposeLots, type LotAllocation } from "@/inventory/lo
 import { LotQueueError, availableLots, readLocalLots, refreshLocalLots, type CachedLotStock } from "@/offline/lotStock";
 import { calculateSalePricing, cachedTaxRate, cacheTaxRate } from "./pricing";
 import { getActiveBranchId } from "@/branches/activeBranch";
+import { RewardPicker } from "@/loyalty/rewards/RewardPicker";
+import { useRewardCheckout } from "@/loyalty/rewards/useRewardCheckout";
+import type { RewardOffer } from "@/loyalty/rewards/api";
+import { useOnline } from "@/automations/workspace";
 import { useCashDrawer } from "@/hardware/useCashDrawer";
 import { DrawerActions } from "@/hardware/DrawerActions";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CustomerOrderCheckoutRegister } from "@/customerOrders/CustomerOrderCheckoutRegister";
 import { resolveActiveCustomer, type Customer } from "@/customers/api";
+import { SaleCustomerSummary } from "./SaleCustomerSummary";
+import { MemberLookup } from "./MemberLookup";
 import {
   CATALOG_CREATE_PERMISSION,
+  CUSTOMERS_VIEW_PERMISSION,
   ORDER_CREATE_PERMISSION,
   SHIFT_OPEN_PERMISSION,
   usePermission,
@@ -36,7 +43,7 @@ import type { SelectedModifier } from "./ModifierSelectionModal";
 import { getOpenShift, openShift as openShiftRequest } from "@/shifts/api";
 import type { Shift, ShiftOpenPayload } from "@/shifts/types";
 import { OpenShiftModal } from "@/shifts/OpenShiftModal";
-import { resolveApiErrorMessage } from "@/lib/apiError";
+import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -233,6 +240,7 @@ function RegularRegisterView() {
   );
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
+  const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
   const canOpenDrawer = usePermission(SHIFT_OPEN_PERMISSION);
   const { toast } = useToast();
 
@@ -240,8 +248,28 @@ function RegularRegisterView() {
   const [discount, setDiscount] = useState("0.00");
   const [taxRate, setTaxRate] = useState(() => cachedTaxRate(tenantId));
   const [customerId, setCustomerId] = useState("");
+  const customerSelectionScope = `${tenantId}:${userId}`;
+  const [customerSelection, setCustomerSelection] = useState<{ scope: string; id: string; name: string } | null>(null);
+  const online = useOnline();
+  const rewardIdentity = { tenantId: tenantId ?? "", userId, branchId: tenantId ? getActiveBranchId(tenantId, userId) : "" };
+  const rewardIdentityKey = `${rewardIdentity.tenantId}:${rewardIdentity.userId}:${rewardIdentity.branchId}:${customerId}`;
+  const [rewardChoice, setRewardChoice] = useState<{ scope: string; offer: RewardOffer } | null>(null);
+  const rewardOffer = rewardChoice?.scope === rewardIdentityKey ? rewardChoice.offer : null;
+  const selectedReward = rewardOffer?.reward ?? null;
+  const rewardCheckout = useRewardCheckout(rewardIdentity, (order) => {
+    cartGenerationRef.current += 1;
+    setCart({}); setCashTendered(""); setReference(""); setDiscount("0.00");
+    setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]);
+    setRewardChoice(null); setPendingReceipt(null); setCompletedOrder(order);
+    resetCashInteraction(); void refreshStock();
+    if (navigator.onLine && order.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount_amount) > 0)) void drawer.open("sale", "", order.id);
+    void trackFunnelEventOnce("first_sale", "first_sale_completed");
+    toast(copy.register.saleComplete, { variant: "success", srOnly: true });
+  }, () => setRewardChoice(null));
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
+  const selectedCustomerName = customerSelection?.scope === customerSelectionScope && customerSelection.id === customerId
+    ? customerSelection.name : currentIntent?.customer?.id === customerId ? currentIntent.customer.name : "";
   const clearCustomerIntent = useCallback(() => {
     setIntentParams((current) => {
       const next = new URLSearchParams(current);
@@ -253,6 +281,7 @@ function RegularRegisterView() {
   }, [setIntentParams]);
   useEffect(() => {
     setCustomerId("");
+    setCustomerSelection(null);
     setCustomerQuery("");
     setCustomers([]);
   }, [tenantId, userId]);
@@ -274,10 +303,11 @@ function RegularRegisterView() {
       if (!active) return;
       setCustomerIntent({ scope: intentScope, customer });
       setCustomerId(customer.id);
+      setCustomerSelection({ scope: `${tenantId}:${userId}`, id: customer.id, name: customer.name });
     }).catch((error: unknown) => {
       if (active) setCustomerIntent({
         scope: intentScope,
-        error: error instanceof Error ? error.message : "No pudimos confirmar el cliente. Inténtalo de nuevo.",
+        error: resolveUserFacingError(error, "No pudimos confirmar el cliente. Inténtalo de nuevo."),
       });
     });
     return () => { active = false; controller.abort(); };
@@ -308,6 +338,8 @@ function RegularRegisterView() {
   const [saleReceipt, setSaleReceipt] = useState<Receipt | null>(null);
   const activeSaleClientUuidRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const customerDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const customerSearchRef = useRef<HTMLInputElement | null>(null);
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const cashTenderedRef = useRef<HTMLInputElement | null>(null);
   const cashValidationTrackedRef = useRef(false);
@@ -328,7 +360,7 @@ function RegularRegisterView() {
       if (alive) setLotCache(cached);
       if (!navigator.onLine) return;
       try { const fresh = await refreshLocalLots(tenantId, lotBranchId); if (alive) setLotCache(fresh); }
-      catch (err) { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos actualizar los lotes."); }
+      catch (err) { if (alive) setLotError(resolveUserFacingError(err, "No pudimos actualizar los lotes.")); }
     };
     void load();
     return () => { alive = false; };
@@ -344,6 +376,16 @@ function RegularRegisterView() {
   const [skuQuery, setSkuQuery] = useState("");
   const [skuSearchPending, setSkuSearchPending] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const rewardRecoveryRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!rewardCheckout.pending) return;
+    setCartSheetOpen(false);
+    const frame = window.requestAnimationFrame(() => {
+      rewardRecoveryRef.current?.focus();
+      rewardRecoveryRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [rewardCheckout.pending]);
   const [isCartSheetModal, setIsCartSheetModal] = useState(() =>
     typeof window === "undefined" ? true : window.innerWidth < 1280,
   );
@@ -429,7 +471,9 @@ function RegularRegisterView() {
     setLotSelections({});
     setLotRefresh(value => value + 1);
     setDiscount("0.00");
+    setRewardChoice(null);
     setCustomerId("");
+    setCustomerSelection(null);
     setCustomerQuery("");
     clearCustomerIntent();
     setTaxRate(cachedTaxRate(tenantId));
@@ -461,6 +505,20 @@ function RegularRegisterView() {
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [customerQuery, tenantId]);
+
+  const selectCustomer = (customer: { id: string; name: string } | null) => {
+    if (submittingRef.current || rewardCheckout.pending || rewardCheckout.busy) return;
+    clearCustomerIntent();
+    setCustomerId(customer?.id ?? "");
+    setCustomerSelection(customer ? { scope: customerSelectionScope, ...customer } : null);
+    setRewardChoice(null);
+  };
+
+  const focusCustomerSearch = () => {
+    if (submittingRef.current || rewardCheckout.pending || rewardCheckout.busy) return;
+    if (customerDetailsRef.current) customerDetailsRef.current.open = true;
+    customerSearchRef.current?.focus();
+  };
 
   const selectPaymentMethod = useCallback((next: PaymentMethod) => {
     if (next !== paymentMethod) {
@@ -593,6 +651,7 @@ function RegularRegisterView() {
         createdAt: saleReceipt.created_at,
         items: saleReceipt.items,
         discountAmount: saleReceipt.discount_amount,
+        loyaltyReward: saleReceipt.loyalty_reward,
         taxRate: saleReceipt.tax_rate,
         taxAmount: saleReceipt.tax_amount,
         subtotalAmount: saleReceipt.subtotal_amount,
@@ -810,8 +869,8 @@ function RegularRegisterView() {
     previousCartLineCountRef.current = cartItems.length;
   }, [cartItems.length, resetCashInteraction]);
   const pricing = useMemo(() => calculateSalePricing(
-    cartItems.map((item) => moneyToCents(item.effectiveUnitPrice) * item.quantity), discount, taxRate,
-  ), [cartItems, discount, taxRate]);
+    cartItems.map((item) => moneyToCents(item.effectiveUnitPrice) * item.quantity), selectedReward?.discount_amount ?? discount, taxRate,
+  ), [cartItems, discount, taxRate, selectedReward]);
   const totalCents = pricing.total;
   const totalAmount = centsToMoney(totalCents);
   // Total units, not lines. Drives the two cart count badges (mobile sheet
@@ -880,6 +939,8 @@ function RegularRegisterView() {
     cartItems.length > 0 &&
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
     !cashBlocked &&
+    rewardCheckout.ready && !rewardCheckout.pending && !rewardCheckout.busy &&
+    (!selectedReward || (online && moneyToCents(discount) === 0)) &&
     !submitting;
   const hasCashTendered = cashTendered.trim().length > 0;
   const cashPaymentNeedsAmount =
@@ -1160,7 +1221,7 @@ function RegularRegisterView() {
     const drawerRequestedAt = Date.now();
 
     const sale = {
-      discount_amount: centsToMoney(pricing.discount),
+      discount_amount: selectedReward ? "0.00" : centsToMoney(pricing.discount),
       tax_rate: taxRate || "0.00",
       ...(customerId ? { customer_id: customerId } : {}),
       items: cartItems.map((item) => ({
@@ -1190,6 +1251,15 @@ function RegularRegisterView() {
             },
           ],
     };
+
+    if (selectedReward && rewardOffer) {
+      activeSaleClientUuidRef.current = null;
+      try {
+        const onlineSale = { ...sale, items: sale.items.map(item => ({ product_id: item.product_id, quantity: item.quantity, modifier_option_ids: item.modifier_option_ids, ...("lot_allocations" in item ? { lot_allocations: item.lot_allocations } : {}) })) };
+        await rewardCheckout.submit({ order: onlineSale, reward_id: selectedReward.id, reward_version: selectedReward.version, expected_balance: rewardOffer.balance, confirmed: true });
+      } finally { submittingRef.current = false; setSubmitting(false); }
+      return;
+    }
 
     const cashSettlement = sale.payments.reduce(
       (totals, payment) => {
@@ -1238,7 +1308,7 @@ function RegularRegisterView() {
       if (!tenantId) throw new Error("Authenticated tenant required");
       queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot, getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : ""));
     } catch (err) {
-      toast(err instanceof LotQueueError ? err.message : copy.register.saleError, "error");
+      toast(resolveApiErrorMessage(err, safeUserMessage(err instanceof LotQueueError ? err.message : undefined, copy.register.saleError)), "error");
       setLotRefresh(value => value + 1);
       submittingRef.current = false;
       setSubmitting(false);
@@ -1296,7 +1366,7 @@ function RegularRegisterView() {
       });
   };
 
-  if (loadState.status === "loading") {
+  if (loadState.status === "loading" || (!rewardCheckout.ready && !rewardCheckout.error)) {
     return (
       <ViewLayout width="wide" className="space-y-6" aria-busy="true">
         <ViewHeader title={copy.register.title} meta={copy.register.loading} />
@@ -1346,6 +1416,10 @@ function RegularRegisterView() {
         <ViewHeader title={copy.register.title} />
       </div>
       <DrawerActions drawer={drawer} canOpen={hasOpenShift === true && canOpenDrawer} />
+      {(rewardCheckout.pending || rewardCheckout.error) && <section ref={rewardRecoveryRef} tabIndex={-1} aria-label="Confirmar venta con recompensa" className="mb-4 scroll-mt-4 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm focus:outline-none">
+        {rewardCheckout.pending && <><p className="font-semibold">Hay una venta con recompensa por confirmar</p><p>Consulta su resultado antes de cobrar otra vez. Se conservaron la venta y su referencia para evitar duplicados.</p><Button type="button" disabled={rewardCheckout.busy || !online} onClick={() => void rewardCheckout.retry()}>{rewardCheckout.busy ? "Consultando…" : "Consultar resultado de la venta"}</Button></>}
+        {rewardCheckout.error && <p role="alert">{rewardCheckout.error}</p>}
+      </section>}
       {loadState.status === "ready" && loadState.fromCache && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1377,7 +1451,7 @@ function RegularRegisterView() {
             <p className="text-sm font-semibold">Venta para {currentIntent.customer.name}</p>
             <p className="text-sm text-muted-foreground">{appointmentId ? "Al terminar el cobro, vuelve a la cita para vincular esta venta." : "El cliente ya está seleccionado. Agrega lo que vas a cobrar."}</p>
           </>}
-          <Button type="button" variant="outline" size="sm" onClick={() => { clearCustomerIntent(); setCustomerId(""); }}>Continuar sin cliente</Button>
+          <Button type="button" variant="outline" size="sm" disabled={submitting || Boolean(rewardCheckout.pending) || rewardCheckout.busy} onClick={() => selectCustomer(null)}>Continuar sin cliente</Button>
         </section>
       )}
       {cartSheetOpen && (
@@ -1389,8 +1463,8 @@ function RegularRegisterView() {
       )}
 
       <fieldset
-        disabled={submitting}
-        aria-busy={submitting}
+        disabled={submitting || !rewardCheckout.ready || Boolean(rewardCheckout.pending) || rewardCheckout.busy}
+        aria-busy={submitting || rewardCheckout.busy}
         className="min-w-0 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]"
       >
         {/* Product Grid */}
@@ -1605,8 +1679,8 @@ function RegularRegisterView() {
             className="xl:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"
           >
             <span className="absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-kova-border" aria-hidden="true" />
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative shrink-0">
                 <ShoppingCart className="h-6 w-6 text-kova-ink" />
                 {cartUnitCount > 0 && (
                   // The mobile locus: with the sheet collapsed this badge is the
@@ -1619,11 +1693,12 @@ function RegularRegisterView() {
                   </span>
                 )}
               </div>
-              <span className="text-sm text-kova-muted">
-                {cartItems.length === 0 ? copy.register.cartPlaceholder : copy.register.cart}
+              <span className="min-w-0 text-left text-sm text-kova-muted">
+                <span className="block">{cartItems.length === 0 ? copy.register.cartPlaceholder : copy.register.cart}</span>
+                {customerId && selectedCustomerName && <span className="block truncate text-xs font-medium text-kova-ink">{selectedCustomerName}</span>}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <span className="text-lg font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
               <ChevronUp className={cn("h-5 w-5 text-kova-muted transition-transform", cartSheetOpen && "rotate-180")} aria-hidden="true" />
             </div>
@@ -1738,25 +1813,30 @@ function RegularRegisterView() {
           <Card className="xl:rounded-none xl:border-x-0 xl:border-b-0 xl:border-t xl:border-dashed xl:bg-[var(--ticket-paper)] xl:shadow-none">
             <form ref={formRef} onSubmit={(event) => void submitSale(event)}>
               <CardContent className="p-4 space-y-4">
-                <details className="rounded-lg border p-3">
+                {canCreateOrders && canViewCustomers && <MemberLookup identity={rewardIdentity} online={online && state.status === "authenticated" && state.sessionMode !== "offline"}
+                  disabled={submitting || !rewardCheckout.ready || Boolean(rewardCheckout.pending) || rewardCheckout.busy} onSelect={selectCustomer} />}
+                {customerId && selectedCustomerName && <SaleCustomerSummary name={selectedCustomerName} disabled={submitting || Boolean(rewardCheckout.pending) || rewardCheckout.busy}
+                  onChange={focusCustomerSearch} onClear={() => selectCustomer(null)} />}
+                <details ref={customerDetailsRef} className="rounded-lg border p-3">
                   <summary className="cursor-pointer text-sm font-medium">{copy.register.saleOptions}</summary>
                   <div className="mt-3 space-y-3">
                     <Label htmlFor="sale-customer-query">{copy.register.customerSearch}</Label>
-                    <Input id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder={copy.register.customerSearchPlaceholder} />
+                    <Input ref={customerSearchRef} id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder={copy.register.customerSearchPlaceholder} />
                     <Label htmlFor="sale-customer">{copy.register.saleCustomer}</Label>
-                    <Select id="sale-customer" value={customerId} onChange={(event) => { clearCustomerIntent(); setCustomerId(event.target.value); }}>
+                    <Select id="sale-customer" value={customerId} onChange={(event) => selectCustomer(customers.find(customer => customer.id === event.target.value) ?? (event.target.value === customerId && selectedCustomerName ? { id: customerId, name: selectedCustomerName } : null))}>
                       <option value="">{copy.register.walkInCustomer}</option>
-                      {customerId && !customers.some((customer) => customer.id === customerId) && <option value={customerId}>{currentIntent?.customer?.name ?? "Cliente seleccionado"}</option>}
+                      {customerId && !customers.some((customer) => customer.id === customerId) && <option value={customerId}>{selectedCustomerName || "Cliente seleccionado"}</option>}
                       {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
                     </Select>
                     <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
-                    <Input id="sale-discount" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} />
+                    <Input id="sale-discount" inputMode="decimal" value={discount} disabled={Boolean(selectedReward)} onChange={(event) => setDiscount(event.target.value)} />
                     <Label htmlFor="sale-tax">{copy.register.saleTax}</Label>
                     <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
                     <p className="text-xs text-muted-foreground">{copy.register.saleTaxHint}</p>
                     {!pricing.valid && <p role="alert" className="text-sm text-destructive">{copy.register.salePricingInvalid}</p>}
                   </div>
                 </details>
+                  {customerId && cartItems.length > 0 && <RewardPicker key={rewardIdentityKey} identity={rewardIdentity} customerId={customerId} subtotal={pricing.subtotal} online={online} manualDiscount={moneyToCents(discount) > 0} selected={Boolean(selectedReward)} onSelect={offer => setRewardChoice(offer ? { scope: rewardIdentityKey, offer } : null)} />}
                 {(pricing.discount > 0 || pricing.tax > 0) && <div className="text-sm space-y-1">
                   <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(centsToMoney(pricing.subtotal))}</span></div>
                   <div className="flex justify-between"><span>Descuento</span><span>−{formatMoney(centsToMoney(pricing.discount))}</span></div>
@@ -2098,7 +2178,7 @@ function RegularRegisterView() {
                   }}
                   size="xl"
                   className={cn(
-                    "w-full bg-kova-growth-strong text-white hover:bg-kova-growth-strong/90",
+                    "w-full bg-kova-growth-strong text-white hover:bg-kova-growth-strong/90 transition-[background-color,transform,box-shadow]",
                     !canSubmitSale && cashPaymentNeedsAmount && "cursor-not-allowed opacity-50",
                   )}
                   variant="default"

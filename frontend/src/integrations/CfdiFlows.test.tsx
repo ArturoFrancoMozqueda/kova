@@ -6,6 +6,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { copy } from "@/i18n/messages";
 import { CfdiPreparationPanel } from "./CfdiPreparationPanel";
 import { CfdiDocumentsPanel } from "./CfdiDocumentsPanel";
 import { CfdiPanel } from "./CfdiPanel";
@@ -264,11 +265,15 @@ describe("Preparación y emisión", () => {
     );
     expect(context.recipient.rfc).toBe(identity.rfc);
   });
-  it("retains the same idempotency key after unknown network outcome and requires explicit confirmation", async () => {
+  it.each([
+    ["unconfirmed response", new Error("Respuesta no confirmada, consulta el estado")],
+    ["malformed JSON", new SyntaxError("Unexpected token '<', invalid JSON")],
+    ["network error", new TypeError("Failed to fetch")],
+  ])("retains the same idempotency key after %s and requires explicit confirmation", async (_failure, error) => {
     const props = prepareProps();
     vi.mocked(issueCfdi)
       .mockRejectedValueOnce(
-        new Error("Respuesta no confirmada, consulta el estado"),
+        error,
       )
       .mockResolvedValueOnce(document);
     render(<CfdiPreparationPanel {...props} />);
@@ -287,8 +292,10 @@ describe("Preparación y emisión", () => {
       }),
     );
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Respuesta no confirmada",
+      error instanceof TypeError ? `${copy.errors.network} Consulta el estado antes de reintentar.`
+        : "No pudimos completar la operación. Consulta el estado antes de reintentar.",
     );
+    expect(within(dialog).getByRole("alert")).not.toHaveTextContent(/Unexpected token|invalid JSON|Failed to fetch/);
     fireEvent.click(
       within(dialog).getByRole("button", {
         name: "Confirmar envío al proveedor",
@@ -423,6 +430,21 @@ describe("Documentos y cancelación", () => {
       expect(downloadCfdi).toHaveBeenCalledWith(document.id, "xml", "test"),
     );
   });
+
+  it.each([
+    ["pending", "Solicitud pendiente"], ["verifying", "Solicitud en revisión"],
+    ["rejected", "Solicitud rechazada"], ["expired", "Solicitud vencida"],
+    ["accepted", "Solicitud aceptada"], ["PROVIDER_INTERNAL_STATUS", "Estado por verificar"],
+  ])("presents %s cancellation as human guidance without hiding the fiscal UUID", (status, label) => {
+    const orderId = "00112233-4455-4677-8899-aabbccddeeff";
+    render(<CfdiDocumentsPanel documents={[{ ...document, order_id: orderId, state: "cancel_pending", cancellation_status: status, last_error_code: "provider_environment_mismatch" }]} onDocument={vi.fn()} onRefresh={vi.fn()} />);
+    expect(screen.getByText(`Respuesta de cancelación: ${label}`)).toBeVisible();
+    expect(screen.getByText(/La operación fiscal requiere revisión/)).toBeVisible();
+    expect(screen.queryByText(/provider_environment_mismatch|PROVIDER_INTERNAL_STATUS|00112233/)).not.toBeInTheDocument();
+    expect(screen.getByText(`UUID: ${document.uuid}`)).toBeVisible();
+    expect(screen.getByText(/Cancelación pendiente de confirmación/)).toBeVisible();
+    expect(screen.queryByText("Cancelación confirmada")).not.toBeInTheDocument();
+  });
   it("requires replacement UUID for motive01 and reports pending cancellation without inventing SAT confirmation", async () => {
     vi.mocked(cancelCfdi).mockResolvedValue({
       ...document,
@@ -524,6 +546,21 @@ describe("Documentos y cancelación", () => {
 });
 
 describe("Ambientes y protección contra emisión duplicada", () => {
+  it("omits provider activation when there is no connected service or fiscal history", async () => {
+    vi.mocked(getCfdiStatus).mockResolvedValue({ ...status, connections: [] });
+    const { container } = render(<CfdiPanel requests={[]} onConnectionLabel={vi.fn()} />);
+    await waitFor(() => expect(screen.queryByText("Consultando conexión y documentos fiscales…")).not.toBeInTheDocument());
+    expect(container).toBeEmptyDOMElement();
+    expect(getManagedCfdiSetup).not.toHaveBeenCalled();
+  });
+
+  it("preserves document recovery after the fiscal connection is lost", async () => {
+    vi.mocked(getCfdiStatus).mockResolvedValue({ ...status, connections: [] });
+    vi.mocked(listCfdiDocuments).mockResolvedValue([{ ...document, state: "unknown" }]);
+    render(<CfdiPanel requests={[]} onConnectionLabel={vi.fn()} />);
+    expect(await screen.findByLabelText("Documentos CFDI")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Consultar estado con proveedor" })).toBeEnabled();
+  });
   it.each([null, "AAA010101AAA"])(
     "permits a Test organization with missing/demo RFC %s without requiring fiscal Live readiness",
     async (testRfc) => {

@@ -532,11 +532,6 @@ function FollowupCard({
       <p className="text-sm">
         Seguimiento: {new Date(row.due_at).toLocaleString("es-MX")}
       </p>
-      {row.sale_order_id && (
-        <p className="break-all text-xs text-kova-muted">
-          Venta de origen: {row.sale_order_id}
-        </p>
-      )}
       {online && (
         <nav className="flex flex-wrap gap-2" aria-label={`Registros relacionados con ${row.title}`}>
           <Link

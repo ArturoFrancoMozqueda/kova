@@ -58,6 +58,52 @@ it("loads the menu without private cookies, keeps WhatsApp secondary and does no
   expect(screen.getByRole("button", { name: "Enviar solicitud de pedido" })).toBeDisabled();
 });
 
+const memberCard = {
+  business_name: catalog.title, branch_name: "Sucursal principal", balance: 0,
+  adjustments_pending: false, policy: { enabled: true, spend_amount: "25.00", points_per_step: 2, version: 1 },
+  expires_at: "2027-01-01T00:00:00Z", catalog_path: "/catalogo/first", reward: null,
+  member_code: "KV-ABCD-EFGH-JKLM-NPQR",
+};
+
+it("obtains a personal card without navigating away or losing the current menu order", async () => {
+  let cardCreated = false;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("/membership/enroll")) { cardCreated = true; return json({ card: memberCard, card_path: "/lealtad?menu=first" }, 201); }
+    if (String(url).includes("/membership?")) return json({ available: true, enrolled: cardCreated, business_name: catalog.title,
+      branch_name: "Sucursal principal", policy: memberCard.policy, reward: null, csrf_token: "device-grant", card: cardCreated ? memberCard : null, card_path: "/lealtad?menu=first" });
+    if (init?.method === "POST") return json({ receipt_id: "receipt-1", status: "received" }, 201);
+    return json({ ...catalog, loyalty_available: true });
+  });
+  showMenu(); await addBread();
+  fireEvent.click(await screen.findByRole("button", { name: /Tu tarjeta de lealtad/ }));
+  const signup = within(screen.getByRole("dialog", { name: `Tu tarjeta en ${catalog.title}` }));
+  fireEvent.change(signup.getByLabelText("¿Cómo te llamamos?"), { target: { value: "Ana" } });
+  fireEvent.click(signup.getByRole("checkbox", { name: "Quiero crear mi tarjeta personal en este dispositivo." }));
+  fireEvent.click(signup.getByRole("button", { name: "Crear mi tarjeta" }));
+  const card = await signup.findByRole("link", { name: /Ver mi tarjeta/ });
+  expect(card).toHaveAttribute("href", "/lealtad?menu=first");
+  expect(card).toHaveAttribute("target", "_blank");
+  fireEvent.click(signup.getByRole("button", { name: "Cerrar" }));
+  expect(summary().getByText("Subtotal estimado").parentElement).toHaveTextContent("$45.00");
+  fillContact();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  await screen.findByText("Solicitud de pedido recibida");
+  const request = posts().find(([url]) => String(url).endsWith("/requests"));
+  expect(JSON.parse(String(request?.[1]?.body))).toMatchObject({ order_lines: [{ product_id: "product-1", quantity: 1 }] });
+});
+
+it("lets an existing member return from the menu when new enrollments are paused", async () => {
+  fetchMock.mockImplementation(async url => String(url).includes("/membership?")
+    ? json({ available: false, enrolled: true, business_name: catalog.title, branch_name: "Sucursal principal",
+      policy: memberCard.policy, reward: null, csrf_token: null, card: memberCard, card_path: "/lealtad?menu=first" })
+    : json({ ...catalog, loyalty_available: false }));
+  showMenu();
+  fireEvent.click(await screen.findByRole("button", { name: /Ver mi tarjeta/ }));
+  expect(await screen.findByRole("link", { name: /Ver mi tarjeta/ })).toHaveAttribute("href", "/lealtad?menu=first");
+  expect(screen.queryByLabelText("¿Cómo te llamamos?")).not.toBeInTheDocument();
+  expect(posts()).toHaveLength(0);
+});
+
 it("shows a withdrawn catalog without exposing its previous products", async () => {
   fetchMock.mockImplementation(async () => json({ detail: "Not found" }, 404));
   showMenu();
@@ -69,6 +115,18 @@ it("can retry a failed menu read", async () => {
   fetchMock.mockResolvedValueOnce(json({}, 503)).mockImplementation(async () => json(catalog));
   showMenu();
   fireEvent.click(await screen.findByRole("button", { name: "Volver a intentar" }));
+  expect(await screen.findByRole("heading", { name: "Pan de nuez" })).toBeVisible();
+});
+
+it.each(["malformed JSON", "technical network error"])("keeps a %s out of the public menu and offers a safe retry", async failure => {
+  fetchMock.mockImplementationOnce(async () => {
+    if (failure === "malformed JSON") return new Response("<html>proxy error</html>", { status: 200 });
+    throw new Error("Failed to fetch: backend postgres connection failed");
+  });
+  showMenu();
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos cargar el menú. Revisa tu conexión e intenta de nuevo.");
+  expect(screen.queryByText(/Unexpected token|Failed to fetch|postgres|proxy error/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Volver a intentar" }));
   expect(await screen.findByRole("heading", { name: "Pan de nuez" })).toBeVisible();
 });
 
@@ -122,16 +180,39 @@ it("sends quantities, origin and notes to the Kova inbox as a pending request, w
   expect(init?.credentials).toBe("omit");
   const body = JSON.parse(String(init?.body));
   expect(body).toEqual({ name: "Ana", contact: "ana@example.com", product_ids: ["product-1"],
+    order_lines: [{ product_id: "product-1", quantity: 2 }], origin: "in_store",
     submission_id: expect.any(String), message: expect.any(String) });
   expect(body.message).toContain("2 × Pan de nuez");
   expect(body.message).toContain("Origen: En el negocio");
   expect(body.message).toContain("Subtotal estimado: $90.00 MXN");
   expect(body.message).toContain("Notas: Mesa 4");
   expect(screen.getByText(/Falta que la revise y acepte/)).toBeVisible();
-  expect(screen.getByText("Referencia de solicitud: receipt-1")).toBeVisible();
+  expect(screen.queryByText(/Referencia de solicitud:|receipt-1/)).not.toBeInTheDocument();
   expect(screen.getByText("Solicitud de pedido recibida").parentElement).toHaveFocus();
   expect(menu().getByRole("button", { name: "Agregar uno de Pan de nuez" })).toBeDisabled();
   expect(screen.queryByRole("link", { name: /Ver mi pedido/ })).not.toBeInTheDocument();
+});
+
+it("offers only the tracking link actually returned for a structured order while keeping the public request anonymous", async () => {
+  fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+    ? json({ receipt_id: "receipt-track", status: "received", tracking_path: "/seguimiento#signed-capability", tracking_expires_at: "2026-11-26T12:00:00Z" }) : json(catalog));
+  showMenu(); await addBread(); fillContact();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  expect(await screen.findByRole("link", { name: "Ver estado de mi solicitud" })).toHaveAttribute("href", "/seguimiento#signed-capability");
+  const body = JSON.parse(String(posts()[0][1]?.body));
+  expect(body.order_lines).toEqual([{ product_id: "product-1", quantity: 1 }]);
+  expect(body.origin).toBe("remote");
+  expect(posts()[0][1]).toEqual(expect.objectContaining({ credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer" }));
+  expect(screen.getByText(/No se ha reservado inventario ni realizado un cobro/)).toBeVisible();
+});
+
+it("does not invent tracking when an older backend omits it or a response points outside Kova", async () => {
+  fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+    ? json({ receipt_id: "receipt-legacy", status: "received", tracking_path: "https://example.invalid/seguimiento#token" }) : json(catalog));
+  showMenu(); await addBread(); fillContact();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  await screen.findByText("Solicitud de pedido recibida");
+  expect(screen.queryByRole("link", { name: "Ver estado de mi solicitud" })).not.toBeInTheDocument();
 });
 
 it("reuses the exact request key after an uncertain network outcome and blocks double submission", async () => {
@@ -149,6 +230,39 @@ it("reuses the exact request key after an uncertain network outcome and blocks d
   await screen.findByText("Solicitud de pedido recibida");
   expect(posts()).toHaveLength(2);
   expect(posts()[0][1]?.body).toBe(posts()[1][1]?.body);
+});
+
+it.each(["malformed JSON", "technical network error"])("keeps a %s out of request feedback and retries the exact original submission", async failure => {
+  let submissions = 0;
+  fetchMock.mockImplementation(async (_url, init) => {
+    if (init?.method !== "POST") return json(catalog);
+    if (++submissions === 1) {
+      if (failure === "malformed JSON") return new Response("<html>proxy error</html>", { status: 200 });
+      throw new Error("Failed to fetch: backend postgres connection failed");
+    }
+    return json({ receipt_id: "receipt-1", status: "received" });
+  });
+  showMenu(); await addBread(); fillContact();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos confirmar si recibimos tu solicitud. Revisa tu conexión y vuelve a intentar con los mismos datos.");
+  expect(screen.queryByText(/Unexpected token|Failed to fetch|postgres|proxy error/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Solicitud de pedido recibida")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  await screen.findByText("Solicitud de pedido recibida");
+  expect(posts()).toHaveLength(2);
+  expect(posts()[0][1]?.body).toBe(posts()[1][1]?.body);
+});
+
+it.each([
+  [404, "Este menú ya no está disponible para solicitudes."],
+  [410, "Este menú ya no está disponible para solicitudes."],
+  [429, "Recibimos varias solicitudes. Espera un momento antes de volver a intentar."],
+] as const)("preserves controlled request feedback for HTTP %i", async (status, message) => {
+  fetchMock.mockImplementation(async (_url, init) => init?.method === "POST" ? json({ detail: "internal debug information" }, status) : json(catalog));
+  showMenu(); await addBread(); fillContact();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  expect(screen.queryByText("internal debug information")).not.toBeInTheDocument();
 });
 
 it("uses a new request key when the visitor edits a failed request", async () => {
@@ -271,6 +385,54 @@ it("shows an honest empty menu and still permits general questions", async () =>
   expect(screen.getByRole("button", { name: "Enviar solicitud de pedido" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Solo consultar" }));
   expect(screen.getByLabelText("¿Qué te gustaría consultar?")).toBeVisible();
+});
+
+it("searches multiple words, announces real result counts and clears without losing focus or selected products", async () => {
+  fetchMock.mockImplementation(async () => json({ ...catalog, products: [catalog.products[0], {
+    ...catalog.products[0], id: "coffee", name: "Café frío", description: "Bebida con canela",
+  }] }));
+  showMenu(); await addBread();
+  const search = screen.getByRole("searchbox", { name: "Buscar en el menú" });
+  fireEvent.change(search, { target: { value: "canela CAFE" } });
+  expect(menu().getByRole("heading", { name: "Café frío" })).toBeVisible();
+  expect(menu().getByRole("status")).toHaveTextContent("1 de 2 productos");
+  expect(summary().getByText("Pan de nuez")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda" }));
+  expect(search).toHaveFocus();
+  expect(search).toHaveValue("");
+  expect(menu().getAllByRole("article")).toHaveLength(2);
+  fireEvent.change(search, { target: { value: "inexistente" } });
+  fireEvent.keyDown(search, { key: "Escape" });
+  expect(search).toHaveFocus();
+  expect(search).toHaveValue("");
+  expect(posts()).toHaveLength(0);
+});
+
+it("orders published products by real prices and restores business order without changing the basket", async () => {
+  fetchMock.mockImplementation(async () => json({ ...catalog, products: [catalog.products[0], {
+    ...catalog.products[0], id: "coffee", name: "Café frío", price_amount: "35.50",
+  }] }));
+  showMenu(); await addBread();
+  const sort = screen.getByRole("combobox", { name: "Ordenar menú" });
+  fireEvent.change(sort, { target: { value: "price_asc" } });
+  expect(menu().getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual(["Café frío", "Pan de nuez"]);
+  expect(summary().getByText("Subtotal estimado").parentElement).toHaveTextContent("$45.00");
+  fireEvent.change(sort, { target: { value: "published" } });
+  expect(menu().getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual(["Pan de nuez", "Café frío"]);
+  expect(posts()).toHaveLength(0);
+});
+
+it("prioritizes the first menu photo and keeps remaining photographs lazy", async () => {
+  fetchMock.mockImplementation(async () => json({ ...catalog, products: [
+    { ...catalog.products[0], image_url: "/showcase/products/concha-vainilla.png" },
+    { ...catalog.products[0], id: "coffee", name: "Café frío", image_url: "/showcase/products/cold-brew.png" },
+  ] }));
+  showMenu();
+  const first = await screen.findByRole("img", { name: "Pan de nuez" });
+  expect(first).toHaveAttribute("loading", "eager");
+  expect(first).toHaveAttribute("fetchpriority", "high");
+  expect(screen.getByRole("img", { name: "Café frío" })).toHaveAttribute("loading", "lazy");
+  expect(screen.getByRole("img", { name: "Café frío" })).not.toHaveAttribute("fetchpriority");
 });
 
 it("preserves the basket offline and requires reconnection before submission", async () => {

@@ -67,6 +67,8 @@ it("shows provider setup from the backend without claiming an active connection"
   expect(
     screen.getByText(/los pasos de abajo son una guía general y no guardan avances/),
   ).toBeVisible();
+  expect(screen.getByText(/El equipo de Kova te ayuda a verificar tu número/)).toBeVisible();
+  expect(screen.queryByText(/Cloud API|dominio/)).not.toBeInTheDocument();
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/messaging/readiness");
   expect(fetchMock.mock.calls.some(([, init]) => init?.method !== "GET")).toBe(
     false,
@@ -89,15 +91,40 @@ it("consults the preparation requirements again without activating or changing a
 
 it("recovers a failed readiness check through an explicit retry", async () => {
   fetchMock.mockResolvedValueOnce(
-    json({ detail: "No disponible por el momento" }, 503),
+    json({ detail: "backend postgres connection failed" }, 503),
   );
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "No disponible por el momento",
+    "No pudimos consultar WhatsApp. Revisa tu conexión e intenta de nuevo.",
   );
+  expect(screen.queryByText(/backend|postgres/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Consultar de nuevo" }));
   expect(await screen.findByText("Sin conectar")).toBeVisible();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+});
+
+it.each(["malformed JSON", "technical network error"])("shows human feedback for a %s without changing channel capabilities", async failure => {
+  fetchMock.mockImplementationOnce(async () => {
+    if (failure === "malformed JSON") return new Response("<html>proxy error</html>", { status: 200 });
+    throw new Error("Failed to fetch: backend postgres connection failed");
+  });
+  mount();
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos consultar WhatsApp. Revisa tu conexión e intenta de nuevo.");
+  expect(screen.queryByText(/Unexpected token|Failed to fetch|postgres|proxy error/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Consultar de nuevo" }));
+  expect(await screen.findByText("Sin conectar")).toBeVisible();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+});
+
+it.each([
+  [401, "No tienes acceso a la configuración de WhatsApp. Consulta al dueño del negocio."],
+  [403, "No tienes acceso a la configuración de WhatsApp. Consulta al dueño del negocio."],
+  [429, "Espera un momento antes de volver a consultar WhatsApp."],
+] as const)("keeps actionable HTTP %i guidance without showing server details", async (status, message) => {
+  fetchMock.mockResolvedValueOnce(json({ detail: "internal debug information" }, status));
+  mount();
+  expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  expect(screen.queryByText("internal debug information")).not.toBeInTheDocument();
 });
 
 it("does not request channel preparation for a cashier", () => {

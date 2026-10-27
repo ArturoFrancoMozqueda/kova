@@ -1,3 +1,4 @@
+import { safeUserMessage } from "@/lib/apiError";
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, BarChart3, Check, Copy, FileText, Loader2, Package, ShieldCheck, Sparkles } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
@@ -107,7 +108,7 @@ export function AssistantConversation({ messages, run, busy, onCancel, empty, co
       <div className="mx-auto max-w-2xl space-y-6">
         {messages.length === 0 ? empty : messages.map(message => <Message key={message.id} message={message} compact={compact} />)}
         {run && !generating ? <div className="space-y-3">
-          {run.data.error ? <p role="alert" className="rounded-kova-md bg-kova-danger/5 p-3 text-sm text-kova-danger">{run.data.error}</p> : null}
+          {run.data.error ? <p role="alert" className="rounded-kova-md bg-kova-danger/5 p-3 text-sm text-kova-danger">{safeUserMessage(run.data.error, "No pudimos completar tu consulta. Intenta de nuevo en un momento.")}</p> : null}
           {!messages.some(message => message.data.run_id === run.id) ? <AnswerEvidence data={run.data} compact={compact} /> : null}
         </div> : null}
         {generating ? <div role="status" className="flex items-center gap-3 rounded-kova-lg bg-kova-mist/60 px-3 py-2"><Loader2 size={16} className="shrink-0 animate-spin text-kova-blue motion-reduce:animate-none" /><p className="flex-1 text-sm text-kova-muted">{run?.status === "queued" ? "Preparando tu consulta…" : "Consultando los datos de tu negocio…"}</p><Button variant="ghost" disabled={busy} className="px-2 text-xs" onClick={onCancel}>Cancelar</Button></div> : null}

@@ -4,20 +4,21 @@ import { MenuQuantity } from "./MenuQuantity";
 import { ProductPhoto } from "./ProductPhoto";
 import { menuMoney, priceInCents, type MenuProduct } from "./menu";
 
-export function MenuProductCard({ product, quantity, disabled, cannotAdd, onQuantityChange, onDetails }: {
+export function MenuProductCard({ product, quantity, disabled, cannotAdd, onQuantityChange, onDetails, priority = false }: {
   product: MenuProduct;
   quantity: number;
   disabled: boolean;
   cannotAdd: boolean;
   onQuantityChange: (value: number) => void;
   onDetails: () => void;
+  priority?: boolean;
 }) {
   const available = product.availability === "available";
   return <article className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white lg:grid lg:grid-cols-[112px_minmax(0,1fr)] lg:gap-x-5 lg:p-5 ${quantity > 0 ? "border-kova-blue/50" : "border-kova-border"}`}>
     <div className="relative lg:self-start">
       <button type="button" onClick={onDetails} aria-label={`Ver detalles de ${product.name}`}
         className="block w-full overflow-hidden text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kova-blue lg:rounded-xl">
-        <ProductPhoto product={product} menu />
+        <ProductPhoto product={product} menu priority={priority} />
       </button>
       {!available && <span className="absolute left-1 top-1 rounded-full bg-white px-2 py-1 text-[11px] font-medium text-kova-muted shadow-sm lg:left-2 lg:top-2 lg:text-xs">Agotado</span>}
     </div>

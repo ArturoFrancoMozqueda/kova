@@ -9,8 +9,12 @@ comportamiento.
 - [`architecture.md`](architecture.md): módulos, contratos, modelo multi-tenant, sesiones y RBAC.
 - [`claude/architecture-context.md`](claude/architecture-context.md): resumen corto de stack e
   invariantes que ningún cambio puede debilitar.
-- [`deployment.md`](deployment.md): topología Supabase/Postgres, roles runtime/migración, Fly,
-  Vercel y procedimiento de release.
+- [`deployment.md`](deployment.md): roles runtime/migración, release y recuperación; las notas de
+  Sprint 0A y Fly se conservan como historia retirada.
+- [`../deploy/cloudflare/README.md`](../deploy/cloudflare/README.md): frontend público Workers Static
+  Assets, proxy del mismo origen, routing y Vercel como candidato/respaldo.
+- [`../deploy/cloudflare-native/README.md`](../deploy/cloudflare-native/README.md): API FastAPI
+  residente en Cloudflare, identidad del proceso y bindings separados. Fly no es un proveedor vigente.
 - [`adr/ADR-009-backend-only-rls-no-policy-tables.md`](adr/ADR-009-backend-only-rls-no-policy-tables.md):
   frontera entre aislamiento de aplicación y RLS.
 
@@ -57,8 +61,10 @@ npm run check:bundle-secrets
 
 Las pruebas backend necesitan PostgreSQL real; SQLite no demuestra locks, constraints, grants ni
 RLS. La suite E2E mockeada se ejecuta con `npm run test:e2e-mocked`. Las pruebas de integración y
-smoke productivo tienen requisitos adicionales definidos en [`deployment.md`](deployment.md) y no
-se deben interpretar como aprobadas si se omitieron.
+smoke productivo tienen requisitos adicionales definidos en [`deployment.md`](deployment.md) y en
+[`../specs/ops/production_smoke.md`](../specs/ops/production_smoke.md). El smoke predeterminado consulta
+datos y prueba sesiones; no acredita Checkout live ni crea ventas sin autorización explícita.
+Las pruebas omitidas no se deben interpretar como aprobadas.
 
 ## Ejecución, auditoría y evidencia
 

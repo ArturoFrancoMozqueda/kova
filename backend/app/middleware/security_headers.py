@@ -24,7 +24,10 @@ async def security_headers_middleware(
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Capability responses may choose the stricter policy; never replace it
+    # with a policy that sends a same-origin referrer.
+    if response.headers.get("Referrer-Policy") != "no-referrer":
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     if request.url.path not in _DOCS_PATHS:
         response.headers["Content-Security-Policy"] = _API_CSP

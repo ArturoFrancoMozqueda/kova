@@ -65,3 +65,4 @@ class PublicCatalogResponse(BaseModel):
     whatsapp_phone: str | None
     products: list[PublicProduct]
     checkout_available: bool = False
+    loyalty_available: bool = False

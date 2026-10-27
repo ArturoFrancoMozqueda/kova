@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, LockKeyhole, X } from "lucide-react";
@@ -99,7 +100,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
           if (chat) setMessages(chat.messages);
           if (result) setRun(result);
         }
-      }).catch(e => { if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos cargar el asistente."); });
+      }).catch(e => { if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos cargar el asistente.")); });
     return () => { stopped = true; };
   }, [open, api, conversation, runId]);
   useEffect(() => {
@@ -118,7 +119,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
           const [data, used] = await Promise.all([api<{ messages: Resource[] }>(`/conversations/${conversation}`), api<Usage>("/usage")]);
           if (!stopped && alive.current) { setMessages(data.messages); setUsage(used); }
         }
-      } catch (e) { if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos recuperar la consulta."); }
+      } catch (e) { if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos recuperar la consulta.")); }
     };
     // Also recover a run that finished while the companion was closed.
     timer = setTimeout(() => void poll(), generating ? 2000 : 0);
@@ -129,7 +130,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
     if (busy) return;
     setBusy(true); setError("");
     try { await action(); }
-    catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(e instanceof Error ? e.message : "No pudimos completar la consulta."); }
+    catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(resolveUserFacingError(e, "No pudimos completar la consulta.")); }
     finally { if (alive.current) setBusy(false); }
   };
   const send = (event: FormEvent) => {

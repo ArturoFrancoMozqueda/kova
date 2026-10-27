@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { ClipboardCheck } from "lucide-react";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
@@ -127,9 +128,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       .catch((e: unknown) => {
         if (active)
           setAssigneeError(
-            e instanceof Error
-              ? e.message
-              : "No pudimos consultar responsables.",
+            resolveUserFacingError(e, "No pudimos consultar responsables."),
           );
       })
       .finally(() => {
@@ -175,9 +174,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         .catch((e: unknown) => {
           if (active)
             setReferencesError(
-              e instanceof Error
-                ? e.message
-                : "No pudimos consultar ventas y pedidos relacionados.",
+              resolveUserFacingError(e, "No pudimos consultar ventas y pedidos relacionados."),
             );
         });
     return () => {
@@ -216,7 +213,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       }
     } catch (e) {
       setFormError(
-        e instanceof Error ? e.message : "Revisa los datos de la atención.",
+        resolveUserFacingError(e, "Revisa los datos de la atención."),
       );
     }
   };
@@ -247,7 +244,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <ViewError
           message={panel.error}
           onRetry={() => void panel.load()}
-          retryLabel="Consultar versión actual"
+          retryLabel="Consultar datos actualizados"
         />
       )}
       {panel.notice && (
@@ -412,8 +409,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {references?.customerId === customerId &&
                     references.data.sales.map((row) => (
                       <option key={row.id} value={row.id}>
-                        {date(row.occurred_at)} · {money(row.total_amount)} ·{" "}
-                        {row.id.slice(0, 8)}
+                        {date(row.occurred_at)} · {money(row.total_amount)}
                       </option>
                     ))}
                 </Select>
@@ -762,7 +758,7 @@ function ServiceCaseDetail({
       )
         setEditing(false);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Revisa el vencimiento.");
+      setFormError(resolveUserFacingError(e, "Revisa el vencimiento."));
     }
   };
   const appendNote = async (event: FormEvent) => {
@@ -908,8 +904,8 @@ function ServiceCaseDetail({
           <div className="flex flex-wrap gap-3">
             {editVersion !== record.version && (
               <p role="alert" className="text-sm text-warning-strong">
-                La atención cambió. Descarta esta edición y revisa la versión
-                actual antes de continuar.
+                La atención cambió. Descarta esta edición y revisa los datos
+                actualizados antes de continuar.
               </p>
             )}
             <Button
@@ -961,7 +957,7 @@ function ServiceCaseDetail({
                 · {serviceCaseStatuses[event.status]}
               </p>
               <p className="text-xs text-kova-muted">
-                {date(event.created_at)} · versión {event.case_version}
+                {date(event.created_at)}
               </p>
               <p className="break-words text-xs text-kova-muted">
                 Registrado por{" "}
@@ -969,7 +965,7 @@ function ServiceCaseDetail({
                   ? "ti"
                   : (assignees.find(
                       (person) => person.user_id === event.actor_user_id,
-                    )?.email ?? `Usuario ${event.actor_user_id}`)}
+                    )?.email ?? "un integrante del equipo")}
                 .
               </p>
               <p className="break-words text-xs text-kova-muted">
@@ -977,7 +973,7 @@ function ServiceCaseDetail({
                 {event.assigned_user_id
                   ? (assignees.find(
                       (person) => person.user_id === event.assigned_user_id,
-                    )?.email ?? `Usuario ${event.assigned_user_id}`)
+                    )?.email ?? "integrante del equipo")
                   : "sin asignar"}
                 .
               </p>
@@ -1040,7 +1036,7 @@ function ServiceCaseDetail({
               <div className="space-y-2 text-sm">
                 <p>
                   La atención tiene cambios nuevos. Revisa el historial antes de
-                  preparar esta nota con la versión actual.
+                  preparar esta nota con los datos actualizados.
                 </p>
                 <Button
                   className={buttonClass}
@@ -1052,7 +1048,7 @@ function ServiceCaseDetail({
                     setFormError("");
                   }}
                 >
-                  Preparar nota con versión actual
+                  Preparar nota actualizada
                 </Button>
               </div>
             )}

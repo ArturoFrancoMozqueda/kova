@@ -11,15 +11,16 @@ export type ProductPhotoData = {
 };
 
 /** A changing upload revision remounts the image, clearing an old load error. */
-export function ProductPhoto({ product, compact = false, menu = false }: {
+export function ProductPhoto({ product, compact = false, menu = false, priority = false }: {
   product: ProductPhotoData;
   compact?: boolean;
   menu?: boolean;
+  priority?: boolean;
 }) {
-  return <Photo key={product.image_url ?? "missing"} product={product} compact={compact} menu={menu} />;
+  return <Photo key={product.image_url ?? "missing"} product={product} compact={compact} menu={menu} priority={priority} />;
 }
 
-function Photo({ product, compact, menu }: { product: ProductPhotoData; compact: boolean; menu: boolean }) {
+function Photo({ product, compact, menu, priority }: { product: ProductPhotoData; compact: boolean; menu: boolean; priority: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const url = product.image_url;
@@ -45,7 +46,8 @@ function Photo({ product, compact, menu }: { product: ProductPhotoData; compact:
         alt={compact ? "" : product.name}
         width={compact ? 64 : 800}
         height={compact ? 64 : 800}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
         decoding="async"
         referrerPolicy="no-referrer"
         className={`h-full w-full ${loaded ? "" : "opacity-0"}`}

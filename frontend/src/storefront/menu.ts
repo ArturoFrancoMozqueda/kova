@@ -22,6 +22,25 @@ export const menuSubtotal = (lines: MenuLine[]) => lines.reduce(
 export const searchMenu = (value: string) => value.normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX").trim();
 
+export type MenuSort = "published" | "price_asc" | "price_desc" | "name";
+const nameOrder = new Intl.Collator("es-MX", { sensitivity: "base", numeric: true });
+
+/** Search only the published product fields; preserve the business's order by default. */
+export function browseMenu(products: readonly MenuProduct[], {
+  query, onlyAvailable, sort,
+}: { query: string; onlyAvailable: boolean; sort: MenuSort }) {
+  const terms = searchMenu(query).split(/\s+/).filter(Boolean);
+  const visible = products.filter(product => {
+    if (onlyAvailable && product.availability !== "available") return false;
+    const text = searchMenu(`${product.name} ${product.description ?? ""}`);
+    return terms.every(term => text.includes(term));
+  });
+  if (sort === "name") visible.sort((a, b) => nameOrder.compare(a.name, b.name));
+  if (sort === "price_asc") visible.sort((a, b) => priceInCents(a.price_amount) - priceInCents(b.price_amount));
+  if (sort === "price_desc") visible.sort((a, b) => priceInCents(b.price_amount) - priceInCents(a.price_amount));
+  return visible;
+}
+
 /** Human-readable intake for the existing request inbox; never an authoritative order or price. */
 export function menuRequestMessage(lines: MenuLine[], origin: OrderOrigin, note: string) {
   return [

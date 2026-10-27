@@ -4,6 +4,8 @@ export type OrderItemModifier = {
   price_delta_amount: string;
 };
 
+export type LoyaltyRewardSnapshot = { id: string; title: string; points_cost: number; discount_amount: string };
+
 export type OrderItem = {
   lot_tracked?: boolean;
   lot_allocations?: (import("@/inventory/lots").LotAllocation & { code?: string })[];
@@ -26,6 +28,8 @@ export type Payment = {
 };
 
 export type Order = {
+  customer_id?: string | null;
+  loyalty_reward?: LoyaltyRewardSnapshot | null;
   id: string;
   tenant_id: string;
   branch_id?: string;
@@ -78,6 +82,7 @@ export type ReceiptVoid = {
 };
 
 export type Receipt = {
+  loyalty_reward?: LoyaltyRewardSnapshot | null;
   order_id: string;
   receipt_number: string;
   tenant_name: string;

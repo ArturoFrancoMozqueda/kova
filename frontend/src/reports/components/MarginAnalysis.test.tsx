@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
@@ -76,5 +76,9 @@ describe("MarginAnalysis", () => {
     );
     expect(screen.getByText("Valuación incompleta")).toBeInTheDocument();
     expect(screen.getByText("Sin costo")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Revisar los productos sin costo"));
+    expect(screen.getByRole("link", { name: "Revisar costo de Muffin" })).toHaveAttribute("href", "/catalog?edit=p2");
+    expect(screen.queryByRole("link", { name: "Revisar costo de Concha" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Las ventas anteriores conservan su costo histórico/)).toBeVisible();
   });
 });

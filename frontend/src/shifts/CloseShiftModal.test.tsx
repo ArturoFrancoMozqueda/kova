@@ -54,7 +54,7 @@ describe("CloseShiftModal offline sale guard", () => {
     render(<CloseShiftModal shift={shift} pending={false} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: copy.closeShiftModal.submit })).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/cola antes de cerrar/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Ventas pendientes antes de cerrar/i);
   });
 
   it("submits once the shift has no unfinished offline sales", () => {

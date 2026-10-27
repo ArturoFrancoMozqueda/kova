@@ -125,7 +125,7 @@ it("reloads a stale rule and asks the owner to review before retrying", async ()
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Los datos cambiaron",
   );
-  expect(screen.getByText("Versión 3")).toBeVisible();
+  expect(screen.queryByText("Versión 3")).not.toBeInTheDocument();
   expect(
     fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT"),
   ).toHaveLength(1);

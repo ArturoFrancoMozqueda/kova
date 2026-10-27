@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -56,6 +57,20 @@ function localDateTime(value: string | null): string {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
+function availableStock(rows: Awaited<ReturnType<typeof listStock>>, order?: CustomerOrder) {
+  if (!order || order.payment_status !== "unpaid" || !["confirmed", "in_progress", "ready"].includes(order.status)) {
+    return Object.fromEntries(rows.map(item => [item.product_id, item.available_quantity]));
+  }
+  const ownReserved = new Map<string, number>();
+  for (const item of order.items) {
+    ownReserved.set(item.product_id, (ownReserved.get(item.product_id) ?? 0) + item.quantity);
+  }
+  // Preserve this order's own reservations while excluding reservations of others.
+  return Object.fromEntries(rows.map(item => [item.product_id,
+    Math.max(0, item.stock_on_hand - Math.max(0, item.reserved_quantity - (ownReserved.get(item.product_id) ?? 0))),
+  ]));
+}
+
 export default function CustomerOrderFormView() {
   const { orderId } = useParams();
   const { state } = useAuth();
@@ -74,6 +89,9 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Record<string, number>>({});
+  const [stockError, setStockError] = useState(false);
+  const [stockAttempt, setStockAttempt] = useState(0);
+  const [stockRetrying, setStockRetrying] = useState(false);
   const [existing, setExisting] = useState<CustomerOrder | null>(null);
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
@@ -113,7 +131,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
         setCustomerOptions((rows) => [customer, ...rows.filter((row) => row.id !== customer.id)]);
       })
       .catch((caught: unknown) => {
-        if (active) setCustomerError(caught instanceof Error ? caught.message : "No pudimos confirmar el cliente del pedido.");
+        if (active) setCustomerError(resolveUserFacingError(caught, "No pudimos confirmar el cliente del pedido."));
       })
       .finally(() => { if (active) setCustomerLoading(false); });
     return () => { active = false; controller.abort(); };
@@ -131,27 +149,16 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([listProducts(), listStock().catch(() => [])])
+    void Promise.all([listProducts(), listStock().catch(() => null)])
       .then(async ([catalog, stockRows]) => {
         if (cancelled) return;
         setProducts(catalog);
-        setStock(Object.fromEntries(stockRows.map((item) => [item.product_id, item.available_quantity])));
+        setStockError(stockRows === null);
+        if (stockRows) setStock(availableStock(stockRows));
         if (!orderId) return;
         const order = await getCustomerOrder(orderId);
         if (cancelled) return;
-        if (order.payment_status === "unpaid" && ["confirmed", "in_progress", "ready"].includes(order.status)) {
-          const ownReserved = new Map<string, number>();
-          for (const item of order.items) {
-            ownReserved.set(item.product_id, (ownReserved.get(item.product_id) ?? 0) + item.quantity);
-          }
-          // Drafts have no reservations. For active pedidos, aggregate all
-          // their lines and keep other pedidos' reservations deducted even
-          // when physical stock has fallen below the total reserved quantity.
-          setStock(Object.fromEntries(stockRows.map((item) => [
-            item.product_id,
-            Math.max(0, item.stock_on_hand - Math.max(0, item.reserved_quantity - (ownReserved.get(item.product_id) ?? 0))),
-          ])));
-        }
+        if (stockRows) setStock(availableStock(stockRows, order));
         setExisting(order);
         setFulfillmentType(order.fulfillment_type);
         setSourceChannel(order.source_channel);
@@ -187,6 +194,17 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
       cancelled = true;
     };
   }, [orderId]);
+
+  useEffect(() => {
+    if (stockAttempt === 0) return;
+    let active = true;
+    setStockRetrying(true);
+    void listStock().then(rows => {
+      if (active) { setStock(availableStock(rows, existing ?? undefined)); setStockError(false); }
+    }).catch(() => { if (active) setStockError(true); })
+      .finally(() => { if (active) setStockRetrying(false); });
+    return () => { active = false; };
+  }, [stockAttempt, existing]);
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("es-MX");
@@ -297,7 +315,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
       }
     } catch (caught) {
       const body = caught as { detail?: { detail?: { message?: string } } };
-      setError(body.detail?.detail?.message ?? "No se pudo guardar el pedido. Revisa los datos e intenta de nuevo.");
+      setError(resolveApiErrorMessage(caught, safeUserMessage(body.detail?.detail?.message, "No se pudo guardar el pedido. Revisa los datos e intenta de nuevo.")));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -322,10 +340,15 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
         <div className="space-y-4">
           <Label htmlFor={`${formId}-search`} className="sr-only">Buscar producto o SKU</Label>
           <Input id={`${formId}-search`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto o SKU" />
+          {stockError && <div role="alert" className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+            <p className="font-medium">No pudimos consultar las existencias.</p>
+            <p className="mt-1 text-kova-muted">La disponibilidad está por confirmar. Conservamos tu pedido mientras vuelves a consultar.</p>
+            <Button type="button" variant="outline" className="mt-3" disabled={stockRetrying || submitting} onClick={() => setStockAttempt(value => value + 1)}>{stockRetrying ? "Consultando existencias…" : "Volver a consultar existencias"}</Button>
+          </div>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => {
-              const available = product.track_inventory ? stock[product.id] : undefined;
-              const disabled = product.track_inventory && (available ?? 0) <= 0;
+              const available = product.track_inventory && !stockError ? stock[product.id] : undefined;
+              const disabled = product.track_inventory && (stockError || (available ?? 0) <= 0);
               return (
                 <RegisterProductCard
                   key={product.id}
@@ -333,9 +356,9 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
                   price={product.price_amount}
                   ariaLabel={`Agregar ${product.name}`}
                   disabled={disabled}
-                  status={available !== undefined ? { label: `${available} disp.`, tone: available <= 2 ? "warning" : "muted" } : undefined}
+                  status={stockError && product.track_inventory ? { label: "Por consultar", tone: "muted" } : available !== undefined ? { label: `${available} disp.`, tone: available <= 2 ? "warning" : "muted" } : undefined}
                   onAdd={() => addProduct(product)}
-                  onDisabledSelect={() => setError(`${product.name} no tiene disponibilidad.`)}
+                  onDisabledSelect={() => setError(stockError ? `Consulta las existencias antes de agregar ${product.name}.` : `${product.name} no tiene disponibilidad.`)}
                 />
               );
             })}

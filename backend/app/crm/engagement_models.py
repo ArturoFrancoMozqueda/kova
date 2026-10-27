@@ -35,7 +35,27 @@ class CatalogRequest(BranchScoped, Base):
             ["crm_opportunities.tenant_id", "crm_opportunities.branch_id", "crm_opportunities.id"],
         ),
         CheckConstraint(
-            "status IN ('new','converted','dismissed')", name="ck_catalog_request_status"
+            "status IN ('new','converted','dismissed','accepted')", name="ck_catalog_request_status"
+        ),
+        CheckConstraint(
+            "(order_lines IS NULL AND origin IS NULL) OR "
+            "(order_lines IS NOT NULL AND origin IS NOT NULL AND origin IN ('remote','in_store') "
+            "AND json_typeof(order_lines) = 'array' "
+            "AND json_array_length(order_lines) BETWEEN 1 AND 20)",
+            name="ck_catalog_request_structure",
+        ),
+        CheckConstraint(
+            "(status = 'accepted' AND customer_order_id IS NOT NULL AND customer_id IS NOT NULL "
+            "AND order_lines IS NOT NULL) OR (status <> 'accepted' AND customer_order_id IS NULL)",
+            name="ck_catalog_request_order_link",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "customer_order_id"],
+            ["customer_orders.tenant_id", "customer_orders.branch_id", "customer_orders.id"],
+            name="fk_catalog_request_order",
+        ),
+        UniqueConstraint(
+            "tenant_id", "branch_id", "customer_order_id", name="uq_catalog_request_order",
         ),
         CheckConstraint("version >= 1", name="ck_catalog_request_version"),
     )
@@ -48,6 +68,9 @@ class CatalogRequest(BranchScoped, Base):
     contact: Mapped[str] = mapped_column(String(160), nullable=False)
     message: Mapped[str] = mapped_column(String(1000), nullable=False)
     product_ids: Mapped[list] = mapped_column(JSON, nullable=False)
+    order_lines: Mapped[list | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    customer_order_id: Mapped[UUID | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="new", nullable=False)
     customer_id: Mapped[UUID | None] = mapped_column()
     opportunity_id: Mapped[UUID | None] = mapped_column()

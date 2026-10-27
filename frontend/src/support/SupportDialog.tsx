@@ -54,10 +54,10 @@ export function SupportDialog({ open, onClose }: Props) {
           </a>
         ) : null}
 
-        <div className="rounded-kova-lg border border-kova-border bg-kova-mist/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <details className="rounded-kova-lg border border-kova-border bg-kova-mist/40 p-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-kova-ink">
             {copy.app.supportTechnicalContext}
-          </p>
+          </summary>
           <div className="mt-2 flex items-center justify-between gap-3">
             <code className="min-w-0 break-all text-xs text-kova-ink">
               {requestId ?? copy.app.supportReferenceUnavailable}
@@ -80,7 +80,7 @@ export function SupportDialog({ open, onClose }: Props) {
             ) : null}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{copy.app.supportContextSafety}</p>
-        </div>
+        </details>
       </div>
     </Dialog>
   );

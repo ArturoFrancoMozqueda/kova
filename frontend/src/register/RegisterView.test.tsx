@@ -148,6 +148,29 @@ describe("RegisterView cash-without-shift guard", () => {
   const linkedCustomer = { id: "11111111-1111-4111-8111-111111111111", name: "Ana", email: null, phone: null, is_active: true, created_at: "2026-10-22T00:00:00Z" };
   const appointmentId = "22222222-2222-4222-8222-222222222222";
 
+  it("mantiene al cliente visible en caja móvil y permite cambiarlo o quitarlo sin perder el carrito", async () => {
+    customerApi.resolveActiveCustomer.mockResolvedValue(linkedCustomer);
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister(`/register?customerId=${linkedCustomer.id}`);
+    expect(await screen.findByText("Venta para Ana")).toBeInTheDocument();
+    await addProductToCart();
+    const summary = screen.getByRole("region", { name: "Cliente de esta venta" });
+    expect(summary).toHaveTextContent("Ana");
+    fireEvent.click(screen.getByRole("button", { name: copy.register.collapseCart }));
+    expect(screen.getByRole("button", { name: copy.register.expandCart })).toHaveTextContent("Ana");
+    fireEvent.click(screen.getByRole("button", { name: copy.register.expandCart }));
+    const options = screen.getByText(copy.register.saleOptions).closest("details");
+    expect(options).not.toHaveAttribute("open");
+    fireEvent.click(within(summary).getByRole("button", { name: "Cambiar cliente de la venta" }));
+    expect(options).toHaveAttribute("open");
+    expect(screen.getByLabelText(copy.register.customerSearch)).toHaveFocus();
+    fireEvent.click(within(summary).getByRole("button", { name: "Quitar cliente de la venta" }));
+    expect(screen.queryByRole("region", { name: "Cliente de esta venta" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(copy.register.saleCustomer)).toHaveValue("");
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: copy.register.collapseCart })).not.toHaveTextContent("Ana");
+  });
+
   it("recibe al cliente exacto, lo conserva en la venta y ofrece volver a la cita", async () => {
     customerApi.resolveActiveCustomer.mockResolvedValue(linkedCustomer);
     getOpenShift.mockResolvedValue(openShift);

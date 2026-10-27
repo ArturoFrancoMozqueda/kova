@@ -51,6 +51,7 @@ export function isReloadSafePath(pathname: string): boolean {
   const unsafePrefix = [
     "/register",
     "/catalog",
+    "/catalogo",
     "/inventory",
     "/expenses",
     "/pedidos",

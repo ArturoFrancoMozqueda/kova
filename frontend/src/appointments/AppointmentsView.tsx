@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { CalendarDays } from "lucide-react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
@@ -119,7 +120,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       .catch((e: unknown) => {
         if (active)
           setResourceError(
-            e instanceof Error ? e.message : "No pudimos cargar los recursos.",
+            resolveUserFacingError(e, "No pudimos cargar los recursos."),
           );
       });
     return () => {
@@ -160,7 +161,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         setIncomingCustomerError("");
         setParams((current) => { const next = new URLSearchParams(current); next.delete("customerId"); return next; }, { replace: true });
       }).catch((error: unknown) => {
-        if (!controller.signal.aborted) setIncomingCustomerError(error instanceof Error ? error.message : "No pudimos consultar el cliente del enlace.");
+        if (!controller.signal.aborted) setIncomingCustomerError(resolveUserFacingError(error, "No pudimos consultar el cliente del enlace."));
       });
     return () => controller.abort();
   }, [incomingCustomer, setParams, identity.tenantId, identity.branchId]);
@@ -232,7 +233,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       }
     } catch (e) {
       setFormError(
-        e instanceof Error ? e.message : "Revisa las fechas de la cita.",
+        resolveUserFacingError(e, "Revisa las fechas de la cita."),
       );
     }
   };
@@ -295,7 +296,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <ViewError
           message={panel.error}
           onRetry={() => void panel.load()}
-          retryLabel="Consultar versión actual"
+          retryLabel="Consultar datos actualizados"
         />
       )}
       {panel.notice && (
@@ -597,9 +598,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               setRangeError("");
             } catch (e) {
               setRangeError(
-                e instanceof Error
-                  ? e.message
-                  : "Revisa el período de consulta.",
+                resolveUserFacingError(e, "Revisa el período de consulta."),
               );
             }
           }}
@@ -881,7 +880,7 @@ function AppointmentHistory({
         {panel.data?.items.map((row) => (
           <li key={row.id} className="min-w-0 space-y-1 text-sm">
             <p className="font-medium">
-              {historyActions[row.action]} · versión {row.appointment_version}
+              {historyActions[row.action]}
             </p>
             <p>
               {formatAppointmentTime(row.starts_at, appointment.timezone)} →{" "}

@@ -164,12 +164,12 @@ export default function KovaShowcase({
 
       <div className="ksw-modebar" aria-live="polite">
         <span className="ksw-mode-pill" data-kind={SCENES[scene].id === "pos" ? "demo" : "capture"}>
-          {SCENES[scene].id === "pos" ? "Demo interactiva" : "Vista real del producto"}
+          {SCENES[scene].id === "pos" ? "Prueba la caja" : "Vista real del producto"}
         </span>
         <span>
           {SCENES[scene].id === "pos"
-            ? "Pruébala con datos locales. No registra ventas."
-            : "Captura sanitizada del tenant productivo."}
+            ? "Explora una venta de ejemplo. No registra ventas en tu negocio."
+            : "Así se ve un negocio en Kova."}
         </span>
       </div>
 

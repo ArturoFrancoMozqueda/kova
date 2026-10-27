@@ -218,7 +218,10 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
         if ids
         else {}
     )
+    from app.loyalty.enrollment import available as enrollment_available
+
     return PublicCatalogResponse(
+        loyalty_available=enrollment_available(db, row),
         title=row.title,
         description=row.description,
         whatsapp_phone=row.whatsapp_phone,
@@ -325,7 +328,12 @@ def resolve_public_catalog(db, token):
 from fastapi import Request  # noqa: E402
 
 from app.crm import engagement  # noqa: E402
-from app.crm.engagement_schemas import PublicRequestReceipt, PublicRequestWrite  # noqa: E402
+from app.crm.engagement_schemas import (  # noqa: E402
+    PublicOrderTracking,
+    PublicOrderTrackingRead,
+    PublicRequestReceipt,
+    PublicRequestWrite,
+)
 from app.shared.exceptions import forbidden  # noqa: E402
 from app.shared.origin import request_origin, trusted_origins  # noqa: E402
 
@@ -333,6 +341,7 @@ from app.shared.origin import request_origin, trusted_origins  # noqa: E402
 @router.post(
     "/api/v1/public/catalog/{token}/requests",
     response_model=PublicRequestReceipt,
+    response_model_exclude_none=True,
     status_code=201,
     dependencies=[Depends(rate_limit(10, window_seconds=60, key="public-catalog-request"))],
 )
@@ -345,3 +354,18 @@ def submit_catalog_request(
         raise forbidden("Request origin is not allowed")
     row = resolve_public_catalog(db, token)
     return engagement.capture_request(db, row, body)
+
+
+@router.post(
+    "/api/v1/public/order-tracking", response_model=PublicOrderTracking,
+    dependencies=[Depends(rate_limit(30, window_seconds=60, key="public-order-tracking"))],
+)
+def read_order_tracking(
+    body: PublicOrderTrackingRead, response: Response, db: Session = Depends(get_db),
+):
+    from app.storefront import order_tracking
+
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return order_tracking.read(db, body.token)

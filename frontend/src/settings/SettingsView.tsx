@@ -111,7 +111,8 @@ function tabFromPath(pathname: string): SettingsTab {
 }
 
 function roleLabel(role: Role | string): string {
-  return roleOptions.find((option) => option.value === role)?.label ?? role;
+  if (role === "staff") return "Colaborador";
+  return roleOptions.find((option) => option.value === role)?.label ?? "Integrante del equipo";
 }
 
 function roleDescription(role: Role | string): string {

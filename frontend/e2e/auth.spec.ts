@@ -50,18 +50,22 @@ test("signup falls back to the verification screen when auto-login fails", async
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ status: 429, body: "Too many requests" });
   });
-  await page.route("**/api/v1/auth/verify", async (route) => {
-    await route.fulfill({ json: { message: "Email verified." } });
+  const verificationRequests: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/api/v1/auth/verify")) verificationRequests.push(request.url());
   });
 
   await page.goto("/signup");
   await fillSignupForm(page);
 
-  await expect(page.getByText(/cuenta creada\. el token local de verificaci[óo]n est[áa] listo/i)).toBeVisible();
-  await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveValue("verify-token-1");
-
-  await page.getByRole("button", { name: /verificar correo/i }).click();
-  await expect(page.getByText(/correo verificado\. ya puedes iniciar sesi[óo]n/i)).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(/cuenta creada\. revisa tu correo/i);
+  const resend = page.getByRole("button", { name: /^Reenviar en \d+s$/i });
+  await expect(resend).toBeVisible();
+  await expect(resend).toBeDisabled();
+  await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveCount(0);
+  await expect(page.getByText("verify-token-1", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^verificar correo$/i })).toHaveCount(0);
+  expect(verificationRequests).toEqual([]);
 });
 
 test("login posts credentials and navigates owners to the dashboard", async ({ page }) => {

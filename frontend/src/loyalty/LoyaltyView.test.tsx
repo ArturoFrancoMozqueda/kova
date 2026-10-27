@@ -1,6 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import type { ReactElement } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import LoyaltyView from "./LoyaltyView";
+const render = (view: ReactElement) => renderView(view, { wrapper: MemoryRouter });
 const session = vi.hoisted(() => ({
   role: "owner",
   branch: "branch-1",
@@ -116,6 +119,26 @@ it("starts with no invented monetary rule and requires an explicit opt-in", asyn
     ).toBe(true),
   );
 });
+
+it("links to the source sale without presenting its internal identifier as customer-facing copy", async () => {
+  render(<LoyaltyView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Cliente registrado.*50 puntos/ }));
+  expect(await screen.findByRole("link", { name: "Ver venta de origen" })).toHaveAttribute("href", "/orders/sale-1");
+  expect(screen.queryByText(/Venta de origen:|sale-1/)).not.toBeInTheDocument();
+});
+
+it.each(["malformed JSON", "technical network error"])("keeps a %s out of customer points feedback", async failure => {
+  fetchMock.mockImplementation(async url => {
+    if (!String(url).includes("/loyalty/customers/")) return route(url);
+    if (failure === "malformed JSON") return new Response("<html>proxy error</html>", { status: 200 });
+    throw new Error("Failed to fetch: backend postgres connection failed");
+  });
+  render(<LoyaltyView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Cliente registrado.*50 puntos/ }));
+  expect(await screen.findByText("No pudimos consultar los puntos del cliente.")).toBeVisible();
+  expect(screen.queryByText(/Unexpected token|Failed to fetch|postgres|proxy error/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Ver venta de origen" })).not.toBeInTheDocument();
+});
 it("records a debit only with benefit and owner attestation using the observed balance", async () => {
   render(<LoyaltyView />);
   fireEvent.click(
@@ -229,6 +252,50 @@ it("discards another branch's account snapshot", async () => {
   expect(
     screen.queryByRole("button", { name: /Cliente registrado.*50 puntos/ }),
   ).not.toBeInTheDocument();
+});
+
+it("clears old search choices immediately and offers an explicit retry without losing the selected ledger", async () => {
+  let failLuis = true;
+  fetchMock.mockImplementation(async (url) => {
+    if (String(url).includes("/api/v1/customers?")) {
+      if (String(url).includes("q=Luis")) return failLuis ? json({ detail: "Unavailable" }, 503) : json([{ id: "luis", name: "Luis" }]);
+      return json([{ id: "ana", name: "Ana" }]);
+    }
+    return route(url);
+  });
+  render(<LoyaltyView />);
+  await screen.findByRole("option", { name: "Ana" });
+  fireEvent.click(screen.getByRole("button", { name: /Cliente registrado.*50 puntos/ }));
+  await screen.findByRole("heading", { name: customer.name });
+  fireEvent.change(screen.getByLabelText("Buscar cliente para consultar puntos"), { target: { value: "Luis" } });
+  expect(screen.queryByRole("option", { name: "Ana" })).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Cliente del programa" })).toBeDisabled();
+  await screen.findByText(/No pudimos buscar clientes/);
+  expect(screen.getByRole("heading", { name: customer.name })).toBeVisible();
+  expect(screen.queryByRole("option", { name: "Ana" })).not.toBeInTheDocument();
+  failLuis = false;
+  fireEvent.click(screen.getByRole("button", { name: "Volver a buscar clientes" }));
+  await screen.findByRole("option", { name: "Luis" });
+  expect(screen.getByRole("combobox", { name: "Cliente del programa" })).toHaveValue(customer.id);
+  expect(screen.getByRole("option", { name: customer.name })).toBeDisabled();
+});
+
+it("discards an earlier customer search response after the current search fails", async () => {
+  let resolveAna: (response: Response) => void = () => {};
+  fetchMock.mockImplementation(async (url) => {
+    if (String(url).includes("/api/v1/customers?")) {
+      if (String(url).includes("q=Luis")) return json({ detail: "Unavailable" }, 503);
+      return new Promise<Response>(resolve => { resolveAna = resolve; });
+    }
+    return route(url);
+  });
+  render(<LoyaltyView />);
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/customers?q="))).toBe(true));
+  fireEvent.change(screen.getByLabelText("Buscar cliente para consultar puntos"), { target: { value: "Luis" } });
+  await screen.findByText(/No pudimos buscar clientes/);
+  resolveAna(json([{ id: "ana", name: "Ana" }]));
+  await waitFor(() => expect(screen.queryByRole("option", { name: "Ana" })).not.toBeInTheDocument());
+  expect(screen.getByRole("combobox", { name: "Cliente del programa" })).toBeDisabled();
 });
 
 it("labels returned reward points without hiding their positive amount", async () => {

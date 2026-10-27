@@ -1,3 +1,4 @@
+import { copy } from "@/i18n/messages";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveActiveCustomer } from "./api";
 
@@ -28,4 +29,13 @@ describe("resolveActiveCustomer", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "Cliente no encontrado" }), { status: 404 })));
     await expect(resolveActiveCustomer(id)).rejects.toThrow("Cliente no encontrado");
   });
+});
+
+it("no convierte un diagnóstico del servidor en texto para el cliente", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "SELECT * FROM customers WHERE tenant_id='interno'" }), { status: 400 })));
+  await expect(resolveActiveCustomer(id)).rejects.toThrow("No pudimos cargar los clientes. Inténtalo de nuevo.");
+});
+it("clasifica un fallo del servidor sin repetir su respuesta técnica", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "No existe la constraint customers_id_key" }), { status: 500 })));
+  await expect(resolveActiveCustomer(id)).rejects.toMatchObject({ status: 500, message: copy.errors.server });
 });

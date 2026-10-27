@@ -83,6 +83,22 @@ describe("SyncQueueView", () => {
     await waitFor(() => expect(document.title).toBe(`${copy.syncQueue.title} · Kova`));
   });
 
+  it("shows business payment labels without technical identifiers or raw failure messages", async () => {
+    const productId = "11111111-1111-4111-8111-111111111111";
+    queueState.failedEntries = [{
+      client_uuid: "sale-presentation", tenant_id: "tenant-1", status: "failed",
+      sale: { items: [{ product_id: productId, quantity: 1 }], payments: [{ method: "manual_card", amount: "18.50" }] },
+      last_error: "SQLAlchemy constraint failed", attempt_count: 1,
+      created_at: "2026-10-04T12:00:00Z", updated_at: "2026-10-04T12:00:00Z",
+    }];
+    render(<MemoryRouter><SyncQueueView /></MemoryRouter>);
+    expect(screen.getByText(/No pudimos enviar esta venta/)).toBeVisible();
+    expect(screen.queryByText(/SQLAlchemy|11111111|manual_card/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(copy.syncQueue.technicalDetail));
+    expect(screen.getByText("Tarjeta manual: $18.50")).toBeVisible();
+    expect(screen.queryByText(/SQLAlchemy|11111111|manual_card/)).not.toBeInTheDocument();
+  });
+
   it("announces legacy recovery without exposing sale payloads or a retry action", async () => {
     queueState.quarantinedCount = 2;
     render(

@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { csrfHeaders } from "@/lib/csrf";
 
 export type Customer = {
@@ -41,11 +42,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     let message = "No pudimos cargar los clientes. Inténtalo de nuevo.";
     try {
       const body = (await response.json()) as { detail?: unknown };
-      if (typeof body.detail === "string") message = body.detail;
+      message = safeUserMessage(body.detail, message);
     } catch {
       /* Use default message. */
     }
-    throw new Error(message);
+    throw Object.assign(new Error(resolveApiErrorMessage({ status: response.status }, message)), { status: response.status });
   }
   return response.json() as Promise<T>;
 }

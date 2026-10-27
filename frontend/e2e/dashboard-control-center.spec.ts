@@ -37,10 +37,11 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     await expect(control.getByText("10 órdenes completadas", { exact: true })).toBeVisible();
     await expect(control.getByText("1 producto por reponer", { exact: true })).toBeVisible();
     await expect(control.getByRole("heading", { level: 3 })).toHaveCount(6);
-    for (const path of ["/register", "/orders", "/pedidos", "/quotes", "/shifts", "/inventory", "/catalog", "/replenishment", "/purchasing", "/customers", "/crm", "/commercial-requests", "/followups", "/loyalty", "/settings/public-catalog", "/operations-queue", "/appointments", "/service-cases", "/inbox", "/reports", "/expenses", "/reconciliation", "/settings", "/automations", "/settings/channels", "/settings/integrations", "/settings/billing"]) {
+    for (const path of ["/register", "/orders", "/pedidos", "/quotes", "/shifts", "/inventory", "/catalog", "/replenishment", "/purchasing", "/customers", "/crm", "/commercial-requests", "/followups", "/loyalty", "/settings/public-catalog", "/operations-queue", "/appointments", "/service-cases", "/inbox", "/reports", "/expenses", "/reconciliation", "/settings", "/automations", "/settings/integrations", "/settings/billing"]) {
       await expect(control.locator(`a[href="${path}"]`)).toBeVisible();
     }
     await expect(control.locator('a[href="/assistant"]')).toHaveCount(0);
+    await expect(control.locator('a[href="/settings/channels"]')).toHaveCount(0);
     await page.getByRole("radio", { name: "7 días", exact: true }).click();
     await expect(control.getByText("70 órdenes completadas", { exact: true })).toBeVisible();
     await expect(control.getByText("1 producto por reponer", { exact: true })).toBeVisible();

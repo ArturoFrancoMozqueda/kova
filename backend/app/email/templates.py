@@ -8,14 +8,15 @@ message bodies.
 from __future__ import annotations
 
 from html import escape
+from html.parser import HTMLParser
 
 # Brand tokens duplicated here (inline CSS — email clients ignore
 # external stylesheets and CSS variables).
-KOVA_BLUE = "#4F7EF7"
+KOVA_BLUE = "#3563D0"
 KOVA_INK = "#0F1117"
 KOVA_MIST = "#F5F6FA"
-KOVA_MUTED = "#6B7A99"
-KOVA_TERTIARY = "#8892A4"
+KOVA_MUTED = "#61728C"
+KOVA_TERTIARY = "#667185"
 KOVA_BORDER = "#E2E6EF"
 
 FONT_STACK = (
@@ -26,6 +27,91 @@ FONT_STACK = (
 # Same isotipo as frontend/src/components/brand/Logo.tsx. Keep the URL on the
 # canonical production origin so Gmail can proxy and cache it reliably.
 KOVA_LOGO_URL = "https://kovasuite.com/email/kova-mark.png"
+# Same controlled-beta support address as frontend/src/lib/support.ts.
+SUPPORT_EMAIL = "posprojectsupport@gmail.com"
+
+
+class _PlainTextEmail(HTMLParser):
+    """Extract readable text from our rendered HTML, preserving actionable links."""
+
+    _VOID = {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
+    _BLOCK = {"div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "p", "table", "tr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.ignored_depth = 0
+        self.links: list[tuple[str, int]] = []
+
+    def handle_starttag(self, tag, attrs):
+        if self.ignored_depth:
+            if tag not in self._VOID:
+                self.ignored_depth += 1
+            return
+        attributes = dict(attrs)
+        style = "".join((attributes.get("style") or "").lower().split())
+        if (
+            tag in {"head", "script", "style"}
+            or "hidden" in attributes
+            or attributes.get("aria-hidden") == "true"
+            or "display:none" in style
+            or "visibility:hidden" in style
+        ):
+            if tag not in self._VOID:
+                self.ignored_depth = 1
+            return
+        if tag in self._BLOCK or tag in {"br", "hr"}:
+            self.parts.append("\n")
+        if tag == "li":
+            self.parts.append("• ")
+        if tag in {"td", "th"} and self.parts and self.parts[-1].strip():
+            self.parts.append(" | ")
+        if tag == "a":
+            self.links.append((attributes.get("href") or "", len(self.parts)))
+
+    def handle_endtag(self, tag):
+        if self.ignored_depth:
+            if tag not in self._VOID:
+                self.ignored_depth -= 1
+            return
+        if tag == "a" and self.links:
+            href, start = self.links.pop()
+            label = "".join(self.parts[start:]).strip()
+            if href.startswith(("https://", "http://", "mailto:")) and href != label:
+                self.parts.append(f" ({href})")
+        if tag in self._BLOCK:
+            self.parts.append("\n")
+
+    def handle_data(self, data):
+        if not self.ignored_depth:
+            self.parts.append(data)
+
+
+def plain_text_email(html: str) -> str:
+    parser = _PlainTextEmail()
+    parser.feed(html)
+    parser.close()
+    lines: list[str] = []
+    for raw_line in "".join(parser.parts).splitlines():
+        line = " ".join(raw_line.split())
+        if line or (lines and lines[-1]):
+            lines.append(line)
+    return "\n".join(lines).strip()
 
 
 def _button(label: str, url: str) -> str:
@@ -35,7 +121,8 @@ def _button(label: str, url: str) -> str:
         f'style="border-radius: 8px; background-color: {KOVA_INK};">'
         f'<a href="{escape(url, quote=True)}" target="_blank" '
         f'style="display: inline-block; padding: 12px 20px; font-family: {FONT_STACK}; '
-        f'font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; '
+        f"font-size: 14px; line-height: 20px; font-weight: 600; color: #ffffff; "
+        f"text-decoration: none; "
         f'border-radius: 8px; letter-spacing: -0.01em;">'
         f"{escape(label)}</a></td></tr></table>"
     )
@@ -70,7 +157,7 @@ def render_email(
     )
 
     return f"""<!doctype html>
-<html lang="es">
+<html lang="es-MX" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -80,6 +167,7 @@ def render_email(
 </head>
 <body style="margin: 0; padding: 0; background-color: {KOVA_MIST}; \
 font-family: {FONT_STACK}; color: {KOVA_INK};">
+<div lang="es-MX" dir="ltr">
 <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; \
 color: transparent; visibility: hidden;">{escape(preheader)}</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
@@ -134,6 +222,7 @@ color: {KOVA_TERTIARY};">© Kova · POS para tu negocio</p>
     </td>
   </tr>
 </table>
+</div>
 </body>
 </html>"""
 

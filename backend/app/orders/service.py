@@ -18,7 +18,6 @@ from app.inventory import lots
 from app.inventory import repository as inventory_repo
 from app.inventory.lot_schemas import LotAllocation
 from app.inventory.service import _validate_movement_range
-from app.loyalty.rollback_compatibility import guard_reward_reversal
 from app.modifiers import service as modifier_service
 from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
@@ -118,12 +117,15 @@ def _modifier_bodies(mods: list[OrderItemModifier]) -> list[dict]:
 
 
 def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]:
+    from app.loyalty.rewards import order_reward
+
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order.id)
     payments = repo.list_payments(db, tenant_id=tenant_id, order_id=order.id)
     modifiers = repo.order_item_modifiers_for_items(
         db, tenant_id=tenant_id, item_ids=[item.id for item in items]
     )
     return {
+        "loyalty_reward": order_reward(db, tenant_id, order.id),
         "id": str(order.id),
         "tenant_id": str(order.tenant_id),
         "branch_id": str(order.branch_id),
@@ -306,7 +308,16 @@ def create_order(
     link_to_open_shift: bool = True,
     shift_id: UUID | None = None,
     occurred_at: datetime | None = None,
+    external_transaction: bool = False,
 ) -> tuple[int, dict[str, Any]]:
+    # The dedicated online reward checkout reserves its own idempotency key and
+    # commits the sale together with its points debit. Existing online/offline
+    # callers retain the original idempotency and transaction behavior.
+    if external_transaction and (
+        client_uuid is not None or not link_to_open_shift
+        or shift_id is not None or occurred_at is not None
+    ):
+        raise bad_request("El canje de recompensa sólo está disponible en línea")
     # Exclude newly defaulted fields to retain old idempotency hashes.
     payload = body.model_dump(mode="json", exclude={"customer_id", "discount_amount", "tax_rate"})
     for item_payload in payload["items"]:
@@ -331,7 +342,7 @@ def create_order(
             raise bad_request("La venta ya está registrada en otra sucursal")
     if client_uuid:
         payload["client_uuid"] = str(client_uuid)
-    stored = _stored_response(
+    stored = None if external_transaction else _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
     if stored:
@@ -537,15 +548,16 @@ def create_order(
         resource_id=order.id,
         changes=response_body,
     )
-    _store_response(
-        db,
-        tenant_id=tenant_id,
-        idempotency_key=idempotency_key,
-        payload=payload,
-        status_code=201,
-        response_body=response_body,
-    )
-    db.commit()
+    if not external_transaction:
+        _store_response(
+            db,
+            tenant_id=tenant_id,
+            idempotency_key=idempotency_key,
+            payload=payload,
+            status_code=201,
+            response_body=response_body,
+        )
+        db.commit()
     return 201, response_body
 
 
@@ -557,6 +569,8 @@ def get_order(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, Any]
 
 
 def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, Any]:
+    from app.loyalty.rewards import order_reward
+
     order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
@@ -580,6 +594,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
     total_change = calculator.money(sum(p.change_due_amount for p in payments))
 
     return {
+        "loyalty_reward": order_reward(db, tenant_id, order.id),
         "order_id": str(order.id),
         "receipt_number": str(order.id).replace("-", "")[-8:].upper(),
         "tenant_name": tenant.name if tenant else "",
@@ -644,6 +659,9 @@ def create_refund(
     body: RefundCreate,
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
+    from app.loyalty.rewards import lock_reward_reversal, return_reward
+
+    lock_reward_reversal(db, tenant_id, order_id)
     payload = body.model_dump(mode="json")
     payload["order_id"] = str(order_id)
     stored = _stored_response(
@@ -655,8 +673,6 @@ def create_refund(
     order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
-
-    guard_reward_reversal(db, tenant_id=tenant_id, order=order)
 
     if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
         raise conflict("Cancela o resuelve el CFDI vigente antes de devolver esta venta.")
@@ -866,6 +882,7 @@ def create_refund(
             },
         )
 
+    return_reward(db, tenant_id, user_id, order_id)
     audit_service.log(
         db,
         action="orders.refund",
@@ -946,6 +963,9 @@ def create_void(
     not_delivered: bool | None = None,
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
+    from app.loyalty.rewards import lock_reward_reversal, return_reward
+
+    lock_reward_reversal(db, tenant_id, order_id)
     payload = {"order_id": str(order_id), "reason": reason}
     if not_delivered is not None:
         payload["not_delivered"] = not_delivered
@@ -958,8 +978,6 @@ def create_void(
     order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
-
-    guard_reward_reversal(db, tenant_id=tenant_id, order=order)
 
     if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
         raise conflict("Cancela o resuelve el CFDI vigente antes de anular esta venta.")
@@ -1054,6 +1072,7 @@ def create_void(
         "created_at": void.created_at.isoformat(),
     }
 
+    return_reward(db, tenant_id, user_id, order_id, void=True)
     audit_service.log(
         db,
         action="orders.void",

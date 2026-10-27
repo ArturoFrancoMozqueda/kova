@@ -80,7 +80,7 @@ export function useLinkedRecord<T extends { id: string }>(
     error: !requested
       ? ""
       : !id
-        ? "El enlace no contiene un identificador de registro válido."
+        ? "Este enlace no es válido. Abre el registro desde su lista."
         : !online
           ? "Conéctate para consultar el registro del enlace."
           : (current?.error ?? ""),

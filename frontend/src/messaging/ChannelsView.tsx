@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { OperationsSession, useOperationsRequest, type WorkspaceIdentity } from "@/automations/workspace";
+import { OperationsError, OperationsSession, useOperationsRequest, type WorkspaceIdentity } from "@/automations/workspace";
 import { Button } from "@/components/ui/button";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
@@ -25,7 +25,14 @@ function ChannelsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     try {
       const result = await request<Readiness>();
       if (alive.current && current === generation.current) { setData(result); setError(""); }
-    } catch (e) { if (alive.current && current === generation.current) { setData(null); setError(e instanceof Error ? e.message : "No pudimos consultar la preparación del canal."); } }
+    } catch (e) { if (alive.current && current === generation.current) {
+      setData(null);
+      setError(e instanceof OperationsError && [401, 403].includes(e.status)
+        ? "No tienes acceso a la configuración de WhatsApp. Consulta al dueño del negocio."
+        : e instanceof OperationsError && e.status === 429
+          ? "Espera un momento antes de volver a consultar WhatsApp."
+          : "No pudimos consultar WhatsApp. Revisa tu conexión e intenta de nuevo.");
+    } }
   }, [request]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [load]);
   return <ViewLayout className="space-y-6">
@@ -41,7 +48,7 @@ function ChannelsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <Link className="inline-flex min-h-11 items-center text-sm underline" to="/inbox">Abrir bandeja de atención</Link>
         </> : <>
         <p className="text-sm">La conexión requiere un alta asistida con Kova y Meta. Se comprueba la vinculación de esta sucursal; los pasos de abajo son una guía general y no guardan avances.</p>
-        <p className="max-w-2xl text-sm text-kova-muted">La app del celular y WhatsApp Cloud API requieren configuraciones distintas. Tener Meta o un dominio no confirma que el número esté listo para conectarse a Kova.</p>
+        <p className="max-w-2xl text-sm text-kova-muted">Vincular WhatsApp a Kova requiere una configuración distinta de la app del celular. El equipo de Kova te ayuda a verificar tu número.</p>
         <p className="text-sm">No se envían ni reciben mensajes automáticos desde esta preparación. Los enlaces del catálogo abren una conversación directamente con el negocio.</p>
         {data.status === "configuration_error" && <p role="alert" className="text-sm">La configuración requiere revisión por el equipo de Kova. Los envíos permanecen bloqueados.</p>}
         </>}

@@ -179,4 +179,54 @@ describe("customer order draft safety", () => {
     await screen.findByRole("heading", { name: "Editar PED-FIRST" });
     expect(screen.getByText(`${expected} disp.`)).toBeVisible();
   });
+
+  it("distinguishes unknown stock from sold out and retries without losing the draft", async () => {
+    const tracked = { ...product, id: "tracked", name: "Pan de nuez", track_inventory: true };
+    api.listProducts.mockResolvedValue([product, tracked]);
+    api.listStock.mockRejectedValueOnce(new Error("Sin conexión")).mockResolvedValueOnce([
+      { product_id: tracked.id, available_quantity: 3, stock_on_hand: 3, reserved_quantity: 0 },
+    ]);
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos consultar las existencias");
+    expect(screen.getByRole("button", { name: "Agregar Pan de nuez" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("Por consultar")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar Concha" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Nota general" }), { target: { value: "Recoger a las cinco" } });
+    fireEvent.click(screen.getByRole("button", { name: "Volver a consultar existencias" }));
+    await screen.findByText("3 disp.");
+    expect(screen.queryByText("No pudimos consultar las existencias.")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nota general" })).toHaveValue("Recoger a las cinco");
+    expect(screen.getAllByRole("button", { name: "Eliminar artículo" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Agregar Pan de nuez" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(api.createCustomerOrder).toHaveBeenCalledWith(expect.objectContaining({
+      note: "Recoger a las cinco", items: [expect.objectContaining({ product_id: product.id }), expect.objectContaining({ product_id: tracked.id })],
+    }), expect.any(String)));
+    expect(api.listProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves own reservations when retrying stock for an existing order", async () => {
+    api.route.orderId = saved.id;
+    api.listProducts.mockResolvedValue([{ ...product, track_inventory: true }]);
+    api.getCustomerOrder.mockResolvedValue({ ...saved, status: "confirmed", items: [{ ...saved.items[0], quantity: 2 }] });
+    api.listStock.mockRejectedValueOnce(new Error("No disponible")).mockResolvedValueOnce([
+      { product_id: product.id, available_quantity: 1, stock_on_hand: 4, reserved_quantity: 3 },
+    ]);
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Volver a consultar existencias" }));
+    expect(await screen.findByText("3 disp.")).toBeVisible();
+    expect(api.getCustomerOrder).toHaveBeenCalledTimes(1);
+    expect(api.updateCustomerOrder).not.toHaveBeenCalled();
+  });
+});
+
+it("no muestra diagnósticos de la respuesta al guardar y conserva el borrador para reintentar", async () => {
+  api.createCustomerOrder.mockRejectedValueOnce({ status: 400, detail: { detail: { message: "UPDATE customer_orders SET tenant_id='interno'" } } });
+  render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo guardar el pedido. Revisa los datos e intenta de nuevo.");
+  expect(screen.getByRole("alert")).not.toHaveTextContent(/UPDATE|tenant_id/);
+  expect(screen.getByRole("button", { name: "Eliminar artículo" })).toBeVisible();
+  expect(api.navigate).not.toHaveBeenCalled();
 });

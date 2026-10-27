@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePermission, INVENTORY_ADJUST_PERMISSION } from "@/auth/permissions";
@@ -23,7 +24,7 @@ export function LotConflictRecovery({ row, tenantId, onRetry }: { row: OfflineSa
     if (!Object.entries(parts).length || Object.entries(parts).some(([product, allocations]) => !allocationValid(allocations, quantities.get(product) ?? 0))) { setError("Completa las unidades cobradas para cada producto a conciliar."); return; }
     setBusy(true); setError("");
     try { await reconcileLegacyLots(tenantId, row.client_uuid, parts); await onRetry(); setOpen(false); }
-    catch (err) { setError(err instanceof Error ? err.message : "No pudimos conciliar la venta."); }
+    catch (err) { setError(resolveUserFacingError(err, "No pudimos conciliar la venta.")); }
     finally { setBusy(false); }
   };
   return <div className="mt-3 space-y-3">

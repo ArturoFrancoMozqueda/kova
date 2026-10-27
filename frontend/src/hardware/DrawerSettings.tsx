@@ -48,7 +48,7 @@ export function DrawerSettings() {
       } else if (action === "refresh") {
         const status = await getDrawerStatus(); setDevice(status);
         if (status.paired) { setCode(""); setExpiry(""); }
-        setMessage(status.online ? "El conector está conectado." : "El conector no está conectado. Ejecuta run en el equipo de caja.");
+        setMessage(status.online ? "El conector está conectado." : "El conector no está conectado. Inicia el conector de Kova en el equipo de caja y vuelve a consultar el estado.");
       } else if (action === "revoke") {
         await revokeDrawer(); setDevice({ configured: false, online: false, auto_open: false }); setCode("");
         setMessage("Conector desvinculado. Ya no puede recibir órdenes.");
