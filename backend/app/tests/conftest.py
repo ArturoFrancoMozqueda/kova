@@ -115,15 +115,19 @@ def _provision_kova_app() -> None:
     that a raw driver can't run."""
     db_name = make_url(settings.database_url).database
     with _engine.begin() as conn:
-        conn.execute(
-            text(
-                "DO $$ BEGIN "
-                "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
-                "CREATE ROLE kova_app LOGIN NOSUPERUSER NOBYPASSRLS "
-                "NOCREATEDB NOCREATEROLE; END IF; END $$;"
+        # xdist's controller prepares this cluster-global role once under the
+        # parent database lock. Locks in separate worker databases cannot
+        # serialize ALTER ROLE against the shared PostgreSQL role catalog.
+        if not os.environ.get("PYTEST_XDIST_WORKER"):
+            conn.execute(
+                text(
+                    "DO $$ BEGIN "
+                    "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
+                    "CREATE ROLE kova_app LOGIN NOSUPERUSER NOBYPASSRLS "
+                    "NOCREATEDB NOCREATEROLE; END IF; END $$;"
+                )
             )
-        )
-        conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
+            conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
         conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
         conn.execute(text("GRANT USAGE ON SCHEMA public,extensions,assistant_control TO kova_app"))
         conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA assistant_control TO kova_app"))
