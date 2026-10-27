@@ -263,6 +263,8 @@ def test_pending_cancel_preserves_exclusion_and_defers_reopened_inclusion(client
     assert original.json()["total_amount"] == "100.00"
 
 
+# Creates and drops cluster-wide roles; one xdist worker runs the whole group.
+@pytest.mark.xdist_group("cluster_roles")
 @pytest.mark.parametrize("kind", ("current_period", "late_inclusion"))
 @pytest.mark.parametrize("commit_reservation", (True, False))
 def test_global_waits_for_sale_reservation_commit_or_rollback(kind, commit_reservation):
