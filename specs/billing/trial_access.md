@@ -26,9 +26,10 @@ the commercial model enforceable.
 - The billing status API must include `trial_ends_at` for no-subscription trial tenants.
 - During active trial, the dashboard shows a value recap with sales count, collected amount,
   active catalog count, active team count, closed shifts, and best sales day.
-- Trial expiry blocks paid write-heavy business flows until billing is recovered.
+- Trial expiry blocks commercial reads and writes until billing is recovered.
 - Owners can still open billing and start checkout when trial access has expired.
-- Read-only operational recovery remains available for receipts, reports, order history, and billing.
+- Billing recovery, authentication, account export/deletion and privacy/security revocation remain
+  available. Operational reads such as receipts, reports and order history require commercial access.
 
 ## Non-Functional Requirements
 
@@ -61,7 +62,9 @@ the commercial model enforceable.
 
 - Existing offline queue records remain stored locally.
 - Syncing queued sales after trial expiry is blocked until billing is recovered.
-- A future offline grace cache may be added, but this spec does not introduce local access tokens.
+- Offline continuity uses a previously verified commercial grant, not an auth token. The grant
+  expires at the earlier of 12 hours and the server's commercial deadline; an HTTP 402 clears it
+  while preserving all queued sales for later recovery.
 
 ## Error States
 
@@ -85,6 +88,9 @@ the commercial model enforceable.
   - `trial_ends_at`
   - `blocked_at`
   - `recovery_path`
+  - `valid_until`
+- `GET /api/v1/auth/session` includes `{allowed, reason, valid_until}` in `commercial_access`
+  for every authenticated role, including employees without billing-management permission.
 
 ## Test Matrix
 

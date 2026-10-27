@@ -9,7 +9,7 @@ vi.mock("./queue", () => ({
 }));
 
 import { markOfflineSaleFailed, markOfflineSaleStatus, markOfflineSaleSynced, rollbackOfflineSaleAttempt } from "./queue";
-import { parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
+import { BillingAccessError, parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
 import type { OfflineSaleQueueItem } from "./types";
 import { setActiveOfflineTenant } from "./activeTenant";
 
@@ -59,6 +59,16 @@ describe("syncOfflineSales", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     setActiveOfflineTenant(null);
+  });
+
+  it("preserves unpaid tenants' queued sales and retry budget until payment recovery", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("payment_required", { status: 402 })));
+    const item = queueItem();
+    await expect(syncOfflineSales("tenant-1", [item])).rejects.toBeInstanceOf(BillingAccessError);
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", item.client_uuid, "lease-1", expect.any(String));
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+    expect(markOfflineSaleSynced).not.toHaveBeenCalled();
+    expect(markOfflineSaleStatus).not.toHaveBeenCalled();
   });
 
   it("sends each queued branch and rejects a different branch acknowledgement", async () => {

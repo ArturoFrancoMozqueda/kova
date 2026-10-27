@@ -19,7 +19,7 @@ dependencies = [
     "defusedxml==0.7.1",
     "pyotp==2.10.0",
     "qrcode==8.2",
-    "pypdf==6.10.0",
+    "pypdf==6.21.2",
     "pypng==0.20220715.0",
     "httpx==0.28.1",
     "certifi==2026.10.19",

@@ -22,8 +22,13 @@ Past-due handling protects revenue while avoiding surprise disruption during bet
 - Tenant owners and users with `billing.manage` can open billing recovery/checkout guidance.
 - The UI shows a persistent past_due banner for authenticated users in the tenant.
 - The banner copy is user-facing and must use i18n.
-- A configurable grace period allows normal POS operation while payment is recovered.
-- After grace period expiry, paid write-heavy flows are blocked according to
+- A grace period of at most 48 hours from the first failure allows operation while payment is
+  recovered. The default is two days; legacy longer configuration/stored deadlines are capped.
+- The first failure requires a verified `invoice.payment_failed` with an integer
+  `attempt_count == 1` and a valid `event.created` timestamp. A known first failure is
+  preserved. Subscription lookups, Checkout reconciliation, lifecycle events and
+  `updated_at` never invent a new grace window; unknown provenance remains blocked.
+- After grace period expiry, all commercial reads and writes are blocked according to
   `specs/billing/access_control.md`.
 - Offline sale capture should continue to protect already-started sales where possible.
 
@@ -41,6 +46,7 @@ Past-due handling protects revenue while avoiding surprise disruption during bet
 ## Idempotency
 
 - Repeated `invoice.payment_failed` events do not create duplicate banners, audit logs, or status transitions beyond the latest Stripe state.
+- Retries and repeated failure events never extend `past_due_at` or its original 48-hour deadline.
 
 ## Audit Log Behavior
 
@@ -73,5 +79,5 @@ Past-due handling protects revenue while avoiding surprise disruption during bet
 - Non-owner cannot manage payment recovery.
 - `past_due` status is tenant-scoped.
 - Grace period behavior is deterministic and test-covered before enforcement.
-- Expired grace returns `402 Payment Required` for paid write-heavy flows while billing recovery
+- Expired grace returns `402 Payment Required` for commercial reads and writes while billing recovery
   remains available.

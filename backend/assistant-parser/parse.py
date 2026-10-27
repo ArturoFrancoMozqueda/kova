@@ -80,7 +80,10 @@ def parse(content, suffix):
                         timeout=30,
                     )
                     result = subprocess.run(
-                        ["tesseract", prefix + ".png", "stdout", "-l", "spa"],
+                        [
+                            "tesseract", prefix + ".png", "stdout",
+                            "--tessdata-dir", "/usr/local/share/tessdata", "-l", "spa",
+                        ],
                         check=True,
                         capture_output=True,
                         timeout=30,

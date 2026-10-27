@@ -1,0 +1,50 @@
+[
+  {
+    "cve": "CVE-2026-86138",
+    "commit": "a4cba4b5b5a8c42e155ed42d2d2a44955465a2e4",
+    "url": "https://github.com/GNOME/libxml2/commit/a4cba4b5b5a8c42e155ed42d2d2a44955465a2e4.patch",
+    "sha256": "f207c148a8defa5fcf564a05396748b1cf23e9788ae174a750556efdf9261f29",
+    "backport_file": "CVE-2026-86138-2.13-backport.patch",
+    "backport_sha256": "71fa607f9de5aa256e020c53c6c1ed7f599f7d1790026bc670a243c575b217cd"
+  },
+  {
+    "cve": "CVE-2026-86139",
+    "commit": "8edbbdb09f24d26a2f900141fddc2b9d014f53b0",
+    "url": "https://github.com/GNOME/libxml2/commit/8edbbdb09f24d26a2f900141fddc2b9d014f53b0.patch",
+    "sha256": "d7ac6d515d52b34e44180f49c4089fe7c5889492daa111cfeb4cdcd101ce73e0",
+    "backport_file": "CVE-2026-86139-2.13-backport.patch",
+    "backport_sha256": "f24b70ee1bd68d36d2d6a815554e3754c42f2e55594104d5608503402152c1ae"
+  },
+  {
+    "cve": "CVE-2026-86140",
+    "commit": "d1686f91dbda141a752200419d35639fd6b38340",
+    "url": "https://github.com/GNOME/libxml2/commit/d1686f91dbda141a752200419d35639fd6b38340.patch",
+    "sha256": "5e51f8dcadfe3294a15d9e8644d61e8d92bd5b9e72c10cf13ef010eccfbfa4df",
+    "backport_file": "CVE-2026-86140-2.13-backport.patch",
+    "backport_sha256": "9c94cb69c29c9ff5e979ad6f49f6478330cc6dec352c1e13fc40613a89af0f3a"
+  },
+  {
+    "cve": "CVE-2026-86142",
+    "commit": "6b3a736c0edc74ceec3d82f5252499d7911b3a58",
+    "url": "https://github.com/GNOME/libxml2/commit/6b3a736c0edc74ceec3d82f5252499d7911b3a58.patch",
+    "sha256": "8a8153323a3fb797f4f8fcaa6fd12dcdb2081aee8c13baee6f88e22bd5fc87bd",
+    "backport_file": "CVE-2026-86142-2.13-backport.patch",
+    "backport_sha256": "c41792810b6d9085f1451d7efa418fb3ff17b353b70246998dcaa657b5369fdd"
+  },
+  {
+    "cve": "CVE-2026-86143",
+    "commit": "90f293ba74d28b1d570920382e707586f68ebf35",
+    "url": "https://github.com/GNOME/libxml2/commit/90f293ba74d28b1d570920382e707586f68ebf35.patch",
+    "sha256": "f521d43d4bdd669009c0986963c33465f33ef7390343491bf751b25d72a0655d",
+    "backport_file": "CVE-2026-86143-2.13-backport.patch",
+    "backport_sha256": "df2f4d2e470804febf663008255bcb8bb33b246506d6be08bee6df37d8941440"
+  },
+  {
+    "cve": "CVE-2026-86144",
+    "commit": "b63cd517afecb76582dd9488c55e54ceaf50de61",
+    "url": "https://github.com/GNOME/libxml2/commit/b63cd517afecb76582dd9488c55e54ceaf50de61.patch",
+    "sha256": "49b3c2caba6fcba424ced833b26d67efb6c0749d26e7494f4951db61f55f211f",
+    "backport_file": "CVE-2026-86144-2.13-backport.patch",
+    "backport_sha256": "a894a8d51b15f9da56a9f2b2d24a19cd0905d888523b3d0f022bb9f32cf77a20"
+  }
+]

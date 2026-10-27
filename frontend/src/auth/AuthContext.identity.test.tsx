@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StrictMode, useEffect, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { OFFLINE_ACCESS_MAX_AGE_MS } from "@/offline/accessPolicy";
 
 const coordination = vi.hoisted(() => ({
   listener: null as null | (() => void),
@@ -78,6 +79,7 @@ function Probe() {
       {state.status === "authenticated"
         ? `${state.tenantId}:${state.user.id}:${state.sessionMode}`
         : state.status}
+      {state.status === "authenticated" && state.commercialAccess?.allowed === false && <p>Acceso comercial bloqueado</p>}
       <button type="button" onClick={() => void logout().catch(() => undefined)}>
         logout-probe
       </button>
@@ -681,6 +683,100 @@ describe("AuthProvider identity continuity", () => {
     expect((await window.fetch(request, { body: stream })).status).toBe(401);
     expect(networkFetch).toHaveBeenCalledOnce();
     expect(refreshSession).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("closes an open session's commercial views and offline permission on a billing rejection", async () => {
+    const networkFetch = vi.fn().mockResolvedValue(new Response("payment_required", { status: 402 }));
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce({ ...session("tenant-a", "user-a"), commercial_access: {
+      allowed: true, reason: "active", valid_until: new Date(Date.now() + 60_000).toISOString(),
+    } });
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    queryClient.setQueryData(["paid-private-data"], { value: "private" });
+    await act(async () => { expect((await window.fetch("/api/v1/catalog/products")).status).toBe(402); });
+    await screen.findByText("Acceso comercial bloqueado");
+    expect(screen.getByText("tenant-a:user-a:online")).toBeInTheDocument();
+    await waitFor(() => expect(offlineAccess.clear).toHaveBeenCalled());
+    expect(queryClient.getQueryData(["paid-private-data"])).toBeUndefined();
+    expect(refreshSession).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("expires an already-open register at its billing deadline while offline", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getSession).mockResolvedValueOnce({ ...session("tenant-a", "user-a"), commercial_access: {
+        allowed: true, reason: "trial", valid_until: new Date(Date.now() + 200).toISOString(),
+      } }).mockRejectedValue(new TypeError("offline"));
+      offlineAccess.read.mockResolvedValue({ status: "expired" });
+      const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+      await act(async () => { await vi.dynamicImportSettled(); });
+      expect(screen.getByText("tenant-a:user-a:online")).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(199); });
+      expect(screen.queryByText("Acceso comercial bloqueado")).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); await vi.dynamicImportSettled(); });
+      expect(screen.getByText("Acceso comercial bloqueado")).toBeInTheDocument();
+      expect(offlineAccess.clear).toHaveBeenCalled();
+      expect(getSession).toHaveBeenCalledTimes(2);
+      view.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not reopen commercial access when an older session probe finishes after a 402", async () => {
+    const original = { ...session("tenant-a", "user-a"), commercial_access: {
+      allowed: true, reason: "active", valid_until: new Date(Date.now() + 60_000).toISOString(),
+    } };
+    let finishProbe!: (value: typeof original) => void;
+    vi.mocked(getSession).mockResolvedValueOnce(original).mockImplementationOnce(() => new Promise(resolve => { finishProbe = resolve; }));
+    window.fetch = vi.fn().mockResolvedValue(new Response("payment_required", { status: 402 }));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => window.dispatchEvent(new Event("focus")));
+    await act(async () => { await window.fetch("/api/v1/catalog/products"); });
+    await screen.findByText("Acceso comercial bloqueado");
+    await act(async () => { finishProbe(original); });
+    expect(screen.getByText("Acceso comercial bloqueado")).toBeInTheDocument();
+    expect(offlineAccess.cache).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("bounds an already-open seven-day trial to twelve hours without a fresh online probe", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getSession).mockResolvedValueOnce({ ...session("tenant-a", "user-a"), commercial_access: {
+        allowed: true, reason: "signup_trial", valid_until: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      } }).mockImplementationOnce(() => new Promise(() => {}));
+      const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+      await act(async () => { await vi.dynamicImportSettled(); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(OFFLINE_ACCESS_MAX_AGE_MS - 1); });
+      expect(screen.queryByText("Acceso comercial bloqueado")).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); await vi.dynamicImportSettled(); });
+      expect(screen.getByText("Acceso comercial bloqueado")).toBeInTheDocument();
+      expect(getSession).toHaveBeenCalledTimes(2);
+      view.unmount();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not let an older 402 replace a more recently verified billing grant", async () => {
+    const original = { ...session("tenant-a", "user-a"), commercial_access: {
+      allowed: true, reason: "active", valid_until: new Date(Date.now() + 60_000).toISOString(),
+    } };
+    const renewed = { ...original, commercial_access: { ...original.commercial_access, valid_until: new Date(Date.now() + 120_000).toISOString() } };
+    vi.mocked(getSession).mockResolvedValueOnce(original).mockResolvedValueOnce(renewed);
+    let finishRequest!: (value: Response) => void;
+    window.fetch = vi.fn().mockImplementation(() => new Promise(resolve => { finishRequest = resolve; }));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const olderRequest = window.fetch("/api/v1/catalog/products");
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
+    await act(async () => { finishRequest(new Response("payment_required", { status: 402 })); await olderRequest; });
+    expect(screen.queryByText("Acceso comercial bloqueado")).not.toBeInTheDocument();
+    expect(offlineAccess.clear).not.toHaveBeenCalled();
     view.unmount();
   });
 });

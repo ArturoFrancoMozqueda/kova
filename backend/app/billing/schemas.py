@@ -63,6 +63,8 @@ class BillingAccessResponse(BaseModel):
     trial_ends_at: datetime | None
     blocked_at: datetime | None
     recovery_path: str
+    valid_until: datetime | None = None
+    grace_period_ends_at: datetime | None = None
 
 
 class BillingSubscriptionResponse(BaseModel):

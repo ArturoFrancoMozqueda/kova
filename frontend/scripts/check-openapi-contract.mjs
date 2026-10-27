@@ -53,7 +53,7 @@ expectProperties("InvoicePreparation", ["request_id", "environment", "recipient"
 expectProperties("PreviewResponse", ["recipient_snapshot", "total_amount", "lines"]);
 expectProperties("DocumentResponse", ["environment", "state", "uuid", "recipient_snapshot", "xml_available"]);
 
-expectStatus("/api/v1/auth/signup", "post", "200");
+expectStatus("/api/v1/auth/signup", "post", "201");
 expectStatus("/api/v1/auth/login", "post", "200");
 expectStatus("/api/v1/auth/session", "get", "200");
 expectStatus("/api/v1/catalog/products", "get", "200");

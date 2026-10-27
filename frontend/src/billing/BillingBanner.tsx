@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type HTMLAttributes } from "react";
+import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AlertTriangle, Clock, X, XCircle } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
@@ -59,7 +59,8 @@ function bannerForAccess(access: BillingAccess): BannerContent | null {
               ? copy.billingBanner.blockedIncomplete
               : access.reason === "incomplete_expired"
                 ? copy.billingBanner.blockedIncompleteExpired
-                : copy.billingBanner.blockedGeneric;
+                : access.reason === "verification_required"
+                  ? copy.billingView.verificationRequiredBody : copy.billingBanner.blockedGeneric;
 
   return { tone: "danger", title: copy.billingBanner.blockedTitle, body: blockedBody };
 }
@@ -97,7 +98,12 @@ function writeDismissed(reason: string) {
 export function BillingBanner() {
   const { state } = useAuth();
   const location = useLocation();
-  const [access, setAccess] = useState<BillingAccess | null>(null);
+  const [fetchedAccess, setAccess] = useState<BillingAccess | null>(null);
+  const commercialAccess = state.status === "authenticated" ? state.commercialAccess : undefined;
+  const access = useMemo<BillingAccess | null>(() => location.pathname.startsWith("/settings/billing") ? null : commercialAccess?.allowed === false ? {
+    allowed: false, reason: commercialAccess.reason, trialing: false, trial_ends_at: null,
+    blocked_at: null, recovery_path: "/settings/billing", grace_period_ends_at: null,
+  } : fetchedAccess, [location.pathname, commercialAccess, fetchedAccess]);
   const [dismissedReason, setDismissedReason] = useState<string | null>(null);
   const lastBanner = useRef<{ access: BillingAccess; content: BannerContent } | null>(null);
 

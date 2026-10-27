@@ -13,7 +13,11 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.auth.models import Membership, User
 from app.billing import repository
-from app.billing.access import get_billing_access_status, serialize_billing_access
+from app.billing.access import (
+    BILLING_MAX_GRACE_DAYS,
+    get_billing_access_status,
+    serialize_billing_access,
+)
 from app.billing.models import Subscription, WebhookEvent
 from app.billing.schemas import BILLING_PERIOD_FRESHNESS_MAX_AGE
 from app.billing.stripe_client import (
@@ -211,7 +215,7 @@ def verify_stripe_signature(
 
 
 def _maybe_resync_period(db: Session, subscription: Subscription) -> None:
-    """Best-effort refresh of the renewal date from the live subscription.
+    """Best-effort authoritative refresh; a date-only refresh cannot renew access.
 
     Self-heals rows whose period has never been confirmed from Stripe, is
     missing, is stale, or has passed the backend TTL. Never raises: a read of
@@ -238,22 +242,39 @@ def _maybe_resync_period(db: Session, subscription: Subscription) -> None:
     )
     if not needs_resync:
         return
-    period_start, period_end = _retrieve_live_period(subscription.stripe_subscription_id)
-    if period_end is None:
+    try:
+        refresh_subscription_access_snapshot(db, tenant_id=subscription.tenant_id)
+    except (StripeSubscriptionError, HTTPException):
+        # The recovery page stays available; access evaluation fails closed.
         return
-    next_period_end = _timestamp(period_end)
-    next_period_start = _timestamp(period_start) if period_start is not None else None
-    if subscription.current_period_end == next_period_end and (
-        next_period_start is None or subscription.current_period_start == next_period_start
-    ):
-        subscription.stripe_period_synced_at = now
-        db.commit()
-        return
-    subscription.current_period_end = next_period_end
-    if period_start is not None:
-        subscription.current_period_start = next_period_start
-    subscription.stripe_period_synced_at = now
+
+
+def refresh_subscription_access_snapshot(db: Session, *, tenant_id: UUID) -> Subscription | None:
+    repository.lock_billing_tenant(db, tenant_id=tenant_id)
+    subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if subscription is None or not subscription.stripe_subscription_id:
+        raise StripeSubscriptionError("Missing Stripe subscription mapping")
+    live = _retrieve_authoritative_subscription(subscription.stripe_subscription_id)
+    customer_id = subscription.stripe_customer_id or live.get("customer")
+    if not isinstance(customer_id, str) or not customer_id:
+        raise StripeSubscriptionError("Missing Stripe customer mapping")
+    _validate_checkout_subscription(
+        live, tenant_id=tenant_id, subscription_id=subscription.stripe_subscription_id,
+        customer_id=customer_id, livemode=live.get("livemode"),
+    )
+    if live.get("status") == "active" and _extract_period(live)[1] is None:
+        raise StripeSubscriptionError("Missing current Stripe subscription period")
+    subscription = _upsert_subscription_from_stripe_object(
+        db, tenant_id=tenant_id, stripe_object=live,
+    )
+    subscription.updated_at = _now_utc()
+    identity_hash = hashlib.sha256(subscription.stripe_subscription_id.encode()).hexdigest()
+    subscription.stripe_lifecycle_event_id = (
+        "checkout-reconcile:" + identity_hash
+    )
+    subscription.stripe_lifecycle_event_type = "customer.subscription.updated"
     db.commit()
+    return subscription
 
 
 def get_subscription_status(db: Session, *, tenant_id: UUID, resync: bool = False) -> dict:
@@ -364,14 +385,13 @@ def reconcile_checkout_session(
     user_id: UUID,
     session_id: str,
 ) -> dict:
-    """Self-heal a lost ``checkout.session.completed`` webhook.
+    """Recover a missed webhook from the current Stripe subscription state.
 
-    Fetches the checkout session from Stripe, verifies it belongs to the
-    calling tenant, and — if it is paid — runs the same activation path as the
-    webhook, idempotently. Safe to call repeatedly: a second call after the
-    subscription is already active is a no-op (no duplicate audit/email).
+    A completed checkout is historical evidence, never a current entitlement.
+    Serialize the authoritative lookup with webhooks, including the first row.
     """
     secret_key = _stripe_secret_key()
+    _validate_live_checkout_configuration(secret_key=secret_key)
     try:
         stripe_session = checkout_client.retrieve_session(
             secret_key=secret_key, session_id=session_id
@@ -383,34 +403,57 @@ def reconcile_checkout_session(
     session_tenant_id = _tenant_id_from_event_object(stripe_session)
     if session_tenant_id is None or session_tenant_id != tenant_id:
         raise forbidden("Checkout session does not belong to this tenant")
-
-    paid = (
-        stripe_session.get("payment_status") == "paid"
-        or stripe_session.get("status") == "complete"
-    )
-    if not paid:
+    _validate_live_checkout_session(stripe_session)
+    if _requires_live_stripe() and stripe_session.get("livemode") is not True:
+        raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
+    if stripe_session.get("id") != session_id or stripe_session.get("mode") != "subscription":
+        raise bad_request("Invalid subscription checkout session")
+    subscription_id = stripe_session.get("subscription")
+    customer_id = stripe_session.get("customer")
+    if stripe_session.get("status") != "complete":
         return get_subscription_status(db, tenant_id=tenant_id)
+    if not isinstance(subscription_id, str) or not subscription_id:
+        raise bad_request("Checkout session has no subscription")
+    if not isinstance(customer_id, str) or not customer_id:
+        raise bad_request("Checkout session has no customer")
 
-    existing = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    repository.lock_billing_tenant(db, tenant_id=tenant_id)
+    existing = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if existing and existing.stripe_customer_id not in {None, customer_id}:
+        raise forbidden("Checkout customer does not belong to this tenant")
+    try:
+        live_subscription = _retrieve_authoritative_subscription(subscription_id)
+        _validate_checkout_subscription(
+            live_subscription, tenant_id=tenant_id,
+            subscription_id=subscription_id, customer_id=customer_id,
+            livemode=stripe_session.get("livemode"),
+        )
+        if existing and existing.stripe_subscription_id not in {None, subscription_id}:
+            if not _can_replace_stripe_subscription(
+                existing.stripe_subscription_id, live_subscription,
+                tenant_id=tenant_id, customer_id=customer_id,
+                livemode=stripe_session.get("livemode"),
+            ):
+                return get_subscription_status(db, tenant_id=tenant_id)
+    except StripeSubscriptionError as exc:
+        raise HTTPException(status_code=502, detail="Stripe subscription lookup failed") from exc
+
     already_active = bool(
         existing
-        and existing.status == "active"
-        and existing.latest_checkout_session_id == stripe_session.get("id")
+        and existing.status in {"active", "trialing"}
+        and existing.latest_checkout_session_id == session_id
     )
-    # The retrieved object is a checkout.session, so the upsert treats it as an
-    # activation (status -> active, records latest_checkout_session_id).
-    stripe_session["object"] = "checkout.session"
     subscription = _upsert_subscription_from_stripe_object(
-        db, tenant_id=tenant_id, stripe_object=stripe_session
+        db, tenant_id=tenant_id, stripe_object=live_subscription
     )
-    _set_watermark(
-        subscription,
-        family=EVENT_FAMILY_LIFECYCLE,
-        created_at=_now_utc(),
-        event_id=f"checkout-reconcile:{session_id}",
-        event_type="checkout.session.completed",
+    subscription.latest_checkout_session_id = session_id
+    # Keep real event timestamps. The next delivery must refresh Stripe rather
+    # than undo this authoritative snapshot with an older event payload.
+    subscription.stripe_lifecycle_event_id = (
+        f"checkout-reconcile:{hashlib.sha256(session_id.encode()).hexdigest()}"
     )
-    if not already_active:
+    subscription.stripe_lifecycle_event_type = "customer.subscription.updated"
+    if not already_active and subscription.status in {"active", "trialing"}:
         audit_service.log(
             db,
             action="billing.subscription_activated",
@@ -427,6 +470,45 @@ def reconcile_checkout_session(
         _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
     db.commit()
     return get_subscription_status(db, tenant_id=tenant_id)
+
+
+def _validate_checkout_subscription(
+    stripe_object: dict[str, Any], *, tenant_id: UUID,
+    subscription_id: str, customer_id: str, livemode: Any,
+) -> None:
+    if (stripe_object.get("object") != "subscription"
+            or stripe_object.get("id") != subscription_id
+            or stripe_object.get("customer") != customer_id):
+        raise forbidden("Stripe subscription does not match checkout")
+    metadata_tenant = (stripe_object.get("metadata") or {}).get("tenant_id")
+    if metadata_tenant is not None and str(metadata_tenant) != str(tenant_id):
+        raise forbidden("Stripe subscription does not belong to this tenant")
+    # Real Stripe objects always carry a boolean; do not infer mode from IDs.
+    if (type(livemode) is not bool or type(stripe_object.get("livemode")) is not bool
+            or stripe_object["livemode"] is not livemode
+            or (_requires_live_stripe() and livemode is not True)):
+        raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
+
+
+def _can_replace_stripe_subscription(
+    previous_id: str, next_subscription: dict[str, Any], *,
+    tenant_id: UUID, customer_id: str, livemode: Any,
+) -> bool:
+    # Re-subscribing after cancellation is legitimate. Arrival order and a
+    # historical event payload cannot establish which subscription is newer.
+    previous = _retrieve_authoritative_subscription(previous_id)
+    _validate_checkout_subscription(
+        previous, tenant_id=tenant_id, subscription_id=previous_id,
+        customer_id=customer_id, livemode=livemode,
+    )
+    previous_created = previous.get("created")
+    next_created = next_subscription.get("created")
+    return (
+        previous.get("status") in {"canceled", "incomplete_expired"}
+        and type(previous_created) is int
+        and type(next_created) is int
+        and 0 < previous_created < next_created
+    )
 
 
 def cancel_subscription(
@@ -529,18 +611,28 @@ def _retrieve_live_period(stripe_subscription_id: str | None) -> tuple[Any, Any]
 
 
 def _subscription_status(stripe_status: str | None) -> str:
-    if stripe_status in {"trialing", "active", "past_due", "canceled", "unpaid"}:
+    if stripe_status in {
+        "trialing", "active", "past_due", "canceled", "unpaid", "incomplete_expired",
+    }:
         return stripe_status
     return "incomplete"
 
 
-def _mark_subscription_past_due(subscription: Subscription) -> None:
+def _mark_subscription_past_due(
+    subscription: Subscription, *, failed_at: datetime | None = None,
+) -> None:
     now = datetime.now(UTC)
     subscription.status = "past_due"
-    subscription.past_due_at = subscription.past_due_at or now
-    subscription.grace_period_ends_at = subscription.grace_period_ends_at or (
-        now + timedelta(days=settings.billing_grace_period_days)
-    )
+    # A subscription lookup proves current debt, not when its first payment
+    # failed. Polling/reconciling unknown historical debt must not mint grace.
+    if subscription.past_due_at is None and failed_at is None:
+        return
+    first_failure = min(subscription.past_due_at or now, failed_at or now)
+    subscription.past_due_at = first_failure
+    deadline = first_failure + timedelta(days=min(
+        settings.billing_grace_period_days, BILLING_MAX_GRACE_DAYS,
+    ))
+    subscription.grace_period_ends_at = min(subscription.grace_period_ends_at or deadline, deadline)
 
 
 def _clear_subscription_past_due(subscription: Subscription) -> None:
@@ -794,6 +886,8 @@ def _temporal_decision(
     event_id: str,
     event_type: str,
 ) -> str:
+    if (subscription.stripe_lifecycle_event_id or "").startswith("checkout-reconcile:"):
+        return "reconcile"
     watermark_at, watermark_id, watermark_type = _watermark(subscription, family=family)
     if watermark_at is None:
         return "accept"
@@ -893,17 +987,25 @@ def _reconcile_ambiguous_event(
     event_type: str,
     event_created_at: datetime | None,
     stripe_object: dict[str, Any],
+    live_subscription: dict[str, Any] | None = None,
 ) -> Subscription:
     subscription_id = _stripe_subscription_id(
         event_type=event_type, stripe_object=stripe_object
     ) or subscription.stripe_subscription_id
     if not subscription_id:
         raise StripeSubscriptionError("Missing Stripe subscription id for reconciliation")
-    live_subscription = _retrieve_authoritative_subscription(subscription_id)
+    if live_subscription is None:
+        live_subscription = _retrieve_authoritative_subscription(subscription_id)
     previous_status = subscription.status
+    replacing_subscription = subscription.stripe_subscription_id != subscription_id
     subscription = _upsert_subscription_from_stripe_object(
         db, tenant_id=tenant_id, stripe_object=live_subscription
     )
+    if replacing_subscription:
+        # The previous subscription's invoice stream cannot order the new one.
+        subscription.stripe_payment_watermark_at = None
+        subscription.stripe_payment_event_id = None
+        subscription.stripe_payment_event_type = None
     reconciled_at = _now_utc()
     if event_created_at is not None and event_created_at > reconciled_at:
         reconciled_at = event_created_at
@@ -958,6 +1060,31 @@ def _process_temporal_event(
 
     repository.lock_billing_tenant(db, tenant_id=tenant_id)
     subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    replacement = None
+    incoming_subscription_id = _stripe_subscription_id(
+        event_type=event_type, stripe_object=stripe_object,
+    )
+    if (subscription is not None and subscription.stripe_subscription_id
+            and incoming_subscription_id not in {None, subscription.stripe_subscription_id}):
+        if family == EVENT_FAMILY_LIFECYCLE:
+            assert incoming_subscription_id is not None
+            candidate = _retrieve_authoritative_subscription(incoming_subscription_id)
+            customer_id = subscription.stripe_customer_id or candidate.get("customer")
+            if not isinstance(customer_id, str) or not customer_id:
+                raise forbidden("Stripe subscription has no customer")
+            _validate_checkout_subscription(
+                candidate, tenant_id=tenant_id, subscription_id=incoming_subscription_id,
+                customer_id=customer_id, livemode=candidate.get("livemode"),
+            )
+            if _can_replace_stripe_subscription(
+                subscription.stripe_subscription_id, candidate, tenant_id=tenant_id,
+                customer_id=customer_id, livemode=candidate.get("livemode"),
+            ):
+                replacement = candidate
+        if replacement is None:
+            _mark_event(event, status="ignored", tenant_id=tenant_id,
+                        error_reason="superseded_subscription")
+            return {"status": "ignored"}
     if subscription is None and family == EVENT_FAMILY_PAYMENT:
         if event_type in {"invoice.paid", "invoice.payment_succeeded"}:
             _send_payment_receipt_for_tenant(
@@ -992,6 +1119,8 @@ def _process_temporal_event(
         if subscription is not None
         else "accept"
     )
+    if replacement is not None:
+        decision = "reconcile"
     if decision == "stale":
         return _ignore_stale_event(
             event,
@@ -1040,6 +1169,7 @@ def _process_temporal_event(
             event_type=event_type,
             event_created_at=event_created_at,
             stripe_object=stripe_object,
+            live_subscription=replacement,
         )
     elif family == EVENT_FAMILY_LIFECYCLE:
         object_to_apply = dict(stripe_object)
@@ -1071,8 +1201,21 @@ def _process_temporal_event(
             action = "billing.subscription_status_updated"
     else:
         payment_succeeded = event_type in {"invoice.paid", "invoice.payment_succeeded"}
+        # Stripe increments attempt_count on retries. Only the signed first
+        # attempt's own event timestamp can establish a new 48-hour window.
+        first_failure_at = (
+            event_created_at
+            if type(stripe_object.get("attempt_count")) is int
+            and stripe_object["attempt_count"] == 1
+            and type(event_payload.get("created")) is int
+            and event_payload["created"] > 0
+            else None
+        )
         if not reconciled and status_applied and event_type == "invoice.payment_failed":
-            _mark_subscription_past_due(subscription)
+            _mark_subscription_past_due(subscription, failed_at=first_failure_at)
+        elif (reconciled and event_type == "invoice.payment_failed"
+              and subscription.status == "past_due" and first_failure_at is not None):
+            _mark_subscription_past_due(subscription, failed_at=first_failure_at)
         elif not reconciled and status_applied and payment_succeeded:
             subscription.status = "active"
             _clear_subscription_past_due(subscription)
@@ -1206,11 +1349,11 @@ def reconcile_subscriptions(db: Session, *, limit: int = 100) -> dict[str, int]:
         checked += 1
         tenant_id = candidate.tenant_id
         try:
-            live = _retrieve_authoritative_subscription(candidate.stripe_subscription_id or "")
             repository.lock_billing_tenant(db, tenant_id=tenant_id)
             locked = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
-            if locked is None:
+            if locked is None or not locked.stripe_subscription_id:
                 continue
+            live = _retrieve_authoritative_subscription(locked.stripe_subscription_id)
             before = (
                 locked.status,
                 locked.current_period_end,

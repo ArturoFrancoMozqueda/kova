@@ -21,9 +21,61 @@ Todos los PR con código ejecutan **las suites completas**. No hay selección de
 | Contratos operativos/política CI (26 casos) | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
 | Parser | Rechazo adversarial y aislamiento de archivos de negocio | Contenedor y firmas antivirus actuales | Log del job |
 | Reproducibilidad/SBOM | Dos builds idénticos y lista de dependencias | BuildKit, bases fijadas por digest | SBOM por commit |
-| Secretos/dependencias | Gitleaks, dependencias runtime y bundle público | Git completo, npm audit, pip-audit | Logs y comprobación del bundle |
+| Secretos/dependencias | Gitleaks, cuatro locks npm completos, locks Python nativo/Workers, paquetes directos del parser y bundle público | Git completo, npm audit, pip-audit 2.10.1 | JSON por inventario y comprobación del bundle |
+| CVE de imágenes | Imágenes nativa y parser realmente construidas; paquetes OS y Python transitivos | Trivy 0.76.1 fijado por digest, archivos `docker save` sin socket ni credenciales | JSON por imagen, retención 14 días |
 
 Las duraciones de JUnit incluyen trabajo por caso; el tiempo de runner se mide con timestamps de GitHub e incluye preparación. No se comparan estos números como si fueran la misma métrica.
+
+## Política de vulnerabilidades
+
+`scripts/audit_dependencies.py inventory` verifica que todos los lockfiles versionados estén
+clasificados: frontend, gateway, controlador Workers y controlador nativo para npm;
+`backend/uv.lock` y `deploy/cloudflare-backend/pylock.toml` para Python. Agregar o retirar
+un lockfile sin actualizar el inventario falla. Python incluye dependencias de desarrollo
+y versiones alternativas del lock, sin instalar ni ejecutar los paquetes auditados. Los
+paquetes Python directos del Dockerfile del parser deben usar `nombre==versión`; su grafo
+resuelto completo se verifica en la imagen construida.
+
+Npm bloquea HIGH/CRITICAL en **todas** las dependencias, incluidas herramientas de build y
+pruebas; los JSON también conservan avisos menores. Python bloquea cualquier aviso conocido,
+incluidos paquetes sin versión corregida. Trivy bloquea HIGH/CRITICAL en OS y librerías de
+ambas imágenes, también sin corrección disponible. No se usan listas de exclusión ni
+`continue-on-error`; fallos de red, herramientas, inventario o reportes también bloquean.
+No hay excepciones vigentes. Cualquier excepción futura requiere revisión específica de
+CVE/paquete/versión, evidencia de no exposición, responsable y fecha de vencimiento; no
+se permiten exclusiones generales por sistema operativo o falta de parche.
+
+El parser incorpora fuentes revisadas de Tesseract y backports de libxml2 porque
+el feed de Alpine omite avisos conocidos de esas versiones. Su gate adicional
+`backend/scripts/check_parser_runtime.py` verifica el ID inmutable de la imagen,
+hashes reales de binarios/modelo/parches, seis regresiones C y los reportes upstream.
+Consulta los avisos públicos oficiales de Tesseract sin credenciales: un GHSA nuevo,
+de cualquier severidad, o un fallo de consulta bloquea hasta revisarlo. No se presenta
+un número de versión ficticio como corrección ni un resultado vacío de Trivy como
+cobertura suficiente de los componentes compilados. CI y mantenimiento ejecutan
+ambos controles; los reportes quedan en `reports/security`.
+Las versiones se verificaron en [PyPI de pip-audit](https://pypi.org/project/pip-audit/2.10.1/)
+y la [publicación oficial de Trivy](https://github.com/aquasecurity/trivy/releases/tag/v0.76.1).
+El digest inmutable de la imagen oficial del escáner está en el script. El archivo de
+imagen entra por stdin de la API Docker y el JSON sale al host; esto también funciona
+con un daemon en VM, sin compartir rutas del host. El escáner tiene filesystem de sólo
+lectura, capacidades retiradas, `no-new-privileges`, tmpfs efímero y caché en volumen
+Docker; nunca recibe el socket Docker ni variables de la aplicación.
+
+`security` sigue siendo obligatorio para todos los PR y pushes. Los jobs de aceptación
+nativa y parser escanean las imágenes que acabaron de construir antes de aceptarlas;
+`CI required` conserva sus dependencias y bloquea publicación ante un fallo aplicable.
+`CI maintenance` repite semanalmente, manualmente y para cambios de infraestructura tanto
+los inventarios como el build/scan de ambas imágenes, para detectar avisos nuevos sin
+esperar cambios de código. Los escáneres reciben archivos locales y ninguna credencial
+de producción; no publican imágenes ni despliegan servicios.
+
+Reproducir: `python3.12 scripts/audit_dependencies.py inventory`, luego `python3.12
+scripts/audit_dependencies.py python` y `python3.12 scripts/audit_dependencies.py npm`
+con uv 0.13.4 y npm de Node 24 en PATH. Tras construir una imagen local:
+`python3.12 scripts/audit_dependencies.py image --name native --image kova-native:SHA`
+o `--name parser --image kova-assistant-parser:1`. Los reportes quedan en
+`reports/security`; `--output` permite usar una ruta temporal explícita.
 
 ## Registro de depuración
 

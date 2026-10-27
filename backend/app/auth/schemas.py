@@ -1,4 +1,6 @@
 import re
+from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -46,7 +48,7 @@ class SignupRequest(StrictModel):
 
 class SignupResponse(BaseModel):
     message: str
-    reason: str
+    reason: Literal["signup_received"]
     user_id: UUID | None = None
     tenant_id: UUID | None = None
     dev_verification_token: str | None = None
@@ -86,12 +88,19 @@ class MeResponse(BaseModel):
     feature_flags: dict[str, bool]
 
 
+class CommercialAccessResponse(BaseModel):
+    allowed: bool
+    reason: str
+    valid_until: datetime | None = None
+
+
 class SessionProbeResponse(BaseModel):
     authenticated: bool
     user: UserResponse | None = None
     tenant_id: UUID | None = None
     tenant_name: str | None = None
     feature_flags: dict[str, bool] | None = None
+    commercial_access: CommercialAccessResponse | None = None
 
 
 class RefreshResponse(BaseModel):

@@ -43,6 +43,13 @@ export class RateLimitError extends Error {
   }
 }
 
+export class BillingAccessError extends Error {
+  constructor() {
+    super("Activa el plan de Kova para sincronizar las ventas pendientes.");
+    this.name = "BillingAccessError";
+  }
+}
+
 const DEFAULT_RETRY_AFTER_MS = 60_000;
 const ORDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -143,6 +150,13 @@ export async function syncOfflineSales(
     }
 
     if (!response.ok) {
+      if (response.status === 402) {
+        const error = new BillingAccessError();
+        await Promise.all(items.map((item) => rollbackOfflineSaleAttempt(
+          tenantId, item.client_uuid, item.lease_id!, error.message,
+        )));
+        throw error;
+      }
       // 429: server rate-limited us. Don't dead-letter the sales — mark them
       // back to pending so the next sync attempt retries within the same
       // queue. Any other 4xx/5xx is a real failure and goes to dead letter.
@@ -181,6 +195,7 @@ export async function syncOfflineSales(
     // even when the server already committed some sales from this batch.
     apiResults = readSyncResults(await response.json(), tenantId, items);
   } catch (err) {
+    if (err instanceof BillingAccessError) throw err;
     // Network error — mark back to pending so sync worker can retry
     for (const item of items) {
       await markOfflineSaleStatus(

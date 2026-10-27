@@ -55,7 +55,7 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 @router.post(
-    "/signup", response_model=SignupResponse,
+    "/signup", response_model=SignupResponse, status_code=201,
     dependencies=[Depends(rate_limit(10, key="auth-signup", fail_closed=True))],
 )
 def signup(
@@ -97,22 +97,15 @@ def signup(
         if settings.app_env == "local"
         else None
     )
-    messages = {
-        service.SignupOutcome.ACCOUNT_CREATED:
-            "Account created. Verify your email to log in.",
-        service.SignupOutcome.VERIFICATION_RESENT:
-            "Verification email re-sent.",
-        service.SignupOutcome.EMAIL_IN_USE:
-            "Email already has an account. Sign in to continue.",
-    }
-    response.status_code = (
-        201 if outcome.reason == service.SignupOutcome.ACCOUNT_CREATED else 200
-    )
+    # Public signup must not reveal account existence or verification state.
+    # Local diagnostics retain the existing test/development conveniences only.
     return SignupResponse(
-        message=messages[outcome.reason],
-        reason=outcome.reason,
-        user_id=outcome.user.id if outcome.user else None,
-        tenant_id=outcome.tenant_id,
+        message=(
+            "Solicitud recibida. Puedes intentar iniciar sesión o revisar tu correo para continuar."
+        ),
+        reason="signup_received",
+        user_id=outcome.user.id if settings.app_env == "local" and outcome.user else None,
+        tenant_id=outcome.tenant_id if settings.app_env == "local" else None,
         dev_verification_token=dev_token,
     )
 
@@ -278,10 +271,18 @@ def session_probe(
         set_csrf_cookie(response)
 
     me_response = service.get_me(db, user=user, membership=membership)
+    from app.billing.access import get_billing_access_status
+
+    commercial = get_billing_access_status(db, tenant_id=membership.tenant_id)
     return SessionProbeResponse(
         authenticated=True,
         user=me_response.user,
         tenant_id=me_response.tenant_id,
         tenant_name=me_response.tenant_name,
         feature_flags=me_response.feature_flags,
+        commercial_access={
+            "allowed": commercial.allowed,
+            "reason": commercial.reason,
+            "valid_until": commercial.valid_until,
+        },
     )

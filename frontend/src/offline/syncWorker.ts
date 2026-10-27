@@ -5,7 +5,7 @@ import {
   markOfflineSaleFailed,
   recoverExpiredLeases,
 } from "./queue";
-import { RateLimitError, syncOfflineSales } from "./sync";
+import { BillingAccessError, RateLimitError, syncOfflineSales } from "./sync";
 
 const MAX_ATTEMPTS = 5;
 const BACKOFF_MS = [2_000, 8_000, 30_000, 60_000, 120_000];
@@ -70,6 +70,7 @@ function scheduleRetry(tenantId: string, minAttemptCount: number) {
 /** Foreground checkout also uses leased sync, so transient failures must hand
  * its durable pending sale back to the worker even if the browser stays online. */
 export function scheduleOfflineSyncRetry(tenantId: string, error: unknown) {
+  if (error instanceof BillingAccessError) return;
   if (!tenantId || getActiveOfflineTenant() !== tenantId) return;
   scheduleRetryIn(tenantId, error instanceof RateLimitError ? error.retryAfterMs : BACKOFF_MS[0]);
 }
@@ -109,6 +110,7 @@ export async function triggerSync(tenantId: string): Promise<void> {
       if (retryable.length > 0) await syncOfflineSales(tenantId, retryable);
     }
   } catch (err) {
+    if (err instanceof BillingAccessError) return;
     if (getActiveOfflineTenant() !== tenantId) return;
     if (err instanceof RateLimitError) {
       scheduleRetryIn(tenantId, err.retryAfterMs);

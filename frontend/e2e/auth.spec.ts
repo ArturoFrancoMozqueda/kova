@@ -5,30 +5,31 @@ import { expect, test } from "./fixtures";
 // confirmed and therefore never got in. The account now signs straight in, and
 // verification is enforced at the paid boundary instead. See
 // docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md.
-async function mockSignupCreated(page: import("@playwright/test").Page) {
+async function mockSignupReceived(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/auth/signup", async (route) => {
     await route.fulfill({
       status: 201,
       json: {
-        message: "Account created. Verify your email to log in.",
-        user_id: "user-1",
-        tenant_id: "tenant-1",
-        dev_verification_token: "verify-token-1",
+        message: "Solicitud recibida. Puedes intentar iniciar sesión o revisar tu correo para continuar.",
+        reason: "signup_received",
+        user_id: null,
+        tenant_id: null,
+        dev_verification_token: null,
       },
     });
   });
 }
 
-async function fillSignupForm(page: import("@playwright/test").Page) {
+async function fillSignupForm(page: import("@playwright/test").Page, email = "owner@example.com") {
   await page.getByLabel(/nombre del negocio/i).fill("Bakery Demo");
-  await page.getByLabel(/correo/i).fill("owner@example.com");
+  await page.getByLabel(/correo/i).fill(email);
   await page.getByLabel(/contrase[ñn]a/i).fill("S3cur3pass!");
   await page.locator("#acceptedTerms").check();
   await page.getByRole("button", { name: /crear cuenta/i }).click();
 }
 
 test("signup signs the new owner in instead of waiting on their inbox", async ({ page }) => {
-  await mockSignupCreated(page);
+  await mockSignupReceived(page);
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ json: { message: "Logged in." } });
   });
@@ -43,26 +44,37 @@ test("signup signs the new owner in instead of waiting on their inbox", async ({
   await expect(await loginRequest).toBeTruthy();
 });
 
-test("signup falls back to the verification screen when auto-login fails", async ({ page }) => {
-  await mockSignupCreated(page);
-  // Auto-login is a convenience, not a guarantee: a rate limit or a transient
-  // network failure must not lose the fact that the account was created.
+test("signup keeps a neutral recovery screen when auto-login is rate limited", async ({ page }) => {
+  await mockSignupReceived(page);
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ status: 429, body: "Too many requests" });
   });
-  await page.route("**/api/v1/auth/verify", async (route) => {
-    await route.fulfill({ json: { message: "Email verified." } });
-  });
-
   await page.goto("/signup");
   await fillSignupForm(page);
-
-  await expect(page.getByText(/cuenta creada\. el token local de verificaci[óo]n est[áa] listo/i)).toBeVisible();
-  await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveValue("verify-token-1");
-
-  await page.getByRole("button", { name: /verificar correo/i }).click();
-  await expect(page.getByText(/correo verificado\. ya puedes iniciar sesi[óo]n/i)).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /Solicitud recibida/i })).toBeVisible();
+  await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveCount(0);
+  await page.getByRole("link", { name: /¿Olvidaste tu contraseña/i }).click();
+  await expect(page).toHaveURL("/forgot-password");
+  await expect(page.getByRole("heading", { name: /Recupera tu acceso/i })).toBeVisible();
 });
+
+for (const account of ["new", "verified", "pending"]) {
+  test(`signup acknowledgement stays neutral for ${account} account when password login fails`, async ({ page }) => {
+    // The backend integration suite verifies all real account states produce
+    // this same public response. The browser must never infer a state from it.
+    await mockSignupReceived(page);
+    await page.route("**/api/v1/auth/login", async (route) => {
+      await route.fulfill({ status: 401, json: { detail: "Invalid credentials" } });
+    });
+    await page.goto("/signup");
+    await fillSignupForm(page, `${account}@example.com`);
+    await expect(page.getByRole("status").filter({ hasText: /Solicitud recibida/i })).toBeVisible();
+    await expect(page.getByText(/Este correo ya tiene una cuenta|Ya tenías una cuenta sin verificar/i)).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Volver a iniciar sesión/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /¿Olvidaste tu contraseña/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Reenviar en/i })).toBeDisabled();
+  });
+}
 
 test("login posts credentials and navigates owners to the dashboard", async ({ page }) => {
   await page.route("**/api/v1/auth/login", async (route) => {

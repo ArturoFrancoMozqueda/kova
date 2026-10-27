@@ -6,6 +6,11 @@ const CASHIER_SESSION = {
   user: { id: "user-1", email: "cashier@bakery.com", tenant_id: "tenant-1", role: "cashier" },
   tenant_id: "tenant-1",
   tenant_name: "Bakery",
+  // Cold offline continuity now requires a finite server billing grant in
+  // addition to identity; these scenarios represent an eligible business.
+  commercial_access: {
+    allowed: true, reason: "active", valid_until: new Date(Date.now() + 86_400_000).toISOString(),
+  },
 };
 
 const CATALOG = [

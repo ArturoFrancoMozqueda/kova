@@ -337,7 +337,11 @@ describe("existing API inside Python Durable Objects", () => {
     for (let reload = 0; reload < 3; reload++) {
       const session = await owner("/api/v1/auth/session");
       expect(session.status).toBe(200);
-      expect(await session.json()).toEqual({ authenticated: true, ...identity });
+      const current = await session.json();
+      expect(current).toEqual({ authenticated: true, ...identity,
+        commercial_access: { allowed: true, reason: "signup_trial", valid_until: expect.any(String) },
+      });
+      expect(Date.parse(current.commercial_access.valid_until)).toBeGreaterThan(Date.now());
     }
     const denied = await owner("/api/v1/catalog/products", { method: "POST", csrf: false,
       body: { name: "CSRF must reject", price_amount: "18.50" } });

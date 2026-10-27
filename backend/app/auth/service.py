@@ -100,13 +100,7 @@ def _unique_slug(db: Session, base: str) -> str:
 # ── Signup ────────────────────────────────────────────────────────────────────
 
 class SignupOutcome:
-    """Result of a signup attempt.
-
-    `reason` lets the frontend distinguish the three branches without leaking
-    extra fields. The shape is intentionally identical across branches so the
-    response body cannot be used as an enumeration oracle beyond the reason
-    code itself — which the user already learns from the resulting email.
-    """
+    """Internal signup result; never expose its branch to a public client."""
 
     ACCOUNT_CREATED = "account_created"
     VERIFICATION_RESENT = "verification_resent"
@@ -144,6 +138,9 @@ def signup(
     """
     if not accepted_terms:
         raise bad_request("Terms and privacy notice must be accepted")
+    # Every accepted attempt pays the same bcrypt cost, including duplicates.
+    # Never replace an existing account's password with this candidate hash.
+    hashed = hash_password(password)
     existing = repo.get_user_by_email(db, email)
     if existing is not None:
         membership = repo.get_membership_by_user(db, existing.id)
@@ -189,7 +186,6 @@ def signup(
             verification_token_plain=plain_token,
         )
 
-    hashed = hash_password(password)
     user = repo.create_user(
         db,
         email=email,

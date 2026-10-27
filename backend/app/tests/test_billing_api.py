@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -412,12 +413,13 @@ def _stripe_signature(payload: bytes, secret: str = "whsec_test_123") -> str:
     return f"t={timestamp},v1={digest}"
 
 
-def _stripe_event(event_type: str, stripe_object: dict) -> bytes:
+def _stripe_event(event_type: str, stripe_object: dict, *, created: int | None = None) -> bytes:
     return json.dumps(
         {
             "id": f"evt_{uuid4().hex}",
             "type": event_type,
             "data": {"object": stripe_object},
+            **({"created": created} if created is not None else {}),
         },
         separators=(",", ":"),
     ).encode()
@@ -709,6 +711,8 @@ def test_get_subscription_resyncs_stale_period_from_stripe(
             "id": "sub_resync",
             "object": "subscription",
             "status": "active",
+            "customer": "cus_resync",
+            "livemode": False,
             "current_period_start": 1_999_000_000,
             "current_period_end": 2_000_000_000,
         }
@@ -749,6 +753,8 @@ def test_get_subscription_resyncs_future_period_when_local_value_differs(
             "id": "sub_resync_future",
             "object": "subscription",
             "status": "active",
+            "customer": "cus_resync_future",
+            "livemode": False,
             "items": {
                 "data": [
                     {
@@ -899,7 +905,9 @@ def test_invoice_payment_failed_marks_subscription_past_due(
             "object": "invoice",
             "subscription": "sub_test_invoice",
             "metadata": {},
+            "attempt_count": 1,
         },
+        created=int(time.time()),
     )
 
     response = client.post(
@@ -914,10 +922,11 @@ def test_invoice_payment_failed_marks_subscription_past_due(
     assert subscription.past_due_at is not None
     assert subscription.grace_period_ends_at is not None
     grace_delta = subscription.grace_period_ends_at - subscription.past_due_at
-    assert grace_delta.days == 3
+    # Legacy configuration cannot extend the owner's explicit 48-hour policy.
+    assert grace_delta.days == 2
 
 
-def test_subscription_past_due_webhook_sets_grace_period(
+def test_subscription_past_due_webhook_does_not_invent_first_failure_grace(
     client: TestClient, db: Session, monkeypatch
 ) -> None:
     _configure_stripe(monkeypatch)
@@ -949,9 +958,8 @@ def test_subscription_past_due_webhook_sets_grace_period(
         .one()
     )
     assert subscription.status == "past_due"
-    assert subscription.past_due_at is not None
-    assert subscription.grace_period_ends_at is not None
-    assert (subscription.grace_period_ends_at - subscription.past_due_at).days == 5
+    assert subscription.past_due_at is None
+    assert subscription.grace_period_ends_at is None
 
 
 def test_invoice_payment_succeeded_clears_past_due_grace(
@@ -1232,6 +1240,8 @@ def _reconcile_session(tenant_id: str) -> dict:
     return {
         "id": "cs_reconcile_1",
         "object": "checkout.session",
+        "mode": "subscription",
+        "livemode": False,
         "customer": "cus_reconcile",
         "subscription": "sub_reconcile",
         "payment_status": "paid",
@@ -1246,11 +1256,13 @@ def _reconcile_subscription_client() -> "FakeStripeSubscriptionClient":
             "id": "sub_reconcile",
             "object": "subscription",
             "status": "active",
+            "customer": "cus_reconcile",
+            "livemode": False,
             "items": {
                 "data": [
                     {
-                        "current_period_start": 1_700_000_000,
-                        "current_period_end": 1_702_592_000,
+                        "current_period_start": int(datetime.now(UTC).timestamp()),
+                        "current_period_end": int((datetime.now(UTC) + timedelta(days=30)).timestamp()),
                     }
                 ]
             },

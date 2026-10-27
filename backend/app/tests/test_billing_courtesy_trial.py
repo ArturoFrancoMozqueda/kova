@@ -30,10 +30,12 @@ def test_courtesy_trial_requires_a_future_expiration(monkeypatch, remaining_days
     assert result.recovery_path == "/settings/billing"
 
 
-def test_stripe_trial_keeps_its_webhook_managed_access_policy(monkeypatch):
+@pytest.mark.parametrize("remaining_days", [-1, 7])
+def test_stripe_trial_requires_a_current_bounded_expiration(monkeypatch, remaining_days):
     subscription = Subscription(
         tenant_id=uuid4(), status="trialing", stripe_subscription_id="sub_test_trial",
-        trial_ends_at=datetime.now(UTC) - timedelta(days=1),
+        trial_ends_at=datetime.now(UTC) + timedelta(days=remaining_days),
+        updated_at=datetime.now(UTC),
     )
     monkeypatch.setattr(
         access.billing_repo, "get_subscription_by_tenant", Mock(return_value=subscription)
@@ -41,8 +43,8 @@ def test_stripe_trial_keeps_its_webhook_managed_access_policy(monkeypatch):
 
     result = access.get_billing_access_status(Mock(), tenant_id=subscription.tenant_id)
 
-    assert result.allowed
-    assert result.reason == "trialing"
+    assert result.allowed is (remaining_days > 0)
+    assert result.reason == ("trialing" if remaining_days > 0 else "verification_required")
 
 
 @pytest.mark.parametrize("stripe_subscription_id", [None, "sub_test_trial"])

@@ -362,7 +362,7 @@ jobs:
 
   security:
     name: secrets and dependency audit
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -377,34 +377,63 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "0.13.4"
-      - name: Audit Python runtime dependencies
-        run: uv sync --frozen --no-dev && uv run --with pip-audit pip-audit
-        working-directory: backend
+      - name: Verify complete dependency inventory
+        run: python scripts/audit_dependencies.py inventory
+      - name: Audit Python locks and direct parser dependencies
+        run: python scripts/audit_dependencies.py python
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "24"
-      - name: Audit npm runtime dependencies
-        run: npm audit --omit=dev --audit-level=high --package-lock-only
-        working-directory: frontend
-      - name: Reject critical vulnerabilities in build and test dependencies
-        run: npm audit --audit-level=critical --package-lock-only
-        working-directory: frontend
+      - name: Audit all npm locks including build and test dependencies
+        if: success() || failure()
+        run: python scripts/audit_dependencies.py npm
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        if: success() || failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload dependency advisory reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-dependencies-${{ github.run_attempt }}
+          path: reports/security
+          if-no-files-found: error
+          retention-days: 14
 
   assistant-parser:
     name: isolated assistant parser and antivirus
     needs: [changes]
     if: needs.changes.outputs.parser == 'true'
-    timeout-minutes: 8
+    # Includes the pinned upstream OCR build and its security regressions.
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - name: Build parser with current antivirus signatures
         run: docker build --tag kova-assistant-parser:1 backend/assistant-parser
+      - name: Test parser model path and upstream evidence validation in isolation
+        run: |
+          tar -C backend/assistant-parser -cf - parse.py verify_upstream_tests.py test_parse.py test_verify_upstream_tests.py | \
+            docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+              --tmpfs /tmp:size=32m,mode=1777 -i --entrypoint python kova-assistant-parser:1 -I -c \
+              'import sys,tarfile,unittest; tarfile.open(fileobj=sys.stdin.buffer,mode="r|").extractall("/tmp/parser-tests",filter="data"); sys.path.insert(0,"/tmp/parser-tests"); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover("/tmp/parser-tests")); sys.exit(not result.wasSuccessful())'
+      - name: Verify patched parser binaries and current upstream advisories
+        run: python backend/scripts/check_parser_runtime.py --image kova-assistant-parser:1 --require-native-arch x86_64 --report reports/security/parser-runtime.json
+      - name: Reject HIGH and CRITICAL parser image vulnerabilities including unfixed
+        run: python scripts/audit_dependencies.py image --name parser --image kova-assistant-parser:1
       - name: Verify isolated business files and adversarial rejection
         run: python3 backend/scripts/check_assistant_parser.py
+      - name: Upload parser vulnerability report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-parser-${{ github.run_attempt }}
+          path: reports/security
+          if-no-files-found: error
+          retention-days: 14
 
   supply-chain:
     needs: [changes]

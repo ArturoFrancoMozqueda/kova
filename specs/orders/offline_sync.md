@@ -49,6 +49,8 @@ Offline-first selling is a core POS differentiator and protects revenue during c
 
 - Missing auth returns `401`.
 - Missing permission returns `403`.
+- Blocked subscription returns `402`; queued sales stay pending with their UUIDs
+  and retry budget intact. Automatic retries pause until access is restored.
 - Duplicate `client_uuid` returns the existing order.
 - Invalid product or payment data marks that sale as failed.
 

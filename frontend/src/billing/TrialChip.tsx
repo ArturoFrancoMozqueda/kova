@@ -74,7 +74,7 @@ export function TrialChip({ className, compact = false }: { className?: string; 
     };
   }, [authenticated, fetchBilling]);
 
-  if (!billing) return null;
+  if (!billing || (state.status === "authenticated" && state.commercialAccess?.allowed === false)) return null;
   const access = billing.access;
   if (!access) return null;
 

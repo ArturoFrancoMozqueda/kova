@@ -1,0 +1,301 @@
+{
+  "source": {
+    "project": "tesseract",
+    "version": "5.5.3",
+    "commit": "f139e578a37c5c18717195c7d603ddb357717e23",
+    "url": "https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/f139e578a37c5c18717195c7d603ddb357717e23",
+    "sha256": "5248c241262c509384669753ae3f561d723975cee68c0ea1b960286b9ab05fbe",
+    "release_status": "maintainer source after 5.5.3; not a 5.5.4 release"
+  },
+  "model": {
+    "project": "tessdata_fast",
+    "release": "4.1.0",
+    "language": "spa",
+    "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/spa.traineddata",
+    "sha256": "6f2e04d02774a18f01bed44b1111f2cd7f3ba7ac9dc4373cd3f898a40ea6b464"
+  },
+  "advisory_snapshot_date": "2026-10-27",
+  "advisories": [
+    {
+      "ghsa_id": "GHSA-6xhq-wvww-6xfg",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-6xhq-wvww-6xfg",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/ccstruct/matrix.h",
+      "source_sha256": "a399c9782acd2db619358f38c860038ff39ee5c0eaea07d92ea675c6bdbcbbaa",
+      "regression_suites": [
+        "matrix_deserializesize_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-h9g4-frjx-6cj3",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-h9g4-frjx-6cj3",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/weightmatrix.cpp",
+      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "regression_suites": [
+        "weightmatrix_deserialize_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-vf7v-2h4f-6f4j",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-vf7v-2h4f-6f4j",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/api/pagerenderer.cpp",
+      "source_sha256": "a42d1f5637f2ad0737831084f53629dd9cd196124663887bbb7e4c16ade45b56",
+      "regression_suites": [],
+      "verification": "maintainer source fix included; no dedicated suite executed for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-9vwv-49m8-jv9m",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-9vwv-49m8-jv9m",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/weightmatrix.cpp",
+      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "regression_suites": [
+        "weightmatrix_intdim_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-357f-833m-3f83",
+      "cve_id": null,
+      "severity": "low",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-357f-833m-3f83",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/classify/adaptive.cpp",
+      "source_sha256": "3aa35c0e891410d28ceceb56976fe77b36e11684ee32b586e56bf409d6fab86f",
+      "regression_suites": [
+        "adaptive_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-5rc4-r384-5c7p",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-5rc4-r384-5c7p",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/weightmatrix.cpp",
+      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "regression_suites": [
+        "weightmatrix_scales_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-pqc9-gv83-r5mf",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-pqc9-gv83-r5mf",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/lstmrecognizer.cpp",
+      "source_sha256": "86c2d5e01dd38ff9b5606c72e3e779a73ea60f12743373a7da045e646512b1d0",
+      "regression_suites": [
+        "lstm_recoder_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-96jm-jc65-f968",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-96jm-jc65-f968",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/classify/intproto.cpp",
+      "source_sha256": "2affdad6ff6620f6fbec604aa5944b75a29464610b981a07027f5f58c247ce9d",
+      "regression_suites": [
+        "intproto_test",
+        "intproto_addclass_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-m232-6r7p-cwq7",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-m232-6r7p-cwq7",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/lstmrecognizer.cpp",
+      "source_sha256": "86c2d5e01dd38ff9b5606c72e3e779a73ea60f12743373a7da045e646512b1d0",
+      "regression_suites": [
+        "lstm_nullchar_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-5j2p-r5vc-q7f3",
+      "cve_id": "CVE-2026-88047",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-5j2p-r5vc-q7f3",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/classify/normmatch.cpp",
+      "source_sha256": "21ef9caeacc2517e3bad59512eff0220ffb7e1948277495760fd07394d357f39",
+      "regression_suites": [
+        "normproto_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-f6h7-cqr4-6fx4",
+      "cve_id": "CVE-2026-88054",
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-f6h7-cqr4-6fx4",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/plumbing.cpp",
+      "source_sha256": "5af5550e0b6f6901a93dabe214156dc60893b8ad8f5fab7059738fa89c688e2a",
+      "regression_suites": [
+        "plumbing_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-q44c-23p6-5mw6",
+      "cve_id": "CVE-2026-88048",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-q44c-23p6-5mw6",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/fullyconnected.cpp",
+      "source_sha256": "d96e4d431787c7d4118f142facd4979952f02fdafa4b3cd3c939590d85bd9597",
+      "regression_suites": [
+        "fullyconnected_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-jgq8-pprg-vc68",
+      "cve_id": "CVE-2026-88049",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-jgq8-pprg-vc68",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/lstm/lstm.cpp",
+      "source_sha256": "5a4ef05d95b2c3cf4efad0f518dfe32c04140490c85a755649f1839134546e91",
+      "regression_suites": [
+        "lstm_layer_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-2hm8-q5c7-c373",
+      "cve_id": "CVE-2026-88052",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-2hm8-q5c7-c373",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/ccutil/unicharset.cpp",
+      "source_sha256": "47add9ee67e40382a0c2c6d0f19d3419997d854156fa5f33d167d21b5167313f",
+      "regression_suites": [
+        "unicharset_load_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-88qp-4g94-3rf3",
+      "cve_id": "CVE-2026-88051",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-88qp-4g94-3rf3",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/ccutil/genericvector.h",
+      "source_sha256": "f3841a151a3bac841a4036cb2623582aeebb0d1d54574beaa3cd356913c37113",
+      "regression_suites": [
+        "genericvector_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-rphx-x795-5qjv",
+      "cve_id": "CVE-2026-88053",
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-rphx-x795-5qjv",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/classify/intproto.cpp",
+      "source_sha256": "2affdad6ff6620f6fbec604aa5944b75a29464610b981a07027f5f58c247ce9d",
+      "regression_suites": [
+        "intproto_test"
+      ],
+      "verification": "upstream regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-7j76-5rq5-5jg8",
+      "cve_id": "CVE-2026-73066",
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-7j76-5rq5-5jg8",
+      "upstream_patched_versions": [
+        "5.5.3"
+      ],
+      "source_file": "src/lstm/convolve.cpp",
+      "source_sha256": "4222ec7b075f994d957bdd203307b84bc4d93a74faa8babcdcada3b33109573b",
+      "regression_suites": [],
+      "verification": "maintainer source fix included; no dedicated suite executed for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-x3vq-7rr7-5x3h",
+      "cve_id": "CVE-2026-73067",
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-x3vq-7rr7-5x3h",
+      "upstream_patched_versions": [
+        "5.5.3"
+      ],
+      "source_file": "src/dict/dawg.cpp",
+      "source_sha256": "c567d932f6095d6f030afe2f5212b08f8ac964a79ec37266ee79c92e2f86a2cb",
+      "regression_suites": [],
+      "verification": "maintainer source fix included; no dedicated suite executed for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-7v9h-3q3m-w68g",
+      "cve_id": "CVE-2026-88050",
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-7v9h-3q3m-w68g",
+      "upstream_patched_versions": [
+        "main branch, 5.5.4 (planned)"
+      ],
+      "source_file": "src/ccutil/unicharcompress.cpp",
+      "source_sha256": "fb134c8e2bfb9387aec0a12e78e05a2d64094db0f06395325b23234d58e51d9a",
+      "regression_suites": [
+        "recoder_test"
+      ],
+      "verification": "upstream regressions required during build"
+    }
+  ],
+  "scanner_limitations": "OS package scanning does not discover source-built Tesseract. This inventory retains its real version, source hashes, upstream advisory mapping and build regression results; an empty image scan alone is not proof of OCR remediation."
+}

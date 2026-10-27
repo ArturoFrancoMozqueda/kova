@@ -110,6 +110,7 @@ export type OfflineAccessSnapshot = {
     email_verified?: boolean;
   };
   feature_flags: Record<string, boolean>;
+  commercial_access?: import("@/auth/types").CommercialAccess;
   verified_at: string;
   expires_at: string;
 };

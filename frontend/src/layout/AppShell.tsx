@@ -144,6 +144,7 @@ function readStoredSidebarCollapsed(): boolean {
 export default function AppShell() {
   const location = useLocation();
   const { state, logout } = useAuth();
+  const commercialBlocked = state.status === "authenticated" && state.commercialAccess?.allowed === false;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia?.("(min-width: 1280px)").matches ?? false);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -233,13 +234,13 @@ export default function AppShell() {
   useEffect(() => {
     const controller = new AbortController();
     setAssistantEnabled(false);
-    if (!assistantIdentity) return;
+    if (!assistantIdentity || commercialBlocked) return;
     void fetch("/api/v1/assistant/capabilities", { signal: controller.signal, cache: "no-store" })
       .then(response => response.ok ? response.json() as Promise<{ enabled: boolean }> : { enabled: false })
       .then(value => { if (!controller.signal.aborted) setAssistantEnabled(value.enabled); })
       .catch(() => { /* Unavailable assistant never blocks navigation or POS. */ });
     return () => controller.abort();
-  }, [assistantIdentity]);
+  }, [assistantIdentity, commercialBlocked]);
 
   const navItems = isOfflineSession
     ? adminNavItems.filter((item) => item.to === "/register")
@@ -247,7 +248,9 @@ export default function AppShell() {
       ? adminNavItems
       : cashierNavItems;
 
-  const bottomNavItems: NavItem[] = isOfflineSession
+  const bottomNavItems: NavItem[] = commercialBlocked
+    ? adminNavItems.filter(item => item.to === "/settings/billing")
+    : isOfflineSession
     ? [{ to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" }]
     : isAdminRole(userRole)
     ? [
@@ -266,6 +269,7 @@ export default function AppShell() {
       ];
 
   const filteredNavItems = navItems.filter((item) => {
+    if (commercialBlocked) return item.to === "/settings/billing" && canViewBilling;
     if (item.to === "/loyalty" && userRole !== "owner") return false;
     if (item.to === "/assistant" && !assistantEnabled) return false;
     if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
@@ -700,7 +704,7 @@ export default function AppShell() {
               {copy.auth.offlineAccessBanner}
             </div>
           ) : null}
-          <BranchSelector />
+          {!commercialBlocked ? <BranchSelector /> : null}
           {!isOfflineSession ? <EmailVerificationBanner /> : null}
           {!isOfflineSession ? <BillingBanner /> : null}
           <Suspense
@@ -714,18 +718,18 @@ export default function AppShell() {
             <Outlet context={{ destinations: filteredNavItems.map(({ to, label }) => ({ to, label })) }} />
           </Suspense>
           {/* Continuation follows the task so primary content keeps its mobile viewport. */}
-          {isAdminRole(userRole) && !isOfflineSession ? (
+          {isAdminRole(userRole) && !isOfflineSession && !commercialBlocked ? (
             <BusinessNextActions pathname={location.pathname} destinations={filteredNavItems} canCreateCustomerOrders={canCreateCustomerOrders} />
           ) : null}
         </div>
-        <FirstUseTour />
-        <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />
+        {!commercialBlocked ? <FirstUseTour /> : null}
+        <AssistantCompanion enabled={assistantEnabled && !commercialBlocked} suspended={sidebarOpen || supportOpen} />
 
         {/* Bottom navigation — mobile only */}
         <nav
           className={cn(
             "fixed inset-x-0 bottom-0 z-30 grid border-t border-kova-border bg-white/95 backdrop-blur xl:hidden",
-            isOfflineSession ? "grid-cols-1" : "grid-cols-4",
+            commercialBlocked ? "grid-cols-2" : isOfflineSession ? "grid-cols-1" : "grid-cols-4",
           )}
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label={copy.auth.accountNavigation}

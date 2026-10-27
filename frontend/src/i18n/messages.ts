@@ -998,13 +998,7 @@ export const copy = {
     offlineAccessBanner: "Modo local seguro: puedes cobrar con el catálogo guardado. Kova no enviará cambios hasta verificar nuevamente la sesión.",
     offlineLogoutStorageError: "No pudimos borrar de forma segura los datos locales de esta sesión. No compartas el dispositivo todavía; libera almacenamiento y vuelve a intentarlo.",
     retrySession: "Volver a verificar",
-    signupEmailInUseTitle: "Este correo ya tiene una cuenta en Kova.",
-    signupEmailInUseBody: "Inicia sesión para continuar o usa otro correo para crear una cuenta nueva.",
-    signupEmailInUseCta: "Iniciar sesión",
-    signupEmailInUseForgot: "¿Olvidaste tu contraseña?",
-    signupVerificationResentTitle: "Ya tenías una cuenta sin verificar.",
-    signupVerificationResentBody: (email: string) =>
-      `Te reenviamos el correo de verificación a ${email}. Revisa tu bandeja (y la carpeta de spam).`,
+    signupReceived: "Solicitud recibida. Si necesitas verificar tu correo, recibirás las instrucciones. También puedes iniciar sesión o recuperar tu acceso.",
     forgotPassword: "¿Olvidaste tu contraseña?",
     forgotPasswordTitle: "Recupera tu acceso",
     forgotPasswordSubtitle: "Ingresa el correo con el que abriste tu cuenta y te enviaremos un enlace para crear una contraseña nueva.",
@@ -2542,6 +2536,9 @@ export const copy = {
     // moment someone decides whether to trust us with a card. State only what is
     // certain: the plan is monthly and access is on.
     periodVerifying: "Se renueva cada mes mientras la suscripción siga activa.",
+    verificationPending: "Verificación pendiente",
+    verificationRequiredBody: "No pudimos confirmar un periodo pagado vigente. Actualiza el estado o contacta a soporte; no repitas el pago.",
+    verificationSuspended: "El acceso comercial está suspendido hasta confirmar el periodo.",
     graceEnds: "Fin del periodo de gracia",
     notAvailable: "No disponible",
     paymentRecoveryBody: "Tu suscripción tiene un pago pendiente. Contacta a soporte para recuperar el pago de la suscripción existente.",
@@ -2586,7 +2583,7 @@ export const copy = {
     trialingActive: "Prueba activa",
     trialingActiveBody: `Tu suscripción está en prueba. Activa el ${STANDARD_PLAN.name} por ${STANDARD_PLAN_PRICE_LABEL} para seguir vendiendo cuando termine.`,
     pastDueGrace: "Pago vencido",
-    pastDueGraceBody: "El pago falló. Actualiza tu suscripción dentro del periodo de gracia para no perder el acceso.",
+    pastDueGraceBody: "El pago falló. Tienes hasta 48 horas desde el primer intento fallido para recuperarlo antes de perder el acceso.",
     pastDueGraceBodyWithDays: (n: number) =>
       `El pago falló. Te queda${n === 1 ? "" : "n"} ${n} día${n === 1 ? "" : "s"} para actualizar tu suscripción antes de perder el acceso.`,
     pastDueGraceBodyLastDay: "El pago falló. Hoy es el último día para actualizar tu suscripción antes de perder el acceso.",
