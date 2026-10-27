@@ -1,8 +1,8 @@
 # Correcciones y validación de seguridad de Kova
 
-Fecha local: 2026-10-26. Rama de trabajo: `ci/fix-preview-workers`, sobre `22dce337b277e2389555f90e752ec87db95da185`. Cambios locales sin desplegar ni publicar. Se preservaron los archivos preexistentes de `output/marketing` y `output/qa`.
+Fecha local: 2026-10-26. Rama de trabajo: `ci/fix-preview-workers`, sobre `22dce337b277e2389555f90e752ec87db95da185`. Correcciones sin desplegar. El snapshot posterior para AMD64 se publicó sólo en una rama de validación. Se preservaron los archivos preexistentes de `output/marketing` y `output/qa`.
 
-El fallo de facturación está corregido y el acceso comercial ahora se exige también en lecturas, sesiones abiertas y sincronización. Se aplicó la decisión del propietario: entrada inmediata, siete días de prueba y bloqueo a las 48 horas del primer cobro fallido. Ambas imágenes finales pasan Trivy sin HIGH/CRITICAL y sin exclusiones de CVE; los componentes compilados del parser tienen además procedencia, regresiones y vigilancia de avisos propias. Permanecen los límites explícitos de entrada inmediata, revocación sin conexión y validación de recursos AMD64 descritos abajo. No se desplegó.
+El fallo de facturación está corregido y el acceso comercial ahora se exige también en lecturas, sesiones abiertas y sincronización. Se aplicó la decisión del propietario: entrada inmediata, siete días de prueba y bloqueo a las 48 horas del primer cobro fallido. Ambas imágenes finales pasan Trivy sin HIGH/CRITICAL y sin exclusiones de CVE; los componentes compilados del parser tienen además procedencia, regresiones y vigilancia de avisos propias. Permanecen los límites explícitos de entrada inmediata y revocación sin conexión. La [validación AMD64 real del 27 de octubre](KOVA-AMD64-VALIDATION-2026-10-27.md) ya aprobó CI completo y recursos, sin despliegue. No se desplegó.
 
 ## Estado de los hallazgos originales
 
@@ -41,7 +41,7 @@ Versiones resueltas: Mako `1.4.2`, pypdf `6.21.2` tanto en Workers como en parse
 
 Se fijaron `pip-audit==2.10.1` y Trivy `0.76.1` por digest oficial. El scanner recibe el archivo de imagen por stdin, no monta el socket Docker ni recibe credenciales; usa filesystem de sólo lectura, capabilities retiradas, `no-new-privileges`, tmpfs y una caché Docker dedicada. No se añadieron exclusiones de CVE ni `continue-on-error`.
 
-Los jobs existentes de backend nativo y parser ejecutan el escaneo de sus imágenes antes de continuar. El gate agregado conserva esas dependencias. El mantenimiento semanal revisa paquetes e imágenes; los reportes se guardan como artefactos de CI. No se ejecutó CI remoto durante esta entrega.
+Los jobs existentes de backend nativo y parser ejecutan el escaneo de sus imágenes antes de continuar. El gate agregado conserva esas dependencias. El mantenimiento semanal revisa paquetes e imágenes; los reportes se guardan como artefactos de CI. El corte local inicial no ejecutó CI remoto; el [cierre del 27 de octubre](KOVA-AMD64-VALIDATION-2026-10-27.md) sí ejecutó y aprobó todos los gates en AMD64 nativo.
 
 ## Signup y decisión del propietario
 
@@ -100,7 +100,7 @@ Otros avisos requieren rutas más limitadas: [util-linux](https://security-track
 
 La entrada inmediata conserva la inferencia compuesta ya explicada. Un dispositivo desconectado tampoco puede conocer una cancelación remota antes de reconectar: su permiso está limitado a 12 horas o al vencimiento comercial, lo que ocurra primero. Las API siempre comprueban el acceso en servidor.
 
-La imagen nativa AMD64 aprobó ABI, bibliotecas, crypto y SCA. En el host ARM, una comprobación intermedia del mismo runtime emulado pasó 24 contratos HTTP bajo 0.0625 CPU/256 MiB, pero el primer procesamiento de fotos de 8 MP excedió tiempo/memoria y hubo OOM; no se presenta como aceptación de recursos AMD64. La misma fuente construida para ARM64 directo aprobó arranque, 24 contratos antes/después de reiniciar, ocho lecturas de fotos bajo 3 s, persistencia de cuatro variantes y lecturas tras reinicio sin redimensionar, con pico de unos 225 MiB y sin OOM. Los umbrales de CI AMD64 no se redujeron: esa ejecución remota sigue pendiente antes de publicar. El parser se validó en ARM64, con CI AMD64 también pendiente.
+La imagen nativa AMD64 aprobó ABI, bibliotecas, crypto y SCA. En el host ARM, una comprobación intermedia del mismo runtime emulado pasó 24 contratos HTTP bajo 0.0625 CPU/256 MiB, pero el primer procesamiento de fotos de 8 MP excedió tiempo/memoria y hubo OOM; no se presenta como aceptación de recursos AMD64. La misma fuente construida para ARM64 directo aprobó arranque, 24 contratos antes/después de reiniciar, ocho lecturas de fotos bajo 3 s, persistencia de cuatro variantes y lecturas tras reinicio sin redimensionar, con pico de unos 225 MiB y sin OOM. Los umbrales de CI AMD64 no se redujeron. Esa validación pendiente se cerró el 27 de octubre: nativa y parser aprobaron en x86_64 real, con CI completo, máximo de fotos 2692.4 ms y pico nativo 188.13 MiB. [Informe y limitaciones del cierre](KOVA-AMD64-VALIDATION-2026-10-27.md). El resultado de emulación anterior se conserva como histórico y no reemplaza esa prueba.
 
 No hubo compras, cambios en Stripe/Supabase de producción, despliegue, activación de documentos ni modificación de migraciones o seeds de producto. La [evidencia agregada](evidence/KOVA-SECURITY-REMEDIATION-2026-10-26.json) conserva el corte histórico y los resultados finales por artefacto.
 

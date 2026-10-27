@@ -866,5 +866,14 @@
       "checkout_reconcile": "FAILED: invented 48h grace",
       "after_fix": "PASS in 186 billing tests and 2188 full backend tests"
     }
+  },
+  "amd64_validation_2026_10_27": {
+    "status": "PASSED",
+    "run_id": 40528506489,
+    "commit": "459d20f6e6b910699205a4c634d890745bcbb4a5",
+    "report": "../KOVA-AMD64-VALIDATION-2026-10-27.md",
+    "evidence": "KOVA-AMD64-VALIDATION-2026-10-27.json",
+    "deployment": "NOT_PERFORMED",
+    "historical_snapshots_preserved": true
   }
 }

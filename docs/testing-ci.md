@@ -192,3 +192,23 @@ Objetivo: mediana de validación <= 300 segundos y menor consumo de runner, pres
 ## Configuración de GitHub
 
 El 2026-10-07, la API de la rama informó `protected: false`, sin checks requeridos; el endpoint de rulesets devolvió una lista vacía. El workflow protege el deploy, pero exigir el check `CI required` antes de merge requiere configurar protección de rama en GitHub. No se cambiaron permisos ni reviewers del entorno de producción, backups, purgas, recordatorios o drills.
+
+## Evidencia nativa AMD64 y recursos
+
+La aceptación nativa exige Linux/x86_64, CPU Intel/AMD, Docker AMD64 y RUNNER_ARCH=X64
+mediante scripts/check_amd64_host.py. El parser exige además coincidencia de host, daemon,
+imagen inmutable y runtime con --require-native-arch x86_64. Las imágenes de mantenimiento
+reciben KOVA_RELEASE_SHA real; el guard de identidad no acepta unknown.
+
+El step de recursos usa bash explícito con pipefail y conserva 0.0625 CPU, 256 MiB, 3000 ms,
+filesystem readonly y capacidades retiradas. Docker CI no tiene el binding virtual de
+Cloudflare: sólo allí su hostname apunta a loopback, tras exigir conexión rechazada en
+puerto 80. Se ejerce la política de outage existente sin DNS externo ni cambio del limitador.
+Los artefactos always incluyen host, identidad/flags, picos, CPUstat y fases numéricas de
+fotos; los diagnósticos no guardan headers arbitrarios ni cuerpos.
+
+CREATE/ALTER del rol de pruebas compartido se serializan en la BD postgres por un lock
+transaccional. Un advisory lock en cada BD worker no coordinaría el catálogo global de roles.
+Los grants y RLS de cada worker permanecen separados. test:integration incluye los diez
+archivos / 16 casos que requieren el stack real, incluido dashboard-supervision-real.spec.ts;
+los skips del preview se ejecutan en ese job. [Ejecución AMD64 aprobada](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).

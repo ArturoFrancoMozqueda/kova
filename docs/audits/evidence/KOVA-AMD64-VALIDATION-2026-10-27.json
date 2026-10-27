@@ -1,0 +1,760 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "timezone": "America/Mexico_City",
+  "status": "PASSED",
+  "deployment": "NOT_PERFORMED",
+  "branch": "feature/security-amd64-validation-20261027",
+  "validated_commit": "459d20f6e6b910699205a4c634d890745bcbb4a5",
+  "source_tree": "5a6b3ab229249392f880931b7bc8e789c841015c",
+  "run": {
+    "id": 40528506489,
+    "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-27T15:11:29Z",
+    "updated_at": "2026-10-27T15:18:48Z",
+    "jobs": [
+      {
+        "databaseId": 122274547098,
+        "name": "secrets and dependency audit",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274547098"
+      },
+      {
+        "databaseId": 122274547780,
+        "name": "classify changes",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274547780"
+      },
+      {
+        "databaseId": 122274548032,
+        "name": "repository contracts",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274548032"
+      },
+      {
+        "databaseId": 122274637859,
+        "name": "integration (Cloudflare Free + Postgres)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274637859"
+      },
+      {
+        "databaseId": 122274637936,
+        "name": "migration reversibility",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274637936"
+      },
+      {
+        "databaseId": 122274638008,
+        "name": "integration (FastAPI + Postgres)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638008"
+      },
+      {
+        "databaseId": 122274638096,
+        "name": "frontend unit and contracts",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638096"
+      },
+      {
+        "databaseId": 122274638110,
+        "name": "frontend production build and browser (1/2)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638110"
+      },
+      {
+        "databaseId": 122274638128,
+        "name": "frontend production build and browser (2/2)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638128"
+      },
+      {
+        "databaseId": 122274638225,
+        "name": "isolated assistant parser and antivirus",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638225"
+      },
+      {
+        "databaseId": 122274638245,
+        "name": "integration",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274638245"
+      },
+      {
+        "databaseId": 122274639535,
+        "name": "supply-chain / reproducible container and SBOM",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274639535"
+      },
+      {
+        "databaseId": 122274639612,
+        "name": "supply-chain / current image advisories (native)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274639612"
+      },
+      {
+        "databaseId": 122274639653,
+        "name": "supply-chain / refresh advisory coverage for all lockfiles",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274639653"
+      },
+      {
+        "databaseId": 122274639783,
+        "name": "backend-native / acceptance",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274639783"
+      },
+      {
+        "databaseId": 122274639810,
+        "name": "supply-chain / current image advisories (parser)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122274639810"
+      },
+      {
+        "databaseId": 122277542729,
+        "name": "backend-native / public-image-acceptance",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122277542729"
+      },
+      {
+        "databaseId": 122277543088,
+        "name": "backend-native / provision",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122277543088"
+      },
+      {
+        "databaseId": 122278777013,
+        "name": "CI required",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122278777013"
+      },
+      {
+        "databaseId": 122278868698,
+        "name": "publish and verify release",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40528506489/job/122278868698"
+      }
+    ]
+  },
+  "tests": {
+    "backend": {
+      "tests": 2248,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend-unit": {
+      "tests": 1471,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "browser1": {
+      "tests": 167,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 13
+    },
+    "browser2": {
+      "tests": 166,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 3
+    },
+    "integration": {
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "migrations": {
+      "tests": 31,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "browser_passed": 333,
+  "browser_preview_omissions": "16 real-stack cases are intentionally omitted in preview; all 16 pass in the isolated API/Postgres/RLS integration job",
+  "local_checks": {
+    "repository_scripts": 88,
+    "image_helper_unit_tests": 51,
+    "role_rls_focal_tests": 25,
+    "image_focal_tests": 98,
+    "new_striped_resize_cases_in_full_backend": 59
+  },
+  "native": {
+    "host": {
+      "schema": 1,
+      "status": "passed",
+      "host": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "cpu": {
+          "architecture": "x86_64",
+          "vendor": "AuthenticAMD",
+          "model": "AMD EPYC 7763 64-Core Processor",
+          "logical_cpus": 4
+        }
+      },
+      "docker": {
+        "os": "linux",
+        "architecture": "x86_64"
+      },
+      "ci": true,
+      "runner_architecture": "X64"
+    },
+    "image_id": "sha256:a694a77d1405c972734bcf555250323b1c7e3d60e6e34463487ffd7c38a3f831",
+    "abi": {
+      "uid": 10001,
+      "python": "3.12.16",
+      "openssl": "OpenSSL 3.5.7 9 Jun 2026",
+      "expat": "expat_2.9.0",
+      "zlib": "1.3.1",
+      "ca_roots": 148,
+      "stdlib_extensions": 66,
+      "shared_objects": 132,
+      "psycopg": "binary",
+      "paths": 240
+    },
+    "cpu_fraction": 0.0625,
+    "memory_limit_bytes": 268435456,
+    "memory_swap_limit_bytes": 268435456,
+    "peak_bytes": 197267456,
+    "peaks_before_after_restart": [
+      197267456,
+      142200832
+    ],
+    "read_only": true,
+    "cap_drop": [
+      "ALL"
+    ],
+    "no_new_privileges": true,
+    "pids_limit": 64,
+    "oom_killed": false,
+    "resident": [
+      {
+        "contracts": 24,
+        "same_process": true,
+        "idle_seconds": 0,
+        "median_ms": 197,
+        "max_ms": 402
+      },
+      {
+        "contracts": 24,
+        "same_process": true,
+        "idle_seconds": 0,
+        "median_ms": 150,
+        "max_ms": 205
+      }
+    ],
+    "photos": [
+      {
+        "requests": [
+          {
+            "kind": "jpeg-exif",
+            "width": 400,
+            "repeat": false,
+            "ms": 2058.7,
+            "bytes": 8110,
+            "serverTimingMs": {
+              "image-cache": 0.008,
+              "image-db": 1005.884,
+              "image-resize": 797.893
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 400,
+            "repeat": true,
+            "ms": 76.1,
+            "bytes": 8110,
+            "serverTimingMs": {
+              "image-cache": 0.005,
+              "image-db": 2.297,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 160,
+            "repeat": false,
+            "ms": 298.6,
+            "bytes": 200,
+            "serverTimingMs": {
+              "image-cache": 0.005,
+              "image-db": 7.121,
+              "image-resize": 194.818
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 160,
+            "repeat": true,
+            "ms": 101.5,
+            "bytes": 200,
+            "serverTimingMs": {
+              "image-cache": 0.006,
+              "image-db": 3.105,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 400,
+            "repeat": false,
+            "ms": 2692.4,
+            "bytes": 480,
+            "serverTimingMs": {
+              "image-cache": 0.004,
+              "image-db": 2.521,
+              "image-resize": 2499.518
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 400,
+            "repeat": true,
+            "ms": 101.5,
+            "bytes": 480,
+            "serverTimingMs": {
+              "image-cache": 0.013,
+              "image-db": 2.061,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 160,
+            "repeat": false,
+            "ms": 2099.4,
+            "bytes": 230,
+            "serverTimingMs": {
+              "image-cache": 0.005,
+              "image-db": 92.509,
+              "image-resize": 2002.271
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 160,
+            "repeat": true,
+            "ms": 100.8,
+            "bytes": 230,
+            "serverTimingMs": {
+              "image-cache": 0.004,
+              "image-db": 1.663,
+              "image-resize": 0.0
+            }
+          }
+        ],
+        "sameProcess": true,
+        "budgetMs": 3000
+      },
+      {
+        "persistedVariants": 4,
+        "budgetMs": 15000
+      },
+      {
+        "requests": [
+          {
+            "kind": "jpeg-exif",
+            "width": 400,
+            "repeat": false,
+            "ms": 1283.0,
+            "bytes": 8110,
+            "serverTimingMs": {
+              "image-cache": 0.053,
+              "image-db": 1103.641,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 400,
+            "repeat": true,
+            "ms": 69.6,
+            "bytes": 8110,
+            "serverTimingMs": {
+              "image-cache": 0.007,
+              "image-db": 2.695,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 160,
+            "repeat": false,
+            "ms": 97.5,
+            "bytes": 200,
+            "serverTimingMs": {
+              "image-cache": 0.043,
+              "image-db": 2.286,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "jpeg-exif",
+            "width": 160,
+            "repeat": true,
+            "ms": 98.3,
+            "bytes": 200,
+            "serverTimingMs": {
+              "image-cache": 0.005,
+              "image-db": 2.704,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 400,
+            "repeat": false,
+            "ms": 98.4,
+            "bytes": 480,
+            "serverTimingMs": {
+              "image-cache": 0.034,
+              "image-db": 2.042,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 400,
+            "repeat": true,
+            "ms": 96.7,
+            "bytes": 480,
+            "serverTimingMs": {
+              "image-cache": 0.007,
+              "image-db": 90.451,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 160,
+            "repeat": false,
+            "ms": 96.3,
+            "bytes": 230,
+            "serverTimingMs": {
+              "image-cache": 0.022,
+              "image-db": 1.545,
+              "image-resize": 0.0
+            }
+          },
+          {
+            "kind": "png-rgba-8mp",
+            "width": 160,
+            "repeat": true,
+            "ms": 6.2,
+            "bytes": 230,
+            "serverTimingMs": {
+              "image-cache": 0.005,
+              "image-db": 1.855,
+              "image-resize": 0.0
+            }
+          }
+        ],
+        "sameProcess": true,
+        "budgetMs": 3000,
+        "newProcess": true,
+        "persistedVariants": 4,
+        "zeroResize": true
+      }
+    ],
+    "max_photo_ms": 2692.4
+  },
+  "parser": {
+    "image_id": "sha256:554185c59d70c99d0ca19a832e4af9cab3d1f9620ce2b2b50fdc321289ca9315",
+    "uid": 65534,
+    "architecture": "x86_64",
+    "native_execution": {
+      "required_architecture": "x86_64",
+      "host_os": "Linux",
+      "host_architecture": "x86_64",
+      "docker_server_architecture": "x86_64",
+      "image_platform": "linux/amd64"
+    },
+    "ocr_summary": {
+      "architecture": "x86_64",
+      "suites": 17,
+      "tests": 68,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "skipped_cases": []
+    },
+    "libxml2_upstream": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "libxml2_backports": {
+      "regressions": 6,
+      "passed": [
+        "CVE-2026-86138",
+        "CVE-2026-86139",
+        "CVE-2026-86140",
+        "CVE-2026-86142",
+        "CVE-2026-86143",
+        "CVE-2026-86144"
+      ],
+      "failures": 0,
+      "skipped": 0
+    },
+    "upstream_advisory_ids": [
+      "GHSA-2hm8-q5c7-c373",
+      "GHSA-357f-833m-3f83",
+      "GHSA-5j2p-r5vc-q7f3",
+      "GHSA-5rc4-r384-5c7p",
+      "GHSA-6xhq-wvww-6xfg",
+      "GHSA-7j76-5rq5-5jg8",
+      "GHSA-7v9h-3q3m-w68g",
+      "GHSA-88qp-4g94-3rf3",
+      "GHSA-96jm-jc65-f968",
+      "GHSA-9vwv-49m8-jv9m",
+      "GHSA-f6h7-cqr4-6fx4",
+      "GHSA-h9g4-frjx-6cj3",
+      "GHSA-jgq8-pprg-vc68",
+      "GHSA-m232-6r7p-cwq7",
+      "GHSA-pqc9-gv83-r5mf",
+      "GHSA-q44c-23p6-5mw6",
+      "GHSA-rphx-x795-5qjv",
+      "GHSA-vf7v-2h4f-6f4j",
+      "GHSA-x3vq-7rr7-5x3h"
+    ],
+    "isolated_unit_tests": 9,
+    "smoke_checks": 10
+  },
+  "scans": {
+    "native": {
+      "image_id": "sha256:a694a77d1405c972734bcf555250323b1c7e3d60e6e34463487ffd7c38a3f831",
+      "scope": "HIGH,CRITICAL including unfixed; no CVE exclusions",
+      "records": 0,
+      "package_inventory": {
+        "os-pkgs": 19,
+        "lang-pkgs": 57
+      },
+      "report_sha256": "9bab2c86337ff63ccc4367ef33ee42644bc00f1a3e236dba7b6549dbb0e1ebea"
+    },
+    "parser": {
+      "image_id": "sha256:554185c59d70c99d0ca19a832e4af9cab3d1f9620ce2b2b50fdc321289ca9315",
+      "scope": "HIGH,CRITICAL including unfixed; no CVE exclusions",
+      "records": 0,
+      "package_inventory": {
+        "os-pkgs": 82,
+        "lang-pkgs": 2
+      },
+      "report_sha256": "69300cee16809626b06a3a7e9d5ccd2b975207b4a2a2ec2d2dbeb0b7a66bf94f"
+    },
+    "maintenance-native": {
+      "image_id": "sha256:76f179078738ecb195d2a4c8e6d8260cb69383501f12223500d40b53f7f38d97",
+      "scope": "HIGH,CRITICAL including unfixed; no CVE exclusions",
+      "records": 0,
+      "package_inventory": {
+        "os-pkgs": 19,
+        "lang-pkgs": 57
+      },
+      "report_sha256": "e42e2a7ecc5c9d0b5a6d2646d5c5dc41348247ab3c1bc3201dcb64e7797430d9"
+    },
+    "maintenance-parser": {
+      "image_id": "sha256:7605e5deeabeb97347d0f12d2818938e3d54a3910dbb7dc55465be73e1e4737e",
+      "scope": "HIGH,CRITICAL including unfixed; no CVE exclusions",
+      "records": 0,
+      "package_inventory": {
+        "os-pkgs": 82,
+        "lang-pkgs": 2
+      },
+      "report_sha256": "cc2dc89affbd9d2575ce0ca44f1f834d7383a0c4f8fb4d6c85ea70037f2084d7"
+    }
+  },
+  "artifacts": [
+    {
+      "id": 12746210301,
+      "name": "security-parser-1",
+      "size_in_bytes": 28012,
+      "expired": false,
+      "expires_at": "2026-11-10T15:18:35Z"
+    },
+    {
+      "id": 12745910693,
+      "name": "security-native-1",
+      "size_in_bytes": 20559,
+      "expired": false,
+      "expires_at": "2026-11-10T15:16:27Z"
+    },
+    {
+      "id": 12745865726,
+      "name": "frontend-1-1",
+      "size_in_bytes": 6890938,
+      "expired": false,
+      "expires_at": "2026-11-03T15:15:33Z"
+    },
+    {
+      "id": 12745815634,
+      "name": "openapi-json",
+      "size_in_bytes": 53196,
+      "expired": false,
+      "expires_at": "2026-11-03T15:14:51Z"
+    },
+    {
+      "id": 12745506539,
+      "name": "maintenance-image-parser-1",
+      "size_in_bytes": 27996,
+      "expired": false,
+      "expires_at": "2026-11-10T15:15:30Z"
+    },
+    {
+      "id": 12745330955,
+      "name": "security-dependencies-1",
+      "size_in_bytes": 4302,
+      "expired": false,
+      "expires_at": "2026-11-10T15:11:51Z"
+    },
+    {
+      "id": 12745152300,
+      "name": "maintenance-advisories-1",
+      "size_in_bytes": 4302,
+      "expired": false,
+      "expires_at": "2026-11-10T15:11:56Z"
+    },
+    {
+      "id": 12745032971,
+      "name": "frontend-unit-1",
+      "size_in_bytes": 55977,
+      "expired": false,
+      "expires_at": "2026-11-03T15:14:06Z"
+    },
+    {
+      "id": 12745002537,
+      "name": "backend-1",
+      "size_in_bytes": 53149,
+      "expired": false,
+      "expires_at": "2026-11-03T15:14:52Z"
+    },
+    {
+      "id": 12744928599,
+      "name": "frontend-2-1",
+      "size_in_bytes": 4772264,
+      "expired": false,
+      "expires_at": "2026-11-03T15:15:36Z"
+    },
+    {
+      "id": 12744689326,
+      "name": "integration-1",
+      "size_in_bytes": 925852,
+      "expired": false,
+      "expires_at": "2026-11-03T15:14:07Z"
+    },
+    {
+      "id": 12744088680,
+      "name": "maintenance-image-native-1",
+      "size_in_bytes": 17820,
+      "expired": false,
+      "expires_at": "2026-11-10T15:12:17Z"
+    },
+    {
+      "id": 12743709188,
+      "name": "migrations-1",
+      "size_in_bytes": 1762,
+      "expired": false,
+      "expires_at": "2026-11-03T15:13:25Z"
+    },
+    {
+      "id": 12743609003,
+      "name": "gitleaks-results.sarif",
+      "size_in_bytes": 6748,
+      "expired": false,
+      "expires_at": "2027-01-25T15:11:30Z"
+    },
+    {
+      "id": 12743389466,
+      "name": "backend-sbom-459d20f6e6b910699205a4c634d890745bcbb4a5",
+      "size_in_bytes": 467754,
+      "expired": false,
+      "expires_at": "2027-01-25T15:11:30Z"
+    }
+  ],
+  "local_evidence_root": "/private/tmp/kova-amd64-40528506489-artifacts",
+  "evidence_sha256": {
+    "backend/backend.xml": "30fbec821cf9145185cdaf87bad355865ae18dfbfde7813bbfcc9d311d184f06",
+    "browser1/reports/preview.xml": "305694cbb6a576e44df173b88c34623bfe576ef423895e8756dd901456f8416e",
+    "browser2/reports/preview.xml": "a8800657aa09286b5a39b3cfbb333c2cdb8229e98f85089b4603008e6eea62c3",
+    "dependencies/inventory.json": "11c2af506ffe24a6b2f66a81d007da0a6252b8f020239610cfa169c5f019f126",
+    "dependencies/npm-0.json": "17246e0bb7db8b4725e6d647ab19af8478fd56015c7dd1527d96a8184a9a0742",
+    "dependencies/npm-1.json": "77cee1f6232a18fb5f1275dc875daf3d0e305a92a4592f55736676934db1f147",
+    "dependencies/npm-2.json": "d7877c2b5825f9507049edf8b52f3e227630ab5707de88d9147b3ea2f46af4b9",
+    "dependencies/npm-3.json": "09728f864402593fec055db3e36e77d2e01eadf959147aa007f8911f1cbe3c74",
+    "dependencies/python-0.json": "682f62d88b03efa29a5f00cb4020a0f407fe817c236c77e493f108d66f9ab704",
+    "dependencies/python-1.json": "833d877cef7f3d16579811ee3c7d055147b12144852cdecde039cf7304579a8e",
+    "dependencies/python-2.json": "82df8baaca798f3f8380004a6aaff6994350689e5f5b2acec1e0496a6f4dcf4d",
+    "frontend-unit/vitest.xml": "222ef52c8c2fd7f12b569ae508a08e50ac85221e40480462f55f9c5d38ba9882",
+    "integration/reports/integration.xml": "37c1bd688775d0c5dc6562c304be39eebc5db2d579fd1f35466e5fbbf4b8aa5a",
+    "maintenance-native/image-native.json": "e42e2a7ecc5c9d0b5a6d2646d5c5dc41348247ab3c1bc3201dcb64e7797430d9",
+    "maintenance-native/native-host.json": "dce8639096c868c071899c70f4185ba1065f3d2a3a84844db497217c3ae5fb56",
+    "maintenance-parser/image-parser.json": "cc2dc89affbd9d2575ce0ca44f1f834d7383a0c4f8fb4d6c85ea70037f2084d7",
+    "maintenance-parser/parser-runtime.json": "65a37f04e5160042e13f4a1a482a729a33ad83f0762d2fbcee10e010152381a8",
+    "migrations/migrations.xml": "4293d73f037f7639cd8d55a2334548afb13e89d8f4e0328aa6de51ae16f7ec19",
+    "native/image-native.json": "9bab2c86337ff63ccc4367ef33ee42644bc00f1a3e236dba7b6549dbb0e1ebea",
+    "native/native-container.json": "bedf7e160fe3d7c5fab067c546a1c1cc4fbeb25e1d38dbacbd2a5efc9521a1db",
+    "native/native-container.log": "adac4629f4a5c2ac838370358b3bd76c850c53dbe0644d598eec732f517f3cba",
+    "native/native-host.json": "dce8639096c868c071899c70f4185ba1065f3d2a3a84844db497217c3ae5fb56",
+    "native/native-memory-peak.log": "e76827fc6a80e1d0aac47a284eb2ea01a83135334670fb099b79b34eedf37fcd",
+    "native/native-photos.log": "304c6f96c1b8ff1ab7b749af55f37cbd76fb599b197267b0cd701b8540c6a76a",
+    "native/native-resident.log": "fb6bb317ec1c285ac3ca6ebcad7d1351ba6bb35d70596c538666473c5e6b43dd",
+    "native/native-resource-counters.json": "69f626a6187a85d5a405adbc0f0764a333448c9561f84f32b5b47d54a3c4641a",
+    "parser/image-parser.json": "69300cee16809626b06a3a7e9d5ccd2b975207b4a2a2ec2d2dbeb0b7a66bf94f",
+    "parser/parser-runtime.json": "5efc75a6031673b23efc8d73477e7d327c2aa8a423952dcfcbe6f95a1a8267c2"
+  },
+  "previous_runs": [
+    {
+      "id": 40521037374,
+      "commit": "88a69391a06cd4f84c407b3f5f90e239fea95f19",
+      "outcome": "failed: role provisioning race, old catalog fixture, missing native build SHA; native resource and parser passed"
+    },
+    {
+      "id": 40521664512,
+      "outcome": "cancelled before jobs started to include fixes"
+    },
+    {
+      "id": 40522383394,
+      "outcome": "failed: photo timeout; native process remained alive, no OOM"
+    },
+    {
+      "id": 40523716237,
+      "outcome": "failed: cold 8MP PNG response exceeded 3000ms; no OOM, diagnostic isolation unchanged thresholds"
+    },
+    {
+      "id": 40526018100,
+      "outcome": "native-only passed before striped optimization; same CPU model, peak 211365888 bytes, photo max2398.7ms"
+    }
+  ],
+  "limits": [
+    "Evidence establishes native x86_64 execution in hosted VMs, not bare metal or cryptographic hardware attestation.",
+    "Runtime timing varies across shared hosted runners; latest strict 3000ms gate passes. No universal latency guarantee or measured CPU speedup is claimed.",
+    "Striping caps temporary stripes at 1MP. Extreme-aspect fallback retains previous Pillow allocation behavior; decoded image guard remains 8MP.",
+    "No production Cloudflare rollout, provider mutation or live payment was performed.",
+    "Immediate signup and offline revocation limits from the original audit remain unchanged by owner decision."
+  ]
+}
