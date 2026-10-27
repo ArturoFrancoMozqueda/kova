@@ -74,6 +74,7 @@ jobs:
           uv run --project backend --frozen python -m unittest discover -s backend/scripts -p 'test_check_native_photo_resources.py'
           uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py seed --manifest /tmp/kova-native-photos.json
       - name: Run with lite CPU and memory limits
+        shell: bash
         run: |
           docker run --detach --name kova-native-acceptance --network host \
             --cpus 0.0625 --memory 256m --memory-swap 256m \

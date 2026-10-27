@@ -61,8 +61,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      - name: Require a native AMD64 runner
+        if: matrix.name == 'native'
+        run: python scripts/check_amd64_host.py --report reports/security/native-host.json
       - name: Build exact runtime without deployment credentials
-        run: docker build --file "${{ matrix.dockerfile }}" --tag kova-sca:${{ matrix.name }} "${{ matrix.context }}"
+        run: docker build --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA" --file "${{ matrix.dockerfile }}" --tag kova-sca:${{ matrix.name }} "${{ matrix.context }}"
       - name: Verify minimal native runtime ABI and security surface
         if: matrix.name == 'native'
         run: python backend/scripts/check_native_runtime.py --image kova-sca:native
