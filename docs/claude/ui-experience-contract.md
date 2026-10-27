@@ -21,7 +21,7 @@ Los enlaces por registro llevan al cliente, oportunidad, pedido, venta o compra 
 | Recorrido | Condición y continuación |
 |---|---|
 | Mostrador | Catálogo → Caja → venta y recibo → inventario, resultados e historial. No exigir oportunidad o cotización para una venta directa. |
-| Solicitud del menú | Menú → bandeja → revisión y cliente explícito → oportunidad. Enviar solicitud no reserva mercancía, genera venta ni concede permiso de campañas. |
+| Solicitud del menú | El cliente envía y continúa al seguimiento de su solicitud. El equipo abre Solicitudes desde Pedidos, revisa productos y elige o registra al cliente antes de crear el pedido; una consulta general puede continuar como oportunidad. Enviar solicitud no reserva mercancía, genera venta ni concede permiso de campañas. |
 | Propuesta comercial | Oportunidad → cotización → registro de comunicación/aceptación → pedido vinculado. Registrar que se compartió una propuesta no envía un mensaje. Aceptarla no cobra. |
 | Pedido | Nuevo → confirmación y reserva → cobro → preparación → listo → entrega. Conservar cliente y referencias. Entregar y cobrar son estados separados; nunca deducir uno del otro. |
 | Servicio con cita | Cliente → cita con recurso/horario → venta en Caja → vínculo explícito de venta → historial. Asistencia, atención y cobro conservan su significado. |

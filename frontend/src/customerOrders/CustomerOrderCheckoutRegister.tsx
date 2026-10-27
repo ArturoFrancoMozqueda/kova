@@ -209,7 +209,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
       <ViewHeader
         eyebrow={<Link to={`/pedidos/${order.id}`} className="inline-flex items-center text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Volver al pedido</Link>}
         title={`Caja · ${order.folio}`}
-        meta="Los artículos están bloqueados. Regresa al pedido para corregirlos."
+        meta="Revisa el importe y registra el pago. Puedes volver al pedido si necesitas cambiar algún artículo."
       />
       {error ? <div className="my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
       {(openShift === false || shiftCheckFailed) ? (

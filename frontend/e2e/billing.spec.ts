@@ -68,7 +68,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await expect(page.getByText("$299 MXN/mes")).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
   await expect(page.getByText(/tu suscripci[oó]n est[aá] activa/i)).toBeVisible();
-  await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
+  await expect(page.getByText("Tu acceso ya está activo con esta suscripción.", { exact: true })).toBeVisible();
   // Copy change (2026-08): a stale Stripe period used to read "estamos
   // verificando tu próxima fecha de renovación" on the one screen where someone
   // decides whether to trust us with a card. Behaviour is unchanged — a stale
@@ -174,7 +174,7 @@ test("billing page recovers when checkout reports an already active subscription
   await page.getByRole("button", { name: /activar por/i }).click();
 
   await expect(page.getByText(/tu suscripci[óo]n ya est[áa] activa/i)).toBeVisible();
-  await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
+  await expect(page.getByText("Tu acceso ya está activo con esta suscripción.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
 

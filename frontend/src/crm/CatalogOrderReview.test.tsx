@@ -42,7 +42,7 @@ it("reviews current prices and requires customer plus explicit attestation befor
   expect(url).toBe("/api/v1/crm/requests/request-a/accept-order");
   expect(JSON.parse(String(init?.body))).toEqual({ customer_id: customer.id, expected_version: 4, preview_fingerprint: preview.preview_fingerprint, confirmed: true });
   expect(init).toEqual(expect.objectContaining({ credentials: "include", headers: expect.objectContaining({ "X-Kova-Branch": "branch-a", "Idempotency-Key": expect.any(String) }) }));
-  expect(screen.getByRole("status")).toHaveTextContent("Todavía no reserva inventario ni registra un cobro");
+  expect(screen.getByRole("status")).toHaveTextContent("Confirma el pedido para reservar sus productos");
   expect(onAccepted).toHaveBeenCalledOnce();
 });
 
@@ -104,4 +104,43 @@ it("clears the chosen customer when its search changes and blocks offline accept
   fireEvent(window, new Event("offline"));
   expect(screen.getByRole("button", { name: "Crear pedido para confirmar" })).toBeDisabled();
   expect(writes()).toHaveLength(0);
+});
+
+it("registers and selects a customer without leaving the reviewed order or guessing contact information", async () => {
+  fetchMock.mockImplementation(async (url, init) => String(url).endsWith("/customers")
+    ? json({ ...customer, id: "new-customer", name: row.name }, 201)
+    : init?.method === "POST" ? json({ request: { id: row.id }, customer_order: { id: "order-a", folio: "PED-001" } }, 201) : json(preview));
+  mount(); await screen.findByText("2 × Café de olla");
+  fireEvent.click(screen.getByRole("button", { name: "Registrar cliente sin salir" }));
+  expect(screen.getByLabelText("Nombre del cliente")).toHaveValue(row.name);
+  expect(screen.getByLabelText("Nombre del cliente")).toHaveFocus();
+  expect(screen.getByLabelText("Correo del cliente (opcional)")).toHaveValue("");
+  expect(screen.getByLabelText("Teléfono del cliente (opcional)")).toHaveValue("");
+  fireEvent.submit(screen.getByRole("button", { name: "Guardar y usar cliente" }).closest("form")!);
+  await waitFor(() => expect(screen.getByLabelText("Vincular con cliente registrado")).toHaveValue("new-customer"));
+  expect(writes()).toHaveLength(1);
+  expect(JSON.parse(String(writes()[0][1]?.body))).toEqual({ name: row.name, email: null, phone: null, is_active: true });
+  expect(screen.getByText("2 × Café de olla")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Crear pedido para confirmar" })).toBeDisabled();
+  expect(onAccepted).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByLabelText(/Revisé productos/));
+  fireEvent.click(screen.getByRole("button", { name: "Crear pedido para confirmar" }));
+  await screen.findByRole("link", { name: "Abrir pedido" });
+  expect(JSON.parse(String(writes()[1][1]?.body)).customer_id).toBe("new-customer");
+});
+
+it("keeps the customer draft and operation key after an uncertain save without creating the order", async () => {
+  fetchMock.mockImplementation(async (url) => String(url).endsWith("/customers") ? json({}, 503) : json(preview));
+  mount(); await screen.findByText("2 × Café de olla");
+  fireEvent.click(screen.getByRole("button", { name: "Registrar cliente sin salir" }));
+  const form = screen.getByRole("button", { name: "Guardar y usar cliente" }).closest("form")!;
+  fireEvent.submit(form); fireEvent.submit(form);
+  await screen.findByRole("alert");
+  expect(writes()).toHaveLength(1);
+  expect(screen.getByLabelText("Nombre del cliente")).toHaveValue(row.name);
+  fireEvent.submit(form);
+  await waitFor(() => expect(writes()).toHaveLength(2));
+  expect(writes()[0][1]?.body).toBe(writes()[1][1]?.body);
+  expect((writes()[0][1]?.headers as Record<string, string>)["Idempotency-Key"]).toBe((writes()[1][1]?.headers as Record<string, string>)["Idempotency-Key"]);
+  expect(onAccepted).not.toHaveBeenCalled();
 });

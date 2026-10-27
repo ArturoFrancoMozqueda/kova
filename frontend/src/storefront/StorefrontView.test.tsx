@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import StorefrontView from "./StorefrontView";
 
@@ -17,10 +17,11 @@ const catalog = {
   products: [{ id: "product-1", name: "Pan de nuez", description: "Producto publicado",
     price_amount: "45.00", availability: "available" }],
 };
+function TrackingDestination() { const location = useLocation(); return <h1>Seguimiento recibido {location.hash}</h1>; }
 function NavigateCatalog() {
   const navigate = useNavigate();
   return <><button onClick={() => void navigate("/catalogo/second")}>Cambiar catálogo</button>
-    <Routes><Route path="/catalogo/:token" element={<StorefrontView />} /></Routes></>;
+    <Routes><Route path="/catalogo/:token" element={<StorefrontView />} /><Route path="/seguimiento" element={<TrackingDestination />} /></Routes></>;
 }
 const showMenu = () => render(<MemoryRouter initialEntries={["/catalogo/first"]}><NavigateCatalog /></MemoryRouter>);
 const menu = () => within(screen.getByRole("region", { name: "Nuestro menú" }));
@@ -54,7 +55,7 @@ it("loads the menu without private cookies, keeps WhatsApp secondary and does no
     expect.objectContaining({ credentials: "omit", cache: "no-store" }));
   expect(screen.getByRole("link", { name: "Consultar por WhatsApp" })).toHaveAttribute("href", expect.stringContaining("https://wa.me/525550000000?text="));
   expect(screen.queryByRole("button", { name: /Pagar|Comprar/ })).not.toBeInTheDocument();
-  expect(screen.getByText(/No se realizan reservas ni cobros automáticos/)).toBeVisible();
+  expect(screen.getByText(/El negocio revisa y confirma tu pedido/)).toBeVisible();
   expect(screen.getByRole("button", { name: "Enviar solicitud de pedido" })).toBeDisabled();
 });
 
@@ -193,17 +194,18 @@ it("sends quantities, origin and notes to the Kova inbox as a pending request, w
   expect(screen.queryByRole("link", { name: /Ver mi pedido/ })).not.toBeInTheDocument();
 });
 
-it("offers only the tracking link actually returned for a structured order while keeping the public request anonymous", async () => {
+it("automatically opens only the tracking returned for a structured order while keeping the public request anonymous", async () => {
   fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
     ? json({ receipt_id: "receipt-track", status: "received", tracking_path: "/seguimiento#signed-capability", tracking_expires_at: "2026-11-26T12:00:00Z" }) : json(catalog));
   showMenu(); await addBread(); fillContact();
   fireEvent.click(screen.getByRole("button", { name: "Enviar solicitud de pedido" }));
-  expect(await screen.findByRole("link", { name: "Ver estado de mi solicitud" })).toHaveAttribute("href", "/seguimiento#signed-capability");
+  expect(await screen.findByRole("heading", { name: "Seguimiento recibido #signed-capability" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Enviar solicitud de pedido" })).not.toBeInTheDocument();
   const body = JSON.parse(String(posts()[0][1]?.body));
   expect(body.order_lines).toEqual([{ product_id: "product-1", quantity: 1 }]);
   expect(body.origin).toBe("remote");
   expect(posts()[0][1]).toEqual(expect.objectContaining({ credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer" }));
-  expect(screen.getByText(/No se ha reservado inventario ni realizado un cobro/)).toBeVisible();
+
 });
 
 it("does not invent tracking when an older backend omits it or a response points outside Kova", async () => {

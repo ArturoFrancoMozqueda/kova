@@ -330,16 +330,20 @@ test("mobile owner creates supplier and purchase then receives only units delive
     },
   );
   await page.goto("/purchasing");
-  await page.getByRole("button", { name: "Nuevo proveedor", exact: true }).click();
-  await page.getByLabel("Nombre", { exact: true }).fill(supplier.name);
-  await page.getByLabel("Teléfono o correo (opcional)").fill(supplier.contact);
-  await page.getByRole("button", { name: "Guardar proveedor" }).click();
   await page.getByRole("button", { name: "Preparar compra", exact: true }).click();
-  await page.getByLabel("Proveedor", { exact: true }).selectOption(supplier.id);
   await page.getByLabel("Producto", { exact: true }).selectOption(productId);
   await page.getByLabel("Unidades", { exact: true }).fill("10");
   await page.getByLabel("Costo unitario MXN").fill("12.50");
   await page.getByLabel("Referencia o notas (opcional)").fill(purchase.notes);
+  await page.getByRole("button", { name: "Registrar proveedor sin perder la compra" }).click();
+  await page.getByLabel("Nombre", { exact: true }).fill(supplier.name);
+  await page.getByLabel("Teléfono o correo (opcional)").fill(supplier.contact);
+  await page.getByRole("button", { name: "Guardar proveedor" }).click();
+  await expect(page.getByLabel("Proveedor", { exact: true })).toHaveValue(supplier.id);
+  await expect(page.getByLabel("Producto", { exact: true })).toHaveValue(productId);
+  await expect(page.getByLabel("Unidades", { exact: true })).toHaveValue("10");
+  await expect(page.getByLabel("Costo unitario MXN")).toHaveValue("12.50");
+  await expect(page.getByLabel("Referencia o notas (opcional)")).toHaveValue(purchase.notes);
   await noOverflow(page);
   await page.getByRole("button", { name: "Crear compra pendiente" }).click();
   await expect(

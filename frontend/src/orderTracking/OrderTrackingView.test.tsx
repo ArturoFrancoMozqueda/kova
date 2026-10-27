@@ -10,7 +10,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 function Navigation() { const navigate = useNavigate(); return <><button onClick={() => void navigate("/seguimiento#other-order")}>Otra solicitud</button><Routes><Route path="/seguimiento" element={<OrderTrackingView />} /></Routes></>; }
 const mount = (path = "/seguimiento#first-order") => render(<MemoryRouter initialEntries={[path]}><Navigation /></MemoryRouter>);
 beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("fetch", fetchMock); fetchMock.mockImplementation(async () => json(tracking)); });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it("reads the exact request capability from a POST body without cookies, referrers, payment claims or guessed prices", async () => {
   const { container } = mount();
@@ -18,7 +18,7 @@ it("reads the exact request capability from a POST body without cookies, referre
   expect(fetchMock).toHaveBeenCalledWith("/api/v1/public/order-tracking", expect.objectContaining({ method: "POST", body: JSON.stringify({ token: "first-order" }), credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer" }));
   expect(screen.getByText("Pan de nuez")).toBeVisible();
   expect(screen.getByText("2 ×")).toBeVisible();
-  expect(screen.getByText(/Todavía no hay un pedido confirmado/)).toBeVisible();
+  expect(screen.getByText(/El equipo revisará la disponibilidad/)).toBeVisible();
   expect(screen.queryByText("Total registrado")).not.toBeInTheDocument();
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Volver al menú" })).toHaveAttribute("href", tracking.catalog_path);
@@ -32,9 +32,9 @@ it.each([
   fetchMock.mockResolvedValueOnce(json({ ...tracking, status, folio: status === "dismissed" ? null : "PED-001", total_amount: status === "dismissed" ? null : "90.00" }));
   mount();
   expect(await screen.findByText(title)).toHaveAttribute("role", "status");
-  if (status !== "dismissed") expect(screen.getByText(/El estado del pedido no acredita un pago/)).toBeVisible();
+  if (status !== "dismissed") expect(screen.getByText(/Acuerda el pago directamente con el negocio/)).toBeVisible();
   expect(screen.queryByRole("button", { name: /pagar|cancelar|confirmar pedido/i })).not.toBeInTheDocument();
-  if (status === "accepted") expect(screen.getByText(/Falta confirmarlo; todavía no se reserva inventario/)).toBeVisible();
+  if (status === "accepted") expect(screen.getByText(/Aquí verás cuando confirme tu pedido/)).toBeVisible();
   if (status === "cancelled" || status === "dismissed") expect(screen.queryByRole("list", { name: "Progreso del pedido" })).not.toBeInTheDocument();
 });
 
@@ -94,4 +94,61 @@ it("does not present an unknown backend state or external address as a valid ope
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent("El estado todavía no está disponible");
   expect(screen.queryByRole("link", { name: "Volver al menú" })).not.toBeInTheDocument();
+});
+
+it("refreshes an active order automatically and stops when it is delivered", async () => {
+  vi.useFakeTimers();
+  fetchMock.mockResolvedValueOnce(json(tracking))
+    .mockResolvedValueOnce(json({ ...tracking, status: "ready" }))
+    .mockResolvedValueOnce(json({ ...tracking, status: "fulfilled" }));
+  mount();
+  await act(async () => {});
+  expect(screen.getByText("Solicitud recibida")).toBeVisible();
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+  expect(screen.getByText("Tu pedido está listo")).toBeVisible();
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+  expect(screen.getByText("Pedido entregado")).toBeVisible();
+  await act(async () => { await vi.advanceTimersByTimeAsync(90_000); });
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});
+
+it("pauses background updates when hidden and rechecks upon returning without overlapping requests", async () => {
+  vi.useFakeTimers();
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  mount(); await act(async () => {});
+  hidden.mockReturnValue(true);
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  let finish!: (response: Response) => void;
+  fetchMock.mockImplementationOnce(async () => new Promise(resolve => { finish = resolve; }));
+  hidden.mockReturnValue(false);
+  fireEvent(document, new Event("visibilitychange"));
+  fireEvent(document, new Event("visibilitychange"));
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  await act(async () => { finish(json({ ...tracking, status: "ready" })); });
+  expect(screen.getByText("Tu pedido está listo")).toBeVisible();
+});
+
+it("removes expired order data on an automatic recheck and stops polling", async () => {
+  vi.useFakeTimers();
+  fetchMock.mockResolvedValueOnce(json(tracking)).mockResolvedValueOnce(json({}, 410));
+  mount(); await act(async () => {});
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+  expect(screen.getByRole("alert")).toHaveTextContent("Este enlace ya no está disponible");
+  expect(screen.queryByText("Pan de nuez")).not.toBeInTheDocument();
+  await act(async () => { await vi.advanceTimersByTimeAsync(90_000); });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("copies the private tracking link only on request and offers a fallback when the clipboard fails", async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("navigator", { onLine: true, clipboard: { writeText } });
+  mount(); await screen.findByText("Solicitud recibida");
+  expect(writeText).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Copiar enlace de seguimiento" }));
+  expect(await screen.findByText(/Enlace copiado/)).toBeVisible();
+  expect(writeText).toHaveBeenCalledWith(window.location.href);
+  writeText.mockRejectedValueOnce(new Error("Clipboard unavailable"));
+  fireEvent.click(screen.getByRole("button", { name: "Copiar enlace de seguimiento" }));
+  expect(await screen.findByText(/Copia la dirección de esta página/)).toBeVisible();
 });

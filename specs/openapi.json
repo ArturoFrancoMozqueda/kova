@@ -4226,6 +4226,17 @@
             "title": "Lot Reservations",
             "type": "object"
           },
+          "menu_request_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Menu Request Message"
+          },
           "note": {
             "anyOf": [
               {

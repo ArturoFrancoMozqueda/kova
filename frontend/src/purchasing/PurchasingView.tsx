@@ -40,6 +40,7 @@ export default function PurchasingView() {
   const [products, setProducts] = useState<Product[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
@@ -83,19 +84,23 @@ export default function PurchasingView() {
     window.addEventListener("online", changed); window.addEventListener("offline", changed);
     return () => { window.removeEventListener("online", changed); window.removeEventListener("offline", changed); };
   }, []);
-  async function mutate(payload: unknown, action: (key: string) => Promise<unknown>, done: () => void) {
+  async function mutate<T>(payload: unknown, action: (key: string) => Promise<T>, done: (result: T) => void) {
     if (busy || !navigator.onLine) return;
     const signature = JSON.stringify(payload);
     const key = keys.current.get(signature) ?? crypto.randomUUID();
     keys.current.set(signature, key);
-    setBusy(true); setError("");
-    try { await action(key); keys.current.delete(signature); done(); await load(); }
+    setBusy(true); setError(""); setNotice("");
+    try { const result = await action(key); keys.current.delete(signature); done(result); await load(); }
     catch (e) { setError(resolveUserFacingError(e, "No pudimos guardar el cambio. Revisa los datos e intenta de nuevo.")); }
     finally { setBusy(false); }
   }
   function submitSupplier(event: FormEvent) {
     event.preventDefault();
-    void mutate({ supplierName, contact }, key => createSupplier(supplierName, contact, key), () => { setSupplierName(""); setContact(""); });
+    void mutate({ supplierName, contact }, key => createSupplier(supplierName, contact, key), supplier => {
+      setSuppliers(current => [...current.filter(row => row.id !== supplier.id), supplier]);
+      setSupplierId(supplier.id); setSupplierName(""); setContact(""); setActiveSetup("purchase");
+      setNotice(`${supplier.name} está listo para tu compra. Conservamos los productos y las notas que habías capturado.`);
+    });
   }
   function submitPurchase(event: FormEvent) {
     event.preventDefault();
@@ -109,6 +114,7 @@ export default function PurchasingView() {
       <Button type="button" variant="outline" aria-expanded={activeSetup === "supplier"} aria-controls={supplierPanelId} onClick={() => setActiveSetup(current => current === "supplier" ? null : "supplier")}>Nuevo proveedor</Button>
     </div>} />
     {!online && <p role="status" className="rounded-kova-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">Conéctate a internet para crear compras y recibir mercancía.</p>}
+    {notice && <p role="status" className="rounded-kova-md bg-kova-growth/10 p-4 text-sm text-kova-growth-strong">{notice}</p>}
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button></div>}
     <section className="space-y-3"><h2 className="text-lg font-semibold">Compras de esta sucursal</h2>
       {linkedPurchaseId && !loading && !error && (
@@ -149,6 +155,7 @@ export default function PurchasingView() {
     {activeSetup === "purchase" && <Card id={purchasePanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Preparar compra pendiente" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
         <form onSubmit={submitPurchase} className="space-y-4">
           <Label htmlFor="purchase-supplier">Proveedor</Label><Select id="purchase-supplier" required value={supplierId} onChange={e => setSupplierId(e.target.value)}><option value="">Selecciona un proveedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
+          <Button type="button" variant="link" className="px-0" disabled={disabled} onClick={() => setActiveSetup("supplier")}>Registrar proveedor sin perder la compra</Button>
           {products.length === 0 && (
             loading ? <p role="status" className="text-sm text-muted-foreground">Cargando productos con inventario…</p>
               : !error ? <p className="text-sm">Activa el control de inventario de tus productos en Catálogo para comprarlos.</p> : null

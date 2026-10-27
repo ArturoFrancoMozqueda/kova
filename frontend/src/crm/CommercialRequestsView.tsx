@@ -62,6 +62,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [customerError, setCustomerError] = useState("");
   useEffect(() => {
     let active = true;
+    setCustomers([]);
     const timer = window.setTimeout(() => {
       void request<Customer[]>(`/customers?q=${encodeURIComponent(search)}`)
         .then((rows) => {
@@ -110,10 +111,8 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         meta="Recibe pedidos y consultas del menú digital, en el negocio y a distancia."
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Revisa productos, cantidades y notas antes de aceptar una solicitud de pedido.
-        Al revisarla puedes crear el pedido con sus cantidades y precios vigentes,
-        o continuar una consulta como oportunidad. Verifica el contacto y vincula
-        al cliente correcto. Recibir una solicitud no reserva inventario ni cobra.
+        Abre una solicitud para revisar sus productos y elegir al cliente.
+        Después podrás confirmar, preparar y cobrar el pedido desde Pedidos.
       </p>
       {panel.error && (
         <ViewError

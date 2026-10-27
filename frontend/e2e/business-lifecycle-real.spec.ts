@@ -91,7 +91,8 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
         product_ids: [prepared.productId],
         message: expect.stringContaining("2 × Producto ciclo completo local"),
       });
-      await expect(publicPage.getByRole("status").filter({ hasText: "Solicitud de pedido recibida" })).toBeVisible();
+      await expect(publicPage).toHaveURL(/\/seguimiento#.+$/);
+      await expect(publicPage.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toHaveText("Solicitud recibida");
       await publicPage.screenshot({ path: testInfo.outputPath("lifecycle-public-mobile.png"), fullPage: true });
     } finally {
       await publicContext.close();

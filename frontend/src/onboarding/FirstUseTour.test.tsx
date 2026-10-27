@@ -74,6 +74,15 @@ describe("first-use tour continuation", () => {
     expect(listProducts).not.toHaveBeenCalled();
   });
 
+  it("does not interrupt order checkout with the general first-sale tour or mark that tour as seen", () => {
+    host("/register?customerOrderId=order-current", false);
+    expect(screen.queryByTestId("first-use-tour")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Entendido" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ruta actual")).toHaveTextContent("/register?customerOrderId=order-current");
+    expect(window.localStorage.getItem("kova:tour:tenant-tour:register")).toBeNull();
+    expect(listProducts).not.toHaveBeenCalled();
+  });
+
   it("does not invite a cashier to create products or request the catalog for the tour", async () => {
     auth.state.user.role = "cashier";
     host("/catalog", false);

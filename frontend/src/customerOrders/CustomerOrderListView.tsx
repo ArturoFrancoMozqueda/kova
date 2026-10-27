@@ -141,9 +141,12 @@ export default function CustomerOrderListView() {
         meta="Prepara, cobra y entrega sin mezclar el trabajo pendiente con tus ventas."
         actions={
           isOnline ? (
+            <div className="flex flex-wrap gap-2">
+            {state.status === "authenticated" && ["owner", "manager"].includes(state.user.role) && <Link to="/commercial-requests" className={buttonVariants({ variant: "outline" })}>Solicitudes del menú</Link>}
             <Link to="/pedidos/nuevo" className={buttonVariants()}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo pedido
             </Link>
+            </div>
           ) : null
         }
       />
@@ -180,6 +183,7 @@ export default function CustomerOrderListView() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              aria-label="Buscar pedidos por folio, cliente o teléfono"
               placeholder="Folio, cliente o teléfono"
               className="pl-9"
             />

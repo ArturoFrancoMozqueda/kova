@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.catalog.models import Product
+from app.crm.engagement_models import CatalogRequest
 from app.customer_orders import repository as repo
 from app.customer_orders.models import (
     CustomerOrder,
@@ -238,6 +239,11 @@ def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, 
         "delivery_reference": order.delivery_reference,
         "promised_at": order.promised_at.isoformat() if order.promised_at else None,
         "note": order.note,
+        "menu_request_message": db.query(CatalogRequest.message).filter(
+            CatalogRequest.tenant_id == order.tenant_id,
+            CatalogRequest.branch_id == order.branch_id,
+            CatalogRequest.customer_order_id == order.id,
+        ).scalar(),
         "subtotal_amount": str(order.subtotal_amount),
         "total_amount": str(order.total_amount),
         "sale_order_id": str(order.sale_order_id) if order.sale_order_id else None,

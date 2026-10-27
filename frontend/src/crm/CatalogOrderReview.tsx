@@ -20,7 +20,7 @@ type AcceptedOrder = { customer_order: { id: string; folio: string }; request: {
 
 export function CatalogOrderReview({ identity, row, customers, search, onSearch, customerError, onAccepted, onClose }: {
   identity: WorkspaceIdentity;
-  row: { id: string; name: string; contact: string; origin?: "remote" | "in_store" | null };
+  row: { id: string; name: string; contact: string; message?: string; origin?: "remote" | "in_store" | null };
   customers: Customer[]; search: string; onSearch: (value: string) => void; customerError: string;
   onAccepted: () => void; onClose: () => void;
 }) {
@@ -33,10 +33,20 @@ export function CatalogOrderReview({ identity, row, customers, search, onSearch,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState<AcceptedOrder["customer_order"] | null>(null);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [customerName, setCustomerName] = useState(row.name);
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [createdCustomer, setCreatedCustomer] = useState<Customer | null>(null);
   const alive = useRef(false);
   const generation = useRef(0);
   const locked = useRef(false);
   const command = useRef<{ fingerprint: string; key: string } | null>(null);
+  const customerCommand = useRef<{ fingerprint: string; key: string } | null>(null);
+  const customerNameInput = useRef<HTMLInputElement>(null);
+  const customerSelect = useRef<HTMLSelectElement>(null);
+  useEffect(() => { if (creatingCustomer) customerNameInput.current?.focus(); }, [creatingCustomer]);
+  useEffect(() => { if (createdCustomer) customerSelect.current?.focus(); }, [createdCustomer]);
   const load = useCallback(async () => {
     const current = ++generation.current;
     setLoading(true);
@@ -50,6 +60,23 @@ export function CatalogOrderReview({ identity, row, customers, search, onSearch,
     } finally { if (alive.current && generation.current === current) setLoading(false); }
   }, [request, row.id]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; generation.current += 1; }; }, [load]);
+
+  const createCustomer = async () => {
+    if (locked.current || !online || !customerName.trim()) return;
+    locked.current = true; setBusy(true); setError("");
+    const body = { name: customerName.trim(), email: customerEmail.trim() || null, phone: customerPhone.trim() || null, is_active: true };
+    const fingerprint = JSON.stringify(body);
+    if (customerCommand.current?.fingerprint !== fingerprint) customerCommand.current = { fingerprint, key: crypto.randomUUID() };
+    try {
+      const customer = await request<Customer>("/customers", "POST", body, customerCommand.current.key);
+      if (alive.current) {
+        setCreatedCustomer(customer); setCustomerId(customer.id);
+        setCreatingCustomer(false); setConfirmed(false);
+      }
+    } catch (failure) {
+      if (alive.current) setError(resolveUserFacingError(failure, "No pudimos registrar al cliente. Revisa los datos e intenta de nuevo."));
+    } finally { locked.current = false; if (alive.current) setBusy(false); }
+  };
 
   const accept = async () => {
     if (locked.current || !preview?.can_accept || !customerId || !confirmed || !online || preview.customer_order_id) return;
@@ -69,12 +96,13 @@ export function CatalogOrderReview({ identity, row, customers, search, onSearch,
   };
 
   return <Dialog open onClose={() => { if (!busy) onClose(); }} className="sm:max-w-xl">
-    <DialogHeader className="pr-8"><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-kova-blue">Solicitud del menú</p><DialogTitle>{accepted ? "Pedido creado" : `Revisar pedido de ${row.name}`}</DialogTitle><DialogDescription>{accepted ? "Continúa la operación desde el pedido exacto." : "Revisa precios vigentes y vincula al cliente antes de continuar."}</DialogDescription></DialogHeader>
+    <DialogHeader className="pr-8"><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-kova-blue">Solicitud del menú</p><DialogTitle>{accepted ? "Pedido creado" : `Revisar pedido de ${row.name}`}</DialogTitle><DialogDescription>{accepted ? "Abre el pedido para confirmarlo y comenzar a prepararlo." : "Revisa los productos y elige a quién corresponde el pedido."}</DialogDescription></DialogHeader>
     {accepted ? <div className="space-y-4">
-      <div role="status" className="rounded-2xl border border-kova-growth/25 bg-kova-growth/10 p-5"><CheckCircle2 className="mb-2 h-6 w-6 text-kova-growth-strong" aria-hidden="true" /><p className="font-semibold">{accepted.folio}</p><p className="mt-2 text-sm">Pedido creado para confirmar. Todavía no reserva inventario ni registra un cobro.</p></div>
+      <div role="status" className="rounded-2xl border border-kova-growth/25 bg-kova-growth/10 p-5"><CheckCircle2 className="mb-2 h-6 w-6 text-kova-growth-strong" aria-hidden="true" /><p className="font-semibold">{accepted.folio}</p><p className="mt-2 text-sm">Confirma el pedido para reservar sus productos. El cobro se registra después, en Caja.</p></div>
       <Link to={`/pedidos/${encodeURIComponent(accepted.id)}`} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-kova-blue px-4 py-3 text-sm font-medium text-white">Abrir pedido</Link>
     </div> : <div className="space-y-5">
       <div className="rounded-xl bg-kova-mist px-4 py-3 text-sm"><p className="break-words font-medium">{row.name}</p><p className="mt-1 break-words text-kova-muted">{row.contact}</p>{row.origin && <p className="mt-1 text-xs text-kova-muted">{row.origin === "in_store" ? "Solicitud en el negocio" : "Solicitud a distancia"}</p>}</div>
+      {row.message && <details><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Ver solicitud completa</summary><p className="whitespace-pre-wrap break-words text-sm">{row.message}</p></details>}
       {loading && <p role="status" className="text-sm text-kova-muted">Revisando productos y precios actuales…</p>}
       {!online && <p role="status" className="text-sm text-kova-muted">Conéctate para revisar y crear el pedido.</p>}
       {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">{error}</p>}
@@ -89,10 +117,17 @@ export function CatalogOrderReview({ identity, row, customers, search, onSearch,
         {preview.customer_order_id ? <Link to={`/pedidos/${encodeURIComponent(preview.customer_order_id)}`} className="inline-flex min-h-11 items-center text-sm font-medium text-kova-blue underline">Abrir pedido existente</Link> : <>
           <label htmlFor="order-review-customer-search" className="block text-sm font-medium">Buscar cliente<Input id="order-review-customer-search" className="mt-2" value={search} onChange={event => { onSearch(event.target.value); setCustomerId(""); setConfirmed(false); }} disabled={busy} /></label>
           {customerError && <p role="alert" className="text-sm text-destructive-strong">{customerError}</p>}
-          <label htmlFor="order-review-customer" className="block text-sm font-medium">Vincular con cliente registrado<Select id="order-review-customer" className="mt-2" value={customerId} disabled={busy} onChange={event => { setCustomerId(event.target.value); setConfirmed(false); }}><option value="">Selecciona un cliente registrado</option>{customers.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</Select></label>
-          <p className="text-xs leading-relaxed text-kova-muted">Si aún no existe, <Link to="/customers" className="underline">registra al cliente</Link> y vuelve a revisar. El contacto de la solicitud no se vincula automáticamente.</p>
-          <label className="flex items-start gap-3 rounded-xl border border-kova-border p-3 text-sm leading-relaxed"><input type="checkbox" className="mt-1" checked={confirmed} disabled={busy || !preview.can_accept} onChange={event => setConfirmed(event.target.checked)} /><span>Revisé productos, cantidades, precios y cliente. Crearé el pedido para confirmarlo desde Pedidos; todavía no reserva inventario ni registra un cobro.</span></label>
-          <Button type="button" className="h-auto min-h-12 w-full whitespace-normal" disabled={busy || !online || !preview.can_accept || !customerId || !confirmed} onClick={() => void accept()}>{busy ? "Creando pedido…" : "Crear pedido para confirmar"}</Button>
+          <label htmlFor="order-review-customer" className="block text-sm font-medium">Vincular con cliente registrado<Select ref={customerSelect} id="order-review-customer" className="mt-2" value={customerId} disabled={busy || creatingCustomer} onChange={event => { setCustomerId(event.target.value); setConfirmed(false); }}><option value="">Selecciona un cliente registrado</option>{createdCustomer && !customers.some(customer => customer.id === createdCustomer.id) && <option value={createdCustomer.id}>{createdCustomer.name}</option>}{customers.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</Select></label>
+          {creatingCustomer ? <form className="space-y-3 rounded-xl border border-kova-border p-4" onSubmit={event => { event.preventDefault(); void createCustomer(); }}>
+            <h3 className="text-sm font-semibold">Nuevo cliente</h3>
+            <p className="text-xs leading-relaxed text-kova-muted">Confirma sus datos con la persona. El pedido seguirá aquí.</p>
+            <label htmlFor="order-customer-name" className="block text-sm font-medium">Nombre del cliente<Input id="order-customer-name" ref={customerNameInput} required maxLength={160} value={customerName} disabled={busy} onChange={event => setCustomerName(event.target.value)} /></label>
+            <label htmlFor="order-customer-email" className="block text-sm font-medium">Correo del cliente (opcional)<Input id="order-customer-email" type="email" maxLength={254} value={customerEmail} disabled={busy} onChange={event => setCustomerEmail(event.target.value)} /></label>
+            <label htmlFor="order-customer-phone" className="block text-sm font-medium">Teléfono del cliente (opcional)<Input id="order-customer-phone" type="tel" maxLength={30} value={customerPhone} disabled={busy} onChange={event => setCustomerPhone(event.target.value)} /></label>
+            <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy || !online || !customerName.trim()}>{busy ? "Guardando cliente…" : "Guardar y usar cliente"}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setCreatingCustomer(false)}>Volver a elegir cliente</Button></div>
+          </form> : <Button type="button" variant="outline" disabled={busy || !online} onClick={() => { setCreatingCustomer(true); setConfirmed(false); }}>Registrar cliente sin salir</Button>}
+          <label className="flex items-start gap-3 rounded-xl border border-kova-border p-3 text-sm leading-relaxed"><input type="checkbox" className="mt-1" checked={confirmed} disabled={busy || !preview.can_accept || creatingCustomer} onChange={event => setConfirmed(event.target.checked)} /><span>Revisé productos, cantidades, precios y cliente. Al crear el pedido podré confirmarlo y reservar sus productos.</span></label>
+          <Button type="button" className="h-auto min-h-12 w-full whitespace-normal" disabled={busy || !online || !preview.can_accept || !customerId || !confirmed || creatingCustomer} onClick={() => void accept()}>{busy ? "Guardando…" : "Crear pedido para confirmar"}</Button>
         </>}
       </>}
     </div>}

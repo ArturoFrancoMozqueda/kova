@@ -198,7 +198,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
       </div>
       <footer className="mt-5 border-t border-kova-border py-4 text-xs leading-relaxed text-kova-muted lg:mt-10 lg:py-6">
         <p>Menú compartido con <span className="font-semibold text-kova-ink">Kova</span></p>
-        <p className="mt-2">Cada solicitud queda pendiente de aceptación por el negocio. No se realizan reservas ni cobros automáticos.</p>
+        <p className="mt-2">El negocio revisa y confirma tu pedido. Acuerda el pago y la entrega con el equipo.</p>
       </footer>
     </div>
     {count > 0 && <div className={`${reviewOpen ? "hidden " : ""}fixed inset-x-0 bottom-0 z-20 border-t border-kova-border bg-white px-4 pt-3 lg:hidden`} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Check, CheckCircle2, MessageCircle, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
   setMode: (value: "order" | "question") => void;
   onBrowse: () => void;
 }) {
+  const navigate = useNavigate();
   const [origin, setOrigin] = useState<OrderOrigin>("remote");
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
@@ -84,7 +86,11 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
       const result = await response.json() as Receipt;
       if (result.status !== "received" || typeof result.receipt_id !== "string" || !result.receipt_id)
         throw new RequestFeedbackError("No pudimos confirmar la recepción. Vuelve a intentar con los mismos datos.");
-      if (!controller.current.signal.aborted) { setReceipt(result); onReceived(); }
+      if (!controller.current.signal.aborted) {
+        setReceipt(result); onReceived();
+        if (isOrder && result.tracking_path && /^\/seguimiento#[A-Za-z0-9._~-]+$/.test(result.tracking_path))
+          void navigate(result.tracking_path, { replace: true });
+      }
     } catch (e) {
       if (!controller.current.signal.aborted) setError(e instanceof RequestFeedbackError
         ? e.message : "No pudimos confirmar si recibimos tu solicitud. Revisa tu conexión y vuelve a intentar con los mismos datos.");
@@ -135,9 +141,9 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
         <CheckCircle2 className="mb-3 h-7 w-7 text-kova-growth-strong" aria-hidden="true" />
         <h3 role="status" className="font-semibold">{isOrder ? "Solicitud de pedido recibida" : "Solicitud recibida"}</h3>
         <p className="mt-2 text-sm leading-relaxed">{isOrder
-          ? trackingPath ? "El negocio recibió tu selección en Kova. Falta que la revise y acepte; puedes consultar su avance desde el enlace de seguimiento." : "El negocio recibió tu selección en Kova. Falta que la revise y acepte; podrá contactarte con los datos que dejaste para continuar."
-          : "El negocio recibió tu consulta en Kova y podrá responder al contacto que indicaste."}</p>
-        <p className="mt-3 text-xs text-kova-muted">No se ha reservado inventario ni realizado un cobro.</p>
+          ? "El negocio recibió tu selección. Falta que la revise y acepte; te contactará con los datos que dejaste para continuar."
+          : "El negocio recibió tu consulta y podrá responder al contacto que indicaste."}</p>
+        <p className="mt-3 text-xs text-kova-muted">El pago se acuerda directamente con el negocio.</p>
         {trackingPath && <div className="mt-4 space-y-2"><a href={trackingPath} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-kova-blue px-4 py-3 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue">Ver estado de mi solicitud</a><p className="text-xs leading-relaxed text-kova-muted">Guarda el enlace de seguimiento para consultar cuando el negocio revise y prepare tu pedido.</p></div>}
       </div> : <form className="mt-5 space-y-4 lg:mt-6 lg:space-y-5" onSubmit={event => void submit(event)}>
         <fieldset disabled={busy} className="min-w-0 space-y-4 lg:space-y-5">
@@ -168,14 +174,14 @@ export function StorefrontRequest({ token, lines, onQuantityChange, busy, setBus
           </label>
         </fieldset>
         <p id="request-conditions" className="text-xs leading-relaxed text-kova-muted">{isOrder
-          ? "Al enviar, el negocio recibe una solicitud de pedido pendiente de aceptación. No confirma una reserva o pago, ni te suscribe a campañas."
-          : "El negocio revisará tu consulta. Esto no confirma un pedido, reserva o pago, ni te suscribe a campañas."}</p>
+          ? "El negocio revisará tu pedido antes de confirmarlo. El pago y la entrega se acuerdan con el equipo. Tus datos se usan para atender esta solicitud."
+          : "Usaremos tus datos para atender esta consulta. Para hacer un pedido, elige Pedido y agrega tus productos."}</p>
         {tooLong && <p role="alert" className="text-sm text-destructive">La solicitud supera los 1,000 caracteres. Quita algún producto o acorta las notas para enviarla completa.</p>}
         {!online && <p role="status" className="text-sm text-kova-muted">Sin conexión. Tu selección sigue aquí; conéctate para enviarla. Mantén esta página abierta.</p>}
         {error && <div role="alert" ref={feedback} tabIndex={-1} className="rounded-xl border border-destructive/30 p-3 text-sm text-destructive outline-none">{error}</div>}
         <Button type="submit" className="h-auto min-h-12 w-full whitespace-normal rounded-xl py-3" aria-describedby="request-conditions"
           disabled={busy || !online || !valid}>{busy ? "Enviando solicitud…" : isOrder ? "Enviar solicitud de pedido" : "Enviar solicitud al negocio"}<Check aria-hidden="true" /></Button>
-        <p className="text-center text-xs text-kova-muted">{isOrder && lines.length === 0 ? "Agrega al menos un producto para pedir." : "La respuesta llegará al contacto que indiques."}</p>
+        <p className="text-center text-xs text-kova-muted">{isOrder ? lines.length === 0 ? "Agrega al menos un producto para pedir." : "El negocio podrá contactarte si necesita aclarar algún detalle." : "El negocio podrá responder al contacto que indiques."}</p>
       </form>}
     </div>
   </section>;

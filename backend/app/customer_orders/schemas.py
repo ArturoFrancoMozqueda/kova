@@ -126,6 +126,7 @@ class CustomerOrderItemResponse(BaseModel):
 
 
 class CustomerOrderResponse(BaseModel):
+    menu_request_message: str | None = None
     lot_reservations: dict[UUID, list[LotAllocation]] = Field(default_factory=dict)
     id: UUID
     tenant_id: UUID
