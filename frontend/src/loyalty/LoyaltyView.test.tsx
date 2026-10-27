@@ -297,3 +297,13 @@ it("discards an earlier customer search response after the current search fails"
   await waitFor(() => expect(screen.queryByRole("option", { name: "Ana" })).not.toBeInTheDocument());
   expect(screen.getByRole("combobox", { name: "Cliente del programa" })).toBeDisabled();
 });
+
+it("labels returned reward points without hiding their positive amount", async () => {
+  fetchMock.mockImplementation(async url => String(url).includes("/loyalty/customers/")
+    ? json({ ...ledger, entries: [{ ...ledger.entries[0], kind: "reward_return", points: 8 }] })
+    : route(url));
+  render(<LoyaltyView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Cliente registrado.*50 puntos/ }));
+  expect(await screen.findByText("Puntos restituidos")).toBeVisible();
+  expect(screen.getByText("+8 puntos")).toBeVisible();
+});

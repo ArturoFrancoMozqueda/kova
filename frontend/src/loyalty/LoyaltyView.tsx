@@ -52,7 +52,7 @@ const kinds = {
   refund: "Reversión por devolución",
   void: "Reversión por anulación",
   redemption: "Canje registrado",
-  reward_return: "Puntos restituidos por devolución",
+  reward_return: "Puntos restituidos",
 };
 const fieldClass =
   "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
