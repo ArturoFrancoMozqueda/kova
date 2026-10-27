@@ -2043,7 +2043,8 @@
             "enum": [
               "new",
               "converted",
-              "dismissed"
+              "dismissed",
+              "accepted"
             ],
             "title": "Status",
             "type": "string"
@@ -8426,7 +8427,8 @@
               "accrual",
               "refund",
               "void",
-              "redemption"
+              "redemption",
+              "reward_return"
             ],
             "title": "Kind",
             "type": "string"
