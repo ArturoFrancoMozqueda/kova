@@ -29,6 +29,9 @@ from migration_tests.test_0065_tenant_hardening import (
     _temporary_database,
 )
 
+# Creates and drops cluster-wide roles; one xdist worker runs the whole group.
+pytestmark = pytest.mark.xdist_group("cluster_roles")
+
 REVISION = "e9f2d5d835e6"
 PREVIOUS = "0077_inventory_lots"
 UPDATE_COLUMNS = {

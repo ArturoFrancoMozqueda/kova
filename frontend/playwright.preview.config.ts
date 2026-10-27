@@ -7,8 +7,6 @@ export default defineConfig({
   ...baseConfig,
   testIgnore: /production-smoke\.spec\.ts/,
   retries: 0,
-  // Hosted runners have 4 vCPU; the default (half the cores) left two idle.
-  workers: process.env.CI ? 4 : undefined,
   use: { ...baseConfig.use, trace: "retain-on-failure" },
   webServer: {
     command: "npm run preview -- --host 127.0.0.1 --port 5174 --strictPort",
