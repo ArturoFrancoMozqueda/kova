@@ -23,4 +23,16 @@ Before launch-impacting changes, verify:
 - RLS and tenant isolation are preserved.
 - Cookie-only auth behavior is preserved.
 - No secrets are exposed.
-- Production deploys require explicit approval.
+- Merging to `main` publishes to production automatically once `CI required` passes; review the
+  change before merging, not after.
+
+## Release readiness
+
+See [`../despliegue.md`](../despliegue.md) for the full flow.
+
+- Migrations are reversible and work with the previous app version (rollback never downgrades
+  the database).
+- The release job captured a `release-rollback-<sha>` artifact and finished without
+  `RELEASE_FAILED_RECOVERED` or `RECOVERY_BLOCKED`.
+- `https://api.kovasuite.com/health` reports the new `release_sha` and `/health/db` succeeds.
+- Authenticated manual QA follows [`manual-qa-checklist.md`](manual-qa-checklist.md).

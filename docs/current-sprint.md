@@ -10,7 +10,7 @@ conservan Panel. El resto se presenta en categorías desplegables, con apertura 
 actual y preferencias por negocio/persona/rol. Una sola opción se presenta directamente.
 Se distinguen Casos de atención y Seguimientos de postventa, sin cambiar sus rutas.
 
-La [auditoría de navegación](audits/KOVA-ROLE-NAVIGATION-2026-10-27.md) registra cambios,
+La [auditoría de navegación](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-ROLE-NAVIGATION-2026-10-27.md) registra cambios,
 permisos, teclado, preferencias, móvil y aceptación con API/PostgreSQL reales. Se mantienen
 los filtros existentes y el alcance offline. PR #285 fusionado; release `18255a3f1834`
 publicado y aceptado en producción. Frontend/API/base/proxy coinciden, los 25 contratos
@@ -26,7 +26,7 @@ PED-564580CF por $24.00 abrió automáticamente el seguimiento desde el menú pr
 Confirmado, preparación, listo y entregado se reflejaron sin pulsar Actualizar; notas,
 reserva, cobro vinculado y reapertura anónima se verificaron en navegador.
 
-La [aceptación productiva](audits/KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md) documenta
+La [aceptación productiva](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md) documenta
 la devolución manual identificada de la comprobación: neto $0.00 e inventario restituido,
 con venta y devolución conservadas. Esta aceptación no representa movimientos de fondos
 externos ni activación de Stripe, WhatsApp, CFDI o hardware físico.
@@ -39,7 +39,7 @@ prerrequisitos de reposición y lenguaje comprensible en operación, WhatsApp y 
 La descripción del gerente coincide con el permiso de empleados exclusivo del propietario.
 Se mantienen contratos financieros, permisos, cookies, RLS y sincronización.
 
-La [auditoría por rol](audits/KOVA-ROLE-UX-REVIEW-2026-10-26.md) registra pantallas productivas
+La [auditoría por rol](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-ROLE-UX-REVIEW-2026-10-26.md) registra pantallas productivas
 revisadas, cambios y aceptación con frontend/API/PostgreSQL reales: 20 recorridos y cuatro
 recorridos adicionales de propietario, gerente, cajero y colaborador. Backend completo:
 2,232 pruebas y seis subpruebas aprobadas. Frontend completo: 1,660 pruebas; navegador sobre
@@ -55,7 +55,7 @@ sin salir de la revisión, acceso a solicitudes desde Pedidos, notas originales 
 al preparar y textos sobre la siguiente acción. Se conserva la restricción de cobrar antes
 de entregar, además de privacidad pública, permisos, RLS e idempotencia.
 
-La [auditoría del recorrido](audits/KOVA-ORDER-FLOW-UX-2026-10-26.md) documenta archivos,
+La [auditoría del recorrido](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-ORDER-FLOW-UX-2026-10-26.md) documenta archivos,
 contrato opcional del mensaje original, evidencia, referentes y registros de QA detectados
 en producción. Validación focal: 173 pruebas frontend, 50 backend, 30 escenarios de navegador
 y tres integraciones con API/PostgreSQL reales. Publicación y aceptación posteriores
@@ -69,7 +69,7 @@ desplegable, datos de negocio en lugar de UUID/versiones, errores comprensibles,
 sin tokens de desarrollo y roles traducidos. Se conservan folios/SKU/RFC/UUID fiscales útiles,
 contratos financieros, reintentos, controles de acceso y los diagnósticos privados de soporte.
 
-La [auditoría del corte](audits/KOVA-PRODUCT-PRESENTATION-2026-10-26.md) registra cambios,
+La [auditoría del corte](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-PRODUCT-PRESENTATION-2026-10-26.md) registra cambios,
 pruebas, revisión con Browser y límites de salida. No se declara GA ni publicación por una
 validación local: siguen pendientes el release final y la aceptación de Stripe live, correo,
 recuperación completa y operación comercial. Se corrigen runbooks de infraestructura retirada
@@ -221,7 +221,7 @@ en un desplegable; ajustes pendientes y saldos negativos permanecen visibles. La
 final vuelve a aprobar los 30 recorridos con API interceptada y el ciclo real de 10 puntos.
 Browser confirma la tarjeta con datos del tenant local y sin desbordamiento a 390 px.
 La publicación y aceptación de dispositivos físicos
-siguen pendientes. El [siguiente alcance de producto](sprint-planning.md#recorrido-conectado-del-cliente--2026-10-26)
+siguen pendientes. El [siguiente alcance de producto](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/sprint-planning.md#recorrido-conectado-del-cliente--2026-10-26)
 distingue lo implementado de las dependencias externas aún pendientes.
 
 ## Preparación de publicación — cierre de AbortSignal/Request
@@ -238,7 +238,7 @@ postventa y una ruta de capturas exclusiva de macOS, conservando resultados y co
 Los cambios se integran con `main`, incluyendo el enlace/QR fijo del menú y el centro de control.
 El [PR #277](https://github.com/ArturoFrancoMozqueda/kova/pull/277) concentra la entrega; su gate
 `CI required` sobre el último commit es la autoridad para publicar. No se ha fusionado ni
-desplegado esta rama. [Evidencia y límites](audits/KOVA-RELEASE-READINESS-2026-10-25.md).
+desplegado esta rama. [Evidencia y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-RELEASE-READINESS-2026-10-25.md).
 WhatsApp permanece deshabilitado por defecto y requiere aceptación independiente del proveedor.
 
 ## Experiencia compartida y ciclo de negocio — validación local
@@ -256,7 +256,7 @@ por UI: menú anónimo → solicitud → cliente → oportunidad → cotización
 5→3→4→7. Se añade a CI de integración. Pasaron 47 regresiones de navegador con APIs interceptadas,
 TypeScript, ESLint, build/SSR/prerender y contratos. El corte inicial tuvo 1,407 unitarias aprobadas
 y dos fallos de AbortSignal/Request, resueltos en la preparación de publicación descrita arriba.
-[Alcance, archivos, evidencia y límites](audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md).
+[Alcance, archivos, evidencia y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md).
 Sin publicación ni activación/certificación de proveedores externos por esta entrega.
 
 ## WhatsApp → cliente → catálogo → pedido — piloto asistido local
@@ -278,7 +278,7 @@ los contratos de venta/pago conservan su significado. Validación local: 117 pru
 focales y 75 con pg8000; 19 frontend focales, siete recorridos Chromium y 21 del controlador
 nativo aprobados. El corte inicial tuvo 1,391 unitarias aprobadas y dos fallos de AbortSignal/Request,
 resueltos en la preparación de publicación descrita arriba. TypeScript, ESLint,
-Ruff, build/SSR/prerender y contratos aprobados. [Evidencia y límites](audits/KOVA-WHATSAPP-PILOT-2026-10-23.md).
+Ruff, build/SSR/prerender y contratos aprobados. [Evidencia y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-WHATSAPP-PILOT-2026-10-23.md).
 
 ## Menú digital público — implementación local
 
@@ -337,7 +337,7 @@ cliente explícito hasta la venta; Agenda vincula una venta existente con idempo
 sin confundir atención y cobro. Se mantienen rutas, roles, gates y operación anónima de mostrador.
 Migraciones 0094/0095 aditivas; preservan RLS, propiedad, exportación y purga. Los arreglos útiles
 de #267 se conservan íntegros en esta entrega antes de coordinar su cierre por sustitución.
-[Alcance, archivos, validación y límites](audits/KOVA-CONNECTED-OWNER-2026-10-22.md).
+[Alcance, archivos, validación y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-CONNECTED-OWNER-2026-10-22.md).
 Validación: 1,373 pruebas frontend, 93 backend por cada driver psycopg/pg8000, cinco escenarios
 de migración y 42 de navegador sobre el build final (tres con API/Postgres/RLS locales reales).
 Exportación del grafo conectado y ciclo de cuenta: 11 pruebas adicionales aprobadas.
@@ -396,7 +396,7 @@ el emisor fiscal y aceptar Test antes de cualquier Live, con configuración de
 plataforma ya detectada; revisar con el
 dueño turno, costos y catálogo; completar recorridos externos de WhatsApp/IA y
 aceptación de dispositivos/offline según alcance. El
-[estado funcional](audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md) conserva la auditoría
+[estado funcional](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md) conserva la auditoría
 autenticada anterior como snapshot, separado de estos hechos de publicación.
 
 ## Escritorio: resultados y valor visible — publicado en #266
@@ -405,7 +405,7 @@ Pase autorizado de Panel, Caja, Catálogo e Inventario: resultados y prioridades
 antes de configuración, comparación explícita, atajos compactos, enlaces
 contextuales, instantánea operativa con alcance real y checkout integrado con
 total y cobro accesibles. No agrega consultas ni cambia contratos, cálculos,
-sesiones o permisos. [Alcance, archivos y QA](audits/KOVA-DESKTOP-VALUE-2026-10-22.md).
+sesiones o permisos. [Alcance, archivos y QA](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-DESKTOP-VALUE-2026-10-22.md).
 Suite de frontend: 1,326 pruebas aprobadas y revalidaciones focales finales;
 build/SSR/prerender, TypeScript, ESLint y 49 recorridos de navegador del build
 final aprobados, incluidos 320–1920 px y regresiones de cobro/offline/recibo.
@@ -417,7 +417,7 @@ estado de implementación local anterior a la publicación.
 ## Auditoría funcional y enlaces legibles — snapshot y publicación #260
 
 Revisión de lectura autenticada de las secciones del dueño, contrastada con contratos,
-implementación y QA previa: [matriz de estado y prioridades](audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md).
+implementación y QA previa: [matriz de estado y prioridades](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-ESTADO-FUNCIONAL-2026-10-22.md).
 El núcleo POS está respaldado por aceptación previa; los canales externos no quedan
 certificados por CI. No se realizaron nuevas ventas ni conexiones durante esta auditoría.
 El propietario eligió enlaces del catálogo con nombre del negocio sin código aleatorio.
@@ -454,8 +454,11 @@ Este archivo contiene sólo el plan vigente. Las secciones históricas (julio–
 retiraron del árbol el 2026-10-22 y se conservan en el historial de git.
 
 - El objetivo de ejecución actual y los gates de publicación viven aquí.
-- La hoja de ruta futura vive en `docs/sprint-planning.md`.
-- Los runbooks operativos viven en `docs/runbooks/` y los riesgos en `docs/risk-register.md`.
-- No duplicar criterios de aceptación detallados aquí; enlazar la spec, runbook o plan dueño.
-- Setup, comandos de prueba, arquitectura y puntos de entrada operativos viven en
-  [`engineering-operations-index.md`](engineering-operations-index.md).
+- Los riesgos abiertos se listan aquí como pendientes; los mitigados ya están cubiertos por
+  código, tests y [ADRs](adr/). `sprint-planning.md` y `risk-register.md` se retiraron el
+  2026-10-27 (historial git).
+- Los runbooks operativos viven en `docs/runbooks/`.
+- No duplicar criterios de aceptación detallados aquí; enlazar la spec, runbook o ADR dueño.
+- Índice de documentación: [`README.md`](README.md); arquitectura, despliegue y desarrollo en
+  [`arquitectura.md`](arquitectura.md), [`despliegue.md`](despliegue.md) y
+  [`desarrollo-y-ci.md`](desarrollo-y-ci.md).

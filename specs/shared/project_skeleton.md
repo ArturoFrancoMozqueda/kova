@@ -46,12 +46,12 @@ point_of_sale/
   .gitignore
   docker-compose.yml
   docs/
-    architecture.md
+    README.md
+    arquitectura.md
     current-sprint.md
     deferred-scope.md
-    deployment.md
-    risk-register.md
-    sprint-planning.md
+    despliegue.md
+    desarrollo-y-ci.md
     adr/
   specs/
     README.md
@@ -103,7 +103,7 @@ point_of_sale/
 
 ## Module Boundaries
 
-The architecture document ([docs/architecture.md](../../docs/architecture.md)) defines the eventual modular monolith with `auth/`, `tenants/`, `catalog/`, etc. Sprint 0A creates only a single domain folder (`health/`) as a proof that the per-domain layout (router/service/repository) works. All other domain modules are added in subsequent sprints when they have specs.
+The architecture document ([docs/arquitectura.md](../../docs/arquitectura.md)) defines the eventual modular monolith with `auth/`, `tenants/`, `catalog/`, etc. Sprint 0A creates only a single domain folder (`health/`) as a proof that the per-domain layout (router/service/repository) works. All other domain modules are added in subsequent sprints when they have specs.
 
 ## Acceptance Criteria
 

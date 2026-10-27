@@ -1,31 +1,35 @@
 # Rate limiting
 
-Last updated: 2026-08-13
+Last updated: 2026-10-27
 Owner: backend
 Related code:
 - `backend/app/middleware/rate_limit.py` — pluggable rate-limit factory
 - `backend/app/tests/test_rate_limit.py` — backend abstraction tests
+- `backend/app/middleware/cloudflare_rate_limit.py` — production backend (Durable Object)
 - `backend/app/config.py` — `upstash_redis_rest_url`, `upstash_redis_rest_token`
 
 ## Summary
 
-Kova enforces per-IP request rate limits on abuse-prone endpoints. The limiter
-has two backends:
+Kova enforces per-IP request rate limits on abuse-prone endpoints. The backend
+is chosen at startup by `_get_backend()`:
 
-- **Upstash Redis (sliding window)** — selected automatically when both
-  `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set. Shared across
-  instances, survives deploys, ~4 Redis commands per protected request.
-- **In-memory (fixed window)** — fallback used in local dev and any deploy
-  where Upstash is not configured. Single-process only; counters reset on
-  every deploy. Tolerable while Kova runs on a single Fly machine but unsafe
-  the moment we scale horizontally.
+- **Cloudflare Durable Object `KovaRateLimit` (production)** — the resident
+  native container calls `http://rate-limit.kova.internal/allow`, reachable only
+  through Container outbound interception. Buckets persist across deploys and
+  restarts. Selected when `cloudflare_container_mode` is set.
+- **Workers runtime** — the Python Workers rollback path uses the same
+  `KovaRateLimit` buckets (`app/workers/rate_limit.py`).
+- **Upstash Redis (sliding window)** — outside Cloudflare, selected when both
+  `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set.
+- **In-memory (fixed window)** — local fallback. Single-process only; counters
+  reset on restart.
 
 When `APP_ENV=local`, the limiter is a no-op so tests don't share a single
 client IP and trip themselves.
 
 ## Backends
 
-### Upstash (production)
+### Upstash (outside Cloudflare)
 
 Uses the official `upstash-ratelimit` library with the `SlidingWindow`
 algorithm. Each `Ratelimit` instance is cached per `(max_requests, window_seconds)`
@@ -47,7 +51,7 @@ open an unbounded brute-force window. `fail_closed` is inert outside production
 > rate-limiter outage in production will **temporarily block legitimate email
 > verification and password-reset flows** (users see 429 with a short
 > `Retry-After`), not just attacks. This is an intentional safety trade-off.
-> If the limiter is degraded, prioritize restoring Upstash; do not "fix" auth by
+> If the limiter is degraded, prioritize restoring the limiter backend; do not "fix" auth by
 > flipping these endpoints to fail-open. Monitor `rate_limit_upstash_call_failed_closed`.
 
 ### In-memory (fallback)
@@ -67,14 +71,16 @@ bucket = "<endpoint-key>:<client-ip>"
 ```
 
 When `key` is omitted, the matched FastAPI route pattern is used. The IP comes
-from Fly.io's edge-controlled `Fly-Client-IP` header (configured by
-`TRUSTED_CLIENT_IP_HEADER`) and falls back to the direct socket peer when that
+from the `X-Kova-Client-IP` header (configured by `TRUSTED_CLIENT_IP_HEADER`
+in `deploy/cloudflare-native/policy.mjs`). The public gateway
+(`deploy/cloudflare-backend/gateway.mjs`) overwrites it with Cloudflare's
+`CF-Connecting-IP` on every request, so a client cannot set it. It falls back to the direct socket peer when that
 header is absent or invalid. `X-Forwarded-For` is deliberately ignored because
 an internet client can prepend values and rotate buckets. IPv4, IPv6, and
 IPv4-mapped IPv6 are normalized before building the key.
 
-This trust model assumes the backend remains reachable through Fly Proxy. If
-direct public access or another proxy is introduced, update the trusted header
+This trust model assumes the backend is reachable only through the gateway; the
+container exposes no public port. If direct public access or another proxy is introduced, update the trusted header
 and edge controls together; never restore first-hop `X-Forwarded-For`.
 
 ## Current thresholds
@@ -158,19 +164,17 @@ Future work:
 
 ## Multi-instance readiness
 
-When Kova scales to more than one Fly machine, set the Upstash env vars
-before deploying. Without them, each machine keeps its own in-memory
-counter and an attacker can double their effective rate by riding the
-load balancer.
+Production counters already live in the shared `KovaRateLimit` Durable Object,
+so they survive restarts and would be shared if more container instances were
+added. Upstash is only needed when running the backend outside Cloudflare.
 
 ## Operator checklist
 
-- [ ] Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as Fly
-      secrets before scaling beyond one machine.
-- [ ] Verify the startup log shows `rate_limit_backend_selected backend=upstash`
-      after deploy.
+- [ ] After a release, verify the startup log shows
+      `rate_limit_backend_selected backend=cloudflare-container`.
 - [ ] Smoke test: hammer `/api/v1/auth/login` from a single IP and confirm
       you receive a 429 with the expected `Retry-After`.
-- [ ] Monitor logs for `rate_limit_upstash_call_failed`; intermittent entries
-      are tolerable, sustained entries mean Upstash is down or misconfigured
-      and the limiter is failing open.
+- [ ] Outside Cloudflare, set `UPSTASH_REDIS_REST_URL` and
+      `UPSTASH_REDIS_REST_TOKEN` before running more than one process, and
+      monitor `rate_limit_upstash_call_failed` (sustained entries mean the
+      limiter is failing open).

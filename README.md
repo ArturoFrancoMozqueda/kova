@@ -16,8 +16,7 @@ specs/      contratos funcionales y OpenAPI versionado
 
 ## Primer recorrido
 
-El índice canónico de setup, pruebas, arquitectura, runbooks y gates está en
-[`docs/engineering-operations-index.md`](docs/engineering-operations-index.md). Para levantar toda la
+El índice de la documentación está en [`docs/README.md`](docs/README.md). Para levantar toda la
 aplicación local sin usar servicios administrados:
 
 ```powershell
@@ -30,13 +29,11 @@ secretos reales a `.env`; los valores locales sólo deben servir para desarrollo
 
 ## Fuentes vigentes
 
-- Arquitectura e invariantes: [`docs/architecture.md`](docs/architecture.md) y
+- Arquitectura: [`docs/arquitectura.md`](docs/arquitectura.md) e invariantes en
   [`docs/claude/architecture-context.md`](docs/claude/architecture-context.md).
+- Desarrollo local y CI: [`docs/desarrollo-y-ci.md`](docs/desarrollo-y-ci.md).
+- Despliegue y rollback: [`docs/despliegue.md`](docs/despliegue.md).
 - Ejecución actual: [`docs/current-sprint.md`](docs/current-sprint.md).
-- Despliegue y gates: [`docs/deployment.md`](docs/deployment.md) y
-  [`docs/claude/release-ga-checklist.md`](docs/claude/release-ga-checklist.md).
 - Métricas de ventas: [`docs/report-metric-definitions.md`](docs/report-metric-definitions.md).
-- Auditorías históricas y evidencia: [`docs/audits/`](docs/audits/).
 
-Los documentos de auditoría conservan el estado observado en su fecha y commit. No sustituyen el
-estado de ejecución actual ni prueban por sí solos que un gate externo esté cerrado.
+Las auditorías y planes con fecha se retiraron del árbol el 2026-10-27; siguen en el historial git.

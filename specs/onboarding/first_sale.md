@@ -132,4 +132,5 @@ scattered across modules. Owners cannot tell what is left to do or where to do i
 
 ## Test Matrix
 
-See `docs/test-matrixes/onboarding.md`.
+Automated coverage: `frontend/e2e/onboarding.spec.ts`, `backend/app/tests/test_onboarding_billing.py`
+and `backend/app/tests/test_onboarding_presets.py`.

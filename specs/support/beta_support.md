@@ -17,7 +17,7 @@
 
 - Weekly 30-minute call per beta tenant for the first month
 - Written feedback form after first week (simple Google Form or Notion)
-- All feedback logged in `docs/beta-feedback.md` (to be created)
+- All feedback logged in the internal ops dashboard (`/internal/ops`)
 - P0/P1 bugs go directly into sprint backlog
 
 ## Beta Agreement
@@ -30,7 +30,7 @@ Before access, each beta tenant signs a 1-page agreement covering:
 - No long-term contract: cancel any time
 - Disclaimer: no SLA during beta
 
-Template location: `docs/beta-agreement-template.md` (to be created)
+Template location: `docs/beta-agreement-template.md`
 
 ## Onboarding Checklist (per tenant)
 

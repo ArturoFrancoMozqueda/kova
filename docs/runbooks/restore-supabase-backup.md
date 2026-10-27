@@ -30,7 +30,7 @@ Supabase project provisioning, provider-schema recovery, migrations to the lates
 revision, traffic switching, or regional disaster recovery. Keep the fresh-project procedure
 below for those remaining checks and record the exact scope in the dated drill evidence.
 
-The [2026-10-10 real R2 restore evidence](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md)
+The [2026-10-10 real R2 restore evidence](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md)
 already establishes a logical restore, runtime RLS and cleanup for its recorded snapshots.
 It does not close fresh-host recovery, provider-managed schemas, latest-release migration or full
 service RTO. Keep those limits distinct in the [paid-beta gate](ops-beta-gate.md); the absence of a
@@ -40,7 +40,7 @@ fresh-project drill must not be described as absence of any real backup restore.
 
 ## When to use this
 
-- Quarterly **backup restore drill** (hard gate before Stripe live, per [../deployment.md](../deployment.md) §Backups).
+- Quarterly **backup restore drill** (hard gate before Stripe live, per [despliegue](../despliegue.md#backups-y-restore)).
 - Data corruption or accidental destructive query in production.
 - Cloning production into a debugging environment.
 
@@ -213,7 +213,7 @@ For application-service acceptance, also verify the restored schema against the 
 apply any required later migrations only on the disposable target, and re-establish the checked-in
 runtime role/grants and tenant-isolation checks. Do not serve API requests with the restore owner.
 
-1. Start an isolated local backend using the [existing development setup](../engineering-operations-index.md#desarrollo-local), pointing only at the disposable database with the proper runtime/migration roles. Do not create a new hosted backend or change public routing as part of this procedure.
+1. Start an isolated local backend using the [existing development setup](../desarrollo-y-ci.md), pointing only at the disposable database with the proper runtime/migration roles. Do not create a new hosted backend or change public routing as part of this procedure.
 2. Hit `GET /health/db` and confirm it returns 200.
 3. Run a representative read query through the API (e.g., dashboard KPI endpoint).
 
@@ -221,7 +221,7 @@ runtime role/grants and tenant-isolation checks. Do not serve API requests with 
 
 ## Step 6 — Decide what to do with the restored project
 
-- **Drill (no incident)**: document the run in [../deployment.md](../deployment.md) under the backup table, then **delete the Supabase project** to avoid leaking PII into a long-lived clone.
+- **Drill (no incident)**: record the run in the log table at the end of this runbook, then **delete the Supabase project** to avoid leaking PII into a long-lived clone.
 - **Recovery (real incident)**: changing production database bindings or traffic is a separate,
   explicitly approved incident procedure. The current API is the [Cloudflare resident backend](../../deploy/cloudflare-native/README.md),
   with separate sealed `APP_DATABASE_URL` and `MIGRATION_DATABASE_URL`; Fly is retired. Review
@@ -267,5 +267,5 @@ Record every drill execution here (store detailed evidence in restricted storage
 
 | Date (UTC) | Operator | Backup restored | RTO | RPO | RLS/read smoke | Cleanup | Notes |
 |---|---|---|---|---|---|---|---|
-| 2026-10-10 | Authorized operator | Two real R2 snapshots, revisions 0078/0079 | Logical drill only; full service RTO not established | Snapshot ages recorded; service RPO not established | Runtime RLS, payment/lot checks passed | Verified | [Dated aggregate evidence](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md); no new Supabase host, Auth/Storage/Vault or traffic recovery |
+| 2026-10-10 | Authorized operator | Two real R2 snapshots, revisions 0078/0079 | Logical drill only; full service RTO not established | Snapshot ages recorded; service RPO not established | Runtime RLS, payment/lot checks passed | Verified | [Dated aggregate evidence](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md); no new Supabase host, Auth/Storage/Vault or traffic recovery |
 | _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |

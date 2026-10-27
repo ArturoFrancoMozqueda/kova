@@ -15,7 +15,7 @@ revisión no envió correos, no ejecutó restauraciones ni cambió proveedores.
 - [ ] SPF, DKIM y DMARC pasan; enlaces, español, móvil, modo oscuro, spam y rebotes fueron revisados.
 - [ ] La evidencia sólo contiene fecha, proveedor, plantilla y resultado; no direcciones ni tokens.
 - [x] Gmail es el canal oficial aceptado para la beta controlada: decisión SELL-06 en
-      [sprint-planning.md](../sprint-planning.md) y fuente vigente
+      [sprint-planning.md](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/sprint-planning.md) y fuente vigente
       [`frontend/src/lib/support.ts`](../../frontend/src/lib/support.ts).
 - [ ] `posprojectsupport@gmail.com` recibe y responde durante la beta controlada.
 - [ ] No cambiar a `soporte@kovasuite.com` hasta probar recepción **y respuesta**; mantener Gmail en
@@ -91,7 +91,7 @@ prueba real posterior. Esta revisión no sustituye Inbox, modo oscuro ni render 
 
 - [x] Restauración lógica de respaldos reales en PostgreSQL 17 desechable, sin SQL en producción:
       snapshots 0078 y 0079 del 10 de octubre, con checksum, runtime/RLS, conteos, pagos/lotes y
-      limpieza verificados en la [evidencia fechada](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
+      limpieza verificados en la [evidencia fechada](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
 - [ ] Compatibilidad y migración desde el snapshot hasta la revisión del servicio que se pretenda
       recuperar; el ejercicio histórico no prueba migraciones posteriores al respaldo.
 - [ ] Recuperación completa del servicio: nuevo host si corresponde, Auth/Storage/Vault, binarios,
@@ -132,15 +132,15 @@ checklist no la concede.
 |---|---|---|---|---|---|---|
 | OPS-1 | 2026-10-26 | Revisión de código y DNS público; evidencia Gmail del 12 de agosto | Árbol local; corte histórico `8e15269` | Parcial: cinco plantillas históricas en Gmail; seis actuales; DNS publicado | [Evidencia histórica](../email-deliverability.md) | Invitación y revisión actual, Outlook/Hotmail, móvil/oscuro, logo accesible y monitoreo |
 | OPS-2 | 2026-10-26 | Decisión de soporte beta y fuente del producto | SELL-06 / `support.ts` | Gmail aceptado como canal; buzón de dominio diferido | Evidencia de respuesta operativa todavía requerida | Responsable, recepción/respuesta y tiempos; dominio sólo si se decide migrarlo |
-| OPS-3 | 2026-10-10 | GitHub runner / R2 / PostgreSQL 17 aislado | `628fac3` / `6d8fa14` | Restore lógico real aprobado; recuperación completa del servicio pendiente | Runs `38073545892` y `38075155881`; [agregados sin filas](../audits/KOVA-R2-REAL-RESTORE-2026-10-10.md) | Revisión actual, esquemas del proveedor, binarios/tráfico y RTO/RPO de servicio |
+| OPS-3 | 2026-10-10 | GitHub runner / R2 / PostgreSQL 17 aislado | `628fac3` / `6d8fa14` | Restore lógico real aprobado; recuperación completa del servicio pendiente | Runs `38073545892` y `38075155881`; [agregados sin filas](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md) | Revisión actual, esquemas del proveedor, binarios/tráfico y RTO/RPO de servicio |
 | OPS-4 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | No aplica | Tenant, responsable, autorización y conteo humano |
 | OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
 | OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |
 
 Las filas OPS-4 a OPS-6 conservan el corte histórico del 14 de agosto y no acreditan nuevas
 ejecuciones. El detalle de ese corte y sus comandos históricos está en:
-[`AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md`](../audits/AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md).
+[`AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md`](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md).
 
 El preflight histórico de capacidad está en:
-[`AUDIT-STAGING-RESTORE-FEASIBILITY-2026-08-14.md`](../audits/AUDIT-STAGING-RESTORE-FEASIBILITY-2026-08-14.md).
+[`AUDIT-STAGING-RESTORE-FEASIBILITY-2026-08-14.md`](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/AUDIT-STAGING-RESTORE-FEASIBILITY-2026-08-14.md).
 Su bloqueo por destino no sustituye la evidencia posterior del restore lógico real del 10 de octubre.

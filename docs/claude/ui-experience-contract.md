@@ -61,4 +61,4 @@ Un enlace a compra usa `purchase_id`. Si el registro no está en la página/sucu
 
 ## Aplicación y límites de este corte
 
-El corte del 25 de octubre adopta controles/CTA/vacíos compartidos en Agenda, Atención postventa, Seguimiento y Bandeja; prioriza operación en Compras; mejora filtros y términos de Pedidos; conserva contexto comercial/abastecimiento y corrige alertas de devolución. No representa una reescritura de todas las pantallas. La validación y pendientes se registran en `../audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md`.
+El corte del 25 de octubre adopta controles/CTA/vacíos compartidos en Agenda, Atención postventa, Seguimiento y Bandeja; prioriza operación en Compras; mejora filtros y términos de Pedidos; conserva contexto comercial/abastecimiento y corrige alertas de devolución. No representa una reescritura de todas las pantallas. La validación y pendientes de ese corte están en el historial git (`docs/audits/KOVA-EXPERIENCE-CONTINUITY-2026-10-25.md`, retirado el 2026-10-27).

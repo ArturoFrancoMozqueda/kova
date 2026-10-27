@@ -43,8 +43,8 @@ Out of scope (covered elsewhere or accepted controlled-beta risk):
   and not putting auth tokens in `localStorage`. `csrf_token` itself is intentionally
   readable by JS; theft of the CSRF token by an XSS attacker is moot because the same
   attacker already has authority to call the API via `fetch` with `credentials: "include"`.
-- Subdomain takeover — depends on DNS/Vercel/Fly operational discipline; tracked in the
-  risk register.
+- Subdomain takeover — depends on DNS/Cloudflare/Vercel operational discipline (Fly was retired
+  on 2026-10-19 and its DNS records must stay removed).
 
 ## Enforcement rules
 

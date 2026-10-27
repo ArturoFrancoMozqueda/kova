@@ -7,7 +7,9 @@ verificación, bienvenida, recibo de pago, fin de prueba y restablecimiento de c
 
 - [x] Dominio `mail.kovasuite.com` verificado en Resend.
 - [x] Remitente efectivo: `Kova <no-reply@mail.kovasuite.com>`.
-- [x] `RESEND_API_KEY` configurada en Fly.io. El startup gate bloquea producción si falta.
+- [x] `RESEND_API_KEY` presente en producción: el startup gate bloquea el arranque si falta. Desde
+      el 2026-10-19 vive como secreto sellado del backend en Cloudflare; la verificación original
+      de agosto se hizo en Fly.io, ya retirado.
 - [x] `EMAIL_FROM` configurado con el dominio verificado. El startup gate rechaza
       `onboarding@resend.dev` en producción.
 
@@ -44,7 +46,7 @@ genéricos de otros proveedores.
 
 ## 3. Evidencia de entrega
 
-El 12 de agosto de 2026 se envió una prueba controlada desde el backend desplegado en Fly.io a
+El 12 de agosto de 2026 se envió una prueba controlada desde el backend entonces desplegado en Fly.io a
 `dmarc@kovasuite.com`, usando la configuración real de producción. Resultado:
 
 - [x] Resend: `delivered`.

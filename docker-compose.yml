@@ -1,6 +1,6 @@
 # Local development only.
 #
-# Staging and production use Supabase Postgres (see docs/deployment.md);
+# Staging and production use Supabase Postgres (see docs/despliegue.md);
 # do NOT use this compose file to provision a hosted database.
 #
 # The `db` service below is an isolated local Postgres for offline development
