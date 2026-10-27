@@ -120,9 +120,9 @@ test("categories open without navigation, persist and expand the compact rail wi
 });
 
 for (const role of ["owner", "manager", "cashier", "staff"]) {
-  for (const width of [390, 768, 1440]) {
+  for (const width of [320, 390, 768, 1440]) {
     test(`daily navigation stays visible for ${role} at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: width === 320 ? 568 : 900 });
       await markFirstUseToursSeen(page);
       await page.route("**/api/v1/auth/session", route => route.fulfill({ json: {
         ...authenticatedOwner, user: { ...authenticatedOwner.user, role }, feature_flags: { customer_orders: true },
@@ -131,7 +131,7 @@ for (const role of ["owner", "manager", "cashier", "staff"]) {
       await page.goto("/register");
       if (width < 1280) {
         const bottom = page.locator("nav").last();
-        for (const name of ["Caja", "Pedidos", "Ventas"]) await expect(bottom.getByRole("link", { name, exact: true })).toBeVisible();
+        for (const name of ["Caja", "Pedidos", "Ventas"]) await expect(bottom.getByRole("link", { name, exact: true })).toBeInViewport();
         await page.getByRole("button", { name: "Abrir menú de navegación", exact: true }).first().click();
       }
       const nav = page.locator("aside nav");

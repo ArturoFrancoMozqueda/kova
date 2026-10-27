@@ -12,6 +12,8 @@ deducir dónde estaba cada función y la barra repetía nombres entre categoría
 - Caja, Pedidos y Ventas quedan al principio, con Panel adicional para dueño y gerente.
   El grupo fijo queda fuera del desplazamiento de categorías. El pie móvil usa los tres
   accesos diarios y Más; no sustituye Ventas por Panel o Turnos.
+  En ventanas de hasta 700 px de alto se desplaza todo el menú para que las categorías
+  sigan siendo alcanzables; se prueba 320×568 con Pedidos habilitado para los cuatro roles.
 - Menú y ventas, Clientes y atención, Productos y operación, Análisis y finanzas y
   Configuración tienen botones con flecha, estado accesible y panel asociado. Abrirlos no
   cambia la ruta ni dispara consultas de las pantallas contenidas.
@@ -48,7 +50,7 @@ No se cambia la disposición de impresión ni se agregan transformaciones al con
 ## Validación
 
 - Frontend completo: **1,669 pruebas aprobadas en 217 archivos**.
-- Navegador sobre build: **344 escenarios aprobados**; las 20 integraciones se omiten en
+- Navegador sobre build: **348 escenarios aprobados**, incluidos 320×568 para los cuatro roles. Las 20 integraciones se omiten en
   ese modo y se ejecutan por separado, sin interceptar APIs.
 - Integración real completa: **20 recorridos aprobados**, incluido menú a seguimiento,
   pedido/cobro/entrega/postventa, abastecimiento, clientes/citas y aislamiento.

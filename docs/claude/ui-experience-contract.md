@@ -18,7 +18,9 @@ Caja conserva su disposición especializada para vender rápido; comparte contro
 
 - Caja, Pedidos y Ventas son accesos directos en la barra lateral y en el pie móvil;
   Pedidos conserva su permiso y feature flag. Panel permanece directo para dueño y gerente.
-- Los accesos diarios permanecen fijos mientras se desplazan las categorías. Menú y ventas,
+- Los accesos diarios permanecen fijos mientras se desplazan las categorías. En ventanas
+  de hasta 700 px de alto, el menú completo admite desplazamiento para conservar acceso a
+  todas las categorías; el pie móvil mantiene Caja/Pedidos/Ventas al cerrar el menú. Menú y ventas,
   Clientes y atención, Productos y operación, Análisis y finanzas y Configuración se abren
   con botones de flecha y `aria-expanded`, sin navegar a otra pantalla.
 - La categoría de una ruta directa se abre automáticamente. Las demás conservan la elección

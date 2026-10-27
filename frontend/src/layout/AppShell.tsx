@@ -470,7 +470,7 @@ export default function AppShell() {
       {/* Nav */}
       <nav
         id="navigation-sections"
-        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden py-4", sidebarCompact ? "px-2" : "px-3")}
+        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden py-4 [@media(max-height:700px)]:block [@media(max-height:700px)]:overflow-y-auto", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
         {searchingSections ? <div className="min-h-0 space-y-1 overflow-y-auto">
@@ -482,7 +482,7 @@ export default function AppShell() {
           <div className="shrink-0 space-y-1">
             {primaryNavItems.map(item => renderNavItem(item))}
           </div>
-          {!isOfflineSession && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><NavigationGroups key={navigationPreferenceKey}
+          {!isOfflineSession && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [@media(max-height:700px)]:overflow-visible"><NavigationGroups key={navigationPreferenceKey}
             groups={workspaceNavigation.map(group => ({ ...group, label: workspaceLabels[group.id], icon: group.destination.icon }))}
             activeGroup={activeWorkspace} pathname={location.pathname} storageKey={navigationPreferenceKey}
             compact={sidebarCompact} onExpand={toggleSidebarCollapsed}
