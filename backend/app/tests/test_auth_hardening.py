@@ -100,8 +100,8 @@ def test_signup_case_variant_is_detected_as_existing(client: TestClient) -> None
             "accepted_terms": True,
         },
     )
-    assert r.status_code == 200
-    assert r.json()["reason"] == "email_in_use"
+    assert r.status_code == 201
+    assert r.json()["reason"] == "signup_received"
 
 
 def test_email_whitespace_is_trimmed(client: TestClient) -> None:
@@ -189,3 +189,55 @@ def test_refresh_caps_expiry_at_absolute_deadline(client: TestClient, db) -> Non
     deadline = created + timedelta(seconds=settings.refresh_token_absolute_ttl_seconds)
     # New expiry is clamped to the absolute deadline (~1 day out), not now + 30d.
     assert session.expires_at.replace(tzinfo=UTC) <= deadline + timedelta(seconds=2)
+
+
+@pytest.mark.parametrize("environment", ["staging", "production", "ci"])
+def test_public_signup_does_not_reveal_account_state(client, db, monkeypatch, environment):
+    """Hosted callers receive identical status/body and no identity or auth cookies."""
+    from app.auth.models import User, VerificationToken
+
+    existing = _signup(client, email="verified@example.com")
+    _verify(client, existing["dev_verification_token"])
+    pending = _signup(client, email="pending@example.com")
+    original_pending_token = pending["dev_verification_token"]
+    delivered = []
+    monkeypatch.setattr(service.email_service, "send_verification_email",
+                        lambda **message: delivered.append(message))
+    calls = []
+    real_hash = service.hash_password
+
+    def hash_spy(password):
+        calls.append(password)
+        return real_hash(password)
+
+    monkeypatch.setattr(service, "hash_password", hash_spy)
+    monkeypatch.setattr(settings, "app_env", environment)
+    # Rate limits remain installed, but share a deterministic in-memory backend
+    # rather than requiring a production limiter/proxy in this isolated test.
+    from app.middleware import rate_limit as limiter
+    monkeypatch.setattr(limiter, "_backend", limiter._InMemoryBackend())
+    responses = [client.post("/api/v1/auth/signup", json={
+        "email": email, "password": "AnotherPass123", "tenant_name": "Nuevo negocio",
+        "accepted_terms": True,
+    }) for email in ("new@example.com", " Verified@Example.COM ", " PENDING@Example.com ")]
+    assert [response.status_code for response in responses] == [201, 201, 201]
+    assert responses[0].json() == responses[1].json() == responses[2].json() == {
+        "message": "Solicitud recibida. Puedes intentar iniciar sesión o revisar tu correo para continuar.",
+        "reason": "signup_received", "user_id": None, "tenant_id": None,
+        "dev_verification_token": None,
+    }
+    assert all("set-cookie" not in response.headers for response in responses)
+    assert calls == ["AnotherPass123"] * 3
+    # Only new/pending accounts receive verification; duplicates cannot replace
+    # the verified account's password or create a second identity.
+    assert {message["to"] for message in delivered} == {"new@example.com", "pending@example.com"}
+    assert db.query(User).filter(User.email == "verified@example.com").count() == 1
+    user = repo.get_user_by_email(db, "verified@example.com")
+    assert service.verify_password("S3cur3pass!", user.hashed_password)
+    assert not service.verify_password("AnotherPass123", user.hashed_password)
+    old = db.query(VerificationToken).filter_by(
+        token_hash=service._hash_token(original_pending_token)).one()
+    assert old.used_at is not None
+    fresh = next(message["token"] for message in delivered if message["to"] == "pending@example.com")
+    service.verify_email(db, token=fresh)
+    assert repo.get_user_by_email(db, "pending@example.com").is_email_verified

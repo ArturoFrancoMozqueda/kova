@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -139,6 +140,7 @@ def test_active_subscription_allows_order_after_trial_expiry(
             stripe_subscription_id=f"sub_{uuid4().hex}",
             stripe_price_id="price_standard_299_mxn",
             status="active",
+            current_period_end=datetime.now(UTC) + timedelta(days=30),
         )
     )
     db.commit()

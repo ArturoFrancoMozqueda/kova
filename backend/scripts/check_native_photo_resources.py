@@ -143,6 +143,42 @@ def zero_resize_timing(value):
     return len(matches) == 1 and bool(re.fullmatch(r"image-resize;dur=0(?:\.0+)?", matches[0]))
 
 
+def server_timings(value):
+    """Return bounded numeric durations only; never retain arbitrary header text."""
+    names = {"image-db", "image-cache", "image-resize"}
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return None
+    result = dict.fromkeys(sorted(names))
+    seen = set()
+    for part in value.split(","):
+        part = part.strip()
+        name = part.split(";", 1)[0]
+        if name not in names:
+            continue
+        if name in seen:
+            result[name] = None
+            continue
+        seen.add(name)
+        match = re.fullmatch(
+            r"(?:image-db|image-cache|image-resize);dur=([0-9]{1,7}(?:\.[0-9]{1,6})?)", part,
+        )
+        if match is not None:
+            duration = float(match[1])
+            if duration <= 3_600_000:
+                result[name] = duration
+    return result
+
+
+def photo_failure(message, photo, width, attempt, elapsed, *, response=None):
+    metadata = {"kind": photo["kind"], "width": width, "repeat": bool(attempt),
+                "elapsed_ms": round(max(0, elapsed), 3),
+                "status": response.status_code if response is not None else None,
+                "server_timing_ms": server_timings(
+                    response.headers.get("server-timing") if response is not None else None,
+                )}
+    return VerificationError(message + "; diagnostics=" + json.dumps(metadata, sort_keys=True))
+
+
 def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=time.monotonic,
            require_persisted=False, baseline_path=None):
     require_local_ci()
@@ -172,8 +208,9 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
                 try:
                     response = client.get(base.rstrip("/") + photo["path"] + f"&w={width}")
                 except Exception:
-                    raise VerificationError(
-                        "Local photo request failed or exceeded 3000ms",
+                    raise photo_failure(
+                        "Local photo request failed or exceeded 3000ms", photo, width,
+                        attempt, (clock() - start) * 1000,
                     ) from None
                 elapsed = (clock() - start) * 1000
                 process = response.headers.get("x-kova-process-id", "")
@@ -185,8 +222,9 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
                     or (process_id is not None and process != process_id)
                     or elapsed > 3000
                 ):
-                    raise VerificationError(
+                    raise photo_failure(
                         "Photo response failed resident/MIME/status/3000ms contract",
+                        photo, width, attempt, elapsed, response=response,
                     )
                 if require_persisted and (
                     process == baseline["processId"]
@@ -220,7 +258,10 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
                 digests[variant_key] = current
                 observed.append({"kind": photo["kind"], "width": width,
                                  "repeat": bool(attempt), "ms": round(elapsed, 1),
-                                 "bytes": len(response.content)})
+                                 "bytes": len(response.content),
+                                 "serverTimingMs": server_timings(
+                                     response.headers.get("server-timing"),
+                                 )})
     if baseline_path is not None and not require_persisted:
         Path(baseline_path).write_text(json.dumps({
             "version": 1, "processId": process_id, "digests": digests,

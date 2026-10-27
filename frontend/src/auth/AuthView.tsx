@@ -22,9 +22,7 @@ type ActionState =
   | "idle"
   | "submitting"
   | "error"
-  | "created"
-  | "email_in_use"
-  | "verification_resent";
+  | "created";
 
 type SignupValidationFailure = {
   field: SignupValidationField;
@@ -228,7 +226,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   /** Sign in with the credentials just typed and land in the product.
    *
    * Returns false instead of throwing when the sign-in does not go through, so
-   * each signup branch can fall back to its own explanatory screen. The password
+   * signup can fall back to a neutral recovery screen. The password
    * is validated by `login` itself — this never bypasses authentication, it only
    * removes the inbox round-trip between creating an account and using it. */
   const enterProduct = async (): Promise<boolean> => {
@@ -271,44 +269,18 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;
       }
-      const response = await signup({
+      await signup({
         email,
         password,
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
       });
       if (!active.current) return;
-      if (response.reason === "email_in_use") {
-        setState("email_in_use");
-        return;
-      }
-      if (response.reason === "verification_resent") {
-        // Someone who signed up before, never confirmed, and came back. This is
-        // the case the old flow trapped hardest: it resent an email they had
-        // already failed to receive once and left them on this screen forever.
-        // They typed a password, so try it — `login` verifies it, which is why
-        // attempting here cannot let anyone into an account that is not theirs.
-
-        setResendCountdown(30);
-        if (await enterProduct()) return;
-        // Wrong password for that address (or login unavailable): the resent
-        // email is genuinely the only way forward, so say so.
-        setState("verification_resent");
-        return;
-      }
-      // `signup_completed` is recorded server-side inside the signup request —
-      // the browser no longer asserts its own conversion.
-
+      // Signup intentionally gives the same answer for every account state.
+      // Only a successful password login may establish that this person has access.
       setResendCountdown(30);
-      // The account exists and the person just proved they know the password.
-      // Let them into the product now and ask for email verification from
-      // inside, where a banner can nag without blocking; verification is still
-      // required before any paid action. Waiting on an inbox at this exact
-      // moment was costing a third of all signups.
       if (await enterProduct()) return;
-      // Auto-login is a convenience, not a guarantee. If it fails (rate limit,
-      // transient network) fall back to the explicit "check your email" screen
-      // rather than losing the fact that the account was created.
+      if (!active.current) return;
       setState("created");
     } catch (err) {
       if (!active.current) return;
@@ -345,8 +317,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         accepted_terms: acceptedTerms,
       });
       if (!active.current) return;
-
-      setState("verification_resent");
+      setState("created");
       setResendCountdown(30);
     } catch (err) {
       if (!active.current) return;
@@ -583,70 +554,20 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                   className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  {copy.auth.checkEmail}
+                  {copy.auth.signupReceived}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => void resendVerification()}
-                  disabled={resendCountdown > 0}
-                  className="w-full text-sm"
+                <Link
+                  to={`/login?email=${encodeURIComponent(email)}`}
+                  className="block text-center text-sm font-medium text-kova-blue hover:underline"
                 >
-                  {resendCountdown > 0
-                    ? copy.auth.resendVerificationCountdown(resendCountdown)
-                    : copy.auth.resendVerification}
-                </Button>
-              </div>
-            )}
-
-            {state === "email_in_use" && (
-              <div className="mt-4 space-y-3 animate-fade-in">
-                <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
-                  <p className="font-medium text-foreground">
-                    {copy.auth.signupEmailInUseTitle}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    {copy.auth.signupEmailInUseBody}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    className="w-full"
-                    size="lg"
-                    onClick={() =>
-                      navigate(`/login?email=${encodeURIComponent(email)}`)
-                    }
-                  >
-                    {copy.auth.signupEmailInUseCta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  <Link
-                    to="/forgot-password"
-                    className="text-center text-xs font-medium text-kova-blue hover:underline underline-offset-4"
-                  >
-                    {copy.auth.signupEmailInUseForgot}
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {state === "verification_resent" && (
-              <div className="mt-4 space-y-3 animate-fade-in">
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
+                  {copy.auth.backToLogin}
+                </Link>
+                <Link
+                  to="/forgot-password"
+                  className="block text-center text-sm font-medium text-kova-blue hover:underline"
                 >
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium">
-                      {copy.auth.signupVerificationResentTitle}
-                    </p>
-                    <p className="mt-1">
-                      {copy.auth.signupVerificationResentBody(email)}
-                    </p>
-                  </div>
-                </div>
+                  {copy.auth.forgotPassword}
+                </Link>
                 <Button
                   type="button"
                   variant="ghost"

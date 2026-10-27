@@ -165,17 +165,20 @@ def test_newer_payment_failure_wins_active_lifecycle_in_any_arrival_order(
     db: Session, temporal_subscription: Subscription, reverse: bool
 ) -> None:
     subscription_id = temporal_subscription.stripe_subscription_id or ""
+    # Model a current failed payment, not a failure from Unix epoch time whose
+    # 48-hour recovery deadline correctly expired decades ago.
+    failed_at = int(datetime.now(UTC).timestamp())
     active = _event(
         f"evt_active_before_failure_{reverse}",
         "customer.subscription.updated",
-        100,
+        failed_at - 100,
         _subscription_object(subscription_id, "active"),
     )
     failed = _event(
         f"evt_failed_after_active_{reverse}",
         "invoice.payment_failed",
-        200,
-        {"id": "in_failed", "subscription": subscription_id, "metadata": {}},
+        failed_at,
+        {"id": "in_failed", "subscription": subscription_id, "metadata": {}, "attempt_count": 1},
     )
     payloads = [failed, active] if reverse else [active, failed]
 

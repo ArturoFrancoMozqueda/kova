@@ -5,10 +5,7 @@ export type SignupRequest = {
   accepted_terms: boolean;
 };
 
-export type SignupReason =
-  | "account_created"
-  | "verification_resent"
-  | "email_in_use";
+export type SignupReason = "signup_received";
 
 export type SignupResponse = {
   message: string;
@@ -44,9 +41,16 @@ export type MeResponse = {
   feature_flags: Record<string, boolean>;
 };
 
+export type CommercialAccess = {
+  allowed: boolean;
+  reason: string;
+  valid_until: string | null;
+};
+
 export type SessionProbeResponse =
   | {
       authenticated: false;
+      commercial_access?: null;
       user?: null;
       tenant_id?: null;
       tenant_name?: null;
@@ -54,6 +58,7 @@ export type SessionProbeResponse =
     }
   | {
       authenticated: true;
+      commercial_access?: CommercialAccess;
       user: MeResponse["user"];
       tenant_id: string;
       tenant_name: string;

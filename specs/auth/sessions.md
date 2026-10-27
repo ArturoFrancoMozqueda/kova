@@ -10,12 +10,21 @@ every downstream request carries both identity and tenant scope.
 
 ### Signup
 
-1. Client posts `email`, `password`, `tenant_name`.
-2. System creates `tenant`, `user`, `membership(role=owner)`.
-3. System creates a `verification_token` (type: email_verification).
-4. In `APP_ENV=local`: token returned in response (`dev_verification_token`).
-5. In production: email sent (email service deferred; raise if called in prod).
-6. Returns 201. User may not log in until email is verified.
+1. Client posts `email`, `password`, `tenant_name`, and explicit `accepted_terms`.
+2. Every accepted attempt pays one bcrypt hash before looking up the normalized email.
+3. A new address creates `tenant`, `user`, and `membership(role=owner)` and sends a verification link.
+   A pending address receives a fresh verification link, invalidating older links without changing its password.
+   A verified address leaves its credentials and identity unchanged.
+4. All three outcomes return **201** with the same Spanish message and `reason: "signup_received"`.
+   Hosted environments always return `user_id`, `tenant_id`, and `dev_verification_token` as `null`.
+   Only `APP_ENV=local` retains identity/token diagnostics for local development and tests.
+5. Public responses never report whether an address exists or has been verified. Internal audit and
+   server-authored conversion events retain the actual result; duplicates never record a new conversion.
+6. The browser can try normal password login after any acknowledged signup. A failed login shows
+   a neutral acknowledgement with sign-in, password-recovery, and resend actions. An unverified
+   user may log in and operate; email verification remains mandatory at the paid boundary.
+7. Per-IP and per-account rate limits remain in force. Uniform responses and bcrypt work do not
+   promise identical network/provider timing; verification email delivery is a separate side effect.
 
 ### Email Verification
 
@@ -27,7 +36,7 @@ every downstream request carries both identity and tenant scope.
 ### Login
 
 1. Client posts `email`, `password`.
-2. System checks user exists, is verified, is active.
+2. System checks user exists and is active. Verification is enforced for paid actions.
 3. System verifies password hash.
 4. System creates `session` record.
 5. Sets two httpOnly cookies:
@@ -81,6 +90,26 @@ every downstream request carries both identity and tenant scope.
 1. Requires valid `access_token` cookie.
 2. Returns current user + tenant info.
 3. Scoped to the tenant stored in the session.
+
+### Commercial access and offline continuity
+
+`GET /auth/session` keeps identity separate from subscription eligibility and adds
+`commercial_access: {allowed, reason, valid_until}`. Authentication remains available
+for payment recovery and account export/deletion when commercial use is blocked.
+The backend checks commercial eligibility on each protected business request.
+
+The frontend redirects blocked owners to billing and asks employees to contact
+their owner. A business API `402` closes open business views and revokes cached
+offline permission without deleting queued sales. An open register also closes
+at its server-granted deadline, including while disconnected.
+An already-open session also requires a new online probe at least every 12 hours;
+branding changes and network failures cannot extend that deadline.
+
+Cold offline access requires an allowed, finite server grant and a cached catalog
+for the same tenant. Its deadline is the earlier of 12 hours from verification
+and the billing deadline. Legacy snapshots without billing permission fail closed.
+Offline operation cannot receive a remote cancellation until reconnection; the
+finite local grant bounds that limitation. No cached identity authorizes an API call.
 
 ## Token Design
 
@@ -153,9 +182,9 @@ All auth endpoints are public or require only a valid session (no RBAC permissio
 
 | Condition | Status |
 |---|---|
-| Email already exists | 400 |
+| Signup accepted, including existing email | 201 |
 | Invalid credentials | 401 |
-| Email not verified | 403 |
+| Email not verified at the paid boundary | 403 |
 | Invalid / expired token | 400 |
 | Session revoked | 401 |
 | Session expired | 401 |
@@ -166,7 +195,7 @@ None. Auth endpoints are online-only.
 
 ## Idempotency
 
-Signup is naturally idempotent on email: duplicate call returns 400.
+Signup is naturally idempotent on normalized email: duplicate calls return the same generic 201 acknowledgement without creating another identity.
 Password-reset tokens are single-use.
 Refresh token rotation is replay-safe: old token is invalidated on rotation.
 

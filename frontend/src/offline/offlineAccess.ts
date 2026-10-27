@@ -1,7 +1,8 @@
 import { offlineDb } from "./db";
 import type { OfflineAccessSnapshot } from "./types";
 
-export const OFFLINE_ACCESS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+import { OFFLINE_ACCESS_MAX_AGE_MS } from "./accessPolicy";
+export { OFFLINE_ACCESS_MAX_AGE_MS } from "./accessPolicy";
 
 type VerifiedSession = Omit<OfflineAccessSnapshot, "id" | "verified_at" | "expires_at">;
 
@@ -13,6 +14,12 @@ export async function cacheVerifiedOfflineAccess(
   session: VerifiedSession,
   nowMs = Date.now(),
 ): Promise<void> {
+  const access = session.commercial_access;
+  const validUntil = access?.valid_until ? Date.parse(access.valid_until) : NaN;
+  if (!access?.allowed || !Number.isFinite(validUntil) || validUntil <= nowMs) {
+    await clearOfflineAccess();
+    return;
+  }
   const verifiedAt = new Date(nowMs).toISOString();
   await offlineDb.offline_access.put({
     id: "active",
@@ -27,8 +34,9 @@ export async function cacheVerifiedOfflineAccess(
         : { email_verified: session.user.email_verified }),
     },
     feature_flags: session.feature_flags,
+    commercial_access: access,
     verified_at: verifiedAt,
-    expires_at: new Date(nowMs + OFFLINE_ACCESS_MAX_AGE_MS).toISOString(),
+    expires_at: new Date(Math.min(nowMs + OFFLINE_ACCESS_MAX_AGE_MS, validUntil)).toISOString(),
   });
 }
 
@@ -37,7 +45,13 @@ export async function readPreparedOfflineAccess(nowMs = Date.now()): Promise<Off
   if (!snapshot) return { status: "missing" };
 
   const expiresAt = Date.parse(snapshot.expires_at);
-  if (!Number.isFinite(expiresAt) || expiresAt <= nowMs) {
+  const validUntil = snapshot.commercial_access?.valid_until
+    ? Date.parse(snapshot.commercial_access.valid_until) : NaN;
+  const verifiedAt = Date.parse(snapshot.verified_at);
+  if (!snapshot.commercial_access?.allowed || !Number.isFinite(validUntil)
+    || !Number.isFinite(verifiedAt) || verifiedAt > nowMs
+    || nowMs >= verifiedAt + OFFLINE_ACCESS_MAX_AGE_MS
+    || !Number.isFinite(expiresAt) || Math.min(expiresAt, validUntil) <= nowMs) {
     return { status: "expired" };
   }
 

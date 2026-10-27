@@ -47,6 +47,7 @@ import app.tenants.models  # noqa: F401
 from app.config import settings
 from app.db import get_db, get_privileged_db
 from app.main import app as fastapi_app
+from testing_roles import KOVA_APP_TEST_PASSWORD, provision_test_runtime_role
 
 _engine = create_engine(settings.database_url, pool_pre_ping=True)
 _TestSession = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
@@ -105,7 +106,7 @@ def apply_migrations():
 
 # Dev/CI-only password for the least-privilege role used by the RLS test. The
 # real password is injected via secret in staging/prod (see provision_app_role.sql).
-_KOVA_APP_PASSWORD = "kova_app"
+_KOVA_APP_PASSWORD = KOVA_APP_TEST_PASSWORD
 
 
 def _provision_kova_app() -> None:
@@ -114,20 +115,9 @@ def _provision_kova_app() -> None:
     inline SQL here because the .sql file uses psql meta-commands (\\if, \\set)
     that a raw driver can't run."""
     db_name = make_url(settings.database_url).database
+    if not os.environ.get("PYTEST_XDIST_WORKER"):
+        provision_test_runtime_role(settings.database_url)
     with _engine.begin() as conn:
-        # xdist's controller prepares this cluster-global role once under the
-        # parent database lock. Locks in separate worker databases cannot
-        # serialize ALTER ROLE against the shared PostgreSQL role catalog.
-        if not os.environ.get("PYTEST_XDIST_WORKER"):
-            conn.execute(
-                text(
-                    "DO $$ BEGIN "
-                    "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
-                    "CREATE ROLE kova_app LOGIN NOSUPERUSER NOBYPASSRLS "
-                    "NOCREATEDB NOCREATEROLE; END IF; END $$;"
-                )
-            )
-            conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
         conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
         conn.execute(text("GRANT USAGE ON SCHEMA public,extensions,assistant_control TO kova_app"))
         conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA assistant_control TO kova_app"))

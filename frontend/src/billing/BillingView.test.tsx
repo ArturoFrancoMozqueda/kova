@@ -238,6 +238,22 @@ describe("BillingView plan and period trust", () => {
     expect(screen.queryByText("Próxima renovación")).not.toBeInTheDocument();
     expect(screen.queryByText(/1 jun 2026/i)).not.toBeInTheDocument();
   });
+
+  it("suspends an unverified paid period without claiming activation or offering a duplicate payment", async () => {
+    const unverified = activeBilling({ status: "active", period_freshness: "stale" });
+    unverified.access = { ...unverified.access, allowed: false, reason: "verification_required" };
+    getBillingSubscription.mockResolvedValue(unverified);
+
+    renderBilling();
+
+    expect(await screen.findByText(copy.billingView.verificationPending)).toBeVisible();
+    expect(screen.queryByText(copy.billingView.subscriptionActiveTitle)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.billingView.subscriptionActiveBody)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.billingView.periodVerifying)).not.toBeInTheDocument();
+    expect(screen.getAllByText(copy.billingView.verificationRequiredBody).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Activar por/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: copy.billingView.checkoutSupport })).toBeVisible();
+  });
 });
 
 

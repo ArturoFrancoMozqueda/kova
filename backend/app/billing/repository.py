@@ -8,13 +8,17 @@ from app.billing.models import Subscription, WebhookEvent
 
 
 def get_subscription_by_tenant(db: Session, *, tenant_id: UUID) -> Subscription | None:
-    return db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
+    return (
+        db.query(Subscription).filter(Subscription.tenant_id == tenant_id)
+        .populate_existing().first()
+    )
 
 
 def lock_subscription_by_tenant(db: Session, *, tenant_id: UUID) -> Subscription | None:
     return (
         db.query(Subscription)
         .filter(Subscription.tenant_id == tenant_id)
+        .populate_existing()
         .with_for_update()
         .first()
     )

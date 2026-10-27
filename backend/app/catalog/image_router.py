@@ -5,6 +5,7 @@ import io
 import logging
 import sys
 from collections import OrderedDict
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import BoundedSemaphore, Lock
@@ -55,6 +56,7 @@ MAX_IMAGE_BYTES = 1024 * 1024  # 1 MB
 ALLOWED_RESIZE_WIDTHS = {160, 320, 400, 800}
 _RESIZE_CACHE_BYTES = 4 * 1024 * 1024
 _MAX_DECODED_PIXELS = 8_000_000
+_THUMBNAIL_STRIPE_PIXELS = 1_000_000
 _resized_images: OrderedDict[tuple[bytes, str, int], tuple[bytes, str]] = OrderedDict()
 _resized_image_bytes = 0
 _image_cache_lock = Lock()
@@ -290,6 +292,37 @@ def _webp_canvas_size(data: bytes) -> tuple[int, int] | None:
     return None
 
 
+def _resize_rgba_in_stripes(source, size):
+    """Match Pillow's gap=2 RGBA resize without a full premultiplied canvas.
+
+    Integer reduction uses the same premultiplied RGBa samples as Pillow.
+    Aligned stripes retain partial edge blocks and the fractional final box;
+    only the temporary working set changes, not the resampling or quality.
+    Other modes, small reductions and unbounded stripe geometries retain the
+    original Pillow path and its existing allocation behavior.
+    """
+    factor_x = max(1, int(source.width / size[0] / 2.0))
+    factor_y = max(1, int(source.height / size[1] / 2.0))
+    if (source.mode != "RGBA" or factor_x == factor_y == 1
+            or source.width * factor_y > _THUMBNAIL_STRIPE_PIXELS):
+        return source.resize(size, Image.Resampling.LANCZOS, reducing_gap=2.0)
+    stripe_height = (_THUMBNAIL_STRIPE_PIXELS // source.width // factor_y) * factor_y
+    reduced_size = ((source.width + factor_x - 1) // factor_x,
+                    (source.height + factor_y - 1) // factor_y)
+    # Pillow's Image context manager does not destroy its pixel buffer.
+    # closing() is deliberate: release every stripe before allocating another.
+    with closing(Image.new("RGBa", reduced_size)) as reduced:
+        for top in range(0, source.height, stripe_height):
+            box = (0, top, source.width, min(source.height, top + stripe_height))
+            with (closing(source.crop(box)) as tile,
+                  closing(tile.convert("RGBa")) as premultiplied,
+                  closing(premultiplied.reduce((factor_x, factor_y))) as small):
+                reduced.paste(small, (0, top // factor_y))
+        box = (0, 0, source.width / factor_x, source.height / factor_y)
+        with closing(reduced.resize(size, Image.Resampling.LANCZOS, box=box)) as final:
+            return final.convert("RGBA")
+
+
 def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
     try:
         # WebP allocates its canvas inside Image.open(), before Pillow exposes
@@ -332,11 +365,9 @@ def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tupl
             # Transpose after draft so a JPEG rotates the reduced bitmap.
             ImageOps.exif_transpose(img, in_place=True)
             source = img if img.mode == mode else img.convert(mode)
-            resized = source.resize(
-                (target_width, target_height), Image.Resampling.LANCZOS, reducing_gap=2.0,
-            )
-            buf = io.BytesIO()
-            resized.save(buf, format="WEBP", quality=82, method=4)
+            with closing(_resize_rgba_in_stripes(source, (target_width, target_height))) as resized:
+                buf = io.BytesIO()
+                resized.save(buf, format="WEBP", quality=82, method=4)
             return buf.getvalue(), "image/webp"
     except Exception:
         return data, content_type

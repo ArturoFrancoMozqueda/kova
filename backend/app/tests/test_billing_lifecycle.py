@@ -169,8 +169,9 @@ def test_subscription_updated_without_metadata_converges_to_past_due(
         .one()
     )
     assert subscription.status == "past_due"
-    assert subscription.past_due_at is not None
-    assert subscription.grace_period_ends_at is not None
+    # A status notification is not evidence of the first failed invoice.
+    assert subscription.past_due_at is None
+    assert subscription.grace_period_ends_at is None
 
 
 def test_subscription_event_without_matching_row_is_ignored(

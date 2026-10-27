@@ -26,6 +26,7 @@ export type Subscription = {
 
 export type BillingAccess = {
   allowed: boolean;
+  valid_until?: string | null;
   reason: string;
   trialing: boolean;
   trial_ends_at: string | null;

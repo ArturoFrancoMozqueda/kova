@@ -909,6 +909,18 @@
             ],
             "title": "Blocked At"
           },
+          "grace_period_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Period Ends At"
+          },
           "reason": {
             "title": "Reason",
             "type": "string"
@@ -932,6 +944,18 @@
           "trialing": {
             "title": "Trialing",
             "type": "boolean"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
           }
         },
         "required": [
@@ -2582,6 +2606,36 @@
           "checkout_session_id"
         ],
         "title": "CheckoutSessionResponse",
+        "type": "object"
+      },
+      "CommercialAccessResponse": {
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "allowed",
+          "reason"
+        ],
+        "title": "CommercialAccessResponse",
         "type": "object"
       },
       "CommitRequest": {
@@ -16371,6 +16425,16 @@
             "title": "Authenticated",
             "type": "boolean"
           },
+          "commercial_access": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialAccessResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "feature_flags": {
             "anyOf": [
               {
@@ -16695,6 +16759,7 @@
             "type": "string"
           },
           "reason": {
+            "const": "signup_received",
             "title": "Reason",
             "type": "string"
           },
@@ -20913,7 +20978,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {

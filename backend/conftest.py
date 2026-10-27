@@ -5,6 +5,8 @@ import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+from testing_roles import provision_test_runtime_role
+
 
 def pytest_configure(config) -> None:
     """Prepare the cluster role once, before the controller starts workers."""
@@ -14,26 +16,7 @@ def pytest_configure(config) -> None:
     url = make_url(raw)
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+psycopg")
-    admin = create_engine(url, isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            conn.execute(text("SELECT pg_advisory_lock(7310402)"))
-            try:
-                conn.execute(text(
-                    "DO $$ BEGIN "
-                    "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
-                    "CREATE ROLE kova_app; END IF; END $$;"
-                ))
-                # This is a test-only credential/profile, never a production role.
-                # Worker databases share the role, so workers must not ALTER it.
-                conn.execute(text(
-                    "ALTER ROLE kova_app WITH LOGIN PASSWORD 'kova_app' "
-                    "NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
-                ))
-            finally:
-                conn.execute(text("SELECT pg_advisory_unlock(7310402)"))
-    finally:
-        admin.dispose()
+    provision_test_runtime_role(url.render_as_string(hide_password=False))
 
 
 def _isolate_xdist_worker_database() -> None:
@@ -42,7 +25,7 @@ def _isolate_xdist_worker_database() -> None:
     pytest loads this root conftest before app/tests/conftest.py imports
     app.config, so Settings, the app engines and the
     alembic subprocess all see the worker URL. Cluster-wide roles are shared by
-    every database, so `kova_app` is created here once under an advisory lock;
+    every database, so the controller provisions `kova_app` before workers start;
     tests that create or drop other roles share one xdist group instead.
     """
     worker = os.environ.get("PYTEST_XDIST_WORKER")
@@ -66,14 +49,6 @@ def _isolate_xdist_worker_database() -> None:
             )
             conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
             conn.execute(text(f'CREATE DATABASE "{name}"'))
-            conn.execute(
-                text(
-                    "DO $$ BEGIN "
-                    "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
-                    "CREATE ROLE kova_app LOGIN PASSWORD 'kova_app' NOSUPERUSER NOBYPASSRLS "
-                    "NOCREATEDB NOCREATEROLE; END IF; END $$;"
-                )
-            )
             conn.execute(text("SELECT pg_advisory_unlock(7310402)"))
     finally:
         admin.dispose()

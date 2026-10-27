@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
@@ -122,6 +122,7 @@ function daysUntil(value: string | null): number | null {
 }
 
 function accessStatusLabel(billing: BillingSubscription): string {
+  if (billing.access.reason === "verification_required") return copy.billingView.verificationPending;
   if (!billing.access.allowed && billing.access.reason === "trial_expired") {
     return copy.billingView.trialExpired;
   }
@@ -138,7 +139,8 @@ function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean 
 }
 
 function needsPaymentRecovery(billing: BillingSubscription): boolean {
-  return billing.subscription?.status === "past_due" || billing.subscription?.status === "unpaid";
+  return billing.subscription?.status === "past_due" || billing.subscription?.status === "unpaid"
+    || billing.access.reason === "verification_required";
 }
 
 function checkoutTelemetryState(
@@ -174,6 +176,7 @@ export default function BillingView() {
       ? "cancel"
       : null;
   const auth = useOptionalAuth();
+  const refreshAuth = auth?.refresh;
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
   const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
   // Defaults to true so a session shape without the flag (older cached probe)
@@ -237,6 +240,7 @@ export default function BillingView() {
           setLoadState({ status: "loaded", billing });
           if (hasCheckoutBlockingSubscription(billing)) {
             setCheckoutConfirmationState("confirmed");
+            void refreshAuth?.();
             return;
           }
         } catch {
@@ -247,7 +251,7 @@ export default function BillingView() {
       if (!cancelled) setCheckoutConfirmationState("delayed");
     })();
     return () => { cancelled = true; };
-  }, [shouldReconcile, location.search]);
+  }, [shouldReconcile, location.search, refreshAuth]);
 
   const beginCheckout = async () => {
     if (loadState.status === "loaded" && hasCheckoutBlockingSubscription(loadState.billing)) {
@@ -299,6 +303,7 @@ export default function BillingView() {
     try {
       const billing = await cancelSubscription();
       setLoadState({ status: "loaded", billing });
+      void refreshAuth?.();
       setActionState("idle");
       toast(copy.billingView.statusCanceled, "success");
     } catch {
@@ -328,6 +333,10 @@ export default function BillingView() {
       <div className="mb-6">
         <ViewHeader title={copy.billingView.title} meta={copy.billingView.subtitle} />
       </div>
+
+      {auth?.state.status === "authenticated" && auth.state.commercialAccess?.allowed === false && (
+        <p className="mb-4 text-sm"><Link className="underline" to="/settings/advanced">Exportar o eliminar los datos de mi negocio</Link></p>
+      )}
 
       {loadState.status === "loading" && (
         <div className="grid gap-4 md:grid-cols-3">
@@ -369,7 +378,7 @@ export default function BillingView() {
               />
             )}
 
-          {hasCheckoutBlockingSubscription(loadState.billing) && (
+          {loadState.billing.access.allowed && hasCheckoutBlockingSubscription(loadState.billing) && (
             <BillingStatusBanner
               tone="success"
               icon={<CheckCircle2 />}
@@ -403,7 +412,8 @@ export default function BillingView() {
               body={
                 loadState.billing.access.reason === "trial_expired"
                   ? copy.billingBanner.blockedTrialExpired
-                  : copy.billingBanner.blockedGeneric
+                  : loadState.billing.access.reason === "verification_required"
+                    ? copy.billingView.verificationRequiredBody : copy.billingBanner.blockedGeneric
               }
             />
           )}
@@ -413,7 +423,8 @@ export default function BillingView() {
               tone="warning"
               icon={<AlertTriangle />}
               body={
-                pastDueGraceUrgency(loadState.billing.subscription.grace_period_ends_at) ??
+                pastDueGraceUrgency(loadState.billing.access.grace_period_ends_at ??
+                  loadState.billing.subscription.grace_period_ends_at) ??
                 copy.billingView.pastDueBanner
               }
               bodyClassName="text-warning-foreground"
@@ -450,12 +461,17 @@ export default function BillingView() {
                 {loadState.billing.subscription ? (
                   <>
                     <h2 className="mb-2">
-                      <Badge variant={statusVariants[loadState.billing.subscription.status] ?? "secondary"}>
-                        {statusLabels[loadState.billing.subscription.status] ?? loadState.billing.subscription.status}
+                      <Badge variant={loadState.billing.access.reason === "verification_required"
+                        ? "destructive" : statusVariants[loadState.billing.subscription.status] ?? "secondary"}>
+                        {loadState.billing.access.reason === "verification_required"
+                          ? copy.billingView.verificationPending
+                          : statusLabels[loadState.billing.subscription.status] ?? loadState.billing.subscription.status}
                       </Badge>
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      {loadState.billing.subscription.cancel_at_period_end
+                      {loadState.billing.access.reason === "verification_required"
+                        ? copy.billingView.verificationSuspended
+                        : loadState.billing.subscription.cancel_at_period_end
                         ? copy.billingView.cancelAtPeriodEnd
                         : copy.billingView.currentAccess}
                     </p>
@@ -482,7 +498,8 @@ export default function BillingView() {
               const periodDate = signupTrial
                 ? loadState.billing.access.trial_ends_at
                 : subscription?.current_period_end ?? null;
-              const graceDate = subscription?.grace_period_ends_at ?? null;
+              const graceDate = loadState.billing.access.grace_period_ends_at ??
+                subscription?.grace_period_ends_at ?? null;
               const verifiedPeriod =
                 !signupTrial && subscription?.period_freshness === "verified" && periodDate;
               if (signupTrial && !periodDate) return null;
@@ -502,7 +519,8 @@ export default function BillingView() {
                     {signupTrial && periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
                     {verifiedPeriod && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
                     {!signupTrial && !verifiedPeriod && (
-                      <p className="text-sm text-muted-foreground">{copy.billingView.periodVerifying}</p>
+                      <p className="text-sm text-muted-foreground">{loadState.billing.access.reason === "verification_required"
+                        ? copy.billingView.verificationSuspended : copy.billingView.periodVerifying}</p>
                     )}
                     {graceDate && (
                       <p className="text-xs text-muted-foreground mt-1">
@@ -535,7 +553,8 @@ export default function BillingView() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   {needsPaymentRecovery(loadState.billing) ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">{copy.billingView.paymentRecoveryBody}</p>
+                      <p className="text-sm text-muted-foreground">{loadState.billing.access.reason === "verification_required"
+                        ? copy.billingView.verificationRequiredBody : copy.billingView.paymentRecoveryBody}</p>
                       <a className={buttonVariants({ variant: "outline" })} href={SUPPORT_MAILTO}>
                         {copy.billingView.checkoutSupport}
                       </a>

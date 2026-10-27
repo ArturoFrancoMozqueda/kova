@@ -20,6 +20,8 @@ import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
 import { setActiveOfflineTenant } from "@/offline/activeTenant";
 import { captureApiRequestId, clearLatestRequestId } from "@/lib/supportContext";
 import { queryClient } from "@/lib/queryClient";
+import { OFFLINE_ACCESS_MAX_AGE_MS } from "@/offline/accessPolicy";
+import type { CommercialAccess } from "./types";
 import { setReportsCacheIdentity } from "@/reports/api";
 import { setBillingCacheIdentity } from "@/billing/api";
 import {
@@ -60,6 +62,7 @@ export type AuthState =
       tenantLogoUrl: string | null;
       featureFlags: FeatureFlags;
       sessionMode: "online" | "offline";
+      commercialAccess?: CommercialAccess;
     };
 
 type AuthContextValue = {
@@ -96,13 +99,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshPromise = useRef<Promise<boolean> | null>(null);
   const initialProbeStarted = useRef(false);
   const identityChangePending = useRef(false);
-  const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
+  const authenticatedTenantId = state.status === "authenticated" && state.commercialAccess?.allowed !== false ? state.tenantId : null;
 
   const applyState = useCallback((next: AuthState) => {
     const cacheIdentity = next.status === "authenticated" && next.sessionMode === "online"
       ? { tenantId: next.tenantId, userId: next.user.id, role: next.user.role }
       : null;
-    setReportsCacheIdentity(cacheIdentity);
+    setReportsCacheIdentity(next.status === "authenticated" && next.commercialAccess?.allowed === false ? null : cacheIdentity);
+    const previous = stateRef.current;
+    if (previous.status === "authenticated" && next.status === "authenticated"
+      && previous.commercialAccess?.allowed !== next.commercialAccess?.allowed) {
+      setBillingCacheIdentity(null);
+    }
     setBillingCacheIdentity(cacheIdentity);
     stateRef.current = next;
     setState(next);
@@ -185,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const networkUnavailable = !(error instanceof ApiError);
       if (allowOfflineFallback && networkUnavailable) {
-        const { readPreparedOfflineAccess } = await import("@/offline/offlineAccess");
+        const { readPreparedOfflineAccess } = await import("../offline/offlineAccess");
         if (!isCurrent()) return stateRef.current;
         const cached = await readPreparedOfflineAccess().catch(() => ({ status: "missing" as const }));
         if (!isCurrent()) return stateRef.current;
@@ -198,6 +206,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             tenantLogoUrl: null,
             featureFlags: normalizeFeatureFlags(cached.snapshot.feature_flags),
             sessionMode: "offline",
+            commercialAccess: cached.snapshot.commercial_access ? {
+              ...cached.snapshot.commercial_access,
+              valid_until: cached.snapshot.expires_at,
+            } : undefined,
           };
           clearErrorReportingIdentity();
           return commit(next);
@@ -246,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!session.authenticated) {
-      await import("@/offline/offlineAccess")
+      await import("../offline/offlineAccess")
         .then(({ clearOfflineAccess }) => isCurrent() ? clearOfflineAccess() : undefined)
         .catch(() => undefined);
       if (!isCurrent()) return stateRef.current;
@@ -255,6 +267,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return commit(next);
     }
     setErrorReportingIdentity(session.user);
+    const access = session.commercial_access;
+    const serverDeadline = Date.parse(access?.valid_until ?? "");
+    const commercialAccess = access?.allowed
+      ? Number.isFinite(serverDeadline) && serverDeadline > Date.now()
+        ? { ...access, valid_until: new Date(Math.min(serverDeadline, Date.now() + OFFLINE_ACCESS_MAX_AGE_MS)).toISOString() }
+        : { allowed: false, reason: "verification_required", valid_until: null }
+      : access;
     const next: AuthState = {
       status: "authenticated",
       user: session.user,
@@ -263,20 +282,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenantLogoUrl: null,
       featureFlags: normalizeFeatureFlags(session.feature_flags),
       sessionMode: "online",
+      commercialAccess,
     };
     const previous = stateRef.current;
     if (
       previous.status === "authenticated" &&
-      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id || previous.user.role !== session.user.role)
+      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id || previous.user.role !== session.user.role
+        || commercialAccess?.allowed === false)
     ) {
       queryClient.clear();
     }
-    await import("@/offline/offlineAccess")
+    await import("../offline/offlineAccess")
       .then(({ cacheVerifiedOfflineAccess }) => isCurrent() ? cacheVerifiedOfflineAccess({
         tenant_id: session.tenant_id,
         tenant_name: session.tenant_name,
         user: session.user,
         feature_flags: session.feature_flags,
+        commercial_access: session.commercial_access,
       }) : undefined)
       .catch(() => undefined);
     if (!isCurrent()) return stateRef.current;
@@ -284,7 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Branding should not delay the authenticated shell. Load it after the
     // session is ready and only apply it if this is still the active tenant.
-    void getReceiptSettings()
+    if (commercialAccess?.allowed !== false) void getReceiptSettings()
       .then((settings) => {
         const current = stateRef.current;
         if (!isCurrent() || current.status !== "authenticated"
@@ -299,6 +321,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyState, refreshSessionOnce]);
 
   const refresh = useCallback(() => refreshInternal(true), [refreshInternal]);
+
+  // An already-open register must stop at its server-granted billing deadline,
+  // including when the device loses connectivity without a focus event.
+  useEffect(() => {
+    if (state.status !== "authenticated" || !state.commercialAccess?.allowed) return;
+    const deadline = Date.parse(state.commercialAccess.valid_until ?? "");
+    const delay = Number.isFinite(deadline) ? Math.max(0, deadline - Date.now()) : 0;
+    const timer = window.setTimeout(() => {
+      const current = stateRef.current;
+      if (current.status !== "authenticated") return;
+      applyState({ ...current, commercialAccess: { allowed: false, reason: "verification_required", valid_until: null } });
+      queryClient.clear();
+      void import("../offline/offlineAccess").then(({ clearOfflineAccess }) => clearOfflineAccess()).catch(() => undefined);
+      void refreshInternal(true);
+    }, Math.min(delay, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [state, applyState, refreshInternal]);
 
   const setTenantLogoUrl = useCallback((logoUrl: string | null) => {
     const current = stateRef.current;
@@ -425,6 +464,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const retryInput = canRetry && input instanceof Request ? input.clone() : input;
       const response = await originalFetch(input, requestInit);
       captureApiRequestId(input, response);
+      const revokeCommercialAccess = (result: Response) => {
+        if (!isApiRequest || result.status !== 402 || skipAuth
+          || url.pathname.startsWith("/api/v1/billing/")) return;
+        const current = stateRef.current;
+        if (current.status === "authenticated" && activeIdentity.status === "authenticated"
+          && current.tenantId === activeIdentity.tenantId && current.user.id === activeIdentity.user.id
+          && current.user.role === activeIdentity.user.role && current.commercialAccess?.allowed !== false
+          && current.commercialAccess === activeIdentity.commercialAccess) {
+          refreshEpoch.current += 1;
+          applyState({ ...current, commercialAccess: { allowed: false, reason: "payment_required", valid_until: null } });
+          queryClient.clear();
+          void import("../offline/offlineAccess").then(({ clearOfflineAccess }) => clearOfflineAccess()).catch(() => undefined);
+        }
+      };
+      revokeCommercialAccess(response);
       if (isApiRequest && response.headers.get("X-Kova-Identity-Mismatch") === "true") {
         identityChangePending.current = true;
         refreshEpoch.current += 1;
@@ -452,6 +506,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Retry the original request once with refreshed cookies.
       const retriedResponse = await originalFetch(retryInput, requestInit);
       captureApiRequestId(input, retriedResponse);
+      revokeCommercialAccess(retriedResponse);
       return retriedResponse;
     };
 

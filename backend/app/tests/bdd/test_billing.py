@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -147,8 +148,8 @@ class _FakeSubscriptionClient:
             "id": kwargs["stripe_subscription_id"],
             "status": "active",
             "cancel_at_period_end": True,
-            "current_period_start": 1_700_000_000,
-            "current_period_end": 1_702_592_000,
+            "current_period_start": int(datetime.now(UTC).timestamp()),
+            "current_period_end": int((datetime.now(UTC) + timedelta(days=30)).timestamp()),
             "canceled_at": None,
         }
 

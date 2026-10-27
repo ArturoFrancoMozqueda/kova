@@ -55,11 +55,17 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "0.13.4"
+      - name: Require a native AMD64 runner
+        run: python scripts/check_amd64_host.py --report reports/security/native-host.json
       - name: Test controller and prepare native artifact
         run: |
           npm ci --prefix deploy/cloudflare-native
           npm test --prefix deploy/cloudflare-native
           node deploy/cloudflare-native/build.mjs
+      - name: Verify minimal native runtime ABI and security surface
+        run: python backend/scripts/check_native_runtime.py --image "kova-native:${KOVA_BUILD_SHA}"
+      - name: Reject HIGH and CRITICAL native image vulnerabilities including unfixed
+        run: python scripts/audit_dependencies.py image --name native --image "kova-native:${KOVA_BUILD_SHA}"
       - name: Prepare synthetic database
         working-directory: backend
         run: uv run --frozen alembic upgrade head
@@ -68,9 +74,23 @@ jobs:
           uv run --project backend --frozen python -m unittest discover -s backend/scripts -p 'test_check_native_photo_resources.py'
           uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py seed --manifest /tmp/kova-native-photos.json
       - name: Run with lite CPU and memory limits
+        shell: bash
         run: |
+          # Docker has no Cloudflare outbound binding for this virtual host.
+          # Exercise its existing outage policy through a refused local TCP
+          # connection; external DNS must not enter the photo resource budget.
+          python - <<'PYPORT'
+          import errno, socket
+          with socket.socket() as probe:
+              probe.settimeout(1)
+              if probe.connect_ex(("127.0.0.1", 80)) != errno.ECONNREFUSED:
+                  raise SystemExit("CI limiter outage target must refuse local port 80")
+          PYPORT
           docker run --detach --name kova-native-acceptance --network host \
+            --add-host rate-limit.kova.internal:127.0.0.1 \
             --cpus 0.0625 --memory 256m --memory-swap 256m \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 64 --tmpfs /tmp:size=64m,mode=1777 \
             --env APP_ENV --env SECRET_KEY --env DATABASE_URL \
             --env DATABASE_POOL_SIZE=3 --env DATABASE_MAX_OVERFLOW=0 \
             "kova-native:${KOVA_BUILD_SHA}"
@@ -86,10 +106,10 @@ jobs:
           else:
               raise SystemExit('Native process failed readiness within 120 seconds')
           PY
-          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
-          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json
-          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py wait-persisted --manifest /tmp/kova-native-photos.json --baseline /tmp/kova-native-photo-baseline.json
-          docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
+          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000 | tee -a reports/security/native-resident.log
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json | tee -a reports/security/native-photos.log
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py wait-persisted --manifest /tmp/kova-native-photos.json --baseline /tmp/kova-native-photo-baseline.json | tee -a reports/security/native-photos.log
+          docker exec kova-native-acceptance /app/.venv/bin/python -c 'from pathlib import Path; print(Path("/sys/fs/cgroup/memory.peak").read_text().strip())' | tee -a reports/security/native-memory-peak.log
           test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
           docker restart kova-native-acceptance
           python - <<'PY'
@@ -104,16 +124,27 @@ jobs:
           else:
               raise SystemExit('Restarted native process failed readiness within 120 seconds')
           PY
-          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
-          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json --require-persisted
-          docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
+          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000 | tee -a reports/security/native-resident.log
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json --require-persisted | tee -a reports/security/native-photos.log
+          docker exec kova-native-acceptance /app/.venv/bin/python -c 'from pathlib import Path; print(Path("/sys/fs/cgroup/memory.peak").read_text().strip())' | tee -a reports/security/native-memory-peak.log
           test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
       - name: Stop synthetic API
         if: always()
         run: |
-          docker logs --tail 20 kova-native-acceptance || true
+          mkdir -p reports/security
+          docker logs --tail 20 kova-native-acceptance > reports/security/native-container.log 2>&1 || true
+          docker exec kova-native-acceptance /app/.venv/bin/python -c 'import json; from pathlib import Path; print(json.dumps({name:Path("/sys/fs/cgroup",name).read_text() for name in ("memory.peak","cpu.stat")}))' > reports/security/native-resource-counters.json || true
+          docker inspect --format '{"image":{{json .Image}},"state":{{json .State}},"memory":{{.HostConfig.Memory}},"memory_swap":{{.HostConfig.MemorySwap}},"nano_cpus":{{.HostConfig.NanoCpus}},"read_only":{{json .HostConfig.ReadonlyRootfs}},"pids_limit":{{.HostConfig.PidsLimit}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' kova-native-acceptance > reports/security/native-container.json || true
           docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance || true
           docker rm --force kova-native-acceptance || true
+      - name: Upload native vulnerability report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-native-${{ github.run_attempt }}
+          path: reports/security
+          if-no-files-found: error
+          retention-days: 14
 
   provision:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.provision_once

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app.branches.scope import active_branch_id
 from app.config import settings
 from app.db import get_db
+from app.rbac.permissions import Permission
 from app.shared.dependencies import get_current_session
 
 
@@ -40,6 +41,9 @@ def principal(db=Depends(get_db), ctx=Depends(get_current_session)):
         )
     bind_user(db, user.id)
     return user, member, session
+
+
+principal.commercial_policy_permission = Permission.REPORTS_VIEW_ALL
 
 
 def require_enabled(ctx=Depends(principal)):

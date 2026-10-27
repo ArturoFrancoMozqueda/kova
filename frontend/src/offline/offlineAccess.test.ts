@@ -34,6 +34,7 @@ const session = {
     role: "owner",
   },
   feature_flags: { customer_orders: true },
+  commercial_access: { allowed: true, reason: "active", valid_until: new Date(86_400_000).toISOString() },
 };
 
 describe("offline access snapshot", () => {
@@ -77,5 +78,32 @@ describe("offline access snapshot", () => {
   it("clears the prepared identity on logout", async () => {
     await clearOfflineAccess();
     expect(stores.accessDelete).toHaveBeenCalledWith("active");
+  });
+
+  it.each([
+    undefined,
+    { allowed: false, reason: "unpaid", valid_until: null },
+    { allowed: true, reason: "active", valid_until: null },
+    { allowed: true, reason: "active", valid_until: "invalid" },
+    { allowed: true, reason: "active", valid_until: new Date(1_000).toISOString() },
+  ])("revokes cached access when billing permission is missing, denied or expired: %j", async (commercial_access) => {
+    await cacheVerifiedOfflineAccess({ ...session, commercial_access }, 1_000);
+    expect(stores.accessDelete).toHaveBeenCalledWith("active");
+    expect(stores.accessPut).not.toHaveBeenCalled();
+  });
+
+  it("caps offline continuity at the billing deadline and rejects legacy snapshots", async () => {
+    await cacheVerifiedOfflineAccess({ ...session, commercial_access: {
+      allowed: true, reason: "trial", valid_until: new Date(3_000).toISOString(),
+    } }, 1_000);
+    const snapshot = stores.accessPut.mock.calls[0][0];
+    expect(snapshot.expires_at).toBe(new Date(3_000).toISOString());
+    stores.accessGet.mockResolvedValue(snapshot);
+    stores.catalogGet.mockResolvedValue({ tenant_id: "tenant-1" });
+    await expect(readPreparedOfflineAccess(2_999)).resolves.toMatchObject({ status: "ready" });
+    await expect(readPreparedOfflineAccess(3_000)).resolves.toEqual({ status: "expired" });
+    await expect(readPreparedOfflineAccess(999)).resolves.toEqual({ status: "expired" });
+    stores.accessGet.mockResolvedValue({ ...snapshot, commercial_access: undefined });
+    await expect(readPreparedOfflineAccess(2_000)).resolves.toEqual({ status: "expired" });
   });
 });

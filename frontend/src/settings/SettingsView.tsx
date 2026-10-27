@@ -184,17 +184,19 @@ export default function SettingsView() {
   });
   const activeTab = tabFromPath(location.pathname);
   const isOwner = state.status === "authenticated" && state.user.role === "owner";
+  const commercialBlocked = state.status === "authenticated" && state.commercialAccess?.allowed === false;
   const userRole = state.status === "authenticated" ? state.user.role : "";
   const canViewFiscal =
     state.status === "authenticated" &&
     state.featureFlags.fiscal_global_drafts &&
     (userRole === "owner" || userRole === "manager");
   const visibleSettingsTabs = settingsTabs.filter((tab) =>
-    (tab.id !== "fiscal" || canViewFiscal) && (tab.id !== "employees" || isOwner),
+    (!commercialBlocked || tab.id === "advanced") && (tab.id !== "fiscal" || canViewFiscal) && (tab.id !== "employees" || isOwner),
   );
   const visibleActiveTab = (activeTab === "fiscal" && !canViewFiscal) ||
     (activeTab === "employees" && !isOwner) ? "profile" : activeTab;
-  const independentSection = visibleActiveTab === "branches" || visibleActiveTab === "fiscal";
+  const independentSection = visibleActiveTab === "branches" || visibleActiveTab === "fiscal"
+    || (visibleActiveTab === "advanced" && state.status === "authenticated" && state.commercialAccess?.allowed === false);
   const loadScope = `${tenantId}:${isOwner}:${visibleActiveTab}`;
   const loadScopeRef = useRef(loadScope);
   useEffect(() => {
@@ -429,7 +431,7 @@ export default function SettingsView() {
 
   return (
     <ViewLayout width="standard" className="space-y-6">
-      <ViewHeader title={copy.settings.title} meta={copy.settings.subtitle} />
+      <ViewHeader title={commercialBlocked ? copy.settings.accountDataTitle : copy.settings.title} meta={commercialBlocked ? undefined : copy.settings.subtitle} />
 
       <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
       <nav
@@ -447,7 +449,7 @@ export default function SettingsView() {
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            {tab.label}
+            {commercialBlocked ? copy.settings.accountDataTitle : tab.label}
           </Link>
         ))}
       </nav>
@@ -662,6 +664,7 @@ export default function SettingsView() {
 
       {visibleActiveTab === "advanced" && (
         <>
+        {!(state.status === "authenticated" && state.commercialAccess?.allowed === false) && (
         <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.advanced}</h2>
@@ -695,6 +698,7 @@ export default function SettingsView() {
             </form>
           </CardContent>
         </Card>
+        )}
         {isOwner && (
           <Card>
             <CardHeader>

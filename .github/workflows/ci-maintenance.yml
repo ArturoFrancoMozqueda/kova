@@ -14,6 +14,75 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  dependency-advisories:
+    name: refresh advisory coverage for all lockfiles
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.4"
+      - run: python scripts/audit_dependencies.py inventory
+      - run: python scripts/audit_dependencies.py python
+      - run: python scripts/audit_dependencies.py npm
+        if: success() || failure()
+      - name: Upload current dependency advisories
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: maintenance-advisories-${{ github.run_attempt }}
+          path: reports/security
+          if-no-files-found: error
+          retention-days: 14
+
+  image-advisories:
+    name: current image advisories (${{ matrix.name }})
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: native
+            dockerfile: backend/Dockerfile.api
+            context: backend
+          - name: parser
+            dockerfile: backend/assistant-parser/Dockerfile
+            context: backend/assistant-parser
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Require a native AMD64 runner
+        if: matrix.name == 'native'
+        run: python scripts/check_amd64_host.py --report reports/security/native-host.json
+      - name: Build exact runtime without deployment credentials
+        run: docker build --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA" --file "${{ matrix.dockerfile }}" --tag kova-sca:${{ matrix.name }} "${{ matrix.context }}"
+      - name: Verify minimal native runtime ABI and security surface
+        if: matrix.name == 'native'
+        run: python backend/scripts/check_native_runtime.py --image kova-sca:native
+      - name: Verify patched parser binaries and current upstream advisories
+        if: matrix.name == 'parser'
+        run: python backend/scripts/check_parser_runtime.py --image kova-sca:parser --require-native-arch x86_64 --report reports/security/parser-runtime.json
+      - name: Scan OS and language packages including unfixed vulnerabilities
+        run: python scripts/audit_dependencies.py image --name "${{ matrix.name }}" --image "kova-sca:${{ matrix.name }}"
+      - name: Upload current image advisories
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: maintenance-image-${{ matrix.name }}-${{ github.run_attempt }}
+          path: reports/security
+          if-no-files-found: error
+          retention-days: 14
+
   container-supply-chain:
     name: reproducible container and SBOM
     timeout-minutes: 10

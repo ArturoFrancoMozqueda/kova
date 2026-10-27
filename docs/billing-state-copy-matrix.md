@@ -1,6 +1,6 @@
 # Billing State Copy Matrix
 
-Last updated: 2026-07-25
+Last updated: 2026-10-26
 
 Single reference for every billing state surfaced in the Kova UI. Source of truth for
 `frontend/src/billing/BillingBanner.tsx`, `frontend/src/billing/BillingView.tsx`, and the
@@ -16,13 +16,14 @@ the banner.
 |---|---|---:|:---:|---|
 | `signup_trial` | No subscription, tenant within `billing_trial_days` window | info | yes | `/settings/billing` |
 | `trialing` | Stripe subscription `status = trialing` | info | yes | `/settings/billing` |
-| `past_due_grace` | Status `past_due` AND `grace_period_ends_at > now` | warning | yes | `/settings/billing` |
+| `past_due_grace` | Status `past_due` AND `now < min(grace_period_ends_at, past_due_at + 48h)` | warning | yes | `/settings/billing` |
 | `trial_expired` | No subscription, signup-trial window has passed | danger | no | `/settings/billing` |
 | `past_due` | Status `past_due` AND no active grace | danger | no | `/settings/billing` |
 | `past_due_grace_expired` | Status `past_due` AND `grace_period_ends_at` in the past | danger | no | `/settings/billing` |
 | `canceled` | Status `canceled` | danger | no | `/settings/billing` |
 | `unpaid` | Status `unpaid` | danger | no | `/settings/billing` |
 | `incomplete` | Status `incomplete` or `incomplete_expired` | danger | no | `/settings/billing` |
+| `verification_required` | Missing/expired paid period or authoritative status cannot be verified within 24h | danger | no | `/settings/billing` |
 | (Stripe unavailable / fallback) | Status unknown or transient API failure | danger | no | `/settings/billing` |
 
 ## Copy matrix
@@ -34,13 +35,14 @@ Bodies are 1 sentence, cause + recovery action.
 |---|---|---|
 | `signup_trial` | Prueba activa | Prueba activa por *N días*. Activa el Plan Estándar para conservar la operación al terminar. |
 | `trialing` | Prueba activa | Tu suscripción está en prueba. Activa el Plan Estándar por $299 MXN/mes para seguir vendiendo cuando termine. |
-| `past_due_grace` | Pago vencido | El pago falló. Actualiza tu suscripción dentro del periodo de gracia para no perder el acceso. |
+| `past_due_grace` | Pago vencido | El pago falló. Tienes hasta 48 horas desde el primer intento fallido para recuperarlo antes de perder el acceso. |
 | `trial_expired` | Suscripción requerida | Tu prueba terminó. Activa el Plan Estándar para seguir vendiendo. |
 | `past_due` / `past_due_grace_expired` | Suscripción requerida | El periodo de gracia terminó. Paga ahora para recuperar las funciones de pago. |
 | `canceled` | Suscripción requerida | Tu suscripción está cancelada. Reactívala para volver a usar las funciones de pago. |
 | `unpaid` | Suscripción requerida | Tu suscripción está sin pagar. Recupérala para seguir vendiendo. |
 | `incomplete` | Suscripción requerida | El pago no se completó. Termina el pago para activar tu suscripción. |
 | Fallback / Stripe unavailable | Suscripción requerida | Activa la suscripción para recuperar las funciones del POS. |
+| `verification_required` | Verificación pendiente | No pudimos confirmar un periodo pagado vigente. Actualiza el estado o contacta a soporte; no repitas el pago. |
 
 ## CTA copy
 
@@ -62,7 +64,8 @@ the underlying state changes.
    `kova.billingBanner.dismissed.<reason>`. Closing the tab re-shows the banner.
 3. **Blocking:** When `access.allowed === false`, the backend returns HTTP 402 from
    commercial routes (`POST /api/v1/orders`, etc.) with `{ reason, recovery_path }`. The
-   frontend surfaces the banner; the underlying action button shows its own inline error.
+   frontend closes the commercial surface and sends the owner to billing recovery. Employees see
+   a notice to contact the owner without a billing-permission redirect loop. Export/deletion remain available.
 4. **Trial chip:** The header trial chip (`copy.trialChip`) is independent of the banner —
    it shows time remaining only while `signup_trial` or `trialing` is active. The chip is
    never shown for blocked states.
@@ -77,7 +80,7 @@ internal Stripe synchronization timestamp.
 | Value | Backend meaning | Billing UI |
 |---|---|---|
 | `verified` | `current_period_end` is in the future and the Stripe period was synchronized within the previous 24 hours. | Shows `Próxima renovación` and the verified date; when cancellation is scheduled, shows `Acceso hasta`. |
-| `stale` | A local period exists, but it is expired or was not synchronized with Stripe in the previous 24 hours. | Hides the date and says that Kova is verifying the next renewal; current access is unchanged. |
+| `stale` | A local period exists, but it is expired or was not synchronized with Stripe in the previous 24 hours. | Recheck current Stripe state; if a current period cannot be verified, suspend commercial access and show recovery without asserting cancellation. |
 | `unavailable` | No period end is available. | Uses the same verification/reassurance copy and does not invent a date. |
 
 The success return from Stripe is also non-authoritative: it says `Estamos confirmando tu

@@ -49,6 +49,7 @@ def test_onboarding_billing_complete_for_active_subscription(
             stripe_subscription_id=f"sub_{uuid4().hex}",
             stripe_price_id="price_standard_299_mxn",
             status="active",
+            current_period_end=datetime.now(UTC) + timedelta(days=30),
         )
     )
     db.commit()
@@ -120,5 +121,7 @@ def test_onboarding_billing_incomplete_when_trial_expired(
     _expire_trial(monkeypatch)
 
     response = client.get("/api/v1/onboarding/state")
-    assert response.status_code == 200, response.text
-    assert _billing_step(response.json())["completed"] is False
+    # Expired accounts now recover through billing/account only, not the
+    # operational onboarding module.
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "trial_expired"

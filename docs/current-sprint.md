@@ -2,6 +2,41 @@
 
 Last updated: 2026-10-27
 
+## Correcciones de seguridad con Agent Teams — validación AMD64 y PR sin despliegue
+
+Se corrige la reconciliación de facturación para aplicar la suscripción actual de Stripe,
+con protección contra checkouts históricos, eventos de suscripciones sustituidas y carreras
+entre webhooks y reparación interna. Signup devuelve una respuesta pública uniforme sin IDs
+fuera de desarrollo local. El propietario decidió conservar la entrada inmediata; permanece
+documentado el límite de inferencia compuesta por signup y login.
+
+El acceso comercial se exige en lecturas y escrituras, sesiones abiertas, jobs y sincronización;
+quedan disponibles pago, autenticación y derechos sobre datos. La prueba sigue en siete días y
+el primer cobro fallido permite como máximo 48 horas, sin ampliación por reintentos o valores
+antiguos. La autorización offline, incluida una caja abierta, vence a las 12 horas o antes si
+vence facturación. Las ventas pendientes se conservan.
+
+Las bibliotecas señaladas se actualizan en todos los locks. CI cubre cuatro proyectos npm,
+dos locks Python y ambas imágenes, sin exclusiones. Nativa y parser pasan el escaneo final
+sin HIGH/CRITICAL. La nativa usa Distroless/Python 3.12.16; el parser incorpora ClamAV actualizado,
+fuentes Tesseract revisadas y seis backports de libxml2 con regresiones y vigilancia propia
+de avisos nuevos. El corte local aprobó 2,188 pruebas backend, 1,471 frontend, 31 recorridos
+browser y el flujo móvil con API/PostgreSQL/RLS reales. La aceptación AMD64 real y CI remoto ya aprobaron: 2,248 backend, 1,471 frontend y
+333 recorridos de navegador, incluidos los 16 con API/Postgres/RLS reales. La nativa
+alcanzó 188.13 MiB y 2692.4 ms máximos bajo los mismos 256 MiB/0.0625 CPU/3000 ms,
+sin OOM. Se corrigieron las carreras del setup de roles, la identidad del build semanal,
+propagación de fallos, fixture de recuperación de catálogo y cobertura del dashboard real.
+El resize RGBA reduce memoria temporal conservando bytes exactos; no se afirma una mejora
+de CPU ni se retiran los gates por la variabilidad entre runners. No hubo despliegue ni
+cambios en producción. [Cierre AMD64](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
+[Archivos, evidencia y límites](audits/KOVA-SECURITY-REMEDIATION-2026-10-26.md).
+
+La publicación del PR integra `main` posterior a esa validación, preservando navegación por rol,
+pedidos y lealtad. Las cifras AMD64 anteriores corresponden al snapshot `459d20f6`; el head
+integrado aprobó 168 pruebas backend focales, 250 frontend y 42 recorridos de navegador;
+su CI de PR valida el conjunto completo antes de una futura fusión.
+No se fusiona ni despliega por esta tarea.
+
 ## Navegación visible por rol y categorías desplegables — 2026-10-27
 
 El propietario autoriza implementar, validar por navegador y publicar la navegación nueva.

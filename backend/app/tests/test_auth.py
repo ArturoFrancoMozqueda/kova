@@ -21,7 +21,7 @@ def _signup(client: TestClient, email="owner@example.com", tenant="Acme Bakery")
     )
     assert r.status_code == 201, r.text
     body = r.json()
-    assert body["reason"] == "account_created"
+    assert body["reason"] == "signup_received"
     return body
 
 
@@ -60,7 +60,7 @@ def test_signup_starts_with_empty_catalog(client, db):
     assert product_count == 0
 
 
-def test_signup_existing_verified_user_returns_email_in_use(client):
+def test_signup_existing_verified_user_returns_generic_acknowledgement(client):
     data = _signup(client)
     _verify(client, data["dev_verification_token"])
 
@@ -73,9 +73,9 @@ def test_signup_existing_verified_user_returns_email_in_use(client):
             "accepted_terms": True,
         },
     )
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
     body = r.json()
-    assert body["reason"] == "email_in_use"
+    assert body["reason"] == "signup_received"
     # Must not leak tenant identifiers on the in-use branch.
     assert body["user_id"] is None
     assert body["tenant_id"] is None
@@ -95,9 +95,9 @@ def test_signup_existing_unverified_user_resends_verification(client):
             "accepted_terms": True,
         },
     )
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
     body = r.json()
-    assert body["reason"] == "verification_resent"
+    assert body["reason"] == "signup_received"
     new_token = body["dev_verification_token"]
     assert new_token is not None
     assert new_token != original_token
@@ -241,6 +241,7 @@ def test_session_probe_returns_false_without_cookie(client):
     assert r.status_code == 200
     assert r.json() == {
         "authenticated": False,
+        "commercial_access": None,
         "user": None,
         "tenant_id": None,
         "tenant_name": None,

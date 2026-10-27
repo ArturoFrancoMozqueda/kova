@@ -123,7 +123,7 @@ describe("AuthView signup recovery flows", () => {
     await waitFor(() => expect(finish).toBeTypeOf("function"));
     fireEvent.click(screen.getByRole("link", { name: "Usar cuenta existente" }));
     await act(async () => { finish(new Response(JSON.stringify(status === 201
-      ? { message: "created", reason: "account_created" }
+      ? { message: "Solicitud recibida.", reason: "signup_received" }
       : { detail: [{ loc: ["body", "password"], type: "value_error" }] }), { status })); });
     expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -195,11 +195,11 @@ describe("AuthView signup recovery flows", () => {
       if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
-            message: "created",
-            reason: "account_created",
-            user_id: "user-secret",
-            tenant_id: "tenant-secret",
-            dev_verification_token: "token",
+            message: "Solicitud recibida.",
+            reason: "signup_received",
+            user_id: null,
+            tenant_id: null,
+            dev_verification_token: null,
           }),
           { status: 201, headers: { "content-type": "application/json" } },
         );
@@ -241,7 +241,7 @@ describe("AuthView signup recovery flows", () => {
   });
 
   // The returning-visitor case: an account exists but was never confirmed, so
-  // the API answers `verification_resent` rather than creating anything. The old
+  // the API gives the same generic answer as for a new account. The old
   // flow resent an email they had already failed to receive and left them stuck
   // on that screen. They typed a password, so we try it — `login` validates it,
   // which is why this cannot open an account that is not theirs.
@@ -257,13 +257,13 @@ describe("AuthView signup recovery flows", () => {
       if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
-            message: "Verification email re-sent.",
-            reason: "verification_resent",
+            message: "Solicitud recibida.",
+            reason: "signup_received",
             user_id: null,
             tenant_id: null,
-            dev_verification_token: "token",
+            dev_verification_token: null,
           }),
-          { status: 200, headers: { "content-type": "application/json" } },
+          { status: 201, headers: { "content-type": "application/json" } },
         );
       }
       if (url.includes("/api/v1/auth/login") && init?.method === "POST") {
@@ -316,11 +316,11 @@ describe("AuthView signup recovery flows", () => {
       if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
-            message: "created",
-            reason: "account_created",
-            user_id: "user-secret",
-            tenant_id: "tenant-secret",
-            dev_verification_token: "token",
+            message: "Solicitud recibida.",
+            reason: "signup_received",
+            user_id: null,
+            tenant_id: null,
+            dev_verification_token: null,
           }),
           { status: 201, headers: { "content-type": "application/json" } },
         );
@@ -515,7 +515,7 @@ describe("AuthView signup recovery flows", () => {
     ).toBe(false);
   });
 
-  it("shows the 'email in use' panel with login CTA when the API returns email_in_use", async () => {
+  it("offers neutral sign-in and recovery after signup when password login fails", async () => {
     mockFetch((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/v1/auth/session")) {
@@ -527,13 +527,13 @@ describe("AuthView signup recovery flows", () => {
       if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
-            message: "Email already has an account. Sign in to continue.",
-            reason: "email_in_use",
+            message: "Solicitud recibida.",
+            reason: "signup_received",
             user_id: null,
             tenant_id: null,
             dev_verification_token: null,
           }),
-          { status: 200, headers: { "content-type": "application/json" } },
+          { status: 201, headers: { "content-type": "application/json" } },
         );
       }
       return new Response("", { status: 404 });
@@ -555,13 +555,15 @@ describe("AuthView signup recovery flows", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/Este correo ya tiene una cuenta en Kova/i),
+        screen.getByText(/Solicitud recibida/i),
       ).toBeTruthy(),
     );
-    expect(screen.getByRole("button", { name: /Iniciar sesión/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Volver a iniciar sesión/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /¿Olvidaste tu contraseña/i })).toBeTruthy();
+    expect(screen.queryByText(/Este correo ya tiene una cuenta/i)).not.toBeInTheDocument();
   });
 
-  it("shows the 'verification resent' confirmation when the API returns verification_resent", async () => {
+  it("does not reveal verification state after a generic signup response", async () => {
     mockFetch((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/v1/auth/session")) {
@@ -573,13 +575,13 @@ describe("AuthView signup recovery flows", () => {
       if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
-            message: "Verification email re-sent.",
-            reason: "verification_resent",
+            message: "Solicitud recibida.",
+            reason: "signup_received",
             user_id: null,
             tenant_id: null,
             dev_verification_token: null,
           }),
-          { status: 200, headers: { "content-type": "application/json" } },
+          { status: 201, headers: { "content-type": "application/json" } },
         );
       }
       return new Response("", { status: 404 });
@@ -601,12 +603,11 @@ describe("AuthView signup recovery flows", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/Ya tenías una cuenta sin verificar/i),
+        screen.getByText(/Solicitud recibida/i),
       ).toBeTruthy(),
     );
-    expect(
-      screen.getByText(/Te reenviamos el correo de verificación a fatima@example.com/i),
-    ).toBeTruthy();
+    expect(screen.queryByText(/Ya tenías una cuenta sin verificar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Te reenviamos el correo/i)).not.toBeInTheDocument();
   });
 
   it("keeps the submit button disabled until the terms checkbox is checked", async () => {
@@ -707,7 +708,8 @@ it.each(["account_created", "verification_resent"])("ignora tokens de prueba en 
   fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "S3cur3pass!" } });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
-  expect(await screen.findByRole("status")).toHaveTextContent(reason === "account_created" ? copy.auth.checkEmail : copy.auth.signupVerificationResentTitle);
+  // Account state and legacy response reasons must not change the public acknowledgement.
+  expect(await screen.findByRole("status")).toHaveTextContent(copy.auth.signupReceived);
   expect(screen.queryByText(devToken)).not.toBeInTheDocument();
   expect(screen.queryByDisplayValue(devToken)).not.toBeInTheDocument();
   expect(screen.queryByLabelText(copy.auth.verificationToken)).not.toBeInTheDocument();

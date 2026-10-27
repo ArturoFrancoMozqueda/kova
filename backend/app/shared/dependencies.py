@@ -94,6 +94,9 @@ def get_current_session(
     if request.url.path.startswith("/api/v1/fiscal/"):
         db.info.pop("kova_branch_id", None)
     set_request_context(tenant_id=membership.tenant_id, user_id=user.id)
+    from app.billing.policy import enforce_session_commercial_policy
+
+    enforce_session_commercial_policy(request, db, user, membership)
     return user, membership, session
 
 
@@ -106,4 +109,5 @@ def require_permission(permission: Permission):
             raise forbidden()
         return ctx
 
+    dependency.commercial_policy_permission = permission
     return dependency

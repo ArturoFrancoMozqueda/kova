@@ -9,7 +9,7 @@ import { useAuth } from "./useAuth";
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const { state, refresh } = useAuth();
+  const { state, refresh, logout } = useAuth();
   if (state.status === "loading") return <RouteFallback />;
   if (state.status === "unauthenticated") return <Navigate to="/login" replace />;
   if (state.status === "unavailable") {
@@ -34,6 +34,32 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
         </Card>
       </main>
     );
+  }
+  if (state.commercialAccess?.allowed === false && state.sessionMode === "offline") {
+    return <main className="grid min-h-screen place-items-center bg-kova-mist p-6">
+      <Card className="w-full max-w-lg"><CardContent className="space-y-4 p-8">
+        <h1 className="text-xl font-semibold">{copy.auth.offlineAccessTitle}</h1>
+        <p role="alert">{copy.auth.offlineAccessExpired}</p>
+        <Button onClick={() => void refresh()}>{copy.auth.retrySession}</Button>
+        <Button variant="outline" onClick={() => void logout()}>Cerrar sesión</Button>
+      </CardContent></Card>
+    </main>;
+  }
+  if (state.commercialAccess?.allowed === false && state.user.role !== "owner") {
+    return <main className="grid min-h-screen place-items-center bg-kova-mist p-6">
+      <Card className="w-full max-w-lg"><CardContent className="space-y-4 p-8">
+        <h1 className="text-xl font-semibold">{copy.subscriptionInactive.title}</h1>
+        <p role="alert">Pide a la persona dueña del negocio que revise el pago de Kova para continuar.</p>
+        <Button onClick={() => void refresh()}>{copy.auth.retrySession}</Button>
+        <Button variant="outline" onClick={() => void logout()}>Cerrar sesión</Button>
+      </CardContent></Card>
+    </main>;
+  }
+  if (
+    state.commercialAccess?.allowed === false &&
+    !["/billing", "/settings/billing", "/settings/billing/success", "/settings/billing/cancel", "/settings/advanced"].includes(location.pathname)
+  ) {
+    return <Navigate to="/settings/billing" replace />;
   }
   if (
     state.sessionMode === "offline" &&

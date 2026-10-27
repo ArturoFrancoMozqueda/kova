@@ -20,6 +20,7 @@ vi.mock("./db", () => ({
 }));
 vi.mock("./queue", () => queueMocks);
 vi.mock("./sync", () => ({
+  BillingAccessError: class BillingAccessError extends Error {},
   RateLimitError: class RateLimitError extends Error {
     constructor(message: string, public readonly retryAfterMs: number) { super(message); }
   },
@@ -28,7 +29,7 @@ vi.mock("./sync", () => ({
 
 import { setActiveOfflineTenant } from "./activeTenant";
 import { scheduleOfflineSyncRetry, stopOfflineSync } from "./syncWorker";
-import { RateLimitError } from "./sync";
+import { BillingAccessError, RateLimitError } from "./sync";
 
 describe("offline sync worker session activation", () => {
   beforeEach(() => {
@@ -66,6 +67,14 @@ describe("offline sync worker session activation", () => {
 
     setActiveOfflineTenant(null);
     await vi.advanceTimersByTimeAsync(60_000);
+    expect(queueMocks.recoverExpiredLeases).not.toHaveBeenCalled();
+  });
+
+  it("does not retry foreground sync while billing is blocked", async () => {
+    setActiveOfflineTenant("tenant-1");
+    stopOfflineSync();
+    scheduleOfflineSyncRetry("tenant-1", new BillingAccessError());
+    await vi.advanceTimersByTimeAsync(120_000);
     expect(queueMocks.recoverExpiredLeases).not.toHaveBeenCalled();
   });
 
