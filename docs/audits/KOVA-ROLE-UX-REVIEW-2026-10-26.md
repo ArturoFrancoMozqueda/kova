@@ -1,6 +1,7 @@
 # Revisión de experiencia para dueños, operadores y cajeros
 
-Fecha: 2026-10-26, Ciudad de México. Corte local preparado para publicación; no desplegado.
+Fecha: 2026-10-26, Ciudad de México. Corte local posteriormente publicado y aceptado:
+[evidencia productiva](KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md).
 Complementa [el recorrido de pedidos](KOVA-ORDER-FLOW-UX-2026-10-26.md).
 Riesgo: copy/UI, continuidad de formularios, presentación de inventario y reportes;
 el cambio privado del detalle de pedidos es aditivo y no requiere migración.
@@ -120,12 +121,12 @@ La producción contiene registros persistidos con nombres de QA/prueba. No son m
 de la interfaz. No se ocultan ni eliminan registros operativos/financieros durante esta revisión;
 su depuración es trabajo separado con decisión del dueño y trazabilidad.
 
-La salida preparada es código revisable y compilable, con backend y frontend coordinados
-por el campo opcional del mensaje original. Falta el despliegue autorizado y un smoke sobre
-la versión publicada. Stripe live, entrega de correo, WhatsApp, CFDI y hardware físico
+La salida se publicó mediante el PR #283 y el release `4ae7c8f7182d`; backend y frontend
+están coordinados por el campo opcional del mensaje original. La aceptación productiva
+del recorrido está en la evidencia vinculada. Stripe live, entrega de correo, WhatsApp, CFDI y hardware físico
 conservan sus verificaciones externas; esta aceptación local no acredita esos proveedores.
 
-Después de publicar: comprobar el menú y acceso, envío de un pedido autorizado al
+En futuras publicaciones: comprobar el menú y acceso, envío de un pedido autorizado al
 seguimiento, revisión/confirmación, reserva, cobro y entrega; revisar consola/errores de API,
 permisos del cajero y lectura del estado desde otro navegador. No crear un cobro bancario
 ni activar proveedores como parte del smoke sin su aceptación específica.

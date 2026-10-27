@@ -1,6 +1,7 @@
 # Pedido, seguimiento y operación sin recaptura
 
-Fecha: 2026-10-26. Implementado y validado localmente; publicación pendiente.
+Fecha: 2026-10-26. Implementado y validado localmente; posteriormente
+[publicado y aceptado en producción](KOVA-PRODUCTION-ORDER-FLOW-2026-10-26.md).
 Riesgo: comportamiento frontend, copy, continuidad operativa y lectura privada de datos.
 
 La [revisión posterior por rol](KOVA-ROLE-UX-REVIEW-2026-10-26.md) amplía este corte y
@@ -102,6 +103,6 @@ Su depuración necesita una decisión del dueño y conservar trazabilidad financ
 El menú público conserva el título genérico configurado por el negocio; puede personalizarse
 con el editor existente. No se modifica configuración productiva durante esta auditoría.
 
-La revisión visual de producción y este corte local no equivalen a una auditoría exhaustiva
-de todos los módulos, una publicación, aceptación de Stripe live, hardware, mensajería ni
-pruebas con clientes reales. Siguen pendientes el release autorizado y su smoke posterior.
+La revisión visual y este corte local no acreditan aceptación de Stripe live, hardware,
+mensajería ni pruebas con clientes reales. El release autorizado y su aceptación de pedidos
+posteriores están registrados en la evidencia productiva vinculada.
