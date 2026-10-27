@@ -1,5 +1,6 @@
 import { type Page, expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
+import type { BillingSubscription } from "../src/billing/types";
 
 async function mockAuthAs(page: Page, role: string) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -412,24 +413,41 @@ test("catalog lets owner update known and unknown costs from the compact editor"
   ]);
 });
 
-test("catalog product create shows billing recovery when access is blocked", async ({ page }) => {
+test("catalog product create routes blocked access to working billing recovery", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  let createAttempts = 0;
+  let checkoutAttempts = 0;
   await page.route("**/api/v1/billing/subscription", async (route) => {
-    await route.fulfill({
-      json: {
-        subscription: null,
-        access: {
-          allowed: false,
-          reason: "trial_expired",
-          trialing: false,
-          trial_ends_at: "2026-05-01T00:00:00Z",
-          blocked_at: "2026-05-21T20:15:03Z",
-          recovery_path: "/settings/billing",
-        },
+    // A business 402 now unmounts the catalog globally. The recovery screen
+    // needs the complete backend contract, including its required plan.
+    const billing: BillingSubscription = {
+      plan: { name: "Standard Plan", amount_minor_units: 29900, currency: "MXN", interval: "month" },
+      subscription: null,
+      access: {
+        allowed: false,
+        reason: "trial_expired",
+        trialing: false,
+        trial_ends_at: "2026-05-01T00:00:00Z",
+        blocked_at: "2026-05-21T20:15:03Z",
+        recovery_path: "/settings/billing",
+        valid_until: null,
+        grace_period_ends_at: null,
       },
-    });
+    };
+    await route.fulfill({ json: billing });
   });
+  const checkoutUrl = "https://checkout.stripe.test/session/cs_test_catalog_recovery";
+  await page.route("**/api/v1/billing/checkout", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    checkoutAttempts += 1;
+    await route.fulfill({ status: 201, json: {
+      checkout_url: checkoutUrl, checkout_session_id: "cs_test_catalog_recovery",
+    } });
+  });
+  await page.route(checkoutUrl, (route) => route.fulfill({ body: "Stripe Checkout" }));
   await page.route("**/api/v1/catalog/categories", async (route) => {
     await route.fulfill({ json: categories });
   });
@@ -438,6 +456,7 @@ test("catalog product create shows billing recovery when access is blocked", asy
       await route.fulfill({ json: products });
       return;
     }
+    createAttempts += 1;
     await route.fulfill({
       status: 402,
       json: {
@@ -459,9 +478,21 @@ test("catalog product create shows billing recovery when access is blocked", asy
   await page.getByLabel(/precio/i).fill("45");
   await page.getByRole("button", { name: /guardar producto/i }).click();
 
-  await expect(page.getByText(/activa el plan para guardar cambios en el cat[áa]logo/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /ver suscripci[óo]n/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\/billing$/);
+  await expect(page.getByRole("heading", { name: /^suscripci[óo]n$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Exportar o eliminar los datos de mi negocio" })).toBeVisible();
+  const activate = page.getByRole("button", { name: /activar por/i });
+  await expect(activate).toBeEnabled();
+  await expect(page.getByRole("heading", { name: /nuevo producto/i })).not.toBeVisible();
   await expect(page.getByText(/algo sali[óo] mal/i)).not.toBeVisible();
+  expect(createAttempts).toBe(1);
+  expect(pageErrors).toEqual([]);
+
+  await activate.click();
+  await expect(page).toHaveURL(checkoutUrl);
+  expect(checkoutAttempts).toBe(1);
+  expect(createAttempts).toBe(1);
+  expect(pageErrors).toEqual([]);
 });
 
 test("owner explicitly loads the abarrotes preset without invented costs", async ({ page }) => {
