@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatMoney } from "@/orders/format";
+import { formatDateTime, formatMoney } from "@/orders/format";
+import { resolveUserFacingError } from "@/lib/apiError";
 import type { FiscalIdentity, InvoiceRequest } from "./api";
 import { liveCfdiReady } from "./cfdiReadiness";
 import { ManagedCfdiSetupPanel } from "./ManagedCfdiSetupPanel";
@@ -46,9 +47,7 @@ export function CfdiPanel({
       .catch((e: unknown) => {
         if (active)
           setError(
-            e instanceof Error
-              ? e.message
-              : "La conexión CFDI no está disponible. Las solicitudes siguen guardadas.",
+            resolveUserFacingError(e, "La conexión CFDI no está disponible. Las solicitudes siguen guardadas."),
           );
       })
       .finally(() => {
@@ -110,6 +109,9 @@ export function CfdiPanel({
       document.environment === environment &&
       !["rejected", "canceled"].includes(document.state),
   );
+  // Keep existing fiscal connections and document recovery accessible. New
+  // activations are temporarily absent from the daily product until accepted.
+  if (status && !status.connections.some(item => item.connected) && documents.length === 0) return null;
   return (
     <div className="space-y-4">
       {loading && (
@@ -128,9 +130,7 @@ export function CfdiPanel({
               void refresh()
                 .catch((e: unknown) =>
                   setError(
-                    e instanceof Error
-                      ? e.message
-                      : "No pudimos consultar el proveedor.",
+                    resolveUserFacingError(e, "No pudimos consultar la conexión fiscal. Intenta de nuevo."),
                   ),
                 )
                 .finally(() => setBusy(false));
@@ -192,8 +192,7 @@ export function CfdiPanel({
                           {request.recipient_snapshot.legal_name}
                         </p>
                         <p className="text-sm">
-                          Venta {request.order_id.slice(0, 8)} ·{" "}
-                          {formatMoney(request.total_amount)}
+                          {formatDateTime(request.created_at)} · {formatMoney(request.total_amount)}
                         </p>
                         {activeDocument && (
                           <p className="text-xs text-muted-foreground">

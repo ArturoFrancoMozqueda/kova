@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { useCallback, useEffect, useId, useState } from "react";
 import { AlertTriangle, ArrowLeft, Banknote, ChevronLeft, ChevronRight, MapPin, Pencil, Phone, Printer, Store, XCircle } from "lucide-react";
@@ -99,7 +100,7 @@ export default function CustomerOrderDetailView() {
       return true;
     } catch (caught) {
       const api = caught as { detail?: { detail?: { message?: string } } };
-      setError(api.detail?.detail?.message ?? "No se pudo actualizar el pedido.");
+      setError(resolveApiErrorMessage(caught, safeUserMessage(api.detail?.detail?.message, "No se pudo actualizar el pedido.")));
       return false;
     } finally {
       setMutating(false);

@@ -127,7 +127,8 @@ _EXPORT_TABLES = (
         "line_total_amount")),
     ExportTable("crm_catalog_requests", _columns(
         "id tenant_id branch_id catalog_id name contact message product_ids status "
-        "customer_id opportunity_id version created_at resolved_at")),
+        "customer_id opportunity_id order_lines origin customer_order_id "
+        "version created_at resolved_at")),
     ExportTable("service_cases", _columns(
         "id tenant_id branch_id customer_id sale_order_id customer_order_id title status "
         "assigned_user_id due_at version created_by_user_id created_at updated_at resolved_at")),
@@ -159,6 +160,18 @@ _EXPORT_TABLES = (
     ExportTable("loyalty_entries", _columns(
         "id tenant_id branch_id customer_id sale_order_id policy_revision_id kind "
         "source_id points benefit recorded_by_user_id created_at")),
+
+    ExportTable("loyalty_reward_revisions", _columns(
+        "id tenant_id branch_id version enabled title points_cost discount_amount "
+        "authorized_by_user_id effective_at")),
+    ExportTable("loyalty_reward_redemptions", _columns(
+        "id tenant_id branch_id customer_id sale_order_id reward_revision_id ledger_entry_id "
+        "title points_cost discount_amount created_by_user_id created_at")),
+
+    ExportTable("loyalty_enrollment_policies", _columns(
+        "id tenant_id branch_id version enabled authorized_by_user_id created_at")),
+    ExportTable("loyalty_members", _columns(
+        "id tenant_id branch_id customer_id enrollment_policy_id code created_at expires_at")),
 
     ExportTable("crm_followup_policies", _columns(
         "id tenant_id branch_id enabled review_delay_days rebuy_delay_days version "
@@ -497,7 +510,11 @@ _TENANT_DELETE_ORDER = (
     "appointment_history",
     "appointments",
     "appointment_resources",
+    "loyalty_members",
+    "loyalty_enrollment_policies",
+    "loyalty_reward_redemptions",
     "loyalty_entries",
+    "loyalty_reward_revisions",
     "loyalty_policy_revisions",
     "messaging_channel_events",
     "messaging_messages",

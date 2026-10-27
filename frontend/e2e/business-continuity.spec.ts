@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
     const next = page.getByRole("link", { name: "Revisar compra creada", exact: true });
     await expect(next).toHaveAttribute("href", "/purchasing?purchase_id=purchase-created-1");
     await next.click();
-    const record = page.getByRole("region", { name: "Compra purchase", exact: true });
+    const record = page.getByRole("region", { name: /^Compra de Molino registrado ·/ });
     await expect(record).toBeFocused();
     await expect(record).toContainText("0 de 4 recibidas");
     expect(writes).toHaveLength(1);

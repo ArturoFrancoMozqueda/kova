@@ -18,79 +18,99 @@ after deploy.
 
 ## Scope
 
-Smoke checks cover the production frontend, backend proxy, authentication, billing, register, receipt,
-reports, browser console, and deployment metadata.
+Coverage reviewed against the checked-in runner on 2026-10-26. The default browser smoke reads
+business data and exercises login, cookie refresh and logout; those session operations still write
+authentication state. It does not create accounts, subscriptions, sales, payments or orders.
+An existing, separate opt-in case can record an explicitly authorized POS sale.
 
-## Required Checks
-
-- Production URL loads the current landing page.
-- Returning browser does not remain stuck on stale app shell after update prompt is accepted.
-- Browser console has zero errors on:
-  - `/`
-  - `/login`
-  - `/dashboard`
-  - `/settings/billing`
-  - `/register`
-- Landing page shows one Standard Plan at 299 MXN/month.
-- Dashboard onboarding copy shows 299 MXN/month.
-- Billing API and UI show 299 MXN/month.
-- Stripe Checkout opens in the expected mode for the current release phase:
-  - `test` while the app is still pre-launch and the web app is incomplete.
-  - `live` only after the web app is complete and before public selling.
-- Login works with the support smoke account.
-- Register can complete a small cash sale.
-- Order detail receipt opens for the created sale.
-- Reports include the created sale for the selected date.
-- Vercel latest production deployment is `READY`.
-- Supabase project is healthy and Alembic version matches expected release notes.
-
-## Smoke Command
-
-Run the browser smoke against production only when intentionally validating a release:
-
-```bash
-PRODUCTION_SMOKE=1 \
-PLAYWRIGHT_BASE_URL=https://point-of-sale-ochre.vercel.app \
-PRODUCTION_SMOKE_EMAIL=posprojectsupport@gmail.com \
-PRODUCTION_SMOKE_PASSWORD=<support-password> \
-PRODUCTION_SMOKE_STRIPE_MODE=test \
-npm run test:production-smoke
-```
-
-The support password must come from the operator's secret store or local shell. It must never be
-committed to the repository.
+The public frontend/API are Cloudflare-hosted; Vercel remains the protected release candidate and
+fallback. See the [architecture](../../docs/claude/architecture-context.md) and
+[frontend deployment](../../deploy/cloudflare/README.md). A Vercel candidate marked READY alone
+does not prove that the current public Cloudflare build has been accepted.
 
 ## Automated Browser Coverage
 
-- Landing page loads and does not show stale 199 MXN pricing.
-- Login works with the support smoke account.
-- Dashboard loads after login.
-- Billing page shows the Standard Plan price as 299 MXN/month.
-- Checkout redirects to `checkout.stripe.com`.
-- When `PRODUCTION_SMOKE_STRIPE_MODE=test`, Checkout must expose a `cs_test` session id.
-- When `PRODUCTION_SMOKE_STRIPE_MODE=live`, Checkout must not expose a `cs_test` session id.
-- Register creates a small identifiable cash sale using the first available catalog product.
-- The created order receipt opens.
-- Reports page loads backend sales data after the smoke sale.
-- Browser console and page errors are collected for app pages and fail the smoke.
+Source: [production-smoke.spec.ts](../../frontend/e2e/production-smoke.spec.ts).
 
-## Manual Connector Checks
+- Landing loads and contains the existing 299 pricing expectation, not the retired 199 copy.
+- Login establishes the explicitly supplied expected tenant; dashboard loads.
+- Cookie session refresh includes the existing CSRF header and succeeds.
+- Billing renders its existing price expectation. This is a UI check, not a Stripe Price lookup.
+- Catalog, inventory, shifts, orders and reports load their headings without a financial mutation.
+- Logout redirects to login and an authenticated route remains inaccessible afterward.
+- Console/page errors, unexpected failed requests, API 5xx and missing correlated `x-request-id`
+  responses fail the smoke, with the runner's declared telemetry exception.
 
-- Use Vercel connector to confirm latest production deployment is `READY` and record deployment id
-  and commit sha.
-- Use Supabase connector to confirm project health and expected Alembic version.
-- Confirm Stripe webhook endpoint matches the expected Stripe mode for the current phase.
+The runner does **not** open Stripe Checkout, verify its live mode, complete a subscription or
+observe a webhook. It does not assert that a new sale appears in report totals, test signup/email
+delivery, or establish returning-PWA update behavior. Those need their own acceptance evidence.
+
+## Smoke Command
+
+Run from `frontend/` only for an intentionally selected release target. Load
+`PRODUCTION_SMOKE_EMAIL`, `PRODUCTION_SMOKE_PASSWORD` and `PRODUCTION_SMOKE_TENANT_ID` from the
+operator's approved configuration. The [production config](../../frontend/playwright.production.config.ts)
+currently also requires `VERCEL_AUTOMATION_BYPASS_SECRET` and sets candidate-bypass headers; load it
+from the secret store, never inline it in a shared command, report or screenshot. Use only the
+verified Kova public origin below or the exact captured protected candidate.
+
+```bash
+PRODUCTION_SMOKE=1 \
+PLAYWRIGHT_BASE_URL=https://kovasuite.com \
+PRODUCTION_SMOKE_ALLOW_MUTATIONS=0 \
+npm run test:production-smoke
+```
+
+No checkout-mode environment flag exists in this runner. Setting one cannot establish live Stripe
+acceptance. Credentials and bypass material must never be committed or included in evidence.
+
+## Existing Authorized Sale Case
+
+Only after explicit authorization for the specified tenant/product/amount and an existing active
+shift, set `PRODUCTION_SMOKE_ALLOW_MUTATIONS=1` and supply `PRODUCTION_SMOKE_PRODUCT_NAME`,
+`PRODUCTION_SMOKE_CLIENT_UUID` and `PRODUCTION_SMOKE_REFERENCE`. Without that opt-in, the case
+annotates its read-only policy and only loads reports.
+
+The enabled case selects that exact product and records a **manual bank-transfer** sale with the
+supplied reference and stable client UUID. It verifies the sync request, opens the resulting order
+receipt, then loads reports. It does not move money through a bank/PSP, prove a transfer occurred,
+open a shift, choose the first arbitrary product or complete a cash sale. Stable UUID checking is
+not itself a replay test. The operator must reconcile the authorized record and report totals.
+
+## Release and Manual Acceptance
+
+- Require the exact release commit's aggregate `CI required` gate. The existing
+  [release verifier](../../frontend/scripts/verify-deployment.mjs) checks the public site, frontend
+  build hash, full backend SHA, database health and same-origin API proxy. Record the accepted
+  Cloudflare versions/captured Vercel candidate and expected Alembic revision; do not infer these
+  from a green browser heading.
+- Verify returning-PWA installation/update and the intended physical devices separately, including
+  menu/member-code/QR use when offered. Responsive browser tests do not certify physical scanners.
+- Before paid public selling, record supervised **Stripe live** acceptance: actual configured
+  price/mode, checkout, verified webhook, subscription/access convergence and failure/cancellation
+  behavior. Use the existing [billing contract](../billing/checkout.md); this smoke and the
+  [test-mode drill](../../docs/runbooks/stripe-sandbox-drill.md) do not close that gate.
+- Complete the [paid-beta operational gate](../../docs/runbooks/ops-beta-gate.md) for real lifecycle
+  email inbox delivery and accepted support/legal/retention terms. A branded mailbox is deferred
+  for founder-assisted beta; do not claim it is required instead of the accepted support channel.
+- Preserve the [real logical restore evidence](../../docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
+  It proves its recorded R2 snapshots/RLS/cleanup; fresh-host recovery, provider-managed schemas,
+  later migrations, traffic switching and full service RTO remain separate checks in the
+  [restore runbook](../../docs/runbooks/restore-supabase-backup.md).
 
 ## Non-Functional Requirements
 
-- Smoke data must be identifiable as support/test data.
-- Smoke sales should use a small known amount.
-- Smoke results should include deployment id, commit sha, date, tester, and created order id.
+- Any authorized smoke sale uses a known reviewed amount and an identifiable support reference.
+- Evidence records target, commit/deployment, date, operator role, scope and result; record created
+  order/operation references only in restricted operational evidence.
+- Omitted financial, provider or physical-device checks remain explicitly unverified. Do not put
+  credentials, connection URLs, cookies, customer contacts or payment details in reports.
 
 ## Acceptance Criteria
 
-- A release is not considered production-validated until all required checks pass or a documented
-exception is accepted.
-- A public-selling release is not considered launch-ready until the smoke is rerun with
-  `PRODUCTION_SMOKE_STRIPE_MODE=live`.
+- The default result certifies only its documented read/session coverage on the selected target.
+- A release is not production-validated until release metadata and applicable manual checks pass
+  or a scoped exception is accepted and recorded.
+- A public-selling release remains blocked by missing live billing and the applicable operational
+  gates; successful local tests or a read-only browser smoke cannot substitute for that evidence.
 - Any failed check creates a backlog item with severity and owner.

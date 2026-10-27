@@ -75,4 +75,13 @@ describe("PWAUpdatePrompt", () => {
 
     window.removeEventListener("pos:pwa-apply-update", applyUpdate);
   });
+
+  it.each(["/catalogo/cafeteria", "/lealtad#private-card", "/seguimiento#private-order"])("keeps merchant update notices out of the public customer page %s", path => {
+    render(<MemoryRouter initialEntries={[path]}><PWAUpdatePrompt /><GoToDashboard /></MemoryRouter>);
+    act(() => window.dispatchEvent(new CustomEvent("pos:pwa-update-available")));
+    expect(screen.queryByText(copy.pwaUpdate.title)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: copy.pwaUpdate.update })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ir al panel" }));
+    expect(screen.getByText(copy.pwaUpdate.title)).toBeVisible();
+  });
 });

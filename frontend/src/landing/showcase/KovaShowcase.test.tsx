@@ -68,14 +68,14 @@ describe("KovaShowcase", () => {
     stubReducedMotion();
     const { container } = renderShowcase();
 
-    expect(screen.getByText("Demo interactiva")).toBeInTheDocument();
-    expect(screen.getByText("Pruébala con datos locales. No registra ventas.")).toBeInTheDocument();
+    expect(screen.getByText("Prueba la caja")).toBeInTheDocument();
+    expect(screen.getByText("Explora una venta de ejemplo. No registra ventas en tu negocio.")).toBeInTheDocument();
     expect(container.querySelector(".ksw-app")).toBeNull();
     expect(container.querySelectorAll(".ksw-capture-surface img")).toHaveLength(3);
 
     fireEvent.click(screen.getByRole("button", { name: "02 El stock baja" }));
     expect(screen.getByText("Vista real del producto")).toBeInTheDocument();
-    expect(screen.getByText("Captura sanitizada del tenant productivo.")).toBeInTheDocument();
+    expect(screen.getByText("Así se ve un negocio en Kova.")).toBeInTheDocument();
   });
 
   it("uses the host CTA destination and reports embedded clicks", () => {

@@ -64,7 +64,9 @@ def capture_request(db, catalog, body):
     )
     if not current.enabled or current.link_version != expected_link_version:
         raise not_found("Catálogo no disponible")
-    fingerprint = hashlib.sha256(body.model_dump_json().encode()).hexdigest()
+    # New optional structure must not change fingerprints of existing clients.
+    legacy = {"order_lines", "origin"} if body.order_lines is None else set()
+    fingerprint = hashlib.sha256(body.model_dump_json(exclude=legacy).encode()).hexdigest()
     existing = (
         db.query(CatalogRequest)
         .filter_by(
@@ -75,9 +77,12 @@ def capture_request(db, catalog, body):
     if existing:
         if existing.request_hash != fingerprint:
             raise conflict("La referencia de solicitud ya fue utilizada")
-        return {"receipt_id": str(existing.id), "status": "received"}
+        from app.storefront.order_tracking import receipt
+
+        return receipt(db, existing)
     selected = (
-        db.query(PublicCatalogItem.product_id)
+        db.query(Product)
+        .select_from(PublicCatalogItem)
         .join(
             Product,
             (Product.id == PublicCatalogItem.product_id)
@@ -93,6 +98,16 @@ def capture_request(db, catalog, body):
     )
     if len(selected) != len(body.product_ids):
         raise bad_request("Selecciona productos disponibles en este catálogo")
+    snapshots = None
+    if body.order_lines is not None:
+        products = {product.id: product for product in selected}
+        snapshots = [{
+            "product_id": str(line.product_id),
+            "product_name": products[line.product_id].name,
+            "quantity": line.quantity,
+            "unit_price_amount": str(products[line.product_id].price_amount),
+            "line_total_amount": str(products[line.product_id].price_amount * line.quantity),
+        } for line in body.order_lines]
     row = CatalogRequest(
         tenant_id=current.tenant_id,
         branch_id=current.branch_id,
@@ -103,10 +118,14 @@ def capture_request(db, catalog, body):
         contact=body.contact,
         message=body.message,
         product_ids=[str(x) for x in body.product_ids],
+        order_lines=snapshots,
+        origin=body.origin,
     )
     db.add(row)
     db.flush()
-    result = {"receipt_id": str(row.id), "status": "received"}
+    from app.storefront.order_tracking import receipt
+
+    result = receipt(db, row)
     db.commit()
     return result
 

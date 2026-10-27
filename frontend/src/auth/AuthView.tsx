@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
-import { login, signup, verifyEmail, ApiError } from "./api";
+import { login, signup, ApiError } from "./api";
 import { passwordExceedsByteLimit } from "./passwordRules";
 import { useAuth } from "./useAuth";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,6 @@ type ActionState =
   | "submitting"
   | "error"
   | "created"
-  | "verified"
   | "email_in_use"
   | "verification_resent";
 
@@ -138,7 +137,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
   const [signupFieldErrors, setSignupFieldErrors] = useState<SignupFieldErrors>({});
@@ -290,7 +288,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         // already failed to receive once and left them on this screen forever.
         // They typed a password, so try it — `login` verifies it, which is why
         // attempting here cannot let anyone into an account that is not theirs.
-        setVerificationToken(response.dev_verification_token ?? "");
+
         setResendCountdown(30);
         if (await enterProduct()) return;
         // Wrong password for that address (or login unavailable): the resent
@@ -300,7 +298,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
       }
       // `signup_completed` is recorded server-side inside the signup request —
       // the browser no longer asserts its own conversion.
-      setVerificationToken(response.dev_verification_token ?? "");
+
       setResendCountdown(30);
       // The account exists and the person just proved they know the password.
       // Let them into the product now and ask for email verification from
@@ -340,14 +338,14 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const resendVerification = async () => {
     if (resendCountdown > 0 || mode !== "signup") return;
     try {
-      const response = await signup({
+      await signup({
         email,
         password,
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
       });
       if (!active.current) return;
-      setVerificationToken(response.dev_verification_token ?? "");
+
       setState("verification_resent");
       setResendCountdown(30);
     } catch (err) {
@@ -361,18 +359,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
           ? copy.auth.loginRateLimited
           : copy.auth.operationError,
       );
-      setState("error");
-    }
-  };
-
-  const verify = async () => {
-    setState("submitting");
-    try {
-      await verifyEmail(verificationToken);
-      if (!active.current) return;
-      setState("verified");
-    } catch {
-      if (!active.current) return;
       setState("error");
     }
   };
@@ -597,26 +583,8 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                   className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
+                  {copy.auth.checkEmail}
                 </div>
-                {verificationToken && (
-                  <div className="space-y-2">
-                    <Label htmlFor="verificationToken">{copy.auth.verificationToken}</Label>
-                    <Input
-                      id="verificationToken"
-                      value={verificationToken}
-                      onChange={(event) => setVerificationToken(event.target.value)}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => void verify()}
-                      disabled={!verificationToken}
-                      className="w-full"
-                    >
-                      {copy.auth.verifyEmail}
-                    </Button>
-                  </div>
-                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -628,16 +596,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                     ? copy.auth.resendVerificationCountdown(resendCountdown)
                     : copy.auth.resendVerification}
                 </Button>
-              </div>
-            )}
-
-            {state === "verified" && (
-              <div
-                role="status"
-                className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-foreground [&>svg]:text-success animate-fade-in"
-              >
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {copy.auth.verified}
               </div>
             )}
 
@@ -689,24 +647,6 @@ function AuthForm({ mode }: { mode: AuthMode }) {
                     </p>
                   </div>
                 </div>
-                {verificationToken && (
-                  <div className="space-y-2">
-                    <Label htmlFor="verificationToken">{copy.auth.verificationToken}</Label>
-                    <Input
-                      id="verificationToken"
-                      value={verificationToken}
-                      onChange={(event) => setVerificationToken(event.target.value)}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => void verify()}
-                      disabled={!verificationToken}
-                      className="w-full"
-                    >
-                      {copy.auth.verifyEmail}
-                    </Button>
-                  </div>
-                )}
                 <Button
                   type="button"
                   variant="ghost"

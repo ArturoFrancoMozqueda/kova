@@ -20,8 +20,10 @@ import { formatMoney } from "@/orders/format";
 import { cancelPurchase, createPurchase, createSupplier, listPurchases, listSuppliers, receivePurchase, type Purchase, type Supplier } from "./api";
 
 import { formatPurchaseTotal } from "./formatPurchaseTotal";
+import { resolveUserFacingError } from "@/lib/apiError";
 
 const statusLabel = { pending: "Pendiente", partial: "Recibida parcialmente", received: "Recibida", cancelled: "Cancelada" };
+const purchaseDate = (value: string) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 type DraftLine = { product_id: string; quantity: number; unit_cost: string };
 
 export default function PurchasingView() {
@@ -58,7 +60,7 @@ export default function PurchasingView() {
       const [s, p, o] = await Promise.all([listSuppliers(), listProducts(), listPurchases(offset)]);
       setSuppliers(s); setProducts(p.filter(item => item.is_active && item.track_inventory)); setPurchases(o);
       setError("");
-    } catch (e) { setError(e instanceof Error ? e.message : "No pudimos cargar tus compras."); }
+    } catch (e) { setError(resolveUserFacingError(e, "No pudimos cargar tus compras. Actualiza para volver a consultar.")); }
     finally { setLoading(false); }
   }, [offset]);
   useEffect(() => { if (allowed) void load(); }, [allowed, load]);
@@ -88,7 +90,7 @@ export default function PurchasingView() {
     keys.current.set(signature, key);
     setBusy(true); setError("");
     try { await action(key); keys.current.delete(signature); done(); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "No pudimos guardar el cambio."); }
+    catch (e) { setError(resolveUserFacingError(e, "No pudimos guardar el cambio. Revisa los datos e intenta de nuevo.")); }
     finally { setBusy(false); }
   }
   function submitSupplier(event: FormEvent) {
@@ -118,9 +120,9 @@ export default function PurchasingView() {
       )}
       {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
       {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
-      {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra ${purchase.id.slice(0, 8)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{new Date(purchase.created_at).toLocaleDateString("es-MX")}</span></div>
-        <p className="text-sm text-muted-foreground">Referencia {purchase.id.slice(0, 8)}{purchase.notes && ` · ${purchase.notes}`}</p>
+      {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra de ${purchase.supplier_name} · ${purchaseDate(purchase.created_at)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
+        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{purchaseDate(purchase.created_at)}</span></div>
+        {purchase.notes && <p className="text-sm text-muted-foreground">{purchase.notes}</p>}
         <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
         {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
       </CardContent></Card>)}

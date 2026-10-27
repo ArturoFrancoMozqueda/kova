@@ -5,6 +5,7 @@ import { injectSpeedInsights } from "@vercel/speed-insights";
 import { registerSW } from "virtual:pwa-register";
 import App, { PRERENDERED_ROUTES } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { isPrivateCustomerPage, redactCardTelemetry } from "./observability/cardPrivacy";
 import {
   announcePwaUpdateAvailable,
   forceReload,
@@ -23,8 +24,10 @@ import "./styles.css";
 // local development and tests free of observability traffic. Cloudflare builds
 // use the existing zone's Web Analytics beacon instead of Vercel-only endpoints.
 if (import.meta.env.PROD && import.meta.env.VITE_HOSTING_PROVIDER !== "cloudflare") {
-  injectAnalytics({ framework: "vite" });
-  injectSpeedInsights({ framework: "vite" });
+  const beforeSend = <T extends { url: string }>(event: T) =>
+    isPrivateCustomerPage(new URL(event.url, window.location.origin).pathname) ? null : redactCardTelemetry(event);
+  injectAnalytics({ framework: "vite", beforeSend });
+  injectSpeedInsights({ framework: "vite", beforeSend });
 }
 
 // One-shot version probe at boot. Fetches the deploy-time version.json
@@ -69,6 +72,8 @@ const PUBLIC_VISITOR_PATHS = [
   "/seguridad",
   "/cookies",
   "/kova-showcase-video",
+  "/lealtad",
+  "/seguimiento",
 ];
 
 function normalizePath(pathname: string): string {
@@ -109,6 +114,9 @@ function startServiceWorker() {
 // first paint. Any navigation into the app implies an interaction first, so
 // the SW is always registered by the time it matters.
 function scheduleServiceWorker() {
+  // Public customer pages resolve current data online. Opening a menu or card
+  // should not precache the entire merchant POS.
+  if (isPrivateCustomerPage(window.location.pathname) || window.location.pathname.startsWith("/catalogo/")) return;
   if (!("serviceWorker" in navigator)) return;
   if (!isPublicVisitorPath(window.location.pathname)) {
     startServiceWorker();

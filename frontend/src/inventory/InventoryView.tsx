@@ -657,7 +657,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   useEffect(() => {
     if (!modal.item.track_lots || modal.type !== "stockTake") return;
     let alive = true;
-    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); });
+    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(resolveApiErrorMessage(err, "No pudimos cargar los lotes. Cierra el conteo y vuelve a intentarlo.")); });
     return () => { alive = false; };
   }, [modal.item.product_id, modal.item.track_lots, modal.type]);
   // An adjustment starts empty: a prefilled "0" was itself invalid, so the

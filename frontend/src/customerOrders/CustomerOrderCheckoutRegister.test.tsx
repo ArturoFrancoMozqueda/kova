@@ -1,3 +1,4 @@
+import { copy } from "@/i18n/messages";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -165,7 +166,8 @@ describe("CustomerOrderCheckoutRegister", () => {
     const charge = screen.getByRole("button", { name: /cobrar \$50\.00/i });
     await waitFor(() => expect(charge).toBeEnabled());
     fireEvent.click(charge);
-    await screen.findByText("No se pudo cobrar el pedido.");
+    await screen.findByText(copy.errors.network);
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
     await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledTimes(1));
     fireEvent.click(charge);
     await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledTimes(2));

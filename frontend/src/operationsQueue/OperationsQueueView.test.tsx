@@ -1,3 +1,4 @@
+import { copy } from "@/i18n/messages";
 import {
   act,
   fireEvent,
@@ -262,7 +263,7 @@ it("recovers a failed read through an explicit retry", async () => {
   );
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Consulta temporalmente no disponible",
+    copy.errors.server,
   );
   fireEvent.click(screen.getByRole("button", { name: "Consultar de nuevo" }));
   expect(await screen.findByText("Revisar entrega")).toBeVisible();
@@ -278,7 +279,7 @@ it("hides the previous sample after a failed refresh", async () => {
     screen.getByRole("button", { name: "Actualizar pendientes" }),
   );
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Acceso comercial bloqueado",
+    copy.errors.permission,
   );
   expect(screen.queryByText("Revisar entrega")).not.toBeInTheDocument();
 });

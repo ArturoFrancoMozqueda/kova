@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import { redactCardTelemetry } from "./cardPrivacy";
 
 export const facebookInAppBrowserNoiseFilters = {
   ignoreErrors: [/Error invoking (enableDidUserTypeOnKeyboardLogging|postMessage): Java object is gone/i],
@@ -17,6 +18,8 @@ export function buildSentryOptions(
     release: __BUILD_HASH__,
     tracesSampleRate: 0,
     sendDefaultPii: false,
+    beforeSend: event => redactCardTelemetry(event),
+    beforeBreadcrumb: breadcrumb => redactCardTelemetry(breadcrumb),
     ...facebookInAppBrowserNoiseFilters,
   };
 }

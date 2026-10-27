@@ -8,7 +8,7 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { createRefund, createVoid, getOrder, getReceipt } from "./api";
-import { formatMoney, formatMoneyDelta } from "./format";
+import { formatDateTime, formatMoney, formatMoneyDelta } from "./format";
 import { ReceiptDisplay } from "./ReceiptDisplay";
 import { RefundModal } from "./RefundModal";
 import type { Order, Receipt, RefundPayload } from "./types";
@@ -230,7 +230,7 @@ export default function OrderDetail() {
         <div className="flex-1">
           <ViewHeader
             title={copy.orderDetail.title}
-            meta={<span className="tabular-nums text-sm">{orderId?.slice(0, 8)}</span>}
+            meta={<span className="tabular-nums text-sm">{formatDateTime(receipt.created_at)} · {formatMoney(order.total_amount)}</span>}
             actions={
               <div className="flex items-center gap-2 flex-wrap">
                 {canPrepareInvoice && order.status === "completed" && receipt.status === "completed" && !receipt.void && receipt.refunds.length === 0 && <Link to={`/settings/integrations?order_id=${encodeURIComponent(order.id)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Preparar factura</Link>}

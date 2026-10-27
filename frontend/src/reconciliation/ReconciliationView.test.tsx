@@ -237,3 +237,10 @@ it("reloads a conflicting match without automatically confirming again", async (
     fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
   ).toHaveLength(1);
 });
+
+it("does not expose unexpected database details while loading deposits", async () => {
+  fetchMock.mockResolvedValue(json({ detail: "SELECT credential_hash FROM loyalty_members" }, 500));
+  mount();
+  expect(await screen.findByRole("alert")).not.toHaveTextContent(/SELECT|credential_hash|loyalty_members/);
+  expect(screen.getByRole("alert")).toHaveTextContent(/problema de nuestro lado/i);
+});

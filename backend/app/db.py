@@ -30,6 +30,10 @@ TENANT_SCOPED_TABLES = (
     "appointment_reminders",
     "loyalty_policy_revisions",
     "loyalty_entries",
+    "loyalty_reward_revisions",
+    "loyalty_reward_redemptions",
+    "loyalty_members",
+    "loyalty_enrollment_policies",
 
     "automation_rules",
     "automation_runs",

@@ -35,6 +35,8 @@ describe("SupportDialog", () => {
       "href",
       expect.stringContaining(encodeURIComponent(requestId)),
     );
+    expect(screen.getByText(requestId)).not.toBeVisible();
+    fireEvent.click(screen.getByText("Información para soporte"));
     expect(screen.getByText(requestId)).toBeVisible();
     expect(screen.queryByText(/tenant|cookie|token/i)).not.toBeInTheDocument();
   });
@@ -42,6 +44,8 @@ describe("SupportDialog", () => {
   it("does not invent a reference when no API response has supplied one", () => {
     render(<SupportDialog open onClose={vi.fn()} />);
 
+    expect(screen.getByText(/todavía no hay una referencia disponible/i)).not.toBeVisible();
+    fireEvent.click(screen.getByText("Información para soporte"));
     expect(screen.getByText(/todavía no hay una referencia disponible/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: /copiar referencia/i })).not.toBeInTheDocument();
   });
@@ -67,6 +71,7 @@ describe("SupportDialog", () => {
     );
     render(<SupportDialog open onClose={vi.fn()} />);
 
+    fireEvent.click(screen.getByText("Información para soporte"));
     fireEvent.click(screen.getByRole("button", { name: /copiar referencia/i }));
 
     expect(writeText).toHaveBeenCalledWith("request-123");
@@ -85,6 +90,7 @@ describe("SupportDialog", () => {
     );
     render(<SupportDialog open onClose={vi.fn()} />);
 
+    fireEvent.click(screen.getByText("Información para soporte"));
     fireEvent.click(screen.getByRole("button", { name: /copiar referencia/i }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledOnce());

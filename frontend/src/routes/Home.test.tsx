@@ -150,7 +150,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Vende. Kova mantiene el resto bajo control.",
+      "Vende con orden. Conoce tu negocio.",
     );
     expect(sectionIds).toEqual([
       "problema",
@@ -165,7 +165,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
     expect(
       screen.getByText(
-        /Más que un POS\. El control de tu negocio en un solo lugar\./i,
+        /Ventas, inventario y análisis en un solo lugar\./i,
       ),
     ).toBeVisible();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(

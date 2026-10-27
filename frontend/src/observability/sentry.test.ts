@@ -84,4 +84,14 @@ describe("frontend Sentry configuration", () => {
     expect(sentrySetUser).toHaveBeenLastCalledWith(null);
     expect(sentrySetTag).toHaveBeenLastCalledWith("tenant_id", undefined);
   });
+
+  it("scrubs card capabilities from both error events and navigation breadcrumbs", async () => {
+    const options = buildSentryOptions("https://public@example.ingest.sentry.io/1", "production");
+    const url = "https://kovasuite.com/lealtad#private-capability";
+    const event = await options.beforeSend?.({ type: undefined, request: { url }, message: `Failed at ${url}` }, {});
+    const breadcrumb = options.beforeBreadcrumb?.({ category: "navigation", data: { from: url, to: "/catalogo/negocio" } }, {});
+    expect(JSON.stringify(event)).not.toContain("private-capability");
+    expect(JSON.stringify(breadcrumb)).not.toContain("private-capability");
+    expect(breadcrumb?.data?.to).toBe("/catalogo/negocio");
+  });
 });

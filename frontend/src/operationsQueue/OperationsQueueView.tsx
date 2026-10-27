@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
@@ -149,9 +150,7 @@ function OperationsQueueWorkspace({
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          e instanceof Error
-            ? e.message
-            : "No pudimos consultar los pendientes del negocio.",
+          resolveUserFacingError(e, "No pudimos consultar los pendientes del negocio."),
         );
     } finally {
       if (alive.current && revision === generation.current) setLoading(false);

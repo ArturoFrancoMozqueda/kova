@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { OperationsSession, useOnline, useOperationsRequest, type WorkspaceIdentity } from "@/automations/workspace";
@@ -36,7 +37,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     try {
       const [data, rows] = await Promise.all([request<Settings>("/storefront/settings"), request<Product[]>("/catalog/products")]);
       if (alive.current) { setSettings(data); setProducts(rows.filter(p => p.is_active)); setError(""); }
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos cargar el catálogo."); }
+    } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos cargar el catálogo.")); }
   }, [request]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [load]);
   useEffect(() => {
@@ -75,7 +76,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         product_ids: settings.product_ids, rotate_link: false,
       }, crypto.randomUUID());
       if (alive.current) { setSettings(result); setNotice(result.enabled ? "Catálogo publicado. Los cambios ya están disponibles en el mismo enlace y código QR." : "Catálogo retirado. El enlace ya no permite consultarlo."); }
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "No pudimos guardar."); }
+    } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos guardar.")); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
   return <ViewLayout className="space-y-6">

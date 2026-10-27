@@ -7,6 +7,7 @@ import { isReloadSafePath } from "@/pwaUpdate";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
 import { RefreshCw, X } from "lucide-react";
+import { isPrivateCustomerPage } from "@/observability/cardPrivacy";
 
 export default function PWAUpdatePrompt() {
   const [visible, setVisible] = useState(false);
@@ -16,6 +17,8 @@ export default function PWAUpdatePrompt() {
     location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname === "/signup" ||
+    location.pathname.startsWith("/catalogo/") ||
+    isPrivateCustomerPage(location.pathname) ||
     location.pathname.startsWith("/verify-email");
 
   useEffect(() => {

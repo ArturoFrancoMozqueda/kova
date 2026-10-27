@@ -81,3 +81,16 @@ describe("ForgotPasswordView recovery", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(copy.auth.forgotPasswordSent));
   });
 });
+
+it("ignora tokens de prueba y no crea un enlace de recuperación desde la respuesta", async () => {
+  const devToken = "dummy-development-reset-token-do-not-display";
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "accepted", dev_reset_token: devToken }), { status: 200 })));
+  renderView();
+  send();
+  expect(await screen.findByRole("status")).toHaveTextContent(copy.auth.forgotPasswordSent);
+  expect(screen.queryByText(devToken)).not.toBeInTheDocument();
+  expect(screen.queryByText(copy.auth.devResetReady)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: copy.auth.devResetOpen })).not.toBeInTheDocument();
+  expect(document.querySelector('a[href*="reset-password?token="]')).toBeNull();
+  expect(screen.getByRole("link", { name: copy.auth.backToLogin })).toHaveAttribute("href", "/login");
+});

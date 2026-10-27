@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -30,9 +31,7 @@ export function BranchesSettings() {
       .catch((err: unknown) => {
         if (alive)
           setError(
-            err instanceof Error
-              ? err.message
-              : "No pudimos cargar las sucursales.",
+            resolveUserFacingError(err, "No pudimos cargar las sucursales."),
           );
       })
       .finally(() => {
@@ -64,7 +63,7 @@ export function BranchesSettings() {
       window.dispatchEvent(new Event("kova-branches-updated"));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No pudimos guardar la sucursal.",
+        resolveUserFacingError(err, "No pudimos guardar la sucursal."),
       );
     } finally {
       setBusy(false);

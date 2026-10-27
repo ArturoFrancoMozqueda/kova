@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { apiErrorDetailText, resolveApiErrorMessage } from "./apiError";
+import { apiErrorDetailText, resolveApiErrorMessage, resolveUserFacingError, safeUserMessage } from "./apiError";
 import { copy } from "@/i18n/messages";
 
 class FakeApiError extends Error {
@@ -58,5 +58,32 @@ describe("resolveApiErrorMessage", () => {
       400,
     );
     expect(apiErrorDetailText(error)).toBe("Faltan columnas: precio");
+  });
+});
+
+describe("product-ready error guidance", () => {
+  it.each([
+    'No se pudo guardar: {"detail":"SQL"}',
+    "El cliente 11111111-1111-4111-8111-111111111111 no existe",
+    "No se pudo confirmar: OUT_OF_STOCK",
+    "El error SQLAlchemy constraint falló",
+    "Revisa https://internal.example/debug",
+    "Unexpected token '<', invalid JSON", "Failed to fetch", "<h1>Error</h1>",
+  ])("keeps technical messages out of the product: %s", message => {
+    expect(safeUserMessage(message, FALLBACK)).toBe(FALLBACK);
+  });
+  it.each([
+    "No hay existencias suficientes para completar la venta.",
+    "Faltan columnas: precio", "El lote está vencido.",
+    "Selecciona el cliente antes de confirmar.", "La devolución supera la cantidad disponible.",
+    "RFC del receptor no válido.",
+  ])("preserves actionable business guidance: %s", message => {
+    expect(safeUserMessage(message, FALLBACK)).toBe(message);
+  });
+  it("keeps typed server/permission failures generic and verified validation useful", () => {
+    expect(resolveUserFacingError(new FakeApiError('{"detail":"Faltan columnas: precio"}', 400), FALLBACK)).toBe("Faltan columnas: precio");
+    expect(resolveUserFacingError(new FakeApiError("No hay existencias", 500), FALLBACK)).toBe(copy.errors.server);
+    expect(resolveUserFacingError(new TypeError("Failed to fetch"), FALLBACK)).toBe(copy.errors.network);
+    expect(resolveUserFacingError(new Error("SQLAlchemy statement failed"), FALLBACK)).toBe(FALLBACK);
   });
 });

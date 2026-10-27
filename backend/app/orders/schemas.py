@@ -73,7 +73,15 @@ class PaymentResponse(BaseModel):
     reference: str | None
 
 
+class LoyaltyRewardSnapshot(BaseModel):
+    id: UUID
+    title: str
+    points_cost: int
+    discount_amount: Decimal
+
+
 class OrderResponse(BaseModel):
+    loyalty_reward: LoyaltyRewardSnapshot | None = None
     customer_id: UUID | None = None
     discount_amount: Decimal = Decimal("0.00")
     tax_rate: Decimal = Decimal("0.00")
@@ -126,6 +134,7 @@ class ReceiptVoidLine(BaseModel):
 
 
 class ReceiptResponse(BaseModel):
+    loyalty_reward: LoyaltyRewardSnapshot | None = None
     discount_amount: Decimal = Decimal("0.00")
     tax_rate: Decimal = Decimal("0.00")
     tax_amount: Decimal = Decimal("0.00")

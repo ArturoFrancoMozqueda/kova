@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -149,7 +150,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
       }
     } catch (caught) {
       const api = caught as { detail?: { detail?: { message?: string } } };
-      setError(api.detail?.detail?.message ?? "No se pudo cobrar el pedido.");
+      setError(resolveApiErrorMessage(caught, safeUserMessage(api.detail?.detail?.message, "No se pudo cobrar el pedido.")));
       if (caught instanceof CustomerOrderApiError && caught.status < 500) {
         checkoutKeyRef.current = null;
       }

@@ -11,6 +11,8 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Customer } from "@/customers/api";
+import { CatalogOrderReview } from "./CatalogOrderReview";
+import { useAuth } from "@/auth/useAuth";
 
 type RequestRow = {
   id: string;
@@ -18,7 +20,10 @@ type RequestRow = {
   contact: string;
   message: string;
   product_ids: string[];
-  status: "new" | "converted" | "dismissed";
+  status: "new" | "converted" | "dismissed" | "accepted";
+  order_lines?: { product_id: string; product_name: string; quantity: number; unit_price_amount: string; line_total_amount: string }[];
+  origin?: "remote" | "in_store" | null;
+  customer_order_id?: string | null;
   customer_id: string | null;
   opportunity_id: string | null;
   version: number;
@@ -29,6 +34,7 @@ const labels = {
   new: "Por revisar",
   converted: "Oportunidad creada",
   dismissed: "Descartada",
+  accepted: "Pedido creado",
 };
 export default function CommercialRequestsView() {
   useDocumentTitle("Solicitudes del catálogo");
@@ -39,6 +45,8 @@ export default function CommercialRequestsView() {
   );
 }
 function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const { state } = useAuth();
+  const ordersEnabled = state.status === "authenticated" && state.featureFlags?.customer_orders === true;
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<RequestList>(
     "/api/v1",
@@ -49,6 +57,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<RequestRow | null>(null);
+  const [orderReview, setOrderReview] = useState<RequestRow | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerError, setCustomerError] = useState("");
   useEffect(() => {
@@ -102,9 +111,9 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Revisa productos, cantidades y notas antes de aceptar una solicitud de pedido.
-        Una solicitud no crea un pedido operativo, venta, reserva ni permiso de campañas.
-        Verifica el contacto y vincula al cliente correcto antes de convertirla
-        en oportunidad.
+        Al revisarla puedes crear el pedido con sus cantidades y precios vigentes,
+        o continuar una consulta como oportunidad. Verifica el contacto y vincula
+        al cliente correcto. Recibir una solicitud no reserva inventario ni cobra.
       </p>
       {panel.error && (
         <ViewError
@@ -164,6 +173,8 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 Ver oportunidad
               </Link>
             )}
+            {row.customer_order_id && panel.online && ordersEnabled && <Link to={`/pedidos/${encodeURIComponent(row.customer_order_id)}`} className="inline-flex min-h-11 items-center text-sm font-medium text-kova-blue underline">Ver pedido</Link>}
+            {row.status === "new" && ordersEnabled && Boolean(row.order_lines?.length) && <Button className="h-auto min-h-11 whitespace-normal" disabled={panel.busy || !panel.online} onClick={() => { setOrderReview(row); setSelected(null); setSearch(""); }}>Revisar pedido de {row.name}</Button>}
             {row.status === "new" && (
               <Button
                 className="h-auto min-h-11 whitespace-normal text-left"
@@ -180,6 +191,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </article>
         ))}
       </div>
+      {orderReview && ordersEnabled && <CatalogOrderReview key={orderReview.id} identity={identity} row={orderReview} customers={customers} search={search} onSearch={setSearch} customerError={customerError} onAccepted={() => void panel.load()} onClose={() => setOrderReview(null)} />}
       {selected && (
         <section
           aria-label="Resolver solicitud"

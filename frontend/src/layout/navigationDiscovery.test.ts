@@ -49,4 +49,16 @@ describe("task and section discovery ranking", () => {
     expect(discoverSections(destinations.filter(item => item.to !== path), query)).toEqual([]);
   });
 
+  it.each([
+    ["tarjeta digital", "/loyalty"], ["recompensas", "/loyalty"],
+    ["menú QR", "/settings/public-catalog"], ["identificar socio", "/register"],
+  ])("finds the connected loyalty journey for '%s' within permitted destinations", (query, path) => {
+    const destinations = [
+      { to: "/loyalty", label: "Lealtad" }, { to: "/register", label: "Caja" },
+      { to: "/settings/public-catalog", label: "Catálogo público" },
+    ];
+    expect(discoverSections(destinations, query)[0]?.to).toBe(path);
+    expect(discoverSections(destinations.filter(item => item.to !== path), query)).toEqual([]);
+  });
+
 });

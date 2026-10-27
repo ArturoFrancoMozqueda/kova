@@ -134,6 +134,52 @@ test("keyboard navigation reaches the menu and a failed submission can be retrie
   expect(submissions[0]).toBe(submissions[1]);
 });
 
+test("mobile discovery finds mixed-order words, sorts prices and keeps the selected order", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/catalogo/menu-test");
+  const menu = page.getByRole("region", { name: "Nuestro menú" });
+  const search = page.getByRole("searchbox", { name: "Buscar en el menú" });
+  await menu.getByRole("button", { name: "Agregar Pan de nuez al pedido" }).click();
+  await search.fill("CANELA cafe");
+  await expect(menu.getByRole("heading", { level: 3 })).toHaveText("Café de olla");
+  await expect(menu.getByRole("status")).toContainText("1 de 3 productos");
+  await expect(page.getByRole("button", { name: /Ver mi pedido/ })).toContainText("$45.00");
+  await page.getByRole("button", { name: "Limpiar búsqueda", exact: true }).click();
+  await expect(search).toBeFocused();
+  await page.getByRole("combobox", { name: "Ordenar menú" }).selectOption("price_asc");
+  await expect(menu.getByRole("heading", { level: 3 })).toHaveText(["Café de olla", "Pan de nuez", "Tostada de aguacate"]);
+  await page.getByRole("button", { name: "Disponibles", exact: true }).click();
+  // Foreground and background switch together: cross-fading both goes through
+  // unreadable mid-grey even though the final selected state passes axe.
+  const filterContrast = await page.getByRole("group", { name: "Filtrar productos" }).getByRole("button").evaluateAll(buttons => buttons.map(button => {
+    const styles = getComputedStyle(button);
+    const luminance = (color: string) => {
+      const channels = color.match(/\d+/g)!.slice(0, 3).map(value => {
+        const channel = Number(value) / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    };
+    const foreground = luminance(styles.color), background = luminance(styles.backgroundColor);
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  }));
+  for (const contrast of filterContrast) expect(contrast).toBeGreaterThanOrEqual(4.5);
+  await expect(menu.getByRole("heading", { level: 3 })).toHaveText(["Café de olla", "Pan de nuez"]);
+  await expect(menu.getByRole("status")).toContainText("2 de 3 productos");
+  await search.fill("no existe");
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(search).toBeFocused();
+  await page.getByRole("combobox", { name: "Ordenar menú" }).selectOption("published");
+  await expect(menu.getByRole("heading", { level: 3 })).toHaveText(["Pan de nuez", "Café de olla"]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("optimized-menu-mobile.png"), fullPage: true, animations: "disabled" });
+  await page.getByRole("button", { name: /Ver mi pedido/ }).click();
+  const summary = page.getByRole("region", { name: "Tu pedido" });
+  await expect(summary.getByText("Pan de nuez", { exact: true })).toBeVisible();
+  await expect(summary.getByText("$45.00").last()).toBeVisible();
+});
+
 // A separate visual example includes the same photo fields the public API
 // returns. The original scenarios deliberately retain coverage without photos.
 const photoCatalog = {

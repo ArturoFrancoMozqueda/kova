@@ -71,6 +71,11 @@ export function MarginAnalysis({ story }: { story: BusinessStoryReport }) {
                   <Link className="mt-2 inline-flex text-sm font-semibold text-kova-blue hover:underline" to="/catalog">
                     {copy.reportsView.marginOpenCatalog}
                   </Link>
+                  {margin.by_product.some(product => product.missing_cost) && <details className="mt-3 text-sm">
+                    <summary className="min-h-11 cursor-pointer py-2 font-medium text-kova-ink">Revisar los productos sin costo</summary>
+                    <p className="mb-2 text-xs leading-relaxed text-kova-muted">Completar el costo actual sirve para las próximas ventas que registres. Las ventas anteriores conservan su costo histórico.</p>
+                    <ul className="space-y-1">{margin.by_product.filter(product => product.missing_cost).map(product => <li key={product.product_id}><Link className="inline-flex min-h-11 items-center text-kova-blue underline" to={`/catalog?edit=${encodeURIComponent(product.product_id)}`}>Revisar costo de {product.product_name}</Link></li>)}</ul>
+                  </details>}
                 </div>
               </div>
             </div>

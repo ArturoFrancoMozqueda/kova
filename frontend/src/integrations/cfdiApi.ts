@@ -51,6 +51,9 @@ const managedPublicErrors = new Set([
   "La activación de facturación de Kova aún no está disponible",
 ]);
 const fiscalError = "No pudimos completar la operación fiscal. Revisa el estado antes de reintentar.";
+class FiscalRequestError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
 export class ManagedCfdiError extends Error {
   constructor(message: string) {
     super(managedPublicErrors.has(message) ? message : fiscalError);
@@ -163,12 +166,13 @@ async function apiClient(path: string, init?: RequestInit): Promise<Response> {
         typeof data?.detail === "string" &&
         managedPublicErrors.has(data.detail)
       ) throw new ManagedCfdiError(data.detail);
-      throw new Error(fiscalError);
+      throw new FiscalRequestError(fiscalError, response.status);
     }
-    throw new Error(
+    throw new FiscalRequestError(
       typeof data?.detail === "string"
         ? data.detail
         : fiscalError,
+      response.status,
     );
   }
   return response;

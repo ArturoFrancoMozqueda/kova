@@ -414,7 +414,7 @@ it.each([403, 404, 409, 503])("does not prefill or write from an unavailable opp
 
 it.each(["opportunity_id=invalid", `opportunity_id=${linkedOpportunity.id}&opportunity_id=${linkedOpportunity.id}`])("rejects invalid or duplicated source parameters (%s)", async (query) => {
   render(<MemoryRouter initialEntries={[`/quotes?${query}`]}><QuotesView /></MemoryRouter>);
-  expect(await screen.findByRole("alert")).toHaveTextContent("identificador de registro válido");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Este enlace no es válido. Abre el registro desde su lista.");
   expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/crm/opportunities/"))).toBe(false);
   expect(screen.queryByRole("form")).not.toBeInTheDocument();
 });

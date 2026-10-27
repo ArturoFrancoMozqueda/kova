@@ -1,3 +1,4 @@
+import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import {
   useCallback,
   useEffect,
@@ -152,9 +153,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          e instanceof Error
-            ? e.message
-            : "No pudimos cargar las cotizaciones.",
+          resolveUserFacingError(e, "No pudimos cargar las cotizaciones."),
         );
     } finally {
       if (mounted.current && revision === generation.current) setLoading(false);
@@ -234,11 +233,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       }
       if (mounted.current)
         setError(
-          e instanceof OperationsError
-            ? (e.detail ?? e.message)
-            : e instanceof Error
-              ? e.message
-              : "No pudimos guardar la cotización.",
+          resolveApiErrorMessage(e, safeUserMessage(e instanceof OperationsError ? (e.detail ?? e.message) : undefined, "No pudimos guardar la cotización.")),
         );
     } finally {
       locked.current = false;
@@ -358,7 +353,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <ViewError
           message={error}
           onRetry={() => void load()}
-          retryLabel="Cargar versión actual"
+          retryLabel="Consultar datos actualizados"
         />
       )}
       {notice && (
@@ -785,7 +780,7 @@ function QuoteJourney({
     } catch (e) {
       if (active.current)
         setError(
-          e instanceof Error ? e.message : "No pudimos consultar el recorrido.",
+          resolveUserFacingError(e, "No pudimos consultar el recorrido."),
         );
     } finally {
       if (active.current) setBusy(false);

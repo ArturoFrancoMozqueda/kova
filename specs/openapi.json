@@ -1962,6 +1962,209 @@
         "title": "CatalogImportRow",
         "type": "object"
       },
+      "CatalogOrderAccept": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "preview_fingerprint": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Preview Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "customer_id",
+          "preview_fingerprint",
+          "confirmed"
+        ],
+        "title": "CatalogOrderAccept",
+        "type": "object"
+      },
+      "CatalogOrderAcceptance": {
+        "properties": {
+          "customer_order": {
+            "$ref": "#/components/schemas/CustomerOrderResponse"
+          },
+          "request": {
+            "$ref": "#/components/schemas/CatalogRequestResponse"
+          }
+        },
+        "required": [
+          "request",
+          "customer_order"
+        ],
+        "title": "CatalogOrderAcceptance",
+        "type": "object"
+      },
+      "CatalogOrderLine": {
+        "additionalProperties": false,
+        "properties": {
+          "line_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total Amount",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity",
+          "product_name",
+          "unit_price_amount",
+          "line_total_amount"
+        ],
+        "title": "CatalogOrderLine",
+        "type": "object"
+      },
+      "CatalogOrderPreview": {
+        "properties": {
+          "can_accept": {
+            "title": "Can Accept",
+            "type": "boolean"
+          },
+          "customer_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Order Id"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogOrderPreviewLine"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "preview_fingerprint": {
+            "title": "Preview Fingerprint",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "version",
+          "items",
+          "total_amount",
+          "can_accept",
+          "issues",
+          "preview_fingerprint",
+          "customer_order_id"
+        ],
+        "title": "CatalogOrderPreview",
+        "type": "object"
+      },
+      "CatalogOrderPreviewLine": {
+        "additionalProperties": false,
+        "properties": {
+          "available_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Quantity"
+          },
+          "line_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total Amount",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity",
+          "product_name",
+          "unit_price_amount",
+          "line_total_amount",
+          "available_quantity"
+        ],
+        "title": "CatalogOrderPreviewLine",
+        "type": "object"
+      },
       "CatalogRequestList": {
         "properties": {
           "has_more": {
@@ -2006,6 +2209,18 @@
             ],
             "title": "Customer Id"
           },
+          "customer_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Order Id"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2031,6 +2246,35 @@
             ],
             "title": "Opportunity Id"
           },
+          "order_lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogOrderLine"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Lines"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remote",
+                  "in_store"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
           "product_ids": {
             "items": {
               "format": "uuid",
@@ -2043,7 +2287,8 @@
             "enum": [
               "new",
               "converted",
-              "dismissed"
+              "dismissed",
+              "accepted"
             ],
             "title": "Status",
             "type": "string"
@@ -4675,6 +4920,25 @@
         "title": "DeviceSetup",
         "type": "object"
       },
+      "DigitalCardLink": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "share_path": {
+            "title": "Share Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "share_path",
+          "expires_at"
+        ],
+        "title": "DigitalCardLink",
+        "type": "object"
+      },
       "DocumentResponse": {
         "properties": {
           "cancellation_status": {
@@ -4982,6 +5246,61 @@
         "additionalProperties": false,
         "properties": {},
         "title": "EmptyAction",
+        "type": "object"
+      },
+      "EnrollmentPolicyResponse": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "version"
+        ],
+        "title": "EnrollmentPolicyResponse",
+        "type": "object"
+      },
+      "EnrollmentPolicyWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "expected_version"
+        ],
+        "title": "EnrollmentPolicyWrite",
+        "type": "object"
+      },
+      "EnrollmentReceipt": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/MemberCard"
+          },
+          "card_path": {
+            "title": "Card Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "card",
+          "card_path"
+        ],
+        "title": "EnrollmentReceipt",
         "type": "object"
       },
       "EntriesResponse": {
@@ -8426,7 +8745,8 @@
               "accrual",
               "refund",
               "void",
-              "redemption"
+              "redemption",
+              "reward_return"
             ],
             "title": "Kind",
             "type": "string"
@@ -8614,6 +8934,196 @@
           "confirmed"
         ],
         "title": "LoyaltyRedeemWrite",
+        "type": "object"
+      },
+      "LoyaltyRewardCheckout": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "expected_balance": {
+            "title": "Expected Balance",
+            "type": "integer"
+          },
+          "order": {
+            "$ref": "#/components/schemas/OrderCreate"
+          },
+          "reward_id": {
+            "format": "uuid",
+            "title": "Reward Id",
+            "type": "string"
+          },
+          "reward_version": {
+            "minimum": 1.0,
+            "title": "Reward Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order",
+          "reward_id",
+          "reward_version",
+          "expected_balance",
+          "confirmed"
+        ],
+        "title": "LoyaltyRewardCheckout",
+        "type": "object"
+      },
+      "LoyaltyRewardOffer": {
+        "properties": {
+          "adjustments_pending": {
+            "title": "Adjustments Pending",
+            "type": "boolean"
+          },
+          "balance": {
+            "title": "Balance",
+            "type": "integer"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "customer_id",
+          "balance",
+          "adjustments_pending",
+          "reward"
+        ],
+        "title": "LoyaltyRewardOffer",
+        "type": "object"
+      },
+      "LoyaltyRewardResponse": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "points_cost": {
+            "title": "Points Cost",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "enabled",
+          "title",
+          "points_cost",
+          "discount_amount"
+        ],
+        "title": "LoyaltyRewardResponse",
+        "type": "object"
+      },
+      "LoyaltyRewardSnapshot": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "points_cost": {
+            "title": "Points Cost",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "points_cost",
+          "discount_amount"
+        ],
+        "title": "LoyaltyRewardSnapshot",
+        "type": "object"
+      },
+      "LoyaltyRewardWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "discount_amount": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.01,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Discount Amount"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "points_cost": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Points Cost",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "enabled",
+          "title",
+          "points_cost",
+          "discount_amount"
+        ],
+        "title": "LoyaltyRewardWrite",
         "type": "object"
       },
       "MarginDayRow": {
@@ -8968,6 +9478,205 @@
           "feature_flags"
         ],
         "title": "MeResponse",
+        "type": "object"
+      },
+      "MemberCard": {
+        "properties": {
+          "adjustments_pending": {
+            "title": "Adjustments Pending",
+            "type": "boolean"
+          },
+          "balance": {
+            "title": "Balance",
+            "type": "integer"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "catalog_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Path"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "member_code": {
+            "title": "Member Code",
+            "type": "string"
+          },
+          "member_qr_data_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Qr Data Url"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/LoyaltyPolicyResponse"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "business_name",
+          "branch_name",
+          "balance",
+          "adjustments_pending",
+          "policy",
+          "expires_at",
+          "catalog_path",
+          "member_code"
+        ],
+        "title": "MemberCard",
+        "type": "object"
+      },
+      "MemberCodeRead": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "MemberCodeRead",
+        "type": "object"
+      },
+      "MemberCustomer": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_active"
+        ],
+        "title": "MemberCustomer",
+        "type": "object"
+      },
+      "MemberResolution": {
+        "properties": {
+          "customer": {
+            "$ref": "#/components/schemas/MemberCustomer"
+          }
+        },
+        "required": [
+          "customer"
+        ],
+        "title": "MemberResolution",
+        "type": "object"
+      },
+      "MembershipContext": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "card_path": {
+            "title": "Card Path",
+            "type": "string"
+          },
+          "csrf_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csrf Token"
+          },
+          "enrolled": {
+            "title": "Enrolled",
+            "type": "boolean"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/LoyaltyPolicyResponse"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "available",
+          "enrolled",
+          "business_name",
+          "branch_name",
+          "policy",
+          "reward",
+          "csrf_token",
+          "card",
+          "card_path"
+        ],
+        "title": "MembershipContext",
         "type": "object"
       },
       "MemoryWrite": {
@@ -11133,6 +11842,16 @@
             "title": "Items",
             "type": "array"
           },
+          "loyalty_reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "payments": {
             "items": {
               "$ref": "#/components/schemas/PaymentResponse"
@@ -12638,6 +13357,20 @@
         "title": "ProposalCreate",
         "type": "object"
       },
+      "PublicCardRead": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PublicCardRead",
+        "type": "object"
+      },
       "PublicCatalogResponse": {
         "properties": {
           "checkout_available": {
@@ -12655,6 +13388,11 @@
               }
             ],
             "title": "Description"
+          },
+          "loyalty_available": {
+            "default": false,
+            "title": "Loyalty Available",
+            "type": "boolean"
           },
           "products": {
             "items": {
@@ -12686,6 +13424,221 @@
           "products"
         ],
         "title": "PublicCatalogResponse",
+        "type": "object"
+      },
+      "PublicEnrollmentWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "menu_token": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Menu Token",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "menu_token",
+          "name",
+          "confirmed"
+        ],
+        "title": "PublicEnrollmentWrite",
+        "type": "object"
+      },
+      "PublicLoyaltyCard": {
+        "properties": {
+          "adjustments_pending": {
+            "title": "Adjustments Pending",
+            "type": "boolean"
+          },
+          "balance": {
+            "title": "Balance",
+            "type": "integer"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "catalog_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Path"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/LoyaltyPolicyResponse"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "business_name",
+          "branch_name",
+          "balance",
+          "adjustments_pending",
+          "policy",
+          "expires_at",
+          "catalog_path"
+        ],
+        "title": "PublicLoyaltyCard",
+        "type": "object"
+      },
+      "PublicOrderLine": {
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity"
+        ],
+        "title": "PublicOrderLine",
+        "type": "object"
+      },
+      "PublicOrderTracking": {
+        "properties": {
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "catalog_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Path"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folio"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicTrackedItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending_review",
+              "accepted",
+              "confirmed",
+              "in_progress",
+              "ready",
+              "fulfilled",
+              "cancelled",
+              "dismissed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Amount"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "business_name",
+          "branch_name",
+          "status",
+          "folio",
+          "total_amount",
+          "items",
+          "catalog_path",
+          "updated_at",
+          "expires_at"
+        ],
+        "title": "PublicOrderTracking",
+        "type": "object"
+      },
+      "PublicOrderTrackingRead": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PublicOrderTrackingRead",
         "type": "object"
       },
       "PublicProduct": {
@@ -12768,6 +13721,29 @@
             "default": "received",
             "title": "Status",
             "type": "string"
+          },
+          "tracking_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Expires At"
+          },
+          "tracking_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Path"
           }
         },
         "required": [
@@ -12797,6 +13773,37 @@
             "title": "Name",
             "type": "string"
           },
+          "order_lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PublicOrderLine"
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Lines"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remote",
+                  "in_store"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
           "product_ids": {
             "items": {
               "format": "uuid",
@@ -12819,6 +13826,24 @@
           "message"
         ],
         "title": "PublicRequestWrite",
+        "type": "object"
+      },
+      "PublicTrackedItem": {
+        "properties": {
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_name",
+          "quantity"
+        ],
+        "title": "PublicTrackedItem",
         "type": "object"
       },
       "PurchaseCreate": {
@@ -13696,6 +14721,16 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "loyalty_reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "order_id": {
             "format": "uuid",
@@ -22502,6 +23537,118 @@
         ]
       }
     },
+    "/api/v1/crm/requests/{request_id}/accept-order": {
+      "post": {
+        "operationId": "accept_order_api_v1_crm_requests__request_id__accept_order_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogOrderAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOrderAcceptance"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Order",
+        "tags": [
+          "crm-engagement"
+        ]
+      }
+    },
+    "/api/v1/crm/requests/{request_id}/order-preview": {
+      "get": {
+        "operationId": "order_preview_api_v1_crm_requests__request_id__order_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOrderPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Order Preview",
+        "tags": [
+          "crm-engagement"
+        ]
+      }
+    },
     "/api/v1/crm/requests/{request_id}/resolve": {
       "post": {
         "operationId": "resolve_api_v1_crm_requests__request_id__resolve_post",
@@ -27628,6 +28775,49 @@
         ]
       }
     },
+    "/api/v1/loyalty/customers/{customer_id}/digital-card": {
+      "post": {
+        "operationId": "digital_card_api_v1_loyalty_customers__customer_id__digital_card_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigitalCardLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Digital Card",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
     "/api/v1/loyalty/customers/{customer_id}/redeem": {
       "post": {
         "operationId": "redeem_api_v1_loyalty_customers__customer_id__redeem_post",
@@ -27692,6 +28882,125 @@
           }
         },
         "summary": "Redeem",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/loyalty/enrollment-policy": {
+      "get": {
+        "operationId": "read_policy_api_v1_loyalty_enrollment_policy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentPolicyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Policy",
+        "tags": [
+          "loyalty"
+        ]
+      },
+      "put": {
+        "operationId": "save_policy_api_v1_loyalty_enrollment_policy_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentPolicyWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentPolicyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Policy",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/loyalty/members/resolve": {
+      "post": {
+        "operationId": "resolve_member_api_v1_loyalty_members_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberCodeRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberResolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Member",
         "tags": [
           "loyalty"
         ]
@@ -27772,6 +29081,194 @@
           }
         },
         "summary": "Process",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/loyalty/rewards": {
+      "get": {
+        "operationId": "reward_policy_api_v1_loyalty_rewards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/LoyaltyRewardResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Reward Policy Api V1 Loyalty Rewards Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reward Policy",
+        "tags": [
+          "loyalty"
+        ]
+      },
+      "put": {
+        "operationId": "save_reward_policy_api_v1_loyalty_rewards_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoyaltyRewardWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoyaltyRewardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Reward Policy",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/loyalty/rewards/checkout": {
+      "post": {
+        "operationId": "reward_checkout_api_v1_loyalty_rewards_checkout_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoyaltyRewardCheckout"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reward Checkout",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/loyalty/rewards/offer": {
+      "get": {
+        "operationId": "reward_offer_api_v1_loyalty_rewards_offer_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoyaltyRewardOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reward Offer",
         "tags": [
           "loyalty"
         ]
@@ -29090,6 +30587,223 @@
           }
         },
         "summary": "Submit Catalog Request",
+        "tags": [
+          "storefront"
+        ]
+      }
+    },
+    "/api/v1/public/loyalty/cards": {
+      "post": {
+        "operationId": "public_card_api_v1_public_loyalty_cards_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicCardRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicLoyaltyCard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Card",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/public/loyalty/membership": {
+      "get": {
+        "operationId": "membership_api_v1_public_loyalty_membership_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "menu",
+            "required": true,
+            "schema": {
+              "maxLength": 1500,
+              "minLength": 1,
+              "title": "Menu",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Membership",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/public/loyalty/membership/enroll": {
+      "post": {
+        "operationId": "enroll_api_v1_public_loyalty_membership_enroll_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Kova-Member-CSRF",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kova-Member-Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicEnrollmentWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enroll",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
+    "/api/v1/public/order-tracking": {
+      "post": {
+        "operationId": "read_order_tracking_api_v1_public_order_tracking_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicOrderTrackingRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOrderTracking"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Order Tracking",
         "tags": [
           "storefront"
         ]

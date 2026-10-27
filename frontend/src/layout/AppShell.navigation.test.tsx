@@ -60,6 +60,14 @@ describe("simple task navigation and complete discovery", () => {
     await act(async () => {});
   });
 
+  it.each(["owner", "manager", "cashier"])("discovers digital cards without widening permissions for %s", async role => {
+    auth.state.user.role = role;
+    host();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar sección" }), { target: { value: "tarjeta digital" } });
+    expect(navigation().queryAllByRole("link").map(link => link.getAttribute("href"))).toEqual(role === "owner" ? ["/loyalty"] : []);
+    await act(async () => {});
+  });
+
   it("finds an owner's task without more requests or changing rail preferences", async () => {
     host();
     const search = screen.getByRole("searchbox", { name: "Buscar sección" });
@@ -104,7 +112,7 @@ describe("simple task navigation and complete discovery", () => {
   it("matches accents and task descriptions, and Escape clears an empty-result search", async () => {
     host(); const search = screen.getByRole("searchbox", { name: "Buscar sección" });
     fireEvent.change(search, { target: { value: "FACTURACIÓN" } });
-    expect(navigation().getByRole("link", { name: "Facturación e integraciones" })).toHaveAttribute("href", "/settings/integrations");
+    expect(navigation().getByRole("link", { name: "Solicitudes de factura" })).toHaveAttribute("href", "/settings/integrations");
     fireEvent.change(search, { target: { value: "¿Qué vendo?" } });
     expect(navigation().getByRole("link", { name: "Análisis" })).toHaveAttribute("href", "/reports");
     fireEvent.change(search, { target: { value: "inexistente" } });
@@ -184,7 +192,8 @@ describe("simple task navigation and complete discovery", () => {
       expect(links).toHaveLength(nav.getAllByRole("link", { hidden: true }).length);
     }
     expect([...paths]).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers", "/appointments", "/loyalty"]));
-    expect(paths.size).toBe(28);
+    expect(paths.has("/settings/channels")).toBe(false);
+    expect(paths.size).toBe(27);
     fireEvent.click(nav.getByRole("link", { name: "Operación" }));
     expect(nav.getByRole("link", { name: "Compras y proveedores" }).querySelector("span[aria-hidden]")).not.toHaveClass("truncate");
     await act(async () => {});

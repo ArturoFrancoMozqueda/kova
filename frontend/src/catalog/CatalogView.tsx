@@ -161,7 +161,7 @@ export default function CatalogView() {
   }, [load]);
 
   useEffect(() => {
-    if (!canCreate || loadState.status !== "ready" || modal) return;
+    if (!canCreate || loadState.status !== "ready" || modal || searchParams.has("edit")) return;
     const setupParam = searchParams.get("new") === "product"
       ? "new=product"
       : searchParams.get("inventory") === "activate"
@@ -181,6 +181,17 @@ export default function CatalogView() {
       defaultTrackInventory: setupParam === "inventory=activate",
     });
   }, [canCreate, loadState.status, modal, searchParams, navigate, location.pathname, location.hash, location.state]);
+
+  useEffect(() => {
+    const requestedId = searchParams.get("edit");
+    if (!requestedId || !canUpdate || loadState.status !== "ready" || modal) return;
+    const product = loadState.products.find(row => row.id === requestedId);
+    const remaining = new URLSearchParams(searchParams);
+    remaining.delete("edit"); remaining.delete("new"); remaining.delete("inventory");
+    navigate({ pathname: location.pathname, search: remaining.size ? `?${remaining}` : "", hash: location.hash }, { replace: true, state: location.state });
+    if (product) setModal({ type: "product-edit", product });
+    else toast("Este producto ya no está disponible en el catálogo de este negocio.", "error");
+  }, [canUpdate, loadState, modal, searchParams, navigate, location.pathname, location.hash, location.state, toast]);
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);

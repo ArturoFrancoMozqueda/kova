@@ -607,6 +607,6 @@ it("identifies event authors without inventing names for members outside the cur
     }),
   );
   expect(
-    await screen.findByText("Registrado por Usuario historical-user-42."),
+    await screen.findByText("Registrado por un integrante del equipo."),
   ).toBeVisible();
 });

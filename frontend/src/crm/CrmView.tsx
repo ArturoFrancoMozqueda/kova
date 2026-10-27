@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import {
@@ -114,7 +115,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          e instanceof Error ? e.message : "No pudimos cargar el seguimiento.",
+          resolveUserFacingError(e, "No pudimos cargar el seguimiento."),
         );
     } finally {
       if (mounted.current && revision === generation.current) setLoading(false);
@@ -208,7 +209,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       }
       if (mounted.current)
         setError(
-          e instanceof Error ? e.message : "No pudimos guardar los cambios.",
+          resolveUserFacingError(e, "No pudimos guardar los cambios."),
         );
     } finally {
       locked.current = false;
@@ -689,7 +690,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                           customers.find(
                             (customer) => customer.id === consent.customer_id,
                           )?.name ??
-                          `Cliente ${consent.customer_id.slice(0, 8)}`}
+                          "Cliente registrado"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {consent.channel === "whatsapp" ? "WhatsApp" : "Correo"}{" "}

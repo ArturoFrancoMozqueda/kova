@@ -21,6 +21,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { resolveUserFacingError, safeUserMessage } from "@/lib/apiError";
 import type {
   EntriesPage,
   ReconciliationPreview,
@@ -96,7 +97,7 @@ function ReconciliationWorkspace({
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          e instanceof Error ? e.message : "No pudimos cargar los depósitos.",
+          resolveUserFacingError(e, "No pudimos cargar los depósitos. Vuelve a consultar."),
         );
     } finally {
       if (mounted.current && revision === generation.current) setLoading(false);
@@ -130,9 +131,7 @@ function ReconciliationWorkspace({
       if (e instanceof OperationsError && e.status === 409) await load();
       if (mounted.current)
         setError(
-          e instanceof Error
-            ? e.message
-            : "No pudimos completar la conciliación.",
+          resolveUserFacingError(e, "No pudimos completar la conciliación. Revisa los depósitos actuales."),
         );
     } finally {
       locked.current = false;
@@ -168,7 +167,7 @@ function ReconciliationWorkspace({
     } catch (e) {
       if (mounted.current)
         setError(
-          e instanceof Error ? e.message : "No pudimos revisar el archivo.",
+          resolveUserFacingError(e, "No pudimos revisar el archivo. Revisa el formato e intenta de nuevo."),
         );
     } finally {
       locked.current = false;
@@ -331,7 +330,7 @@ function ReconciliationWorkspace({
                 <ul className="mt-2 list-inside list-disc">
                   {preview.errors.map((issue, index) => (
                     <li key={`${issue.row_number}:${index}`}>
-                      Fila {issue.row_number}: {issue.message}
+                      Fila {issue.row_number}: {safeUserMessage(issue.message, "Revisa los importes, la fecha y la referencia de esta fila.")}
                     </li>
                   ))}
                 </ul>

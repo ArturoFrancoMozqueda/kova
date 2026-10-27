@@ -104,7 +104,6 @@ const adminNavItems: NavItem[] = [
   { to: "/quotes", label: copy.nav.quotes, icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
   { to: "/automations", label: copy.nav.automations, icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
   { to: "/settings/public-catalog", label: copy.nav.publicCatalog, icon: <Store className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/settings/channels", label: copy.nav.channels, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
   { to: "/reconciliation", label: copy.nav.reconciliation, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
   { to: "/replenishment", label: copy.nav.replenishment, icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
@@ -216,7 +215,7 @@ export default function AppShell() {
     if (path.startsWith("/settings/public-catalog")) return "Catálogo público";
     if (path.startsWith("/settings/channels")) return "Canales";
     if (path.startsWith("/purchasing")) return "Compras y proveedores";
-    if (path.startsWith("/settings/integrations")) return "Facturación e integraciones";
+    if (path.startsWith("/settings/integrations")) return copy.nav.integrations;
     if (path.startsWith("/register") || path === "/caja") return copy.register.title;
     if (path.startsWith("/shifts") || path === "/turnos") return copy.shiftView.title;
     if (path.startsWith("/catalog") || path === "/catalogo") return copy.catalog.title;

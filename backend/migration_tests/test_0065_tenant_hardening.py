@@ -46,6 +46,10 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "appointment_reminders": {"SELECT", "INSERT"},
     "loyalty_policy_revisions": {"SELECT", "INSERT"},
     "loyalty_entries": {"SELECT", "INSERT"},
+    "loyalty_reward_revisions": {"SELECT", "INSERT"},
+    "loyalty_reward_redemptions": {"SELECT", "INSERT"},
+    "loyalty_enrollment_policies": {"SELECT", "INSERT"},
+    "loyalty_members": {"SELECT", "INSERT"},
     # New E2E domains remain private to FastAPI's runtime role. Snapshot and
     # ledger mutations are deliberately column-scoped below, not full UPDATE.
     "automation_rules": {"SELECT", "INSERT"},
@@ -158,7 +162,9 @@ _RUNTIME_UPDATE_COLUMNS = {
     "appointment_resources": {"name", "is_active", "version", "updated_at"},
     "appointments": {"starts_at", "ends_at", "note", "status", "version", "updated_at"},
     "appointment_reminders": {"status", "version", "resolved_at"},
-    "crm_catalog_requests": {"status", "customer_id", "opportunity_id", "version", "resolved_at"},
+    "crm_catalog_requests": {
+        "status", "customer_id", "opportunity_id", "customer_order_id", "version", "resolved_at",
+    },
     "crm_followup_policies": {
         "enabled", "review_delay_days", "rebuy_delay_days", "version",
         "authorized_by_user_id", "enabled_since", "updated_at",
@@ -348,6 +354,10 @@ _SEMANTIC_INSERT_ORDER = (
     "appointment_reminders",
     "loyalty_policy_revisions",
     "loyalty_entries",
+    "loyalty_reward_revisions",
+    "loyalty_reward_redemptions",
+    "loyalty_enrollment_policies",
+    "loyalty_members",
     "service_cases",
     "service_case_events",
 )
@@ -379,9 +389,14 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             return "created"
     if table.name == "appointment_reminders" and name == "status":
         return "pending"
+    if table.name == "loyalty_members" and name == "code":
+        return "KV-0000-0000-0000-" + f"{variant:04d}"
+    if table.name == "loyalty_members" and name == "expires_at":
+        return datetime(2099, 1, 1, tzinfo=UTC)
     if table.name == "loyalty_entries" and name == "kind":
         return "accrual"
-    if table.name == "loyalty_policy_revisions" and name == "version":
+    if (table.name in {"loyalty_policy_revisions", "loyalty_enrollment_policies"}
+            and name == "version"):
         return variant + 1
     if table.name == "assistant_records" and name == "kind":
         return "document"

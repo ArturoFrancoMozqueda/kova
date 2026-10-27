@@ -1,4 +1,8 @@
 import { csrfHeaders } from "@/lib/csrf";
+import { safeUserMessage } from "@/lib/apiError";
+class LotError extends Error {
+  constructor(message: string, public readonly status: number) { super(message); }
+}
 
 export type LotAllocation = { lot_id: string; quantity: number };
 export type Lot = {
@@ -17,7 +21,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as { detail?: string | { message?: string } };
-    throw new Error(typeof body.detail === "string" ? body.detail : body.detail?.message ?? "No pudimos cargar los lotes. Inténtalo de nuevo.");
+    throw new LotError(safeUserMessage(response.status < 500 ? (typeof body.detail === "string" ? body.detail : body.detail?.message) : undefined, "No pudimos completar el cambio en los lotes. Revisa los datos e intenta de nuevo."), response.status);
   }
   return response.json() as Promise<T>;
 }

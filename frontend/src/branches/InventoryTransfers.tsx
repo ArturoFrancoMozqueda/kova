@@ -1,3 +1,4 @@
+import { resolveUserFacingError } from "@/lib/apiError";
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -31,11 +32,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     const body = (await response.json().catch(() => ({}))) as {
       detail?: unknown;
     };
-    throw new Error(
+    throw Object.assign(new Error(
       typeof body.detail === "string"
         ? body.detail
         : "No pudimos completar el traspaso. Revisa los datos e intenta de nuevo.",
-    );
+    ), { status: response.status });
   }
   return response.json() as Promise<T>;
 }
@@ -70,9 +71,7 @@ export function InventoryTransfers() {
       .catch((err: unknown) => {
         if (alive)
           setError(
-            err instanceof Error
-              ? err.message
-              : "No pudimos cargar los traspasos.",
+            resolveUserFacingError(err, "No pudimos cargar los traspasos."),
           );
       });
     return () => {
@@ -94,9 +93,7 @@ export function InventoryTransfers() {
       .catch((err: unknown) => {
         if (alive)
           setError(
-            err instanceof Error
-              ? err.message
-              : "No pudimos cargar las existencias.",
+            resolveUserFacingError(err, "No pudimos cargar las existencias."),
           );
       })
       .finally(() => {
@@ -146,9 +143,7 @@ export function InventoryTransfers() {
       setRefresh((value) => value + 1);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "No pudimos registrar el traspaso.",
+        resolveUserFacingError(err, "No pudimos registrar el traspaso."),
       );
     } finally {
       setBusy(false);

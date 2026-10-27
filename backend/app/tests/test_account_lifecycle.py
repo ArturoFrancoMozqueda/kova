@@ -195,6 +195,74 @@ def test_export_policy_classifies_every_tenant_table(db: Session) -> None:
     assert not (_EXPORTABLE_TENANT_TABLES & _NON_EXPORTABLE_TENANT_TABLES)
 
 
+@pytest.mark.usefixtures("fast_business_auth")
+def test_reward_export_and_purge_preserve_the_exact_owned_sale_and_ledger_graph(
+    client: TestClient, db: Session,
+) -> None:
+    import csv
+
+    from app.loyalty.models import LoyaltyEntry, LoyaltyRewardRedemption, LoyaltyRewardRevision
+    from app.tests.test_loyalty_rewards import checkout, checkout_body, program
+
+    tenant, customer, product, reward = program(client)
+    sale_result = checkout(client, checkout_body(customer, product, reward))
+    assert sale_result.status_code == 201, sale_result.text
+    sale = sale_result.json()
+    second_client = TestClient(client.app)
+    other_tenant, other_customer, other_product, other_reward = program(second_client)
+    other_result = checkout(second_client, checkout_body(other_customer, other_product, other_reward))
+    assert other_result.status_code == 201, other_result.text
+    other_sale = other_result.json()
+
+    response = client.get("/api/v1/export/account")
+    assert response.status_code == 200, response.text
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        assert manifest["tables"]["loyalty_reward_revisions"] == 1
+        assert manifest["tables"]["loyalty_reward_redemptions"] == 1
+        revisions = list(csv.DictReader(io.StringIO(
+            archive.read("datos/loyalty_reward_revisions.csv").decode(),
+        )))
+        redemptions = list(csv.DictReader(io.StringIO(
+            archive.read("datos/loyalty_reward_redemptions.csv").decode(),
+        )))
+        entries = list(csv.DictReader(io.StringIO(
+            archive.read("datos/loyalty_entries.csv").decode(),
+        )))
+        assert revisions[0]["id"] == reward["id"]
+        assert revisions[0]["discount_amount"] == "10.00"
+        redemption = redemptions[0]
+        assert redemption["tenant_id"] == str(tenant)
+        assert redemption["customer_id"] == str(customer)
+        assert redemption["sale_order_id"] == sale["id"]
+        assert redemption["reward_revision_id"] == reward["id"]
+        assert redemption["points_cost"] == "5"
+        debit = next(row for row in entries if row["id"] == redemption["ledger_entry_id"])
+        assert debit["kind"] == "redemption" and debit["points"] == "-5"
+        rendered = "\n".join(archive.read(name).decode(errors="replace")
+                             for name in archive.namelist())
+        for other_id in (str(other_tenant), other_reward["id"], other_sale["id"]):
+            assert other_id not in rendered
+        # Intake ownership now includes structured source and the exact order
+        # link even when this particular account has no captured request.
+        intake_header = archive.read("datos/crm_catalog_requests.csv").decode().splitlines()[0]
+        assert all(field in intake_header.split(",") for field in
+                   ("order_lines", "origin", "customer_order_id"))
+
+    owner = db.query(Membership).filter_by(tenant_id=tenant, role="owner").one()
+    db.add(AccountDeletionRequest(tenant_id=tenant, requested_by_user_id=owner.user_id,
+                                 purge_after=datetime.now(UTC) - timedelta(minutes=1)))
+    db.commit()
+    assert purge_due_accounts(db) == 1
+    assert db.get(Tenant, tenant) is None
+    for model in (LoyaltyRewardRedemption, LoyaltyRewardRevision, LoyaltyEntry, Order):
+        assert db.query(model).filter_by(tenant_id=tenant).count() == 0
+    assert db.get(Tenant, other_tenant) is not None
+    assert db.get(Order, UUID(other_sale["id"])) is not None
+    assert db.query(LoyaltyRewardRedemption).filter_by(tenant_id=other_tenant).count() == 1
+    assert db.query(LoyaltyRewardRevision).filter_by(tenant_id=other_tenant).count() == 1
+
+
 def test_only_owner_can_export_or_schedule(client: TestClient, db: Session) -> None:
     signup = _signup_login(client, "manager-export@example.com", "Negocio Gerente")
     membership = db.scalar(select(Membership).where(Membership.tenant_id == signup["tenant_id"]))
