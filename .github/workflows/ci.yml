@@ -155,6 +155,10 @@ jobs:
       - name: Verify full backend suite with the Workers Postgres driver
         working-directory: backend
         run: uv run --no-sync pytest -n 4 --dist loadgroup -q --junitxml=reports/workers-driver.xml
+      # xdist workers migrate their own databases; workerd tests use this one.
+      - name: Migrate the shared workerd test database
+        working-directory: backend
+        run: uv run --no-sync alembic upgrade head
       - name: Provision disposable runtime role
         run: psql -h 127.0.0.1 -U pos -d pos -v kova_app_password=kova_app -f backend/scripts/provision_app_role.sql
         env:
