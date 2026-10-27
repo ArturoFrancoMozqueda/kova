@@ -1,6 +1,19 @@
 # Current Sprint
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
+
+## Navegación visible por rol y categorías desplegables — 2026-10-27
+
+El propietario autoriza implementar, validar por navegador y publicar la navegación nueva.
+Caja, Pedidos y Ventas quedan directos y fijos, también en el pie móvil; el dueño y gerente
+conservan Panel. El resto se presenta en categorías desplegables, con apertura de la ruta
+actual y preferencias por negocio/persona/rol. Una sola opción se presenta directamente.
+Se distinguen Casos de atención y Seguimientos de postventa, sin cambiar sus rutas.
+
+La [auditoría de navegación](audits/KOVA-ROLE-NAVIGATION-2026-10-27.md) registra cambios,
+permisos, teclado, preferencias, móvil y aceptación con API/PostgreSQL reales. Se mantienen
+los filtros existentes y el alcance offline. Publicación autorizada, pendiente de CI y
+aceptación productiva de este corte.
 
 ## Publicación y aceptación productiva de pedidos — 2026-10-26
 

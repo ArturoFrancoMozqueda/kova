@@ -80,53 +80,77 @@ test("desktop sidebar crossfades labels without losing link names", async ({ pag
   await expect(dashboardLabel).toHaveCSS("opacity", "1");
 });
 
-test("task workspaces stay simple and keyboard-accessible in the compact rail", async ({ page }, testInfo) => {
+test("categories open without navigation, persist and expand the compact rail with keyboard", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", route => route.fulfill({ json: authenticatedOwner }));
   await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: billingAllowed }));
   await page.route("**/api/v1/purchasing/suppliers", route => route.fulfill({ json: [] }));
   await page.route("**/api/v1/purchasing/orders?*", route => route.fulfill({ json: [] }));
-  await page.route("**/api/v1/operations/queue", route => route.fulfill({ json: { generated_at: "2026-10-22T18:00:00Z", sections: [] } }));
   await page.goto("/dashboard");
   const nav = page.locator("aside nav");
-  await expect(nav.getByRole("link")).toHaveCount(7);
-  for (const name of ["Panel", "Caja", "Ventas", "Clientes", "Operación", "Análisis", "Configuración"]) {
-    await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
-  }
-  await expect(nav.getByRole("button")).toHaveCount(0);
-  await nav.getByRole("link", { name: "Operación", exact: true }).click();
-  await expect(nav.getByRole("heading", { name: "En esta sección: Operación", exact: true })).toBeVisible();
-  for (const path of ["/catalog", "/inventory", "/purchasing", "/replenishment"]) {
-    await expect(nav.locator(`a[href="${path}"]`)).toBeVisible();
-  }
-  for (const link of await nav.getByRole("link").all()) await expect(link).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("navigation-expanded-top.png"), animations: "disabled" });
-  await nav.getByRole("link").last().scrollIntoViewIfNeeded();
-  await expect(nav.getByRole("link").last()).toBeInViewport();
-  await expect(page.locator("aside").getByRole("button", { name: "Cerrar sesión", exact: true })).toBeInViewport();
-  await page.screenshot({ path: testInfo.outputPath("navigation-expanded-end.png"), animations: "disabled" });
-
-  await page.getByRole("button", { name: /contraer men/i }).click();
+  await expect(nav.getByRole("link")).toHaveCount(3);
+  for (const name of ["Caja", "Ventas", "Panel"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+  const group = nav.getByRole("button", { name: "Productos y operación", exact: true });
+  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expect(nav.getByRole("link", { name: "Catálogo", exact: true })).toHaveCount(0);
+  await group.focus(); await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(group).toHaveAttribute("aria-expanded", "true");
   const purchasing = nav.getByRole("link", { name: "Compras y proveedores", exact: true });
   await expect(purchasing).toBeVisible();
-  await expect(purchasing).toHaveAttribute("title", "Compras y proveedores");
-  await expect(nav.locator('a[href="/orders"]')).toHaveAccessibleName("Ventas");
-  await expect(nav.getByRole("button")).toHaveCount(0);
-  await purchasing.focus();
-  await expect(purchasing).toBeFocused();
-  await page.keyboard.press("Enter");
+  await page.reload();
+  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await nav.getByRole("button", { name: "Configuración", exact: true }).scrollIntoViewIfNeeded();
+  await expect(nav.getByRole("link", { name: "Caja", exact: true })).toBeInViewport();
+  await expect(nav.getByRole("link", { name: "Ventas", exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("navigation-groups-expanded.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Contraer menú", exact: true }).click();
+  await expect(purchasing).toHaveCount(0);
+  await expect(group).toHaveAttribute("title", "Productos y operación");
+  await group.focus(); await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: "Contraer menú", exact: true })).toBeVisible();
+  await expect(group).toBeFocused();
+  await expect(purchasing).toBeVisible();
+  await purchasing.click();
   await expect(page).toHaveURL(/\/purchasing$/);
   await expect(purchasing).toHaveAttribute("aria-current", "page");
-
-  // Direct deep links select their task scope and retain the rail preference.
   await page.reload();
   await expect(purchasing).toHaveAttribute("aria-current", "page");
-  await expect(purchasing).toHaveAttribute("title", "Compras y proveedores");
-  await page.getByRole("button", { name: /expandir men/i }).click();
-  await expect(nav.getByRole("heading", { name: "En esta sección: Operación", exact: true })).toBeVisible();
-  await expect(purchasing).toHaveAttribute("aria-current", "page");
 });
+
+for (const role of ["owner", "manager", "cashier", "staff"]) {
+  for (const width of [390, 768, 1440]) {
+    test(`daily navigation stays visible for ${role} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await markFirstUseToursSeen(page);
+      await page.route("**/api/v1/auth/session", route => route.fulfill({ json: {
+        ...authenticatedOwner, user: { ...authenticatedOwner.user, role }, feature_flags: { customer_orders: true },
+      } }));
+      await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: billingAllowed }));
+      await page.goto("/register");
+      if (width < 1280) {
+        const bottom = page.locator("nav").last();
+        for (const name of ["Caja", "Pedidos", "Ventas"]) await expect(bottom.getByRole("link", { name, exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Abrir menú de navegación", exact: true }).first().click();
+      }
+      const nav = page.locator("aside nav");
+      for (const name of ["Caja", "Pedidos", "Ventas"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+      if (role === "cashier" || role === "staff") {
+        await expect(nav.getByRole("button")).toHaveCount(0);
+        await expect(nav.getByRole("link", { name: "Clientes", exact: true })).toBeVisible();
+        await expect(nav.locator('a[href="/settings/billing"]')).toHaveCount(0);
+        await expect(nav.locator('a[href="/inventory"]')).toHaveCount(0);
+      } else {
+        const group = nav.getByRole("button", { name: "Configuración", exact: true });
+        await group.click();
+        if (role === "manager") await expect(nav.locator('a[href="/settings/billing"]')).toHaveCount(0);
+        else await expect(nav.getByRole("link", { name: "Suscripción", exact: true })).toBeVisible();
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+  }
+}
 
 test("catalog owns the desktop product search without a global command bar", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });

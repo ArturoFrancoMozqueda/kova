@@ -67,7 +67,8 @@ import { useToast } from "@/components/ui/toast";
 import { trapTabKey } from "@/lib/focusTrap";
 import { discoverSections, sectionDescription } from "./navigationDiscovery";
 import { BusinessNextActions } from "./BusinessNextActions";
-import { buildWorkspaceNavigation, workspaceGroupForPath } from "./workspaceNavigation";
+import { buildWorkspaceNavigation, primaryNavigationPaths, workspaceGroupForPath } from "./workspaceNavigation";
+import { NavigationGroups } from "./NavigationGroups";
 
 type NavItem = {
   to: string;
@@ -247,24 +248,6 @@ export default function AppShell() {
       ? adminNavItems
       : cashierNavItems;
 
-  const bottomNavItems: NavItem[] = isOfflineSession
-    ? [{ to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" }]
-    : isAdminRole(userRole)
-    ? [
-        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
-        customerOrdersEnabled
-          ? { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-5 w-5" />, group: "operation" }
-          : { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
-        { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-5 w-5" />, group: "operation" },
-      ]
-    : [
-        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
-        customerOrdersEnabled
-          ? { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-5 w-5" />, group: "operation" }
-          : { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
-        { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-5 w-5" />, group: "operation" },
-      ];
-
   const filteredNavItems = navItems.filter((item) => {
     if (item.to === "/loyalty" && userRole !== "owner") return false;
     if (item.to === "/assistant" && !assistantEnabled) return false;
@@ -303,18 +286,17 @@ export default function AppShell() {
   const sectionResults = searchingSections ? discoverSections(searchDestinations, navigationQuery) : [];
   const workspaceNavigation = buildWorkspaceNavigation(filteredNavItems);
   const activeWorkspace = workspaceGroupForPath(location.pathname);
-  const relatedWorkspace = workspaceNavigation.find(group => group.id === activeWorkspace);
   const workspaceLabels = {
-    sales: copy.orderList.title,
-    customers: copy.nav.customers,
-    operation: copy.nav.workspaceOperation,
-    analysis: copy.reportsView.title,
+    sales: "Menú y ventas",
+    customers: "Clientes y atención",
+    operation: "Productos y operación",
+    analysis: "Análisis y finanzas",
     settings: copy.app.settings,
   };
-  const useWorkspaces = isAdminRole(userRole) && !isOfflineSession;
-  const primaryNavItems = useWorkspaces
-    ? ["/dashboard", "/register"].flatMap(path => filteredNavItems.filter(item => item.to === path))
-    : operationNavItems;
+  const primaryNavItems = primaryNavigationPaths.flatMap(path => filteredNavItems.filter(item => item.to === path));
+  const bottomNavItems = primaryNavItems.filter(item => item.to !== "/dashboard");
+  const navigationPreferenceKey = state.status === "authenticated"
+    ? `kova-navigation-groups-v2:${state.tenantId}:${state.user.id}:${state.user.role}` : "kova-navigation-groups-v2:guest";
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const drawerOpen = sidebarOpen && !isDesktop;
@@ -386,7 +368,7 @@ export default function AppShell() {
     else setSidebarOpen(true);
   };
 
-  const renderNavItem = (item: NavItem, nested = false, describe = false, scopeActive = false) => (
+  const renderNavItem = (item: NavItem, nested = false, describe = false) => (
     <NavLink
       key={item.to}
       to={item.to}
@@ -396,15 +378,15 @@ export default function AppShell() {
       aria-label={sidebarCompact || describe ? item.label : undefined}
       aria-describedby={describe ? `section-purpose-${item.to.replaceAll("/", "-")}` : undefined}
       className={({ isActive }) => cn(
-        "group relative flex min-h-10 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
+        "group relative flex min-h-11 items-center gap-3 overflow-hidden rounded-kova-md py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light",
         sidebarCompact ? "justify-center px-2.5" : "px-2.5",
         nested && "text-[13px]",
-        (isActive || scopeActive) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+        isActive ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
           : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
       )}
     >
       {({ isActive }) => <>
-        <span className={cn("relative z-10 shrink-0", (isActive || scopeActive) && "text-kova-blue-light")}>{item.icon}</span>
+        <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
         <span aria-hidden={sidebarCompact} className={cn(
           "min-w-0 flex-1 whitespace-normal break-words text-left leading-5 transition-[opacity,transform] duration-panel ease-standard",
           sidebarCompact ? "pointer-events-none absolute left-[42px] translate-x-1 opacity-0" : "translate-x-0 opacity-100",
@@ -488,29 +470,23 @@ export default function AppShell() {
       {/* Nav */}
       <nav
         id="navigation-sections"
-        className={cn("flex-1 overflow-y-auto py-4", sidebarCompact ? "px-2" : "px-3")}
+        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden py-4", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
-        {searchingSections ? <div className="space-y-1">
+        {searchingSections ? <div className="min-h-0 space-y-1 overflow-y-auto">
           <p role="status" className="px-2 pb-2 text-xs text-sidebar-muted">{sectionResults.length
             ? `${sectionResults.length} ${sectionResults.length === 1 ? "resultado encontrado" : "resultados encontrados"}`
             : "No encontramos esa acción o sección. Prueba con lo que quieres hacer, como cobrar o compartir productos."}</p>
           {sectionResults.map(item => renderNavItem(item, false, true))}
         </div> : <>
-          <div className="space-y-1">
+          <div className="shrink-0 space-y-1">
             {primaryNavItems.map(item => renderNavItem(item))}
-            {useWorkspaces && workspaceNavigation.map(group => renderNavItem(
-              { ...group.destination, label: workspaceLabels[group.id] }, false, false, group.id === activeWorkspace,
-            ))}
           </div>
-          {useWorkspaces && relatedWorkspace && <div className={cn("mt-4 border-t border-sidebar-border pt-4", sidebarCompact && "pt-2")}>
-            <h2 className={cn("px-2 pb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-sidebar-muted", sidebarCompact && "sr-only")}>
-              {copy.nav.relatedSections}: {workspaceLabels[relatedWorkspace.id]}
-            </h2>
-            <div className="space-y-1">
-              {relatedWorkspace.items.filter(item => item.to !== relatedWorkspace.destination.to).map(item => renderNavItem(item, !sidebarCompact))}
-            </div>
-          </div>}
+          {!isOfflineSession && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><NavigationGroups key={navigationPreferenceKey}
+            groups={workspaceNavigation.map(group => ({ ...group, label: workspaceLabels[group.id], icon: group.destination.icon }))}
+            activeGroup={activeWorkspace} pathname={location.pathname} storageKey={navigationPreferenceKey}
+            compact={sidebarCompact} onExpand={toggleSidebarCollapsed}
+            renderItem={item => renderNavItem(item, true)} /></div>}
         </>}
 
       </nav>
@@ -725,7 +701,7 @@ export default function AppShell() {
         <nav
           className={cn(
             "fixed inset-x-0 bottom-0 z-30 grid border-t border-kova-border bg-white/95 backdrop-blur xl:hidden",
-            isOfflineSession ? "grid-cols-1" : "grid-cols-4",
+            isOfflineSession ? "grid-cols-1" : bottomNavItems.length === 3 ? "grid-cols-4" : "grid-cols-3",
           )}
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label={copy.auth.accountNavigation}
@@ -747,7 +723,7 @@ export default function AppShell() {
               <span>{item.label}</span>
             </NavLink>
           ))}
-          <button
+          {!isOfflineSession && <button
             type="button"
             onClick={(event) => {
               event.currentTarget.focus();
@@ -760,7 +736,7 @@ export default function AppShell() {
           >
             <Menu className="h-5 w-5" />
             <span>{copy.app.more ?? "Más"}</span>
-          </button>
+          </button>}
         </nav>
       </div>
       <SupportDialog open={supportOpen} onClose={() => {

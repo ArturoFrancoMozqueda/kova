@@ -72,9 +72,8 @@ for (const width of [1280, 320]) {
       await page.getByRole("button", { name: /abrir men/i }).first().click();
       await expect(page.getByRole("button", { name: "Abrir asistente Kova" })).toBeHidden();
     }
-    await page.locator("aside nav").getByRole("link", { name: "Operación", exact: true }).click();
-    if (width === 320) await page.getByRole("button", { name: /abrir men/i }).first().click();
-    await expect(page.locator("aside nav").getByRole("heading", { name: "En esta sección: Operación", exact: true })).toBeVisible();
+    await page.locator("aside nav").getByRole("button", { name: "Productos y operación", exact: true }).click();
+    await expect(page.locator("aside nav").getByRole("button", { name: "Productos y operación", exact: true })).toHaveAttribute("aria-expanded", "true");
     await expect(page.locator('a[href="/catalog"]:visible').first()).toBeVisible();
     await page.locator('a[href="/catalog"]:visible').first().click();
     await expect(page).toHaveURL(/\/catalog$/);

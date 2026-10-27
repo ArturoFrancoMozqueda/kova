@@ -40,6 +40,7 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       // preference before continuing through client-side navigation.
       await page.reload();
       if (width < 1280) await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+      await page.locator("aside nav").getByRole("button", { name: "Clientes y atención", exact: true }).click();
       await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
       await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
       const profile = page.getByRole("region", { name: "Ficha del cliente" });
@@ -143,7 +144,8 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       return { customer_id: customer.id as string, product_id: product.id as string };
     }, signup.dev_verification_token);
     await page.reload();
-    await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
+    await page.locator("aside nav").getByRole("button", { name: "Clientes y atención", exact: true }).click();
+      await page.locator("aside nav").getByRole("link", { name: "Clientes", exact: true }).click();
     await page.getByRole("button", { name: "Ver cliente", exact: true }).click();
     await page.getByRole("region", { name: "Ficha del cliente" }).getByRole("link", { name: "Nuevo pedido", exact: true }).click();
     await expect(page.getByLabel("Cliente registrado", { exact: true })).toHaveValue(prepared.customer_id);
