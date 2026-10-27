@@ -228,8 +228,10 @@ def test_identifiers_cannot_change_resource_path(identifier):
     assert error.value.code == "provider_invalid_identifier" and not calls
 
 
+# A fixed UUID keeps test IDs identical across pytest-xdist workers.
 @pytest.mark.parametrize(
-    "motive,replacement", [("01", None), ("01", "not-uuid"), ("02", str(uuid4())), ("04", None)]
+    "motive,replacement",
+    [("01", None), ("01", "not-uuid"), ("02", "7d1f4c2e-9b3a-4e5f-8a6b-2c1d0e9f8a7b"), ("04", None)],
 )
 def test_invalid_cancellation_never_calls_provider(motive, replacement):
     with provider(lambda _: pytest.fail("Unexpected external request")) as client:

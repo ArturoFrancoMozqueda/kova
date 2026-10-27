@@ -19,8 +19,20 @@ los navegadores compiten por el CPU. Además, la carga más lenta destapó una
 carrera en `pos-expansion.spec.ts`: el clic llegaba antes de que cargara la
 lista vacía. La prueba ya espera ese estado.
 
-Pendiente: ruleset de `main`, pytest-xdist y reutilizar el resultado del PR en
-`main`.
+Segunda entrega (#280):
+
+- pytest corre con `-n 4 --dist loadgroup`. `backend/conftest.py` da a cada
+  worker su propia base de datos y crea `kova_app` una sola vez. Las pruebas
+  que crean o borran roles de todo el servidor comparten el grupo
+  `cluster_roles`.
+- El job de Playwright preview se divide en dos shards, cada uno en su propio
+  runner.
+- Un PR exitoso sube el árbol que probó (`ci-verified-tree`). El push a `main`
+  reutiliza ese resultado solo si viene de un PR fusionado del mismo
+  repositorio, con CI exitoso, sobre un árbol idéntico; si no, corre todo.
+  `security`, `assistant-parser` y `repository` siempre corren.
+
+Pendiente: ruleset de `main` (configuración del repositorio).
 
 ## Estado actual
 

@@ -16,6 +16,9 @@ from migration_tests.test_0065_tenant_hardening import (
     _temporary_database,
 )
 
+# Creates and drops cluster-wide roles; one xdist worker runs the whole group.
+pytestmark = pytest.mark.xdist_group("cluster_roles")
+
 
 def _legacy(conn):
     ids = {name: uuid4() for name in ("tenant", "order", "request", "connection", "document")}

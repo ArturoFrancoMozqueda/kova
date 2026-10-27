@@ -25,12 +25,18 @@ jobs:
     name: classify changes
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    # Reading pull request runs lets a main push reuse an identical tree.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     outputs:
       code: ${{ steps.policy.outputs.code }}
       backend: ${{ steps.policy.outputs.backend }}
       frontend: ${{ steps.policy.outputs.frontend }}
       parser: ${{ steps.policy.outputs.parser }}
       supply: ${{ steps.policy.outputs.supply }}
+      reused: ${{ steps.policy.outputs.reused }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -40,6 +46,7 @@ jobs:
         env:
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
 
   repository:
     name: repository contracts
@@ -92,7 +99,7 @@ jobs:
       - name: Lint
         run: uv run ruff check .
       - name: Run integration suite
-        run: uv run pytest --durations=40 --junitxml=reports/backend.xml
+        run: uv run pytest -n 4 --dist loadgroup --durations=40 --junitxml=reports/backend.xml
       - name: Check versioned OpenAPI contract
         run: uv run python scripts/export_openapi.py --check
       - name: Upload OpenAPI artifact
@@ -147,7 +154,7 @@ jobs:
       - run: uv pip install --python backend/.venv/bin/python pg8000==1.31.5
       - name: Verify full backend suite with the Workers Postgres driver
         working-directory: backend
-        run: uv run --no-sync pytest -q --junitxml=reports/workers-driver.xml
+        run: uv run --no-sync pytest -n 4 --dist loadgroup -q --junitxml=reports/workers-driver.xml
       - name: Provision disposable runtime role
         run: psql -h 127.0.0.1 -U pos -d pos -v kova_app_password=kova_app -f backend/scripts/provision_app_role.sql
         env:
@@ -204,11 +211,17 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: frontend production build and browser
+    name: frontend production build and browser (${{ matrix.shard }}/2)
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    # Each shard owns its runner and preview server; more workers on one
+    # runner were slower because they shared its CPU with the server.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     defaults:
       run:
         working-directory: frontend
@@ -231,14 +244,14 @@ jobs:
             npx playwright install-deps chromium
           fi
       - name: Test the existing production build
-        run: npm run test:e2e-preview:built -- --reporter=list,junit,html
+        run: npm run test:e2e-preview:built -- --shard=${{ matrix.shard }}/2 --reporter=list,junit,html
         env:
           PLAYWRIGHT_JUNIT_OUTPUT_NAME: reports/preview.xml
       - name: Upload frontend diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: frontend-${{ github.run_attempt }}
+          name: frontend-${{ matrix.shard }}-${{ github.run_attempt }}
           path: |
             frontend/reports
             frontend/playwright-report
@@ -247,7 +260,7 @@ jobs:
 
   integration:
     needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.reused != 'true'
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
@@ -413,6 +426,18 @@ jobs:
         env:
           CI_POLICY: ${{ toJSON(needs.changes.outputs) }}
           CI_NEEDS: ${{ toJSON(needs) }}
+      # The tree this run proved; a main push of the same tree reuses it.
+      - name: Record the verified tree
+        if: github.event_name == 'pull_request'
+        run: git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/tree.txt"
+      - name: Upload the verified tree
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-verified-tree
+          path: ${{ runner.temp }}/tree.txt
+          if-no-files-found: error
+          retention-days: 7
 
 
   release:
