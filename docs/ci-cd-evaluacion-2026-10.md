@@ -6,15 +6,33 @@ reportes JUnit del run 40350449370.
 
 ## Avance en la branch `ci/evaluacion-pipeline`
 
-Implementado: política `backend`/`frontend` con sus tests, 4 workers en
-Playwright preview, un solo reintento en integración, eliminación del workflow
+Implementado: política `backend`/`frontend` con sus tests, un solo reintento
+en integración, eliminación del workflow
 de incidente (su presupuesto de 90 min del release pasa a
 `check_ops_readiness.py`) y `retention-days: 7` en `openapi-json`. Aplicada a
 los últimos 40 PRs, la política habría saltado el backend en 13 y el frontend
 en 1.
 
-Pendiente: ruleset de `main`, pytest-xdist y reutilizar el resultado del PR en
-`main`.
+Descartado tras medirlo: 4 workers en Playwright preview. En el run 40416992828
+la suite tardó 324 s contra 276 s con 2 workers, porque el servidor de preview y
+los navegadores compiten por el CPU. Además, la carga más lenta destapó una
+carrera en `pos-expansion.spec.ts`: el clic llegaba antes de que cargara la
+lista vacía. La prueba ya espera ese estado.
+
+Segunda entrega (#280):
+
+- pytest corre con `-n 4 --dist loadgroup`. `backend/conftest.py` da a cada
+  worker su propia base de datos y crea `kova_app` una sola vez. Las pruebas
+  que crean o borran roles de todo el servidor comparten el grupo
+  `cluster_roles`.
+- El job de Playwright preview se divide en dos shards, cada uno en su propio
+  runner.
+- Un PR exitoso sube el árbol que probó (`ci-verified-tree`). El push a `main`
+  reutiliza ese resultado solo si viene de un PR fusionado del mismo
+  repositorio, con CI exitoso, sobre un árbol idéntico; si no, corre todo.
+  `security`, `assistant-parser` y `repository` siempre corren.
+
+Pendiente: ruleset de `main` (configuración del repositorio).
 
 ## Estado actual
 
@@ -120,9 +138,9 @@ Recortarla a un subconjunto ahorraría más, pero debilitaría esa garantía.
 ### P2 — Playwright preview con solo 2 workers
 
 327 pruebas, 535 s sumados, 276 s de pared: Playwright usa la mitad de los
-núcleos. **Acción:** `workers: process.env.CI ? 4 : undefined` en
-`playwright.preview.config.ts`. Si aparece contención con el servidor de
-preview, usar `--shard=1/2` y `2/2` en dos jobs. Ahorro estimado: ~2 min.
+núcleos. **Medido:** con 4 workers fue más lento (324 s contra 276 s) por contención
+de CPU. La opción que queda es repartir la suite con `--shard=1/2` y `2/2` en
+dos jobs. Cada job hace su propio build (~30 s) y se ganaría ~2 min de pared.
 
 ### P2 — Reintentos que ocultan inestabilidad
 

@@ -1,5 +1,7 @@
 import importlib.util
+import os
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SPEC = importlib.util.spec_from_file_location(
@@ -13,7 +15,7 @@ class PolicyTests(unittest.TestCase):
     def test_docs_only_skip_suites_even_on_main(self):
         self.assertEqual(POLICY.classify(["docs/deployment.md", "README.md"], main=True),
                          dict(code="false", backend="false", frontend="false",
-                              parser="false", supply="false"))
+                              parser="false", supply="false", reused="false"))
 
     def test_unknown_paths_and_missing_diff_run_suites(self):
         for paths in [None, [], ["new-runtime"], ["docs/check.sh"], ["AGENTS.md"]]:
@@ -21,7 +23,7 @@ class PolicyTests(unittest.TestCase):
         for paths in [None, ["new-runtime"], ["deploy/cloudflare/worker.mjs"]]:
             self.assertEqual(POLICY.classify(paths),
                              dict(code="true", backend="true", frontend="true",
-                                  parser="true", supply="true"))
+                                  parser="true", supply="true", reused="false"))
 
     def test_code_keeps_full_suites_and_main_parser(self):
         for path in ["frontend/src/App.tsx", "backend/app/orders/service.py",
@@ -132,6 +134,67 @@ class PolicyTests(unittest.TestCase):
     def test_legacy_policy_without_sides_cannot_succeed(self):
         needs = {job: {"result": "success"} for job in ["changes", "repository", "security"]}
         self.assertTrue(POLICY.gate_errors(dict(code="true", parser="true", supply="true"), needs))
+        self.assertTrue(POLICY.gate_errors(
+            dict(code="true", backend="true", frontend="true", parser="true", supply="true"),
+            needs))
+
+    def test_reused_main_push_still_requires_security_and_parser(self):
+        policy = POLICY.reuse(POLICY.classify(["frontend/src/App.tsx"], main=True))
+        self.assertEqual((policy["code"], policy["backend"], policy["frontend"],
+                          policy["parser"], policy["reused"]),
+                         ("true", "false", "false", "true", "true"))
+        needs = {job: {"result": "success"} for job in
+                 ["changes", "repository", "security", "assistant-parser"]}
+        needs |= {job: {"result": "skipped"} for job in
+                  ["backend-integration", "backend-workers", "backend-native", "migrations",
+                   "frontend", "frontend-unit", "integration", "supply-chain"]}
+        self.assertEqual(POLICY.gate_errors(policy, needs), [])
+        for job in ["security", "assistant-parser", "repository"]:
+            self.assertTrue(POLICY.gate_errors(policy, needs | {job: {"result": "skipped"}}), job)
+
+    def test_reuse_never_turns_docs_only_into_a_release(self):
+        policy = POLICY.classify(["README.md"], main=True)
+        self.assertEqual(POLICY.reuse(policy), policy)
+
+    def test_verified_tree_requires_one_same_repo_pr_and_identical_successful_tree(self):
+        repo, tree = "owner/kova", "a" * 40
+        pull = {"merged_at": "2026-10-26T00:00:00Z", "base": {"ref": "main"},
+                "head": {"sha": "b" * 40, "repo": {"full_name": repo}}}
+        run = {"id": 7, "conclusion": "success", "path": ".github/workflows/ci.yml",
+               "head_repository": {"full_name": repo}}
+
+        def api_for(pulls, runs):
+            def api(path):
+                if "/pulls" in path:
+                    return pulls
+                if "head_sha=" + "b" * 40 not in path:
+                    raise AssertionError(path)
+                return {"workflow_runs": runs}
+            return api
+
+        with mock.patch.dict(os.environ, {"CI_HEAD": "c" * 40}):
+            check = POLICY.verified_tree_matches
+            self.assertTrue(check(tree, repo, api_for([pull], [run]), lambda _: tree))
+            fork = pull | {"head": {"sha": "b" * 40, "repo": {"full_name": "evil/kova"}}}
+            for pulls, runs, tested in [
+                ([], [run], tree),
+                ([pull, pull], [run], tree),
+                ([fork], [run], tree),
+                ([pull | {"merged_at": None}], [run], tree),
+                ([pull | {"base": {"ref": "release"}}], [run], tree),
+                ([pull], [run | {"conclusion": "failure"}], tree),
+                ([pull], [run | {"path": ".github/workflows/other.yml"}], tree),
+                ([pull], [run | {"head_repository": {"full_name": "evil/kova"}}], tree),
+                ([pull], [run], "d" * 40),
+                ([pull], [run], None),
+                ([pull], [], tree),
+            ]:
+                self.assertFalse(check(tree, repo, api_for(pulls, runs), lambda _, t=tested: t),
+                                 (pulls, runs, tested))
+
+            def broken(_):
+                raise RuntimeError("API unavailable")
+            self.assertFalse(check(tree, repo, broken, lambda _: tree))
 
     def test_invalid_policy_cannot_succeed(self):
         self.assertTrue(POLICY.gate_errors({}, {}))

@@ -166,7 +166,13 @@ test("mobile owner creates a customer and reviews purchases and refunds", async 
     }),
   );
   await page.goto("/customers");
-  await page.getByRole("button", { name: "Nuevo cliente" }).click();
+  // Once the empty list loads, the header action and the empty-state CTA both
+  // read "Nuevo cliente"; wait for it so the click never races the load.
+  await expect(
+    page.getByText("Todavía no hay clientes registrados.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Nuevo cliente" })).toHaveCount(2);
+  await page.getByRole("button", { name: "Nuevo cliente" }).first().click();
   await page.getByLabel("Nombre", { exact: true }).fill(customer.name);
   await page.getByLabel("Correo (opcional)").fill(customer.email);
   await page.getByLabel("Teléfono (opcional)").fill(customer.phone);
