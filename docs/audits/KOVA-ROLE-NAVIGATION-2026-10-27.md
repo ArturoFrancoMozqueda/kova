@@ -74,13 +74,49 @@ comprobaciones financieras. El set real completo se repitió y pasó con la vers
 
 ## Publicación y aceptación productiva
 
-Requiere `CI required`, captura exacta de reversión y publicación coordinada existente.
-Después se verifican SHA de frontend/API, salud de base/proxy y la navegación del dueño
-en la sesión productiva. La comprobación productiva es de lectura y preferencias de UI;
-no necesita crear ventas, pedidos, empleados ni cambiar el catálogo restaurado.
+- [PR #285](https://github.com/ArturoFrancoMozqueda/kova/pull/285) fusionado tras
+  `CI required` aprobado sobre `9a0a9a571a722d74e35e13fc184ccdd21927bbc8`.
+  [CI previo](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40535268081)
+  aprobó también 2,232 pruebas de backend y seis subpruebas, integración Free/PostgreSQL,
+  aceptación nativa, migraciones, reproducibilidad y seguridad.
+- Release `18255a3f18347a77b39da6533cbd88cc5675f7f7`, frontend `18255a3f1834`.
+  [Publicación coordinada, intento 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40536360148/attempts/2)
+  aprobada; captura exacta de reversión conservada antes de publicar. La verificación
+  independiente confirma el mismo SHA en frontend/API, sitio, base de datos y proxy accesibles.
+- El primer intento recibió HTTP 429 en la aceptación de validación de login. La
+  recuperación automática terminó con `RELEASE_FAILED_RECOVERED (candidate)` y restauró
+  `4ae7c8f7182d4d1c624f16c4ec227f744c3d6ae4`. Se conservaron los artefactos; el verificador
+  público y los 25 contratos de la versión recuperada aprobaron antes del segundo intento.
+  No se cambió el control, el límite ni el código entre intentos. El 429 por sí solo no
+  permite distinguir agotamiento de cuota de indisponibilidad del puente privado,
+  que también falla cerrado. El segundo intento pasó sus dos aceptaciones de 25 contratos
+  (máximos 634 ms y 303 ms). La comprobación independiente posterior pasó 25 contratos,
+  mismo proceso, mediana 289 ms y máximo 446 ms, incluida validación de login.
 
-El primer control de dependencias detectó CVE-2026-114605 en dnspython 2.8.0.
-Se actualiza sólo ese paquete y sus hashes con uv 0.13.4; el lock de Cloudflare Free
-ya usa 2.9.0. El [aviso del mantenedor](https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m)
-confirma la versión corregida. La auditoría local vuelve a pasar sin vulnerabilidades
-conocidas; se requieren las suites de backend y seguridad en el nuevo CI antes de fusionar.
+Aceptación desde la sesión real de propietario de Cafetería Sweet Home en el navegador de Codex:
+
+- Actualización desde Panel, conservando sesión y preferencias. No quedó aviso de actualización.
+- Caja, Pedidos y Ventas cargan desde los accesos diarios. Caja conserva carrito vacío;
+  no se crea, cobra, entrega ni devuelve ningún pedido o venta durante esta aceptación.
+- Menú y ventas y Clientes y atención se abren sin abandonar Panel. Cerrarlos y recargar
+  conserva la elección; entrar por enlace directo al catálogo abre sólo su categoría.
+- Desde la barra compacta, abrir Productos y operación expande la barra y descubre
+  Inventario manteniendo Panel. Búsqueda encuentra Catálogo público con la categoría
+  cerrada, abre el destino y limpia la consulta.
+- Catálogo público conserva `https://kovasuite.com/catalogo/cafeteria-sweet-home` y
+  13 productos seleccionados. No se guarda ni modifica el catálogo o su enlace.
+- Sin desbordamiento horizontal ni errores de consola observados. Inspección visual
+  aprobada; captura local `kova-navegacion-produccion.jpg` en los artefactos del chat.
+
+Los otros tres roles y los cuatro tamaños se validaron con cuentas/API/PostgreSQL reales
+locales y cobertura automatizada. La aceptación manual productiva usa sólo al propietario;
+no se afirma iniciar sesión con los otros roles en producción. No se cambiaron empleados,
+permisos, datos maestros, cobros ni registros comerciales para validar la navegación.
+
+## Dependencia corregida para publicar
+
+El control de dependencias detectó CVE-2026-114605 en dnspython 2.8.0.
+Se actualizó sólo ese paquete y sus hashes con uv 0.13.4; el lock de Cloudflare Free
+ya usaba 2.9.0. El [aviso del mantenedor](https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m)
+confirma la versión corregida. La auditoría local y CI pasan sin excepciones, con las
+suites completas de backend y seguridad aprobadas antes de fusionar.
