@@ -93,6 +93,33 @@ class Amd64ValidationWorkflowTests(unittest.TestCase):
                 self.assertEqual(arguments[arguments.index("--report") + 1],
                                  "reports/security/parser-runtime.json")
 
+    def test_resource_container_models_binding_outage_without_disabling_native_guards(self):
+        step = workflow_step("native-backend.yml", "--name kova-native-acceptance")
+        # Extract this invocation, so an alias on an unrelated docker command
+        # or in a comment cannot satisfy the acceptance contract.
+        runs = [shlex.split(line) for line in run_command(step).replace("\\\n", " ").splitlines()
+                if line.strip().startswith("docker run ")]
+        self.assertEqual(len(runs), 1)
+        arguments = runs[0]
+        self.assertEqual(arguments[arguments.index("--name") + 1], "kova-native-acceptance")
+        aliases = [arguments[index + 1] for index, arg in enumerate(arguments)
+                   if arg == "--add-host"]
+        self.assertEqual(aliases, ["rate-limit.kova.internal:127.0.0.1"])
+        environment = [arguments[index + 1] for index, arg in enumerate(arguments)
+                       if arg == "--env"]
+        self.assertIn("APP_ENV", environment)
+        self.assertNotIn("APP_ENV=local", environment)
+        self.assertFalse(any(entry.split("=", 1)[0] in {
+            "CLOUDFLARE_CONTAINER_MODE", "KOVA_RELEASE_SHA", "KOVA_IMAGE_SHA",
+        } for entry in environment), "Mode and image identity must be inherited from the image")
+        self.assertFalse(any(arg.startswith("--env=") for arg in arguments))
+        self.assertNotIn("--env-file", arguments)
+        self.assertNotIn("--entrypoint", arguments)
+        self.assertEqual(arguments[-1], "kova-native:${KOVA_BUILD_SHA}")
+        self.assertRegex((WORKFLOWS / "native-backend.yml").read_text(),
+                         r"(?m)^      APP_ENV: ci$")
+        self.assertIn("CLOUDFLARE_CONTAINER_MODE=true", (ROOT / "backend/Dockerfile.api").read_text())
+
     def test_native_host_guard_and_failure_artifacts_survive_acceptance_failure(self):
         for filename in ("native-backend.yml", "ci-maintenance.yml"):
             with self.subTest(workflow=filename):

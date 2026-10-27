@@ -76,7 +76,18 @@ jobs:
       - name: Run with lite CPU and memory limits
         shell: bash
         run: |
+          # Docker has no Cloudflare outbound binding for this virtual host.
+          # Exercise its existing outage policy through a refused local TCP
+          # connection; external DNS must not enter the photo resource budget.
+          python - <<'PYPORT'
+          import errno, socket
+          with socket.socket() as probe:
+              probe.settimeout(1)
+              if probe.connect_ex(("127.0.0.1", 80)) != errno.ECONNREFUSED:
+                  raise SystemExit("CI limiter outage target must refuse local port 80")
+          PYPORT
           docker run --detach --name kova-native-acceptance --network host \
+            --add-host rate-limit.kova.internal:127.0.0.1 \
             --cpus 0.0625 --memory 256m --memory-swap 256m \
             --read-only --cap-drop ALL --security-opt no-new-privileges \
             --pids-limit 64 --tmpfs /tmp:size=64m,mode=1777 \
@@ -122,7 +133,8 @@ jobs:
         run: |
           mkdir -p reports/security
           docker logs --tail 20 kova-native-acceptance > reports/security/native-container.log 2>&1 || true
-          docker inspect --format '{"image":{{json .Image}},"state":{{json .State}},"memory":{{.HostConfig.Memory}},"memory_swap":{{.HostConfig.MemorySwap}},"nano_cpus":{{.HostConfig.NanoCpus}}}' kova-native-acceptance > reports/security/native-container.json || true
+          docker exec kova-native-acceptance /app/.venv/bin/python -c 'import json; from pathlib import Path; print(json.dumps({name:Path("/sys/fs/cgroup",name).read_text() for name in ("memory.peak","cpu.stat")}))' > reports/security/native-resource-counters.json || true
+          docker inspect --format '{"image":{{json .Image}},"state":{{json .State}},"memory":{{.HostConfig.Memory}},"memory_swap":{{.HostConfig.MemorySwap}},"nano_cpus":{{.HostConfig.NanoCpus}},"read_only":{{json .HostConfig.ReadonlyRootfs}},"pids_limit":{{.HostConfig.PidsLimit}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' kova-native-acceptance > reports/security/native-container.json || true
           docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance || true
           docker rm --force kova-native-acceptance || true
       - name: Upload native vulnerability report
