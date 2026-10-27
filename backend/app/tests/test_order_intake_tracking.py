@@ -22,10 +22,12 @@ from app.tests.test_customer_orders import _confirm, _seed, _signup_login
 pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
-def setup(client, *, quantity=2, stock=5):
+def setup(client, *, quantity=2, stock=5, message=None):
     tenant, product, catalog, url, body = _public_setup(client)
     _seed(client, product["id"], stock)
     body.update(order_lines=[{"product_id": product["id"], "quantity": quantity}], origin="remote")
+    if message is not None:
+        body["message"] = message
     response = client.post(url, json=body)
     assert response.status_code == 201, response.text
     customer = _customer(client)
@@ -114,6 +116,12 @@ def test_acceptance_is_atomic_replay_safe_explicit_and_does_not_reserve_or_creat
     assert request["customer_id"] == order["customer_id"] == customer["id"]
     assert order["status"] == "new" and order["payment_status"] == "unpaid"
     assert order["total_amount"] == "50.00"
+    assert order["note"] == "Pedido desde el menú digital"
+    assert receipt["receipt_id"] not in order["note"]
+    assert order["menu_request_message"] == body["message"]
+    detail = client.get(f"/api/v1/customer-orders/{order['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["menu_request_message"] == body["message"]
     assert accept(client, receipt, customer, review, headers).json() == result.json()
     assert accept(client, receipt, customer, review).status_code == 409
     assert db.query(CustomerOrder).filter_by(tenant_id=tenant).count() == 1
@@ -427,3 +435,24 @@ def test_concurrent_acceptance_creates_exactly_one_order(committed_intake, kova_
         assert db.query(CustomerOrder).filter_by(tenant_id=tenant).count() == 1
         assert db.query(InventoryReservation).filter_by(tenant_id=tenant).count() == 0
         assert db.query(CatalogRequest).filter_by(tenant_id=tenant).one().status == "accepted"
+
+
+def test_original_menu_instructions_remain_private_and_visible_through_preparation(client, db):
+    message = "\n".join(["Sin calentar, por favor."] * 30)
+    tenant, _, _, _, _, receipt, customer = setup(client, message=message)
+    response = accept(client, receipt, customer)
+    assert response.status_code == 201, response.text
+    order = response.json()["customer_order"]
+    assert order["menu_request_message"] == message
+    assert _confirm(client, order).json()["menu_request_message"] == message
+    detail = client.get(f"/api/v1/customer-orders/{order['id']}")
+    assert detail.json()["menu_request_message"] == message
+    assert "menu_request_message" not in track(client, receipt)
+    assert message not in str(track(client, receipt))
+    member = db.query(Membership).filter_by(tenant_id=tenant).one()
+    member.role = "cashier"
+    db.commit()
+    assert client.get(f"/api/v1/customer-orders/{order['id']}").json()["menu_request_message"] == message
+    assert client.get(f"/api/v1/crm/requests/{receipt['receipt_id']}/order-preview").status_code == 403
+    _signup_login(client, prefix="foreign-menu-instructions")
+    assert client.get(f"/api/v1/customer-orders/{order['id']}").status_code == 404

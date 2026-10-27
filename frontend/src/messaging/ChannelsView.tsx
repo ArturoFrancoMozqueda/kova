@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
+import { SUPPORT_MAILTO } from "@/lib/support";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type Readiness = { status: "not_connected" | "connected" | "configuration_error"; send_enabled: boolean; webhook_enabled: boolean; tenant_mapping_verified: boolean; checklist: { key: string; title: string; description: string; status: "required" | "review_required" }[] };
@@ -47,13 +48,14 @@ function ChannelsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <p className="text-sm text-kova-muted">Este estado confirma la configuración guardada. La entrega de cada mensaje se confirma por separado.</p>
           <Link className="inline-flex min-h-11 items-center text-sm underline" to="/inbox">Abrir bandeja de atención</Link>
         </> : <>
-        <p className="text-sm">La conexión requiere un alta asistida con Kova y Meta. Se comprueba la vinculación de esta sucursal; los pasos de abajo son una guía general y no guardan avances.</p>
-        <p className="max-w-2xl text-sm text-kova-muted">Vincular WhatsApp a Kova requiere una configuración distinta de la app del celular. El equipo de Kova te ayuda a verificar tu número.</p>
+        <p className="text-sm">El equipo de Kova te acompaña a conectar el número de tu negocio con Meta. Contacta a soporte para revisar tu caso y los requisitos.</p>
+        <p className="max-w-2xl text-sm text-kova-muted">El equipo de Kova te ayuda a verificar tu número y revisar cómo conservar tu WhatsApp actual.</p>
         <p className="text-sm">No se envían ni reciben mensajes automáticos desde esta preparación. Los enlaces del catálogo abren una conversación directamente con el negocio.</p>
+        <a href={`${SUPPORT_MAILTO}?subject=Conectar%20WhatsApp%20con%20Kova`} className="inline-flex min-h-11 items-center rounded-xl bg-kova-blue px-4 py-3 text-sm font-medium text-white">Solicitar ayuda para conectar WhatsApp</a>
         {data.status === "configuration_error" && <p role="alert" className="text-sm">La configuración requiere revisión por el equipo de Kova. Los envíos permanecen bloqueados.</p>}
         </>}
       </section>
-      <section aria-label="Preparación del canal" className="space-y-4"><h2 className="text-xl font-semibold">{data.status === "connected" ? "Guía de referencia" : "Lo que necesitas revisar"}</h2><ol className="grid gap-4 md:grid-cols-2">{data.checklist.map((item, index) => <li key={item.key} className="min-w-0 rounded-2xl border border-kova-border bg-white p-5"><p className="mb-2 text-xs font-medium uppercase tracking-wide text-kova-muted">Paso {index + 1} · {data.status === "connected" ? "Requisito del canal" : item.status === "required" ? "Por configurar" : "Requiere revisión"}</p><h3 className="break-words font-semibold">{item.title}</h3><p className="mt-3 break-words text-sm text-kova-muted">{item.description}</p></li>)}</ol></section>
+      <details aria-label="Preparación del canal" className="space-y-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">Qué revisaremos contigo</summary><p className="text-sm text-kova-muted">Esta guía explica la preparación; no indica que los pasos ya estén completados.</p><ol className="grid gap-4 md:grid-cols-2">{data.checklist.map((item, index) => <li key={item.key} className="min-w-0 rounded-2xl border border-kova-border bg-white p-5"><p className="mb-2 text-xs font-medium uppercase tracking-wide text-kova-muted">Paso {index + 1} · {data.status === "connected" ? "Requisito del canal" : item.status === "required" ? "Por configurar" : "Requiere revisión"}</p><h3 className="break-words font-semibold">{item.title}</h3><p className="mt-3 break-words text-sm text-kova-muted">{item.description}</p></li>)}</ol></details>
       <section className="rounded-2xl border border-kova-border p-6"><h2 className="font-semibold">Puedes avanzar desde Kova</h2><p className="mt-2 text-sm text-kova-muted">Publica tu catálogo y registra permisos de contacto por cliente. Esto no activa campañas ni reemplaza el alta del canal en Meta.</p><div className="mt-4 flex flex-wrap gap-4"><Link to="/settings/public-catalog" className="inline-flex min-h-11 items-center text-sm underline">Preparar catálogo y QR</Link><Link to="/crm" className="inline-flex min-h-11 items-center text-sm underline">Revisar clientes y consentimientos</Link><a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm underline">Revisar alta oficial de Meta</a></div></section>
       <Button variant="outline" onClick={() => void load()}>Volver a consultar requisitos</Button>
     </>}

@@ -287,7 +287,9 @@ export default function InventoryView() {
                   id: `low-${item.product_id}`,
                   productId: item.product_id,
                   title: item.product_name,
-                  detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
+                  detail: item.stock_on_hand > 0 && item.available_quantity <= 0
+                    ? "Todas las unidades están reservadas para pedidos."
+                    : copy.inventoryView.lowStockDetail(item.available_quantity ?? item.stock_on_hand, item.low_stock_threshold),
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
                   stockItem: item,
                 })),
@@ -541,6 +543,7 @@ function StockCard({
             <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
           ) : null}
         </div>
+        <div className="lg:text-right">
         <div className="flex items-baseline gap-2 lg:justify-end">
           <span
             className={cn(
@@ -551,6 +554,8 @@ function StockCard({
             {item.stock_on_hand}
           </span>
           <span className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.onHand}</span>
+        </div>
+        {item.reserved_quantity > 0 && <p className="mt-1 text-xs text-muted-foreground">{item.available_quantity} disponibles · {item.reserved_quantity} reservados</p>}
         </div>
         <p className="text-xs text-muted-foreground lg:text-right lg:text-sm lg:tabular-nums">
           <span className="lg:sr-only">{copy.inventoryView.threshold}: </span>{item.low_stock_threshold ?? "—"}

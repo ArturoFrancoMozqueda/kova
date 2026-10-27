@@ -48,7 +48,7 @@ export function menuRequestMessage(lines: MenuLine[], origin: OrderOrigin, note:
     `Origen: ${origin === "onsite" ? "En el negocio" : "A distancia"}`,
     ...lines.map(({ product, quantity }) => `${quantity} × ${product.name}`),
     `Subtotal estimado: ${menuMoney(menuSubtotal(lines))} MXN`,
-    "Pendiente de aceptación del negocio. Sin reserva ni pago.",
+    "El negocio confirmará disponibilidad, pago y entrega.",
     ...(note.trim() ? [`Notas: ${note.trim()}`] : []),
   ].join("\n");
 }

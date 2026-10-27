@@ -336,3 +336,19 @@ test("Caja checkout for a customer order uses the dedicated endpoint once", asyn
   await expect(page.getByRole("heading", { name: "Pedido cobrado" })).toBeVisible();
   expect(checkoutCalls).toBe(1);
 });
+
+
+test("cashiers see original menu instructions without internal request identifiers", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockShell(page, "cashier");
+  await page.route("**/api/v1/customer-orders/customer-order-1", route => route.fulfill({ json: {
+    ...customerOrder,
+    note: "Solicitud del menú d474091d-932d-40f4-a144-4f2c13609c54",
+    menu_request_message: "Notas: Sin calentar, por favor.",
+  } }));
+  await page.goto("/pedidos/customer-order-1");
+  await expect(page.getByRole("heading", { name: "Solicitud del cliente", exact: true })).toBeVisible();
+  await expect(page.getByText("Notas: Sin calentar, por favor.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Pedido desde el menú digital", { exact: true })).toBeVisible();
+  await expect(page.getByText(/d474091d-932d-40f4-a144-4f2c13609c54/)).toHaveCount(0);
+});

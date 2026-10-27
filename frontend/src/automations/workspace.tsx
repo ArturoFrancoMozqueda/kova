@@ -126,7 +126,7 @@ export function useOperationsRequest(
         const detail = response.status < 500 ? safeUserMessage(rawDetail, fallback) : fallback;
         throw new OperationsError(
           response.status === 409
-            ? "Los datos cambiaron. Revisa la versión actual antes de volver a intentar."
+            ? "Los datos cambiaron. Revisa la información actualizada antes de volver a intentar."
             : resolveApiErrorMessage({ status: response.status }, detail),
           response.status,
           detail,

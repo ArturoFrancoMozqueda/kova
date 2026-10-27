@@ -37,10 +37,9 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
         public_name: "Café del Patio", support_email: null, support_phone: null,
         timezone: "America/Mexico_City", locale: "es-MX", currency: "MXN",
       });
-      const customer = await write("/customers", "POST", { name: "Ana del Patio", email: null, phone: null, is_active: true });
       const product = await write("/catalog/products", "POST", { name: "Pan de nuez", price_amount: "45.00", track_inventory: true });
       await write(`/inventory/products/${product.id}/adjustments`, "POST", { quantity_delta: 5, reason: "Existencias efímeras del recorrido local" });
-      return { customerId: customer.id as string, productId: product.id as string };
+      return { productId: product.id as string };
     }, signup.dev_verification_token);
     await page.reload();
     const read = async (path: string) => {
@@ -75,6 +74,7 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
       await expect(anonymous.getByRole("region", { name: "Tu pedido", exact: true })).toContainText("$90.00");
       await anonymous.getByLabel("Tu nombre", { exact: true }).fill("Ana");
       await anonymous.getByLabel("Teléfono o correo para responder").fill("ana@example.com");
+      await anonymous.getByLabel("Notas para el negocio (opcional)").fill("Sin calentar, por favor.");
       const intakeResponse = anonymous.waitForResponse(response => new URL(response.url()).pathname.startsWith("/api/v1/public/catalog/")
         && new URL(response.url()).pathname.endsWith("/requests") && response.request().method() === "POST");
       await anonymous.getByRole("button", { name: "Enviar solicitud de pedido", exact: true }).click();
@@ -85,8 +85,8 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
         order_lines: [{ product_id: prepared.productId, quantity: 2 }], origin: "remote" });
       const receipt = await intake.json();
       expect(receipt).toMatchObject({ status: "received", tracking_path: expect.stringMatching(/^\/seguimiento#.+$/) });
-      await anonymous.getByRole("link", { name: "Ver estado de mi solicitud", exact: true }).click();
-      await expect(anonymous.getByRole("status")).toContainText("Solicitud recibida");
+      await expect(anonymous).toHaveURL(new RegExp(`/seguimiento#.+$`));
+      await expect(anonymous.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toContainText("Solicitud recibida");
       await expect(anonymous.getByText("Total registrado", { exact: true })).toHaveCount(0);
       const trackingUrl = anonymous.url();
       await assertStock(5, 0, 5);
@@ -101,28 +101,40 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
       await expect(review.getByText("$90.00 MXN", { exact: true })).toBeVisible();
       const create = review.getByRole("button", { name: "Crear pedido para confirmar", exact: true });
       await expect(create).toBeDisabled();
-      await review.getByLabel("Vincular con cliente registrado").selectOption(prepared.customerId);
+      await review.getByRole("button", { name: "Registrar cliente sin salir", exact: true }).click();
+      await expect(review.getByLabel("Correo del cliente (opcional)")).toHaveValue("");
+      await review.getByLabel("Nombre del cliente", { exact: true }).fill("Ana del Patio");
+      const customerResponse = postResponse("/customers");
+      await review.getByRole("button", { name: "Guardar y usar cliente", exact: true }).click();
+      const customerSaved = await customerResponse;
+      expect(customerSaved.status()).toBe(201);
+      const customerId = (await customerSaved.json()).id as string;
+      await expect(review.getByLabel("Vincular con cliente registrado")).toHaveValue(customerId);
+      await expect(review.getByText("2 × Pan de nuez", { exact: true })).toBeVisible();
       await review.getByLabel(/Revisé productos, cantidades, precios y cliente/).check();
       const acceptedResponse = postResponse(`/crm/requests/${receipt.receipt_id}/accept-order`);
       await create.click();
       const acceptance = await acceptedResponse;
       expect(acceptance.status()).toBe(201);
       const accepted = await acceptance.json();
-      expect(accepted.request).toMatchObject({ status: "accepted", customer_id: prepared.customerId, customer_order_id: accepted.customer_order.id });
-      expect(accepted.customer_order).toMatchObject({ status: "new", payment_status: "unpaid", total_amount: "90.00", customer_id: prepared.customerId });
+      expect(accepted.request).toMatchObject({ status: "accepted", customer_id: customerId, customer_order_id: accepted.customer_order.id });
+      expect(accepted.customer_order.note).toBe("Pedido desde el menú digital");
+      expect(accepted.customer_order.menu_request_message).toContain("Sin calentar, por favor.");
+      expect(accepted.customer_order).toMatchObject({ status: "new", payment_status: "unpaid", total_amount: "90.00", customer_id: customerId });
       const created = page.getByRole("dialog", { name: "Pedido creado", exact: true });
-      await expect(created.getByRole("status")).toContainText("Todavía no reserva inventario ni registra un cobro");
+      await expect(created.getByRole("status")).toContainText("Confirma el pedido para reservar sus productos");
       await assertStock(5, 0, 5);
       expect((await read("/customer-orders")).total).toBe(1);
       expect((await read("/orders")).total).toBe(0);
       await created.getByRole("link", { name: "Abrir pedido", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/pedidos/${accepted.customer_order.id}$`));
+      await expect(page.getByText(/Notas: Sin calentar, por favor/)).toBeVisible();
       const confirmationResponse = postResponse(`/customer-orders/${accepted.customer_order.id}/confirm`);
       await page.getByRole("button", { name: "Confirmar y reservar", exact: true }).click();
       expect((await confirmationResponse).status()).toBe(200);
       await assertStock(5, 2, 3);
       await anonymous.getByRole("button", { name: "Actualizar estado", exact: true }).click();
-      await expect(anonymous.getByRole("status")).toContainText("Pedido confirmado");
+      await expect(anonymous.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toContainText("Pedido confirmado");
 
       await page.getByRole("button", { name: "Cobrar en Caja", exact: true }).click();
       await page.getByRole("radio", { name: "Tarjeta manual", exact: true }).click();
@@ -131,7 +143,7 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
       const checkout = await checkoutResponse;
       expect(checkout.status()).toBe(201);
       const paid = await checkout.json();
-      expect(paid.sale_order).toMatchObject({ customer_id: prepared.customerId, total_amount: "90.00" });
+      expect(paid.sale_order).toMatchObject({ customer_id: customerId, total_amount: "90.00" });
       expect(paid.sale_order.payments[0]).toMatchObject({ method: "manual_card", amount_amount: "90.00" });
       await expect(page.getByRole("heading", { name: "Pedido cobrado", exact: true })).toBeVisible();
       await page.getByRole("link", { name: "Volver al pedido", exact: true }).click();
@@ -157,7 +169,7 @@ test.describe("menú, pedido y seguimiento con API, PostgreSQL y RLS reales", ()
       for (const field of ["customer_id", "customer_name", "contact", "email", "phone", "payments", "sale_order_id"]) {
         expect(tracking).not.toHaveProperty(field);
       }
-      await expect(anonymous.getByRole("status")).toContainText("Pedido entregado");
+      await expect(anonymous.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toContainText("Pedido entregado");
       await expect(anonymous.getByText("$90.00 MXN", { exact: true })).toBeVisible();
       expect(anonymous.url()).toBe(trackingUrl);
       expect(await anonymous.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -59,6 +59,7 @@ it("requires a supplier and two-step review before creating a pending purchase",
   mount();
   await screen.findByText("Harina");
   expect(screen.getByRole("button", { name: "Revisar compra" })).toBeDisabled();
+  expect(screen.getByRole("status")).toHaveTextContent("Elige un proveedor para continuar.");
   fireEvent.change(screen.getByLabelText("Proveedor"), {
     target: { value: supplier.id },
   });

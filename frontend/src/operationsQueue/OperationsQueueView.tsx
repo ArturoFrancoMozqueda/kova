@@ -174,11 +174,10 @@ function OperationsQueueWorkspace({
       <ViewHeader
         eyebrow="Operación del negocio"
         title="Pendientes del negocio"
-        meta="Consulta en un lugar lo que necesita seguimiento y continúa en el módulo correspondiente."
+        meta="Revisa lo que necesita atención y abre cada pendiente para continuar."
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Cada área conserva sus pendientes y estados. Esta consulta es de
-        lectura: las acciones se realizan en su módulo de origen.
+        Encuentra las atenciones, oportunidades y recordatorios de tu equipo.
       </p>
       {!online ? (
         <p
@@ -213,10 +212,9 @@ function OperationsQueueWorkspace({
                   </p>
                   <p className="break-words text-xs text-kova-muted">
                     {timezoneAvailable
-                      ? `Fechas en la zona horaria del negocio: ${timezone}.`
+                      ? "Fechas en el horario del negocio."
                       : "No pudimos confirmar la zona horaria del negocio. Las fechas se muestran en UTC."}{" "}
-                    La vista es acotada por área; consulta el módulo para
-                    revisar el resto.
+                    Abre cada área para consultar todos sus pendientes.
                   </p>
                 </div>
                 <Button
@@ -273,8 +271,7 @@ function QueueSection({
       </div>
       {!section ? (
         <p role="alert" className="text-sm text-destructive">
-          Esta área no apareció en la respuesta. Actualiza la consulta antes de
-          continuar.
+          No pudimos consultar esta área. Actualiza los pendientes para volver a intentar.
         </p>
       ) : section.items.length === 0 ? (
         <p className="rounded-xl bg-kova-mist p-4 text-sm text-kova-muted">

@@ -120,7 +120,7 @@ def accept(db, tenant_id, user_id, request_id, body, key):
         body=CustomerOrderCreate(
             customer_id=customer.id, customer_name=customer.name,
             source_channel="counter" if row.origin == "in_store" else "other",
-            fulfillment_type="pickup", note=f"Solicitud del menú {row.id}",
+            fulfillment_type="pickup", note="Pedido desde el menú digital",
             items=[CustomerOrderItemCreate(
                 product_id=item["product_id"], quantity=item["quantity"],
             ) for item in reviewed["items"]],
@@ -131,6 +131,7 @@ def accept(db, tenant_id, user_id, request_id, body, key):
     row.status, row.resolved_at = "accepted", now()
     row.version += 1
     db.flush()
+    order["menu_request_message"] = row.message
     result = {"request": engagement.request_response(row), "customer_order": order}
     return engagement._finish(
         db, tenant_id, user_id, key, fingerprint, row, result, "crm.request.order_created", 201,

@@ -68,8 +68,8 @@ for (const width of [320, 390, 768, 1440]) {
     await page.getByLabel("Tu nombre", { exact: true }).fill("Ana");
     await page.getByLabel("Teléfono o correo para responder").fill("ana@example.invalid");
     await page.getByRole("button", { name: "Enviar solicitud de pedido" }).click();
-    await page.getByRole("link", { name: "Ver estado de mi solicitud" }).click();
-    await expect(page.getByRole("status")).toContainText("Solicitud recibida");
+    await expect(page).toHaveURL(/\/seguimiento#order-test-capability$/);
+    await expect(page.getByRole("region", { name: "Estado de tu solicitud", exact: true }).getByRole("status")).toContainText("Solicitud recibida");
     await expect(page.getByText("Total registrado", { exact: true })).toHaveCount(0);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("pos:pwa-update-available")));
     await expect(page.getByRole("button", { name: "Actualizar ahora" })).toHaveCount(0);
@@ -87,19 +87,20 @@ for (const width of [320, 390, 768, 1440]) {
     await check(page);
     await create.click();
     const created = page.getByRole("dialog", { name: "Pedido creado" });
-    await expect(created.getByRole("status")).toContainText("Todavía no reserva inventario ni registra un cobro");
+    await expect(created.getByRole("status")).toContainText("Confirma el pedido para reservar sus productos");
     await created.getByRole("link", { name: "Abrir pedido" }).click();
     await expect(page).toHaveURL(/\/pedidos\/order-1$/);
     await page.getByRole("button", { name: "Confirmar y reservar", exact: true }).click();
     await page.getByRole("button", { name: "Marcar en preparación", exact: true }).click();
     await page.getByRole("button", { name: "Marcar listo", exact: true }).click();
     await expect(page.getByRole("button", { name: "Marcar entregado", exact: true })).toBeDisabled();
+    await expect(page.getByText("El pedido está listo. Registra el cobro en Caja para poder marcarlo como entregado.")).toBeVisible();
     expect(mutations).toHaveLength(4);
 
     owner = false;
     await page.goto("/seguimiento#order-test-capability");
     await expect(page.getByRole("status")).toContainText("Tu pedido está listo");
-    await expect(page.getByText(/El estado del pedido no acredita un pago/)).toBeVisible();
+    await expect(page.getByText(/Acuerda el pago directamente con el negocio/)).toBeVisible();
     await check(page);
     await page.screenshot({ path: testInfo.outputPath(`tracking-ready-${width}.png`), fullPage: true });
   });

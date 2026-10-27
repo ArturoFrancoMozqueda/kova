@@ -67,3 +67,18 @@ Pruebas: captura sin parsing ni precios cliente, legacy replay intacto, precios 
 revisión/confirmación, stock insuficiente, required modifiers, cliente explícito, gates/CSRF,
 reintentos/concurrencia, rollback atómico, RLS/FK cross-tenant/branch, grants inmutables,
 capability alterada/expirada/de otro propósito, proyección sin PII y estados reales hasta entrega.
+
+## Continuidad de UX — 2026-10-26
+
+Después de un recibo estructurado válido, el menú abre directamente el seguimiento interno
+que devolvió el backend y reemplaza la entrada del formulario en el historial. No inventa
+un enlace para consultas ni negocios sin seguimiento. El cliente puede copiar el enlace;
+el estado activo se consulta cada 30 segundos mientras la pestaña esté visible y conectada.
+Las peticiones no se superponen; estados terminales o errores detienen el sondeo.
+
+La revisión privada permite registrar un cliente sin abandonar el pedido; exige confirmar
+su identidad y conserva los permisos, CSRF e idempotencia existentes. El detalle privado
+añade `menu_request_message: string|null` opcional, con la solicitud original íntegra
+normalizada al capturar, leída por tenant/sucursal/pedido vinculados. También se conserva
+en respuestas de cambios de estado. No cambia notas operativas ni contratos financieros,
+no interpreta instrucciones y no forma parte de la proyección pública del seguimiento.

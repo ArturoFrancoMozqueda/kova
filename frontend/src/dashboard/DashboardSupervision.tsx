@@ -137,9 +137,9 @@ export function DashboardDeviceStatus() {
   const { pendingCount, failedEntries, quarantinedCount, ready } = useSyncQueue();
   return <section aria-labelledby="control-device-title" className="mb-7 rounded-kova-xl border border-kova-border bg-white p-4">
     <h2 id="control-device-title" className="flex items-center gap-2 text-base font-semibold">{online ? <CloudUpload className="h-4 w-4 text-kova-blue" /> : <WifiOff className="h-4 w-4 text-warning-strong" />}Este dispositivo</h2>
-    <p className="mt-1 text-xs text-kova-muted">La cola local puede incluir ventas de distintas sucursales de este negocio. No representa otros dispositivos.</p>
+    <p className="mt-1 text-xs text-kova-muted">Revisa las ventas guardadas en este equipo, incluidas las de otras sucursales de tu negocio.</p>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm" role="status">{ready ? `${pendingCount} por sincronizar · ${failedEntries.length} con error · ${quarantinedCount} registros sin negocio verificado` : "Consultando la cola de este dispositivo…"}</p>
+      <p className="text-sm" role="status">{!ready ? "Consultando ventas de este dispositivo…" : pendingCount + failedEntries.length + quarantinedCount === 0 ? "Sin ventas pendientes en este dispositivo." : [pendingCount > 0 && `${pendingCount} por sincronizar`, failedEntries.length > 0 && `${failedEntries.length} con error`, quarantinedCount > 0 && `${quarantinedCount} registros por revisar con soporte`].filter(Boolean).join(" · ")}</p>
       <Link to="/sync-queue" className="inline-flex min-h-11 items-center gap-1 rounded-kova-md px-2 text-sm font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">Revisar sincronización<ArrowUpRight className="h-4 w-4" /></Link>
     </div>
   </section>;

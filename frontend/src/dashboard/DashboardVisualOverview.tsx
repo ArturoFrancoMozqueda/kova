@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, CreditCard, Receipt, ShoppingBag, Trendin
 import { formatMoney, reasonLabel } from "@/orders/format";
 import { calculateSafeGrowth, MIN_MONEY_BASE } from "@/lib/growth";
 import type { BusinessStoryReport, SalesByHourRow, SalesSummary } from "@/reports/types";
+import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
 import { cn } from "@/lib/utils";
 import { DashboardAttention, DashboardViewLink } from "./DashboardSupervision";
 import { salesTrendPoints } from "./visualData";
@@ -88,7 +89,7 @@ function VisualCard({ title, children, control }: { title: string; children: Rea
 
 export function DashboardSalesMix({ story, hourly, control }: { story: BusinessStoryReport; hourly: SalesByHourRow[]; control: DashboardControl }) {
   const products = story.product_drivers.slice(0, 3);
-  const hours = [...hourly].sort((a, b) => Number(b.net_sales) - Number(a.net_sales)).slice(0, 3);
+  const hours = topHoursByNetSales(hourly, 3);
   const payments = story.payment_mix.filter(payment => Number(payment.amount) > 0);
   const colors = ["#3868ff", "#11141d", "#10a888", "#8659d9", "#b46d12"];
   const paymentTotal = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
@@ -106,7 +107,7 @@ export function DashboardSalesMix({ story, hourly, control }: { story: BusinessS
   };
   return <div className="mb-5 grid gap-4 lg:grid-cols-3">
     <VisualCard title="Productos más vendidos" control={control}>{ranks(products.map(product => ({ id: product.product_id, label: product.product_name, value: Number(product.gross_sales) })))}<p className="mt-4 text-[11px] text-kova-muted">Por importe bruto del periodo.</p></VisualCard>
-    <VisualCard title="Horas con más venta" control={control}>{ranks(hours.map(hour => ({ id: String(hour.hour), label: `${String(hour.hour).padStart(2, "0")}:00–${String(hour.hour + 1).padStart(2, "0")}:00`, value: Number(hour.net_sales) })))}</VisualCard>
+    <VisualCard title="Horas con más venta" control={control}>{ranks(hours.map(hour => ({ id: String(hour.hour), label: formatHourRange(hour.hour), value: Number(hour.net_sales) })))}</VisualCard>
     <VisualCard title="Cómo te pagaron" control={control}>{paymentTotal > 0 ? <div className="flex flex-wrap items-center gap-5">
       <div className="relative h-28 w-28 shrink-0 rounded-full" style={{ background: `conic-gradient(${slices.join(",")})` }} role="img" aria-label="Distribución de cobros brutos por método de pago"><div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white"><span className="text-[10px] text-kova-muted">Cobros</span><strong className="text-xs tabular-nums">{formatMoney(paymentTotal)}</strong></div></div>
       <ul className="min-w-0 flex-1 space-y-2">{payments.map((payment, index) => <li key={payment.method} className="flex items-center gap-2 text-xs"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} aria-hidden="true" /><span className="flex-1">{reasonLabel(payment.method)}</span><strong className="tabular-nums">{Math.round(Number(payment.amount) / paymentTotal * 100)}%</strong><span className="sr-only">{formatMoney(payment.amount)}</span></li>)}</ul>

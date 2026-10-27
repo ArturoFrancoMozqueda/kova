@@ -2,6 +2,35 @@
 
 Last updated: 2026-10-26
 
+## Revisión para dueños, operadores y cajeros — 2026-10-26
+
+Se amplía la revisión a los recorridos diarios: panel/horas con ventas reales, inventario
+disponible frente a reservado, primera configuración de Agenda, proveedor dentro de la compra,
+prerrequisitos de reposición y lenguaje comprensible en operación, WhatsApp y suscripción.
+La descripción del gerente coincide con el permiso de empleados exclusivo del propietario.
+Se mantienen contratos financieros, permisos, cookies, RLS y sincronización.
+
+La [auditoría por rol](audits/KOVA-ROLE-UX-REVIEW-2026-10-26.md) registra pantallas productivas
+revisadas, cambios y aceptación con frontend/API/PostgreSQL reales: 20 recorridos y cuatro
+recorridos adicionales de propietario, gerente, cajero y colaborador. Backend completo:
+2,232 pruebas y seis subpruebas aprobadas. Frontend completo: 1,660 pruebas; navegador sobre
+build: 332 escenarios aprobados. Build, lint, contrato API y bundle aprobados. Preparado
+localmente; publicación y smoke posteriores pendientes.
+
+## Continuidad de pedidos y revisión de operación — 2026-10-26
+
+El dueño pide una revisión real en navegador para reducir fricción de clientes y operadores.
+Se revisa la sesión productiva existente y se implementa localmente la entrada directa al
+seguimiento al enviar, actualización cada 30 segundos, copia del enlace, alta de cliente
+sin salir de la revisión, acceso a solicitudes desde Pedidos, notas originales visibles
+al preparar y textos sobre la siguiente acción. Se conserva la restricción de cobrar antes
+de entregar, además de privacidad pública, permisos, RLS e idempotencia.
+
+La [auditoría del recorrido](audits/KOVA-ORDER-FLOW-UX-2026-10-26.md) documenta archivos,
+contrato opcional del mensaje original, evidencia, referentes y registros de QA detectados
+en producción. Validación focal: 173 pruebas frontend, 50 backend, 30 escenarios de navegador
+y tres integraciones con API/PostgreSQL reales. Publicación y smoke posteriores pendientes.
+
 ## Presentación terminada y aceptación de producto real
 
 El propietario pide quitar referencias internas de todo Kova, no sólo de la tarjeta.

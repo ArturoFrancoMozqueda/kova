@@ -118,7 +118,7 @@ export default function CustomerOrderDetailView() {
         <ViewHeader
           eyebrow={<Link to="/pedidos" className="inline-flex items-center text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Pedidos</Link>}
           title={order.folio}
-          meta={`Creado ${formatDateTime(order.created_at)} · ${channelLabels[order.source_channel]}`}
+          meta={`Creado ${formatDateTime(order.created_at)} · ${order.menu_request_message ? "Menú digital" : channelLabels[order.source_channel]}`}
           actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimir</Button>{editable && writable ? <Link to={`/pedidos/${order.id}/editar`} className={buttonVariants({ variant: "outline" })}><Pencil className="mr-2 h-4 w-4" /> Editar</Link> : null}</div>}
         />
       </div>
@@ -135,6 +135,8 @@ export default function CustomerOrderDetailView() {
         <CardContent className="p-5"><CustomerOrderStatusTracker status={order.status} /></CardContent>
       </Card>
 
+      {order.menu_request_message && <Card className="mt-4"><CardHeader><CardTitle>Solicitud del cliente</CardTitle></CardHeader><CardContent><p className="whitespace-pre-wrap break-words text-sm">{order.menu_request_message}</p></CardContent></Card>}
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Cliente y entrega</CardTitle></CardHeader>
@@ -142,7 +144,7 @@ export default function CustomerOrderDetailView() {
             <div className="flex items-start gap-2"><Store className="mt-0.5 h-4 w-4 text-muted-foreground" /><div><p className="font-medium">{fulfillmentLabels[order.fulfillment_type]}</p><p className="text-muted-foreground">{order.promised_at ? formatDateTime(order.promised_at) : "Lo antes posible"}</p></div></div>
             <div><p className="font-medium">{order.customer_name || "Cliente sin nombre"}</p>{order.customer_id && <Link to={`/customers?customerId=${encodeURIComponent(order.customer_id)}`} className="mt-1 inline-flex min-h-9 items-center text-primary underline underline-offset-4 print:hidden">Ver historial y atención del cliente</Link>}{order.customer_phone ? <p className="mt-1 flex items-center text-muted-foreground"><Phone className="mr-1.5 h-3.5 w-3.5" /> {order.customer_phone}</p> : null}</div>
             {order.delivery_address ? <div className="flex items-start gap-2 text-muted-foreground"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /><span>{order.delivery_address}{order.delivery_reference ? ` · ${order.delivery_reference}` : ""}</span></div> : null}
-            {order.note ? <p className="rounded-md bg-muted/60 p-3 text-muted-foreground">{order.note}</p> : null}
+            {order.note ? <p className="rounded-md bg-muted/60 p-3 text-muted-foreground">{order.note.replace(/^Solicitud del menú [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "Pedido desde el menú digital")}</p> : null}
           </CardContent>
         </Card>
 
@@ -172,12 +174,16 @@ export default function CustomerOrderDetailView() {
 
       {writable && !["fulfilled", "cancelled"].includes(order.status) ? (
         <Card className="mt-4 print:hidden">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap">
+          <CardContent className="p-4">
+            {order.status === "new" && <p className="mb-3 text-sm text-muted-foreground">Confirma el pedido para reservar sus productos y comenzar a prepararlo.</p>}
+            {order.status === "ready" && order.payment_status === "unpaid" && <p className="mb-3 text-sm text-muted-foreground">El pedido está listo. Registra el cobro en Caja para poder marcarlo como entregado.</p>}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {order.status === "new" ? <Button disabled={mutating} onClick={() => void applyMutation(() => confirmCustomerOrder(order.id, order.version))}>Confirmar y reservar</Button> : null}
             {canCheckout ? <Button disabled={mutating || order.stock_conflict} onClick={() => navigate(`/register?customerOrderId=${order.id}`)}><Banknote className="mr-2 h-4 w-4" /> Cobrar en Caja</Button> : null}
             {isManager && previous ? <Button variant="outline" disabled={mutating} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, previous))}><ChevronLeft className="mr-2 h-4 w-4" /> Corregir a {statusLabels[previous]}</Button> : null}
             {following && following !== "confirmed" ? <Button variant="secondary" disabled={mutating || (following === "fulfilled" && order.payment_status !== "paid")} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, following))}><ChevronRight className="mr-2 h-4 w-4" /> Marcar {statusLabels[following].toLocaleLowerCase("es-MX")}</Button> : null}
             <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating || !canCancel} onClick={() => setCancelOpen(true)}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}

@@ -8,7 +8,7 @@ vi.mock("@/catalog/api", () => ({ listProducts: vi.fn() }));
 vi.mock("./api", () => ({ listSuppliers: vi.fn(), listPurchases: vi.fn(), createSupplier: vi.fn(), createPurchase: vi.fn(), receivePurchase: vi.fn(), cancelPurchase: vi.fn() }));
 
 import { listProducts } from "@/catalog/api";
-import { listPurchases, listSuppliers, receivePurchase, type Supplier } from "./api";
+import { listPurchases, listSuppliers, receivePurchase, createSupplier, type Supplier } from "./api";
 import type { Product } from "@/catalog/types";
 import PurchasingView from "./PurchasingView";
 
@@ -173,4 +173,25 @@ it("keeps raw network and database diagnostics out of the purchasing screen", as
   mount();
   expect(await screen.findByRole("alert")).not.toHaveTextContent(/Failed to fetch|private.invalid|\/api/);
   expect(screen.getByRole("alert")).toHaveTextContent(/conexión|internet|conect/i);
+});
+
+
+it("returns to the purchase with the saved supplier selected and the full draft preserved", async () => {
+  const supplier = { id: "supplier-created", name: "Molino del Centro", contact: null, is_active: true };
+  vi.mocked(createSupplier).mockResolvedValue(supplier);
+  vi.mocked(listSuppliers).mockResolvedValue([supplier]).mockResolvedValueOnce([]);
+  mount(); await screen.findByRole("region", { name: /^Compra de Molino ·/ });
+  fireEvent.click(screen.getByRole("button", { name: "Preparar compra" }));
+  fireEvent.change(screen.getByLabelText("Unidades"), { target: { value: "8" } });
+  fireEvent.change(screen.getByLabelText("Costo unitario MXN"), { target: { value: "25.50" } });
+  fireEvent.change(screen.getByLabelText("Referencia o notas (opcional)"), { target: { value: "Entrega el viernes" } });
+  fireEvent.click(screen.getByRole("button", { name: "Registrar proveedor sin perder la compra" }));
+  fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: supplier.name } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar proveedor" }));
+  await waitFor(() => expect(screen.getByLabelText("Proveedor")).toHaveValue(supplier.id));
+  expect(screen.getByLabelText("Unidades")).toHaveValue(8);
+  expect(screen.getByLabelText("Costo unitario MXN")).toHaveValue(25.5);
+  expect(screen.getByLabelText("Referencia o notas (opcional)")).toHaveValue("Entrega el viernes");
+  expect(screen.getByRole("region", { name: "Preparar compra pendiente" })).toHaveFocus();
+  expect(createSupplier).toHaveBeenCalledWith(supplier.name, "", expect.any(String));
 });

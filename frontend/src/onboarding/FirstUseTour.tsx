@@ -41,7 +41,8 @@ export function FirstUseTour() {
   const navigate = useNavigate();
   const { state } = useAuth();
   const canCreateProduct = usePermission(CATALOG_CREATE_PERMISSION);
-  const key = tourKey(location.pathname);
+  const key = location.pathname === "/register" && new URLSearchParams(location.search).get("customerOrderId")
+    ? null : tourKey(location.pathname);
   const storageKey = useMemo(() => {
     if (!key || state.status !== "authenticated") return null;
     return `kova:tour:${state.tenantId}:${key}`;

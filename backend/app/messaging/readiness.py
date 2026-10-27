@@ -31,10 +31,10 @@ def readiness() -> MessagingReadiness:
         checklist=[
             SetupItem(
                 key="account_mode",
-                title="Distingue la app de la plataforma",
+                title="Revisa cómo usas WhatsApp",
                 description=(
-                    "Usar WhatsApp Business en el celular o tener Meta Business no confirma "
-                    "acceso a Cloud API."
+                    "Cuéntanos si ya atiendes por WhatsApp Business. El equipo de Kova "
+                    "te ayudará a revisar qué necesitas para usarlo desde la bandeja."
                 ),
                 status="required",
             ),
@@ -42,66 +42,64 @@ def readiness() -> MessagingReadiness:
                 key="coexistence",
                 title="Revisa cómo conservar tu app y número",
                 description=(
-                    "La elegibilidad y el flujo oficial de coexistencia requieren revisión. "
-                    "No borres tu cuenta ni migres el número desde esta preparación."
+                    "Revisaremos contigo si puedes conservar tu app y tu número. "
+                    "Mantén tu cuenta actual hasta que el equipo confirme los pasos."
                 ),
                 status="review_required",
             ),
             SetupItem(
                 key="business_assets",
-                title="Verifica la cuenta y el número de Cloud API",
+                title="Confirma el número de tu negocio",
                 description=(
-                    "Confirma la WABA, el Phone Number ID y la autorización de Meta para este "
-                    "negocio; un número de teléfono no sustituye esos identificadores."
+                    "Ten a la mano el número que usarás para atender clientes y acceso a "
+                    "la cuenta empresarial que lo administra. Kova revisará su autorización "
+                    "con Meta."
                 ),
                 status="required",
             ),
             SetupItem(
                 key="app_permissions",
-                title="Revisa aplicación, permisos y versión",
+                title="Autoriza la conexión con Meta",
                 description=(
-                    "La aplicación y sus permisos de mensajería deben estar aprobados para el "
-                    "alcance elegido, con versión Graph explícita y credenciales sólo del "
-                    "servidor."
+                    "El equipo de Kova te acompañará a revisar las autorizaciones necesarias. "
+                    "No compartas contraseñas ni claves por mensajes."
                 ),
                 status="review_required",
             ),
             SetupItem(
                 key="tenant_binding",
-                title="Vincula el canal al negocio correcto",
+                title="Elige la sucursal que atenderá",
                 description=(
-                    "Antes de activar, Kova debe verificar una vinculación exclusiva entre "
-                    "negocio, WABA y Phone Number ID; las credenciales de un negocio no se "
-                    "comparten con otro."
+                    "Confirma a qué sucursal pertenece el número para que los mensajes "
+                    "lleguen al equipo correcto. La conexión se revisa para cada negocio."
                 ),
                 status="required",
             ),
             SetupItem(
                 key="webhooks",
-                title="Valida recepción y estados de entrega",
+                title="Comprueba que los mensajes lleguen",
                 description=(
-                    "Se requiere callback HTTPS, verificación de firma, control de eventos "
-                    "repetidos y conciliación de respuestas inciertas. Aceptado no significa "
-                    "entregado."
+                    "Antes de comenzar, verificaremos la recepción y la entrega con un "
+                    "contacto autorizado. La bandeja distinguirá los mensajes enviados "
+                    "de los entregados."
                 ),
                 status="required",
             ),
             SetupItem(
                 key="consent_templates",
-                title="Confirma permisos y plantillas",
+                title="Revisa a quién puedes contactar",
                 description=(
-                    "Registrar el teléfono no autoriza mensajes. Revisa consentimiento por "
-                    "finalidad, bajas, ventana de atención, plantillas aprobadas y atención "
-                    "humana."
+                    "Cada cliente decide si quiere recibir mensajes. Revisaremos sus permisos, "
+                    "los tipos de aviso autorizados y cómo dejar de recibirlos."
                 ),
                 status="required",
             ),
             SetupItem(
                 key="controlled_acceptance",
-                title="Revisa costos y prueba antes de activar",
+                title="Confirma costos antes de comenzar",
                 description=(
-                    "Confirma tarifas vigentes y límites, prueba con destinatarios "
-                    "autorizados y verifica entrega real antes de habilitar automatizaciones."
+                    "Consulta las tarifas y los límites aplicables con el equipo. "
+                    "La activación se realiza después de confirmar contigo la entrega de mensajes."
                 ),
                 status="review_required",
             ),

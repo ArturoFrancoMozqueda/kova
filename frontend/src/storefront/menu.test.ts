@@ -15,7 +15,7 @@ it("keeps every selected quantity and identifies remote intake as pending accept
     price_amount: "45.50", availability: "available" }, quantity: 2 }], "remote", "  Recoger a las 2  ");
   expect(message).toContain("Origen: A distancia\n2 × Café frío");
   expect(message).toContain("Subtotal estimado: $91.00 MXN");
-  expect(message).toContain("Pendiente de aceptación del negocio. Sin reserva ni pago.");
+  expect(message).toContain("El negocio confirmará disponibilidad, pago y entrega.");
   expect(message).toContain("Notas: Recoger a las 2");
 });
 

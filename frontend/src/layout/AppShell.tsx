@@ -127,7 +127,8 @@ function roleLabel(role: string): string {
   if (role === "owner") return copy.settings.roleOwner;
   if (role === "manager") return copy.settings.roleManager;
   if (role === "cashier") return copy.settings.roleCashier;
-  return role;
+  if (role === "staff") return "Colaborador";
+  return "Integrante del equipo";
 }
 
 const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";

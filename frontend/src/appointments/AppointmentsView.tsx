@@ -84,6 +84,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [resources, setResources] = useState<AppointmentResource[]>([]);
   const [resourceRevision, setResourceRevision] = useState(0);
   const [resourceError, setResourceError] = useState("");
+  const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [resourceName, setResourceName] = useState("");
   const [resourceTimezone, setResourceTimezone] = useState(
@@ -110,6 +111,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   } | null>(null);
   useEffect(() => {
     let active = true;
+    setResourceLoading(true);
     void request<{ items: AppointmentResource[] }>("/resources")
       .then((result) => {
         if (active) {
@@ -122,7 +124,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           setResourceError(
             resolveUserFacingError(e, "No pudimos cargar los recursos."),
           );
-      });
+      }).finally(() => { if (active) setResourceLoading(false); });
     return () => {
       active = false;
     };
@@ -168,6 +170,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const visibleAppointments = linked.record
     ? [linked.record, ...(panel.data?.items ?? []).filter((row) => row.id !== linked.record?.id)]
     : panel.data?.items ?? [];
+  const hasActiveResource = resources.some(row => row.is_active);
+  const resourceNameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (resourceOpen) resourceNameInput.current?.focus(); }, [resourceOpen]);
   const createResource = async (event: FormEvent) => {
     event.preventDefault();
     if (
@@ -257,14 +262,14 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         actions={
           <Button
             className={buttonClass}
-            aria-expanded={bookingOpen}
-            aria-controls="appointment-booking-form"
+            aria-expanded={hasActiveResource ? bookingOpen : resourceOpen}
+            aria-controls={hasActiveResource ? "appointment-booking-form" : "appointment-resource-form"}
             disabled={
               panel.busy ||
-              !panel.online ||
-              !resources.some((row) => row.is_active)
+              !panel.online || resourceLoading || Boolean(resourceError)
             }
             onClick={() => {
+              if (!hasActiveResource) { setResourceOpen(true); return; }
               setFormError("");
               if (editing) {
                 setEditing(null);
@@ -280,13 +285,13 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               }
             }}
           >
-            Nueva cita
+            {hasActiveResource || resourceLoading ? "Nueva cita" : "Agregar persona o espacio"}
           </Button>
         }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Cada recurso conserva su zona horaria. Las citas son internas: no envían
-        recordatorios, generan cobros ni cambian el inventario.
+        Organiza las citas en el horario de cada persona o espacio. El equipo contacta
+        al cliente; el cobro se registra por separado en Caja.
       </p>
       {incomingCustomerError && <p role="alert">{incomingCustomerError}</p>}
       <LinkedRecordNotice linked={linked}>
@@ -330,7 +335,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             Agregar recurso
           </Button>
         </div>
-        {resources.length === 0 && !resourceError && (
+        {resources.length === 0 && !resourceError && !resourceLoading && (
           <p className="text-sm text-kova-muted">
             Agrega el primer recurso para empezar a programar citas.
           </p>
@@ -375,13 +380,14 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       </details>
       {resourceOpen && (
         <form
+          id="appointment-resource-form"
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void createResource(event)}
         >
           <h2 className="text-xl font-semibold">Nuevo recurso</h2>
           <Label htmlFor={`${fieldId}-1`} className="block text-sm">
             Nombre del recurso
-            <Input id={`${fieldId}-1`}
+            <Input id={`${fieldId}-1`} ref={resourceNameInput}
               className={fieldClass}
               required
               maxLength={120}

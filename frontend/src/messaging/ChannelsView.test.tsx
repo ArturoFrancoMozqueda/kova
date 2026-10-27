@@ -58,6 +58,9 @@ beforeEach(() => {
 it("shows provider setup from the backend without claiming an active connection", async () => {
   mount();
   expect(await screen.findByText("Sin conectar")).toBeVisible();
+  expect(screen.getByText("Qué revisaremos contigo").closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByRole("link", { name: "Solicitar ayuda para conectar WhatsApp" })).toHaveAttribute("href", expect.stringMatching(/^mailto:/));
+  fireEvent.click(screen.getByText("Qué revisaremos contigo", { exact: true }));
   expect(
     screen.getByRole("heading", { name: "Verifica el número empresarial" }),
   ).toBeVisible();
@@ -65,7 +68,7 @@ it("shows provider setup from the backend without claiming an active connection"
     screen.getByText(/No se envían ni reciben mensajes automáticos/),
   ).toBeVisible();
   expect(
-    screen.getByText(/los pasos de abajo son una guía general y no guardan avances/),
+    screen.getByText(/Esta guía explica la preparación; no indica que los pasos ya estén completados/),
   ).toBeVisible();
   expect(screen.getByText(/El equipo de Kova te ayuda a verificar tu número/)).toBeVisible();
   expect(screen.queryByText(/Cloud API|dominio/)).not.toBeInTheDocument();

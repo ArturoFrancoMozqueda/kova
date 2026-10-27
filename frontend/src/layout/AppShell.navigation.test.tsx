@@ -52,6 +52,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("simple task navigation and complete discovery", () => {
+  it.each([["owner", "Propietario"], ["manager", "Gerente"], ["cashier", "Cajero"], ["staff", "Colaborador"], ["unknown", "Integrante del equipo"]])("uses a human role label for %s", async (role, label) => {
+    auth.state.user.role = role;
+    host();
+    expect(screen.getByText(label, { exact: true })).toBeVisible();
+    await act(async () => {});
+  });
   it.each(["owner", "manager"])("matches the owner-only loyalty API for %s", async role => {
     auth.state.user.role = role;
     host();
