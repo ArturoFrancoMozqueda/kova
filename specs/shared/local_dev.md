@@ -14,7 +14,7 @@
 
 ## Database Choices for Local Development
 
-Staging and production use **Supabase Postgres** (see [../../docs/deployment.md](../../docs/deployment.md)). For local development you can pick either:
+Staging and production use **Supabase Postgres** (see [../../docs/despliegue.md](../../docs/despliegue.md)). For local development you can pick either:
 
 | Mode | When to use | `DATABASE_URL` |
 |---|---|---|

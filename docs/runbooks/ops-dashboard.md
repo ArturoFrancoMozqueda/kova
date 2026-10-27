@@ -68,7 +68,7 @@ and cannot be reactivated with stale credentials.
 | `UPTIMEROBOT_API_KEY` | UptimeRobot → My Settings → API | Main or Read-Only key |
 | `KOVA_BUILD_SHA` | versioned public text binding set by Cloudflare CI | — |
 
-IDs for the services above are recorded in `docs/service-audit.md`.
+IDs for the services above live in each provider's dashboard; never record secret values here.
 
 Tokens are **server-side only** — they are never exposed to the browser (the
 frontend calls the backend, which calls the external APIs). A regression test
@@ -103,8 +103,8 @@ within ≤30s) so polling never hammers the external APIs.
 - Cross-tenant reads rely on the app DB role being RLS-exempt (table owner) —
   the same mechanism as `GET /api/v1/billing/internal/subscriptions`. A
   cross-tenant test (`test_ops_tenants_revenue_funnel.py`) guards this.
-- Access reads are logged as `app.ops.access` (JSON, with request_id) to Fly
-  logs; note/triage writes are recorded in `audit_logs`.
+- Access reads are logged as `app.ops.access` (JSON, with request_id) to the
+  Cloudflare Container logs; note/triage writes are recorded in `audit_logs`.
 - Every Ops response is `private, no-store`; state changes require both the CSRF
   token and a trusted Kova browser origin.
 - Email + UUID + TOTP protects against password-only and stale-session compromise.

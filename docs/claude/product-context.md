@@ -25,20 +25,20 @@ Kova is more than a POS. It combines:
 Evolve toward end-to-end business automation: acquisition, customer conversations, confirmed
 orders, verified payments, fulfillment, replenishment and repeat purchases. Connect these steps
 to real sales, inventory and costs, with explicit permissions and measurable outcomes. The
-[E2E evolution plan](../plans/PLAN-AUTOMATIZACION-E2E.md) defines competitive evidence, gaps and
+[E2E evolution plan](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-AUTOMATIZACION-E2E.md) defines competitive evidence, gaps and
 phased acceptance. This is future direction, not a claim of current availability or a replacement
 for the active sprint and production gates.
 
 The owner subsequently authorized implementation and merge. The internal commercial circuit now
 has reviewable catalog intake, explicit opportunity/quote/order/sale attribution, opt-in post-sale
 tasks and an inbox/draft/outbox domain. Connected channels remain inactive. Exact validation and
-release status: [implementation continuation](../audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+release status: [implementation continuation](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-E2E-COMPLETION-2026-10-18.md).
 
 Internal agenda/loyalty have their own bounded contracts. The latest locally validated slice adds
 customer service cases: explicit customer/source, branch-scoped assignment, author-attributed
 append-only notes and manual deadlines. Closing a case does not compensate a customer, send a
 message or change POS data. Source and local validation are recorded in the
-[customer service delivery](../audits/KOVA-SERVICE-CASES-2026-10-19.md); release acceptance remains
+[customer service delivery](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-SERVICE-CASES-2026-10-19.md); release acceptance remains
 separate from implementation, and the full E2E roadmap is not declared complete.
 
 The 2026-10-26 scope adds an owner-issued [digital points card](../../specs/loyalty/digital_card.md)

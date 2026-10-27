@@ -1,4 +1,4 @@
-# Update the Python tag and multi-platform digest together (docs/deployment.md).
+# Update the Python tag and multi-platform digest together (docs/desarrollo-y-ci.md).
 FROM python:3.12-slim@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG KOVA_RELEASE_SHA=unknown
 ENV KOVA_RELEASE_SHA=$KOVA_RELEASE_SHA
 
-# Update the version and multi-platform digest together (docs/deployment.md).
+# Update the version and multi-platform digest together (docs/desarrollo-y-ci.md).
 COPY --from=ghcr.io/astral-sh/uv:0.13.4@sha256:9f130421e930bfbdc563c00740466603f8723158e90297d07957c2294640262b /uv /usr/local/bin/uv
 
 WORKDIR /app

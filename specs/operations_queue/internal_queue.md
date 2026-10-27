@@ -17,7 +17,7 @@ La ausencia y la pertenencia a otro negocio/sucursal comparten 404; las operacio
 siguen verificando permisos, versión y estado al actuar. Todas las respuestas privadas son no-store.
 
 Fecha: 2026-10-19. Estado: backend y UI implementados y validados localmente; release pendiente.
-Origen: [contrato implementado](../../docs/plans/PLAN-COLA-OPERATIVA-INTERNA.md). Este corte reúne
+Origen: [contrato implementado](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-COLA-OPERATIVA-INTERNA.md). Este corte reúne
 pendientes existentes; no crea otra lista de tareas ni completa el horizonte de automatización E2E.
 
 ## Acceso y respuesta
@@ -93,5 +93,5 @@ OpenAPI agrega sólo el path de lectura, con schemas `OperationsQueue*`; los pat
 permanecen estructuralmente idénticos. Ocho pruebas locales de workerd pasan, incluyendo lectura
 de cola antes/después de resolver un caso y otro tenant vacío. La UI aprobó 15 pruebas focales, cuatro recorridos responsivos con axe A/AA,
 un recorrido real con cuatro fuentes y 1,102 pruebas frontend completas. Build y escaneo de
-119 JS también aprobaron. CI y publicación conservan aceptación separada. El [informe de entrega](../../docs/audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md)
+119 JS también aprobaron. CI y publicación conservan aceptación separada. El [informe de entrega](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md)
 registra estos límites sin deducir disponibilidad productiva de los resultados locales.

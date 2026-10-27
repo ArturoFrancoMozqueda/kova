@@ -93,7 +93,7 @@ not itself a replay test. The operator must reconcile the authorized record and 
 - Complete the [paid-beta operational gate](../../docs/runbooks/ops-beta-gate.md) for real lifecycle
   email inbox delivery and accepted support/legal/retention terms. A branded mailbox is deferred
   for founder-assisted beta; do not claim it is required instead of the accepted support channel.
-- Preserve the [real logical restore evidence](../../docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
+- Preserve the [real logical restore evidence](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
   It proves its recorded R2 snapshots/RLS/cleanup; fresh-host recovery, provider-managed schemas,
   later migrations, traffic switching and full service RTO remain separate checks in the
   [restore runbook](../../docs/runbooks/restore-supabase-backup.md).

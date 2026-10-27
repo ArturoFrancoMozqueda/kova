@@ -74,5 +74,5 @@ JavaScript aprobados. La UI identifica al autor de cada evento y conserva el avi
 sin acceso incluso si su correo permanecía en caché. Los paths/schemas OpenAPI anteriores
 permanecen idénticos; se agregan seis paths.
 
-[Informe de entrega y límites](../../docs/audits/KOVA-SERVICE-CASES-2026-10-19.md).
+[Informe de entrega y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-SERVICE-CASES-2026-10-19.md).
 La validación local no certifica publicación ni comunicación externa.
