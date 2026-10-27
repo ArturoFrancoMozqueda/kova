@@ -209,6 +209,8 @@ fotos; los diagnósticos no guardan headers arbitrarios ni cuerpos.
 
 CREATE/ALTER del rol de pruebas compartido se serializan en la BD postgres por un lock
 transaccional. Un advisory lock en cada BD worker no coordinaría el catálogo global de roles.
-Los grants y RLS de cada worker permanecen separados. test:integration incluye los diez
-archivos / 16 casos que requieren el stack real, incluido dashboard-supervision-real.spec.ts;
-los skips del preview se ejecutan en ese job. [Ejecución AMD64 aprobada](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
+Los grants y RLS de cada worker permanecen separados. test:integration ejecuta los casos
+que requieren el stack real, incluido dashboard-supervision-real.spec.ts y los escenarios
+de tarjeta, recompensas, inscripción y seguimiento incorporados por main. Los 16 casos
+son la referencia del snapshot AMD64 459d20f6; la CI del PR integrado amplía ese inventario.
+Los skips del preview se ejecutan en el job del stack real. [Ejecución AMD64 aprobada](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
