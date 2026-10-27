@@ -473,3 +473,15 @@ def test_guard_observes_a_redemption_committed_while_the_order_lock_is_contended
             sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name))
         )
         admin.close()
+
+
+def test_pre0097_order_void_remains_available_without_future_tables(client, db):
+    _, _, _, order = sale(client, db, "legacy-void")
+    assert db.scalar(text("SELECT to_regclass('public.loyalty_reward_redemptions')")) is None
+    result = client.post(
+        f"/api/v1/orders/{order['id']}/void",
+        json={"reason": "operator_error"},
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert result.status_code == 201, result.text
+    assert db.get(Order, UUID(order["id"])).status == "voided"

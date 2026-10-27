@@ -21,6 +21,7 @@ def guard_reward_reversal(db, *, tenant_id, order):
     )
     if reward:
         raise conflict(
-            "Esta venta incluye una recompensa. La devolución o anulación requiere "
-            "la versión compatible de Kova para restituir los puntos. No se realizó ningún cambio."
+            "La devolución o anulación de esta venta con recompensa no está disponible "
+            "por el momento. Contacta a soporte para restituir los puntos. "
+            "No se realizó ningún cambio."
         )
