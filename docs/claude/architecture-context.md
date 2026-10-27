@@ -15,7 +15,7 @@ Arquitectura vigente:
 - Vercel permanece como candidato de publicación y respaldo durante la transición; el pipeline
   publica sus mismos archivos estáticos validados en Cloudflare y captura la versión anterior
   del Worker para revertir antes de recuperar Vercel.
-- Backend hosting público: FastAPI nativo en un Container Cloudflare `lite` residente,
+- Backend hosting público: FastAPI nativo en un Container Cloudflare `basic` residente,
   con una sola instancia y un proceso Uvicorn. El gateway dirige directamente a `api-0`
   con `KOVA_NATIVE_BACKEND=1`; el controlador conserva el Worker y namespace existentes.
   La inactividad no apaga el proceso; mantenimiento o publicaciones pueden reiniciarlo.

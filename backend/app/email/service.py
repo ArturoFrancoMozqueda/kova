@@ -1,9 +1,26 @@
 import logging
 
 from app.config import settings
-from app.email.templates import escape, kv_table, link, muted, p, render_email
+from app.email.templates import (
+    SUPPORT_EMAIL,
+    escape,
+    kv_table,
+    link,
+    muted,
+    p,
+    plain_text_email,
+    render_email,
+)
 
 logger = logging.getLogger(__name__)
+_EMAIL_KINDS = {
+    "verification",
+    "welcome",
+    "payment_receipt",
+    "trial_ending",
+    "invitation",
+    "password_reset",
+}
 
 
 def _enabled() -> bool:
@@ -11,23 +28,29 @@ def _enabled() -> bool:
 
 
 def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
+    log_kind = kind if kind in _EMAIL_KINDS else "other"
     if not _enabled():
-        logger.info("email.skip reason=no_api_key type=%s", kind)
+        logger.info("email.skip reason=no_api_key type=%s", log_kind)
         return False
     import resend
 
     resend.api_key = settings.resend_api_key
     try:
-        resend.Emails.send({
-            "from": settings.email_from,
-            "to": to,
-            "subject": subject,
-            "html": html,
-        })
-        logger.info("email.sent type=%s", kind)
+        resend.Emails.send(
+            {
+                "from": settings.email_from,
+                "to": to,
+                "subject": subject,
+                "html": html,
+                "text": plain_text_email(html) or subject,
+                "reply_to": SUPPORT_EMAIL,
+            }
+        )
+        logger.info("email.sent type=%s", log_kind)
         return True
     except Exception:
-        logger.exception("email.error type=%s", kind)
+        # Provider exceptions may embed recipient addresses, tokens or request bodies.
+        logger.error("email.error type=%s reason=provider_failure", log_kind)
         return False
 
 
@@ -97,9 +120,7 @@ def send_payment_receipt_email(
         rows.append(("Próximo cargo", escape(period_end_iso)))
 
     body = kv_table(rows)
-    body += muted(
-        f"Detalles de tu suscripción en {link('Suscripción', billing_url)}."
-    )
+    body += muted(f"Detalles de tu suscripción en {link('Suscripción', billing_url)}.")
     html = render_email(
         preheader=f"Confirmamos el pago de {amount_str} a tu suscripción Kova.",
         heading="Recibo de pago",
@@ -115,8 +136,7 @@ def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> bool:
     billing_url = f"{settings.frontend_url}/settings/billing"
     html = render_email(
         preheader=(
-            f"Tu prueba gratis termina el {trial_ends_iso}. "
-            "Activa tu plan para seguir vendiendo."
+            f"Tu prueba gratis termina el {trial_ends_iso}. Activa tu plan para seguir vendiendo."
         ),
         heading="Tu prueba termina pronto",
         intro_html=(
@@ -174,6 +194,10 @@ def send_invitation_email(
                 f'<span style="word-break: break-all;">{escape(accept_url)}</span>'
             )
             + muted("El enlace expira en 7 días.")
+        ),
+        footer_html=muted(
+            "Recibes este correo porque te invitaron a un negocio que usa Kova. "
+            "Si no reconoces la invitación, puedes ignorarla."
         ),
     )
     _send(
