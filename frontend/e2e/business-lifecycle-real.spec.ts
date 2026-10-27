@@ -189,7 +189,7 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
 
     // The real sidebar connects customer work to after-sales attention. Closing
     // the case never means refunding the sale or contacting the customer.
-    await page.locator("aside nav").getByRole("link", { name: "Atención postventa", exact: true }).click();
+    await page.locator("aside nav").getByRole("link", { name: "Casos de atención", exact: true }).click();
     await page.getByRole("button", { name: "Nueva atención postventa", exact: true }).click();
     await page.getByLabel("Cliente de la atención").selectOption(prepared.customerId);
     await page.getByLabel("Venta relacionada").selectOption(saleId);
@@ -210,7 +210,7 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
 
     // Replenishment is an independent loop. Approving a draft must not change
     // physical stock; partial/total receipts only add the units acknowledged.
-    await page.locator("aside nav").getByRole("link", { name: "Operación", exact: true }).click();
+    await page.locator("aside nav").getByRole("button", { name: "Productos y operación", exact: true }).click();
     await page.locator("aside nav").getByRole("link", { name: "Reposición", exact: true }).click();
     const suggestion = page.getByRole("article").filter({ has: page.getByRole("checkbox", { name: "Producto ciclo completo local", exact: true }) });
     await expect(suggestion).toContainText("Disponibles");
