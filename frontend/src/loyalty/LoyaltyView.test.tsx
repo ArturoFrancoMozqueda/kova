@@ -230,3 +230,13 @@ it("discards another branch's account snapshot", async () => {
     screen.queryByRole("button", { name: /Cliente registrado.*50 puntos/ }),
   ).not.toBeInTheDocument();
 });
+
+it("labels returned reward points without hiding their positive amount", async () => {
+  fetchMock.mockImplementation(async url => String(url).includes("/loyalty/customers/")
+    ? json({ ...ledger, entries: [{ ...ledger.entries[0], kind: "reward_return", points: 8 }] })
+    : route(url));
+  render(<LoyaltyView />);
+  fireEvent.click(await screen.findByRole("button", { name: /Cliente registrado.*50 puntos/ }));
+  expect(await screen.findByText("Puntos restituidos")).toBeVisible();
+  expect(screen.getByText("+8 puntos")).toBeVisible();
+});

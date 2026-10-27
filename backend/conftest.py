@@ -6,6 +6,36 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 
+def pytest_configure(config) -> None:
+    """Prepare the cluster role once, before the controller starts workers."""
+    if os.environ.get("PYTEST_XDIST_WORKER") or not config.getoption("numprocesses", default=None):
+        return
+    raw = os.environ.get("DATABASE_URL", "postgresql+psycopg://pos:pos@localhost:5432/pos")
+    url = make_url(raw)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+psycopg")
+    admin = create_engine(url, isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            conn.execute(text("SELECT pg_advisory_lock(7310402)"))
+            try:
+                conn.execute(text(
+                    "DO $$ BEGIN "
+                    "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
+                    "CREATE ROLE kova_app; END IF; END $$;"
+                ))
+                # This is a test-only credential/profile, never a production role.
+                # Worker databases share the role, so workers must not ALTER it.
+                conn.execute(text(
+                    "ALTER ROLE kova_app WITH LOGIN PASSWORD 'kova_app' "
+                    "NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
+                ))
+            finally:
+                conn.execute(text("SELECT pg_advisory_unlock(7310402)"))
+    finally:
+        admin.dispose()
+
+
 def _isolate_xdist_worker_database() -> None:
     """Point each pytest-xdist worker at its own fresh database.
 
