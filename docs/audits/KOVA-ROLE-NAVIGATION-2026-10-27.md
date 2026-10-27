@@ -3,6 +3,8 @@
 Fecha: 2026-10-27, Ciudad de México.
 Riesgo: comportamiento/UI frontend y preferencias locales; no cambia contratos, permisos,
 base de datos, facturación ni sesión. Publicación autorizada por el propietario.
+El control de publicación exige además actualizar una dependencia vulnerable del backend;
+se limita a dnspython 2.8.0 → 2.9.0 en el lock nativo, sin modificar código ni contratos.
 
 ## Problema y comportamiento implementado
 
@@ -76,3 +78,9 @@ Requiere `CI required`, captura exacta de reversión y publicación coordinada e
 Después se verifican SHA de frontend/API, salud de base/proxy y la navegación del dueño
 en la sesión productiva. La comprobación productiva es de lectura y preferencias de UI;
 no necesita crear ventas, pedidos, empleados ni cambiar el catálogo restaurado.
+
+El primer control de dependencias detectó CVE-2026-114605 en dnspython 2.8.0.
+Se actualiza sólo ese paquete y sus hashes con uv 0.13.4; el lock de Cloudflare Free
+ya usa 2.9.0. El [aviso del mantenedor](https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m)
+confirma la versión corregida. La auditoría local vuelve a pasar sin vulnerabilidades
+conocidas; se requieren las suites de backend y seguridad en el nuevo CI antes de fusionar.
