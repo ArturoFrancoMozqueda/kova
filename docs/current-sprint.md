@@ -12,8 +12,11 @@ Se distinguen Casos de atención y Seguimientos de postventa, sin cambiar sus ru
 
 La [auditoría de navegación](audits/KOVA-ROLE-NAVIGATION-2026-10-27.md) registra cambios,
 permisos, teclado, preferencias, móvil y aceptación con API/PostgreSQL reales. Se mantienen
-los filtros existentes y el alcance offline. Publicación autorizada, pendiente de CI y
-aceptación productiva de este corte.
+los filtros existentes y el alcance offline. PR #285 fusionado; release `18255a3f1834`
+publicado y aceptado en producción. Frontend/API/base/proxy coinciden, los 25 contratos
+residentes pasan y el navegador verifica accesos, desplegables, preferencias y catálogo
+restaurado sin escrituras de negocio. El primer intento se revirtió automáticamente
+tras un 429 de aceptación; el segundo pasó los mismos controles sin cambios de código.
 
 ## Publicación y aceptación productiva de pedidos — 2026-10-26
 
