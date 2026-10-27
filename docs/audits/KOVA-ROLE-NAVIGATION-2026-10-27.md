@@ -54,14 +54,14 @@ No se cambia la disposición de impresión ni se agregan transformaciones al con
   ese modo y se ejecutan por separado, sin interceptar APIs.
 - Integración real completa: **20 recorridos aprobados**, incluido menú a seguimiento,
   pedido/cobro/entrega/postventa, abastecimiento, clientes/citas y aislamiento.
-- Aceptación adicional por rol: **cuatro recorridos aprobados** en los tres tamaños.
+- Aceptación adicional por rol: **cuatro recorridos aprobados** en los cuatro tamaños.
 - TypeScript/build/SSR/prerender, ESLint, contrato OpenAPI, guard de imports E2E y revisión
   de bundle: aprobados; 128 archivos JS sin patrones de secretos detectados.
 
 La aceptación adicional por rol usa cuatro cuentas en un negocio efímero y API/PostgreSQL
 reales, sin interceptar APIs: login, Caja/Pedidos/Ventas, apertura sin cambio de ruta,
 continuación a Clientes, ausencia de inventario/configuración prohibidos y rechazos API
-para empleados/CRM. Se ejecuta en 390/768/1440 px, sin crear ventas ni modificar maestros.
+para empleados/CRM. Se ejecuta en 320/390/768/1440 px, sin crear ventas ni modificar maestros.
 
 El navegador de Codex comprueba además la sesión de propietario, apertura de categorías,
 permanencia de la página y composición real. Las suites cubren teclado, drawer, Escape,
