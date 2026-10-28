@@ -1,147 +1,61 @@
-# Deferred Scope
+# Alcance diferido
 
-This document protects the product from scope creep.
+Qué **no** se construye todavía y por qué. Revisado contra el código el 2026-10-28; la versión
+anterior, con su historial de autorizaciones, está en git.
 
-If a feature is listed here, do not implement it unless explicitly moved into the active sprint and approved.
+Si algo de esta lista se quiere construir, primero se cumple la regla del final. Lo que ya existe en
+el código pero espera aceptación externa (WhatsApp real, CFDI Live, hardware, asistente) no está
+aquí: sus gates viven en [`current-sprint.md`](current-sprint.md).
 
-## Authorized POS expansion (2026-10-05)
+## Plan y cobro
 
-The owner explicitly authorized agent implementation, branch integration and deployment of the POS
-expansion. Discounts/added taxes and snapshots, barcode support, customers/history, suppliers/purchases/
-receiving, inventory transfers and optional employee branch restrictions are now integrated into the
-release branch. Historical deferrals below no longer govern those capabilities. Current verification
-and publication status lives in [`current-sprint.md`](current-sprint.md).
+Un solo Plan Standard ([ADR-003](adr/ADR-003-single-standard-plan.md)). No se construyen:
 
-Issuer data and internal invoice requests are prepared, with requests explicitly pending provider.
-Real CFDI/autofactura and terminal processing still require contracted providers and real credentials;
-the owner confirms neither is currently contracted. The remaining roadmap capabilities stay gated.
+- Niveles (Basic/Pro/Premium) ni gates de funciones por plan.
+- Precio por usuario o por sucursal, planes anuales, add-ons ni cobro por uso.
+- Multimoneda.
 
-## Deferred From Closed Beta
+## Pagos y hardware
 
-Actualización de dirección 2026-10-18: el propietario solicitó analizar Colega Studio y encaminar
-Kova hacia automatización de negocio de punta a punta. El
-[plan E2E](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-AUTOMATIZACION-E2E.md) abre discovery por fases para comunicación/CRM,
-captación, operación y postventa, con extensiones por giro. Esta dirección amplía el horizonte del
-copiloto; no mueve automáticamente agendas, lealtad, marketing masivo, API pública ni otras
-capacidades diferidas al sprint. Para implementarlas siguen aplicando los criterios de entrada
-al final de este documento y sus gates técnicos/comerciales.
+- Cobro integrado con terminal (Stripe Terminal u otro adquirente). Hoy se registra tarjeta
+  manual; elegir proveedor exige contrato, costos y sandbox primero.
+- SDK de impresoras y editor de plantillas de recibo. La impresión es la del navegador (58 y
+  80 mm) y el cajón de dinero usa el conector ESC/POS por red.
+- Wallet, NFC y pases de proveedores externos para la tarjeta de lealtad.
 
-Actualización de ejecución autorizada: captación revisable, bandeja/borradores y postventa interna
-se implementaron en la continuación del circuito general. Su alcance, pruebas y canales aún sin
-conectar se registran en el [informe de continuación](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-E2E-COMPLETION-2026-10-18.md).
-Las extensiones por giro de este documento conservan sus contratos y aceptación propios.
+## Operación especializada
 
-Actualización 2026-10-19: la autorización explícita del propietario incorporó agenda interna por
-recurso, puntos de lealtad internos y atención postventa con casos/notas/responsables. Esos cortes
-acotados ya tienen contratos y validación local; las antiguas listas de deferrals no los bloquean.
-El alcance especializado de citas/lealtad, promociones, campañas, compensaciones automáticas y
-operación completa por giro sigue diferido. [Atención implementada y gates del release](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-SERVICE-CASES-2026-10-19.md). La [cola de pendientes internos](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-COLA-OPERATIVA-INTERNA.md) tiene backend y UI implementados y validados localmente; su
-publicación queda pendiente. Este corte no amplía los dominios especializados.
+- KDS, mesas/plano del local, comandas y estaciones de cocina. Pedidos sirve a comida, retail y
+  encargos sin convertirse en sistema de restaurante ([ADR-014](adr/ADR-014-customer-orders-domain.md)).
+- Recetas por ingrediente, producción, repartidores, mapas y tarifas de entrega.
+- Preset de restaurante. Existen `cafe`, `bakery`, `retail` y `abarrotes`.
+- Precios distintos por sucursal.
+- Crédito a clientes: plazos, abonos, vencimientos y antigüedad de saldos.
+- Operación completa por giro (salón, clínica) más allá de Agenda, lealtad y atención actuales.
 
-The closed beta should focus on a reliable bakery / small food retail POS.
+## Marketing y comunicación
 
-Do not implement these for beta:
+- Motor de promociones y campañas masivas.
+- Avisos automáticos fuera de la ventana de atención y plantillas de WhatsApp aprobadas.
+- Alta de WhatsApp en autoservicio (Embedded Signup).
 
-- Multiple pricing tiers
-- Basic / Pro / Premium plans
-- Plan-based feature gates
-- Per-user pricing
-- Per-location pricing
-- Annual plans
-- Add-ons
-- Usage-based billing
-- KDS
-- Pedidos especializados por restaurante (mesas, comandas, estaciones de cocina)
-- Tables / floor plan
-- Appointments
-- Loyalty
-- Promotions engine
-- Public API
-- Webhooks
-- Custom roles UI
-- Stripe Terminal
-- Hardware printer SDKs
-- Advanced report builder
-- Multi-currency
-- White-label
-- SSO
-- Enterprise features
-- Full restaurant production support
-- Full salon production support
-- Full clinic production support
+## Plataforma
 
-## Deferred Until After Core POS Stability
+- API pública, webhooks salientes y marketplace de plugins.
+- Editor de roles personalizados. Los roles son fijos con permisos RBAC.
+- SSO, SCIM, white-label, administración enterprise y jerarquía de franquicias.
+- Constructor avanzado de reportes.
+- Microservicios ([ADR-001](adr/ADR-001-modular-monolith.md)).
 
-These can be considered after the core flow is stable with beta tenants:
+## Asistente
 
-- Modifiers
-- Retail preset
-- Restaurant preset
-- Product CSV import wizard
-- Receipt template editor
-- Advanced employee permissions
+El asistente queda dentro de [ADR-017](adr/ADR-017-asistente-respuestas-ancladas.md). Quedan fuera:
+chatbot genérico, mutaciones autónomas, SQL generado contra producción, contabilidad y nómina.
+Tampoco hay metas del dueño ni plan de acción semanal generados.
 
-## Approved Roadmap, Still Gated
+## Regla para mover algo al alcance
 
-The owner-copilot roadmap in [`docs/plans/PLAN-KOVA-COPILOT.md`](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-KOVA-COPILOT.md) formally
-approves the following capabilities for phased discovery and implementation. Approval does not make
-them part of the active sprint: each phase must satisfy the preceding validation and production
-gates before feature work begins.
-
-- Discounts, configurable taxes, barcodes and fiscal sale snapshots.
-- Lightweight customer records and purchase history.
-- CFDI/autofactura through a verified PAC integration.
-- Suppliers, purchase orders, receiving and auditable inventory cost updates.
-- Customer credit, installments, due dates and aging.
-- Deterministic Kova recommendations, owner goals and a weekly action plan.
-- Read-only natural-language questions over an approved semantic layer.
-- Mobile owner supervision.
-
-Multi-location operation and branch comparison were explicitly moved into the active sprint by
-the owner on 2026-10-05. See [`current-sprint.md`](current-sprint.md) and the
-[`branch spec`](../specs/branches/multi_location.md); that authorization supersedes the former
-Phase 4 demand gate. Transfers and staff restrictions moved into the authorized October 5 expansion;
-branch-specific prices remain deferred. The
-roadmap does not approve a generic AI chatbot, autonomous mutations, generated SQL against
-production, accounting, payroll, KDS, manufacturing, a marketplace or mass marketing automation.
-
-## Deferred Until Post-GA
-
-These should not be considered until there is real usage, support capacity, and revenue signal:
-
-- Stripe Terminal
-- KDS
-- Tables/floor plan
-- Appointments
-- Loyalty
-- Promotions
-- Public API
-- Webhooks
-- White-label
-- SSO
-- SCIM
-- Enterprise admin
-- Franchise hierarchy
-- Multi-currency
-- Marketplace/plugins
-- AI features outside the constrained, read-only Kova scope above
-
-## Explicit Non-Goals for v1
-
-- Becoming a full restaurant platform from day one.
-- Competing with enterprise POS systems.
-- Supporting complex tax jurisdictions before beta.
-- Supporting hardware ecosystems before the core POS works.
-- Building microservices.
-- Creating an app marketplace.
-- Supporting every possible business type in beta.
-
-## Rule
-
-A deferred feature can only move into scope if:
-
-1. There is a written Feature Spec.
-2. It is added to `docs/current-sprint.md`.
-3. It does not break the north star flow.
-4. It does not delay beta-critical work.
-5. It has clear BDD scenarios and acceptance criteria.
+1. Spec escrita en `specs/<dominio>/` con escenarios Gherkin y criterios de aceptación.
+2. Entrada en `current-sprint.md` con la decisión del dueño.
+3. No rompe el flujo diario de caja ni retrasa un gate abierto.
+4. Si cambia una decisión de arquitectura, ADR nuevo.
