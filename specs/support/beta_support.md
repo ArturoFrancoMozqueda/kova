@@ -44,8 +44,8 @@ Template location: `docs/beta-agreement-template.md`
 
 ## Runbook Locations
 
-- Restore drill: `specs/ops/backups.md`
-- Log access: `fly logs -a pos-project-backend`
+- Restore drill: [restore-supabase-backup](../../docs/runbooks/restore-supabase-backup.md)
+- Log access: Cloudflare Container logs (see [ops-dashboard](../../docs/runbooks/ops-dashboard.md))
 - Stripe dispute: Stripe dashboard → Disputes
 - P0 incident: notify tenant immediately, patch within 4 hours
 
