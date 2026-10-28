@@ -43,3 +43,31 @@ Use this checklist before finishing meaningful Kova changes.
 - No localStorage/sessionStorage token storage.
 - No cross-tenant data leakage.
 - No broken unpaid/paid access state.
+
+## Offline ("funciona sin internet")
+
+Run against production (`https://kovasuite.com`) or a local instance before onboarding a beta
+tenant, and whenever sync, the service worker or the register changes. Use a tenant with an active
+subscription and at least three products. IndexedDB database: `pos_offline`, table
+`offline_sales` (`frontend/src/offline/db.ts`).
+
+- Sale while offline: with DevTools Network set to Offline, `/register` loads from the service
+  worker cache, a cash sale completes, the sidebar shows "Sin conexión" with a pending count, and
+  the row is `pending` in `offline_sales`.
+- Reconnect: back online, the pending count returns to 0 within seconds, the row moves
+  `pending → syncing → synced`, and the sale appears in Ventas with the correct total and items.
+- Manual sync from the Sincronización view sends the queued sale once online.
+- Dead letter: a sale the server rejects with 4xx goes straight to `failed` (no backoff); retrying
+  it from Sincronización returns it to `pending`.
+- Idempotency: one offline sale produces a single `POST /api/v1/orders`; pressing Cobrar twice on
+  the same cart creates one order (`Idempotency-Key` is the row's `client_uuid`).
+- Legacy rows without `tenant_id` stay `quarantined`, never sync, and are handled with the
+  [quarantine runbook](../runbooks/offline-legacy-quarantine.md).
+- Service worker: public and auth routes in `navigateFallbackDenylist` (`frontend/vite.config.ts`)
+  always hit the network; authenticated POS routes render from cache offline. The SW registers with
+  `registerType: "prompt"`, so a new deploy waits for the app's update flow.
+- Promise check: "funciona sin internet" in `i18n/messages.ts` still describes behavior a user can
+  reproduce in 60 seconds with DevTools Offline.
+
+On failure, record browser and version, Network and IndexedDB screenshots and the row status,
+without tenant identifiers or sale payloads in git.

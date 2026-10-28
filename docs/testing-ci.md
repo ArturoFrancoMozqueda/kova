@@ -213,4 +213,4 @@ Los grants y RLS de cada worker permanecen separados. test:integration ejecuta l
 que requieren el stack real, incluido dashboard-supervision-real.spec.ts y los escenarios
 de tarjeta, recompensas, inscripción y seguimiento incorporados por main. Los 16 casos
 son la referencia del snapshot AMD64 459d20f6; la CI del PR integrado amplía ese inventario.
-Los skips del preview se ejecutan en el job del stack real. [Ejecución AMD64 aprobada](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
+Los skips del preview se ejecutan en el job del stack real. [Ejecución AMD64 aprobada](https://github.com/ArturoFrancoMozqueda/kova/blob/fb67e755852c19fd791a8e6994af6608b49bf5de/docs/audits/KOVA-AMD64-VALIDATION-2026-10-27.md).

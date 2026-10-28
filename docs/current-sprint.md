@@ -28,8 +28,8 @@ sin OOM. Se corrigieron las carreras del setup de roles, la identidad del build 
 propagación de fallos, fixture de recuperación de catálogo y cobertura del dashboard real.
 El resize RGBA reduce memoria temporal conservando bytes exactos; no se afirma una mejora
 de CPU ni se retiran los gates por la variabilidad entre runners. No hubo despliegue ni
-cambios en producción. [Cierre AMD64](audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
-[Archivos, evidencia y límites](audits/KOVA-SECURITY-REMEDIATION-2026-10-26.md).
+cambios en producción. [Cierre AMD64](https://github.com/ArturoFrancoMozqueda/kova/blob/fb67e755852c19fd791a8e6994af6608b49bf5de/docs/audits/KOVA-AMD64-VALIDATION-2026-10-27.md).
+[Archivos, evidencia y límites](https://github.com/ArturoFrancoMozqueda/kova/blob/fb67e755852c19fd791a8e6994af6608b49bf5de/docs/audits/KOVA-SECURITY-REMEDIATION-2026-10-26.md).
 
 La publicación del PR integra `main` posterior a esa validación, preservando navegación por rol,
 pedidos y lealtad. Las cifras AMD64 anteriores corresponden al snapshot `459d20f6`; el head

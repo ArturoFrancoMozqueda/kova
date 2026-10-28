@@ -1,4 +1,9 @@
-# Runbook: Uptime monitoring (UptimeRobot)
+# Monitoreo y alertas
+
+Dos piezas: monitores de disponibilidad en UptimeRobot y Sentry en el navegador. Los logs del
+backend están en Cloudflare (ver [ops-dashboard](ops-dashboard.md)).
+
+## Disponibilidad (UptimeRobot)
 
 Production uptime for Kova is monitored by **UptimeRobot** (free plan, account owner: `posprojectsupport@gmail.com`). This runbook documents what is monitored, what each alert means, and how to act on failures.
 
@@ -13,7 +18,7 @@ does not establish that a new notification or outage drill has passed.
 
 ---
 
-## What is monitored
+### What is monitored
 
 Three HTTP/S monitors, each checked every 5 minutes from UptimeRobot's global probes:
 
@@ -27,7 +32,7 @@ All three call `HEAD` by default. Both backend health endpoints support HEAD exp
 
 ---
 
-## Alert channels
+### Alert channels
 
 Configured per monitor under *Alert Contacts*:
 
@@ -43,7 +48,7 @@ notification latency; polling, confirmation and delivery delays must not be pres
 
 ---
 
-## Triage matrix
+### Triage matrix
 
 When an alert fires, look at **which combination** of monitors is down. That isolates the failure layer before you open any console.
 
@@ -58,26 +63,26 @@ When an alert fires, look at **which combination** of monitors is down. That iso
 
 ---
 
-## Common failures and fixes
+### Common failures and fixes
 
-### `/health/db` returns 405 Method Not Allowed
+#### `/health/db` returns 405 Method Not Allowed
 Cause: monitor is using HEAD against an endpoint without a HEAD handler. As of `health/router.py` both endpoints support HEAD — but if you ever add a new health endpoint, remember to declare both `@router.get(...)` and `@router.head(...)` or UptimeRobot's probes will 405.
 
-### Frontend monitor goes red after a release
+#### Frontend monitor goes red after a release
 Check the release's acceptance/recovery result and the public `/version.json`, not just the Vercel
 candidate status. The [release verifier](../../frontend/scripts/verify-deployment.mjs) checks site,
 frontend version, API, database and same-origin proxy against the requested SHA. If publication
 failed, use the captured rollback artifact and existing release recovery; never guess Worker
 versions, redeploy an old image ad hoc or bypass a failed gate.
 
-### All three monitors red, app actually works in the browser
+#### All three monitors red, app actually works in the browser
 Compare the monitor's exact URL/method with a direct GET from another network, then inspect
 Cloudflare routing, certificates and incident history. The active frontend's apex and `www`
 records **must remain proxied** for the Workers routes described in the [frontend deployment](../../deploy/cloudflare/README.md).
 Do not switch them to DNS-only as a generic fix, and do not alter API, email or automation records.
 DNS fallback to the retained Vercel origin is a separately reviewed recovery step.
 
-### Long downtime in *Last 30 days* stat
+#### Long downtime in *Last 30 days* stat
 Separate historical outages from current incidents before interpreting a window. Earlier monitor
 URL/provider changes, including `pos-project-backend.fly.dev` → `api.kovasuite.com`, may remain in
 its history; do not erase that evidence or dismiss a new outage.
@@ -85,7 +90,7 @@ Record the interval, affected release and observed recovery.
 
 ---
 
-## Operating the dashboard
+### Operating the dashboard
 
 Account login: UptimeRobot dashboard at `dashboard.uptimerobot.com` with `posprojectsupport@gmail.com`.
 
@@ -99,7 +104,7 @@ Account login: UptimeRobot dashboard at `dashboard.uptimerobot.com` with `pospro
 
 ---
 
-## When to add more monitors
+### When to add more monitors
 
 Add a new monitor when a new externally-reachable surface becomes load-bearing for revenue or trust:
 
@@ -113,7 +118,7 @@ Do **not** add monitors for internal-only endpoints (admin paths, internal APIs)
 
 ---
 
-## Escalation
+### Escalation
 
 Documented beta escalation, to reconfirm before paid access:
 1. Email lands in `posprojectsupport@gmail.com`.
@@ -127,7 +132,7 @@ Before committing paid support expectations:
 
 ---
 
-## Verification checklist (quarterly drill)
+### Verification checklist (quarterly drill)
 
 Run this at least once per quarter to confirm the alerting actually works end-to-end:
 
@@ -143,3 +148,36 @@ Log drill execution in this table:
 | Date (UTC) | Operator | Notes |
 |---|---|---|
 | _2026-MM-DD_ | _role_ | _notification result / detection scope / recovery evidence / remaining gaps_ |
+
+## Sentry del navegador
+
+El frontend usa el proyecto de navegador existente de Sentry. El DSN público de ingestión
+se obtiene en Settings → Projects → proyecto del frontend → Client Keys (DSN). No es un
+token de administración y no requiere crear claves, usuarios ni permisos nuevos.
+
+En el proyecto Vercel que prepara el candidato del pipeline, guardar `VITE_SENTRY_PUBLIC_DSN`
+como **Config**, en los entornos Production y Preview. El pipeline toma esta configuración
+al compilar y publica los mismos archivos validados en Cloudflare. No guardar tokens privados
+en variables `VITE_*` ni incluir un password de DSN deprecado.
+
+La compilación valida este valor y lo aplica tanto al cargador diferido como a la inicialización
+existente del SDK. Si falta, mantiene compatibilidad con un `VITE_SENTRY_DSN` válido. Sin ambos,
+los builds locales/de pruebas permanecen sin Sentry. Un valor configurado inválido bloquea el
+build sin imprimirlo. No se suprimen errores para simular observabilidad funcionando.
+
+El incidente del 26 de octubre de 2026 se detectó como `Invalid Sentry Dsn`. La variable anterior
+estaba guardada como Secret; esa clase de valor no se recupera al preparar el build local del
+pipeline. Vercel impide convertirla en Config en sitio. La variable pública explícita permite
+corregirlo conservando la configuración anterior, sin eliminar ni revelar secretos.
+
+Antes de cerrar una publicación:
+
+1. Comprobar los gates del commit y publicar mediante el pipeline con recuperación habitual.
+2. Confirmar frontend/API y cargar el bundle nuevo mediante la actualización segura de la PWA.
+3. Comprobar que desaparece `Invalid Sentry Dsn`.
+4. Enviar un único evento de aceptación sin datos personales desde el SDK del frontend y
+   comprobar en Sentry proyecto, entorno `production` y release del build publicado.
+5. Mantener las opciones existentes de privacidad y ausencia de muestreo de transacciones.
+
+El backend conserva su configuración independiente. Esta corrección no activa WhatsApp,
+correo, pagos ni otros proveedores externos.
