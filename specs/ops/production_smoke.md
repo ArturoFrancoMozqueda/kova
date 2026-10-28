@@ -88,7 +88,7 @@ not itself a replay test. The operator must reconcile the authorized record and 
   menu/member-code/QR use when offered. Responsive browser tests do not certify physical scanners.
 - Before paid public selling, record supervised **Stripe live** acceptance: actual configured
   price/mode, checkout, verified webhook, subscription/access convergence and failure/cancellation
-  behavior. Use the existing [billing contract](../billing/checkout.md); this smoke and the
+  behavior. Use the existing [billing scenarios](../billing/billing.feature); this smoke and the
   [test-mode drill](../../docs/runbooks/stripe-sandbox-drill.md) do not close that gate.
 - Complete the [paid-beta operational gate](../../docs/runbooks/ops-beta-gate.md) for real lifecycle
   email inbox delivery and accepted support/legal/retention terms. A branded mailbox is deferred
