@@ -134,7 +134,8 @@ function accessStatusLabel(billing: BillingSubscription): string {
 }
 
 function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean {
-  return billing.subscription?.status === "active" ||
+  return (billing.access.allowed && billing.access.reason === "complimentary") ||
+    billing.subscription?.status === "active" ||
     (billing.subscription?.status === "trialing" && billing.access.allowed);
 }
 
@@ -290,6 +291,7 @@ export default function BillingView() {
 
   useEffect(() => {
     if (loadState.status !== "loaded") return;
+    if (loadState.billing.access.reason === "complimentary") return;
     void trackCheckoutStateViewed(
       checkoutTelemetryState(loadState.billing, checkoutReturnState),
     );
@@ -322,6 +324,23 @@ export default function BillingView() {
           <CardContent className="flex items-center gap-3 p-6">
             <AlertCircle className="h-5 w-5 text-muted-foreground" />
             <p className="text-muted-foreground">{copy.billingView.permissionHidden}</p>
+          </CardContent>
+        </Card>
+      </ViewLayout>
+    );
+  }
+
+  if (loadState.status === "loaded" && loadState.billing.access.allowed
+      && loadState.billing.access.reason === "complimentary") {
+    return (
+      <ViewLayout width="focused">
+        <ViewHeader title={copy.billingView.title} />
+        <Card className="mt-6">
+          <CardContent className="space-y-3 p-6">
+            <CheckCircle2 className="h-6 w-6 text-kova-growth" aria-hidden="true" />
+            <h2 className="text-xl font-semibold">{copy.billingView.complimentaryTitle}</h2>
+            <p className="text-muted-foreground">{copy.billingView.complimentaryBody}</p>
+            <Badge variant="secondary">{copy.billingView.complimentaryDuration}</Badge>
           </CardContent>
         </Card>
       </ViewLayout>

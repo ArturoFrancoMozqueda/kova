@@ -117,6 +117,21 @@ function renderBilling() {
   );
 }
 
+it("shows permanent courtesy access without payment actions or an expiring trial", async () => {
+  const result = billing({ status: "incomplete" });
+  result.access = {
+    ...result.access, allowed: true, reason: "complimentary", trialing: false,
+    trial_ends_at: null,
+  };
+  getBillingSubscription.mockResolvedValue(result);
+  renderBilling();
+  expect(await screen.findByText(copy.billingView.complimentaryTitle)).toBeInTheDocument();
+  expect(screen.getByText(copy.billingView.complimentaryDuration)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /activar|cancelar/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(copy.billingView.periodVerifying)).not.toBeInTheDocument();
+  expect(startCheckout).not.toHaveBeenCalled();
+});
+
 afterEach(() => {
   vi.clearAllMocks();
 });

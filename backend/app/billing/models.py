@@ -21,6 +21,10 @@ class Subscription(Base):
     stripe_price_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     latest_checkout_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="incomplete")
+    # Operator-managed entitlement, never supplied by a public request or Stripe.
+    complimentary_access: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     plan_name: Mapped[str] = mapped_column(String(100), nullable=False, default="Standard Plan")
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MXN")
     amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False, default=29_900)

@@ -2497,6 +2497,9 @@ export const copy = {
   },
   billingView: {
     title: "Suscripción",
+    complimentaryTitle: "Acceso de cortesía activo",
+    complimentaryBody: "Tu negocio tiene acceso permanente a Kova, sin vencimiento ni cobros automáticos.",
+    complimentaryDuration: "Sin vencimiento",
     loading: "Cargando suscripción",
     loadError: "No se pudo cargar la suscripción",
     retry: "Reintentar",

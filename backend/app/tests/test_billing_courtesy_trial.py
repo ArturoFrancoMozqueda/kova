@@ -9,6 +9,49 @@ from app.billing import access, service
 from app.billing.models import Subscription
 
 
+def test_permanent_grant_survives_expired_trial_but_keeps_offline_authorization_bounded(monkeypatch):
+    subscription = Subscription(
+        tenant_id=uuid4(), status="incomplete", complimentary_access=True,
+        trial_ends_at=datetime.now(UTC) - timedelta(days=1),
+    )
+    lookup = Mock(return_value=subscription)
+    monkeypatch.setattr(access.billing_repo, "get_subscription_by_tenant", lookup)
+    refresh = Mock(side_effect=AssertionError("A courtesy grant has no Stripe subscription"))
+    monkeypatch.setattr(service, "refresh_subscription_access_snapshot", refresh)
+    before = datetime.now(UTC)
+    db = Mock()
+    result = access.get_billing_access_status(db, tenant_id=subscription.tenant_id)
+    assert result.allowed and result.reason == "complimentary"
+    assert not result.trialing and result.trial_ends_at is None
+    assert before < result.valid_until <= datetime.now(UTC) + timedelta(hours=24)
+    lookup.assert_called_once_with(db, tenant_id=subscription.tenant_id)
+    refresh.assert_not_called()
+
+
+@pytest.mark.parametrize("granted,stripe_id", [(False, None), (True, "sub_test_unpaid")])
+def test_grant_revocation_and_stripe_managed_accounts_keep_normal_gates(monkeypatch, granted, stripe_id):
+    subscription = Subscription(
+        tenant_id=uuid4(), status="unpaid", complimentary_access=granted,
+        stripe_subscription_id=stripe_id,
+    )
+    monkeypatch.setattr(access.billing_repo, "get_subscription_by_tenant", Mock(return_value=subscription))
+    result = access.get_billing_access_status(Mock(), tenant_id=subscription.tenant_id)
+    assert not result.allowed and result.reason == "unpaid"
+
+
+def test_permanent_grant_cannot_start_a_paid_checkout(monkeypatch):
+    subscription = Subscription(tenant_id=uuid4(), status="incomplete", complimentary_access=True)
+    monkeypatch.setattr(service.repository, "get_subscription_by_tenant", Mock(return_value=subscription))
+    checkout_config = Mock(side_effect=AssertionError("Must not create a charge"))
+    monkeypatch.setattr(service, "_checkout_config", checkout_config)
+    with pytest.raises(HTTPException) as exc:
+        service.create_checkout_session(
+            Mock(), tenant_id=subscription.tenant_id, user_id=uuid4(), idempotency_key="courtesy",
+        )
+    assert exc.value.status_code == 400
+    checkout_config.assert_not_called()
+
+
 @pytest.mark.parametrize("remaining_days", [None, -1, 30])
 def test_courtesy_trial_requires_a_future_expiration(monkeypatch, remaining_days):
     tenant_id = uuid4()

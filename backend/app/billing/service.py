@@ -16,6 +16,7 @@ from app.billing import repository
 from app.billing.access import (
     BILLING_MAX_GRACE_DAYS,
     get_billing_access_status,
+    has_complimentary_access,
     serialize_billing_access,
 )
 from app.billing.models import Subscription, WebhookEvent
@@ -302,6 +303,8 @@ def create_checkout_session(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    if subscription and has_complimentary_access(subscription):
+        raise bad_request("Tenant already has complimentary access")
     courtesy_trial = bool(
         subscription
         and subscription.status == "trialing"

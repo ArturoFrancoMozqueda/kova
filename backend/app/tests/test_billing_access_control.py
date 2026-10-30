@@ -99,6 +99,44 @@ def test_signup_trial_allows_order_creation(client: TestClient) -> None:
     assert response.status_code == 201, response.text
 
 
+def test_permanent_courtesy_session_checkout_revocation_and_tenant_isolation(
+    client: TestClient, db: Session, monkeypatch,
+) -> None:
+    signup = _signup_verify_login(client, f"courtesy-{uuid4().hex}@example.com", "Courtesy")
+    tenant_id = UUID(signup["tenant_id"])
+    subscription = Subscription(
+        tenant_id=tenant_id, status="incomplete", complimentary_access=True,
+    )
+    db.add(subscription)
+    db.commit()
+    _expire_trial(monkeypatch)
+    status = client.get("/api/v1/billing/subscription")
+    assert status.status_code == 200
+    access = status.json()["access"]
+    assert access["allowed"] and access["reason"] == "complimentary"
+    assert access["trial_ends_at"] is None and not access["trialing"]
+    assert "complimentary_access" not in status.json()["subscription"]
+    _create_product(client, name="Courtesy product")
+    checkout = client.post(
+        "/api/v1/billing/checkout", headers={"Idempotency-Key": uuid4().hex},
+    )
+    assert checkout.status_code == 400
+    subscription.complimentary_access = False
+    db.commit()
+    blocked = client.post(
+        "/api/v1/catalog/products", headers={"Idempotency-Key": uuid4().hex},
+        json={"name": "Revoked", "price_amount": "1.00", "track_inventory": False},
+    )
+    assert blocked.status_code == 402
+    subscription.complimentary_access = True
+    db.commit()
+    _signup_verify_login(client, f"non-courtesy-{uuid4().hex}@example.com", "Other business")
+    other = client.get("/api/v1/billing/subscription")
+    assert other.status_code == 200
+    assert not other.json()["access"]["allowed"]
+    assert other.json()["access"]["reason"] == "trial_expired"
+
+
 def test_expired_trial_blocks_order_creation_and_audits(
     client: TestClient, db: Session, monkeypatch
 ) -> None:
