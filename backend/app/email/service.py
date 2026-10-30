@@ -4,6 +4,7 @@ from app.config import settings
 from app.email.templates import (
     SUPPORT_EMAIL,
     escape,
+    fallback_link,
     kv_table,
     link,
     muted,
@@ -59,18 +60,16 @@ def send_verification_email(*, to: str, token: str) -> None:
     html = render_email(
         preheader="Confirma tu correo para empezar a vender con Kova.",
         heading="Verifica tu correo",
+        eyebrow="Confirmación de correo",
         intro_html=p(
             "Gracias por crear tu cuenta en Kova. Confirma tu correo para "
-            "empezar a vender hoy mismo."
+            "proteger tu cuenta y activar tu suscripción cuando estés listo."
         ),
         cta_label="Verificar mi correo",
         cta_url=verify_url,
         body_html=(
-            muted(
-                f"O copia este enlace en tu navegador: "
-                f'<span style="word-break: break-all;">{escape(verify_url)}</span>'
-            )
-            + muted("El enlace expira en 24 horas.")
+            muted("El enlace expira en 24 horas.")
+            + fallback_link(verify_url)
         ),
     )
     _send(to=to, subject="Verifica tu correo — Kova", html=html, kind="verification")
@@ -82,6 +81,7 @@ def send_welcome_email(*, to: str) -> None:
     html = render_email(
         preheader="Tu plan Kova está activo. Empieza a vender sin interrupciones.",
         heading="Tu plan Kova está activo",
+        eyebrow="Bienvenido a Kova",
         intro_html=(
             p("¡Bienvenido a Kova! Tu plan está activo y ya puedes vender sin interrupciones.")
             + p(
@@ -119,15 +119,15 @@ def send_payment_receipt_email(
     if period_end_iso:
         rows.append(("Próximo cargo", escape(period_end_iso)))
 
-    body = kv_table(rows)
-    body += muted(f"Detalles de tu suscripción en {link('Suscripción', billing_url)}.")
     html = render_email(
         preheader=f"Confirmamos el pago de {amount_str} a tu suscripción Kova.",
         heading="Recibo de pago",
+        eyebrow="Pago confirmado",
         intro_html=p("Confirmamos el pago de tu suscripción a Kova. Tu plan continúa activo."),
         cta_label="Ver recibo en Stripe" if invoice_url else None,
         cta_url=invoice_url if invoice_url else None,
-        body_html=body,
+        detail_html=kv_table(rows),
+        body_html=muted(f"Detalles de tu suscripción en {link('Suscripción', billing_url)}."),
     )
     _send(to=to, subject="Recibo de pago — Kova", html=html, kind="payment_receipt")
 
@@ -139,9 +139,9 @@ def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> bool:
             f"Tu prueba gratis termina el {trial_ends_iso}. Activa tu plan para seguir vendiendo."
         ),
         heading="Tu prueba termina pronto",
+        eyebrow="Tu periodo de prueba",
         intro_html=(
             p("Tu periodo de prueba en Kova termina pronto.")
-            + p(f"Fecha de término: <strong>{escape(trial_ends_iso)}</strong>")
             + p(
                 "Para no perder acceso a tu panel, ventas e inventario, activa tu plan "
                 "antes de esa fecha."
@@ -149,6 +149,7 @@ def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> bool:
         ),
         cta_label="Activar mi plan",
         cta_url=billing_url,
+        detail_html=kv_table([("Fin de tu prueba", escape(trial_ends_iso))]),
         body_html=muted("Si ya activaste tu plan, ignora este mensaje."),
     )
     return _send(
@@ -185,15 +186,13 @@ def send_invitation_email(
     html = render_email(
         preheader=f"Únete a {tenant_name} en Kova como {role_label}.",
         heading="Te invitaron a Kova",
+        eyebrow="Tu equipo en Kova",
         intro_html=intro,
         cta_label="Aceptar invitación",
         cta_url=accept_url,
         body_html=(
-            muted(
-                "O copia este enlace en tu navegador: "
-                f'<span style="word-break: break-all;">{escape(accept_url)}</span>'
-            )
-            + muted("El enlace expira en 7 días.")
+            muted("El enlace expira en 7 días.")
+            + fallback_link(accept_url)
         ),
         footer_html=muted(
             "Recibes este correo porque te invitaron a un negocio que usa Kova. "
@@ -213,15 +212,13 @@ def send_password_reset_email(*, to: str, token: str) -> None:
     html = render_email(
         preheader="Restablece tu contraseña de Kova.",
         heading="Restablece tu contraseña",
+        eyebrow="Seguridad de tu cuenta",
         intro_html=p("Recibimos una solicitud para restablecer tu contraseña en Kova."),
         cta_label="Restablecer mi contraseña",
         cta_url=reset_url,
         body_html=(
-            muted(
-                f"O copia este enlace en tu navegador: "
-                f'<span style="word-break: break-all;">{escape(reset_url)}</span>'
-            )
-            + muted("El enlace expira en 1 hora. Si no fuiste tú, ignora este correo.")
+            muted("El enlace expira en 1 hora. Si no fuiste tú, ignora este correo.")
+            + fallback_link(reset_url)
         ),
     )
     _send(to=to, subject="Restablece tu contraseña — Kova", html=html, kind="password_reset")
