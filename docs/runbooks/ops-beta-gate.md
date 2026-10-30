@@ -8,6 +8,12 @@ Reconciliación documental: 26 de octubre de 2026. Las comprobaciones histórica
 fecha y alcance; no certifican automáticamente el despliegue ni las plantillas actuales. Esta
 revisión no envió correos, no ejecutó restauraciones ni cambió proveedores.
 
+Actualización de evidencia del 29 de octubre: la consulta del proveedor confirma las seis
+plantillas de prueba entregadas a Gmail el 27 de octubre y el logo público responde HTTP 200.
+No acredita Inbox ni el recorrido actual del backend. Se revisó además el simulacro lógico de R2
+del 27 de octubre; restauró la revisión 0095, anterior a la 0098 productiva. No se cierra la
+recuperación completa del servicio ni la aceptación de correo en otros clientes.
+
 ## OPS-1 y OPS-2 — correo y soporte
 
 - [ ] Las seis plantillas actuales llegaron a Inbox en buzones QA autorizados de Gmail, Outlook y
@@ -46,6 +52,10 @@ y no es el destino de nuevas pruebas.
 - El PNG de correo existe en `frontend/public/email/kova-mark.png`. HEAD y GET desde la red de esta
   revisión recibieron HTTP 403 en su URL pública: su disponibilidad para clientes de correo queda
   sin confirmar; no se infiere una caída global a partir de esa respuesta.
+
+La comprobación posterior del 29 de octubre sí obtuvo HTTP 200, `image/png` y 2,908 bytes desde la
+URL pública del logo. Esto resuelve aquella comprobación de accesibilidad HTTP, no el render en
+clientes de correo.
 
 La revisión candidata incorpora HTML y texto plano legible para las seis plantillas, con `Reply-To`
 al Gmail oficial. Los errores del transporte se registran por categoría sin copiar excepciones,
@@ -130,9 +140,9 @@ checklist no la concede.
 
 | Gate | Fecha UTC | Entorno/proveedor | Commit | Resultado | Evidencia privada | Bloqueo |
 |---|---|---|---|---|---|---|
-| OPS-1 | 2026-10-26 | Revisión de código y DNS público; evidencia Gmail del 12 de agosto | Árbol local; corte histórico `8e15269` | Parcial: cinco plantillas históricas en Gmail; seis actuales; DNS publicado | [Evidencia histórica](../email-deliverability.md) | Invitación y revisión actual, Outlook/Hotmail, móvil/oscuro, logo accesible y monitoreo |
+| OPS-1 | 2026-10-29 | Resend y HTTP público | Consulta de proveedor; no certifica origen del backend | Seis plantillas QA `delivered` a Gmail el 27 de octubre; logo HTTP 200 | [Alcance de la entrega](../email-deliverability.md) | Inbox, recorrido actual del backend, Outlook/Hotmail, móvil/oscuro y monitoreo |
 | OPS-2 | 2026-10-26 | Decisión de soporte beta y fuente del producto | SELL-06 / `support.ts` | Gmail aceptado como canal; buzón de dominio diferido | Evidencia de respuesta operativa todavía requerida | Responsable, recepción/respuesta y tiempos; dominio sólo si se decide migrarlo |
-| OPS-3 | 2026-10-10 | GitHub runner / R2 / PostgreSQL 17 aislado | `628fac3` / `6d8fa14` | Restore lógico real aprobado; recuperación completa del servicio pendiente | Runs `38073545892` y `38075155881`; [agregados sin filas](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md) | Revisión actual, esquemas del proveedor, binarios/tráfico y RTO/RPO de servicio |
+| OPS-3 | 2026-10-29 | Evidencia del 27 de octubre: GitHub runner / R2 / PostgreSQL 17 aislado | `bc217fb0`; respaldo con revisión 0095 | Restore lógico, RLS e integridad aprobados; limpieza verificada | [Run 40431841128](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40431841128) | Restaurar revisión productiva 0098; esquemas del proveedor, binarios/tráfico y RTO/RPO de servicio |
 | OPS-4 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | No aplica | Tenant, responsable, autorización y conteo humano |
 | OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
 | OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |

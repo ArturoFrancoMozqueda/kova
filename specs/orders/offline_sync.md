@@ -44,6 +44,9 @@ Offline-first selling is a core POS differentiator and protects revenue during c
 - Frontend queue persists sales locally.
 - Manual sync can retry pending and failed sales.
 - Failed sales are surfaced as dead letters.
+- A prepared register can reload without internet without losing queued sales.
+- A cold-offline identity does not activate synchronization until the server
+  revalidates its session. Reconnection then resumes the same queued UUIDs.
 
 ## Error States
 
@@ -68,3 +71,16 @@ Offline-first selling is a core POS differentiator and protects revenue during c
 - Queued sale sync creates an order.
 - Replaying the same queued sale does not duplicate the order.
 - A failed sale appears in the batch response with a recoverable error.
+- Browser acceptance against the real API and PostgreSQL covers cold-offline
+  reload and loss of a successful sync response, preserving one sale, one
+  payment and one inventory debit at mobile and desktop sizes.
+- Once the session is verified again, the register refreshes its catalog,
+  inventory and shift so the next cash sale can proceed without reloading.
+
+## Test Matrix
+
+| Contract | Coverage |
+| --- | --- |
+| Cold-offline reload, lost successful response, deduplication and next cash sale | `frontend/e2e/offline-sale-real.spec.ts`, real API/PostgreSQL/RLS at 390 and 1440 px |
+| No queue claims or retry consumption while the browser is offline | `frontend/src/offline/syncWorker.persistence.test.ts` |
+| Offline identity cannot activate sync until server revalidation | `frontend/src/auth/AuthContext.identity.test.tsx` |

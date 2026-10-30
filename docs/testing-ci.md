@@ -12,19 +12,20 @@ Todos los PR con código ejecutan **las suites completas**. No hay selección de
 
 | Suite | Comportamiento protegido | Dependencias | Medición |
 |---|---|---|---|
-| Backend pytest + BDD (1,035 casos tras depuración) | Sesiones, CSRF, permisos/RLS, ventas, dinero, billing, CFDI, inventario, concurrencia, offline, reportes y asistente | Python 3.12, uv.lock, Postgres 16 + pgvector, transacciones aisladas | `backend/reports/backend.xml`, 40 casos más lentos con setup/call/teardown |
-| Migraciones (9 casos) | Upgrade/downgrade/upgrade; datos poblados, atribución de sucursal y grants | Base Postgres desechable propia, Alembic | `backend/reports/migrations.xml`, durations |
-| Vitest (792 casos) | Comportamiento de componentes, persistencia IndexedDB, permisos, cálculos, PWA y secretos en fuente | Node 24, package-lock, jsdom/fake-indexeddb | `frontend/reports/vitest.xml` |
+| Backend pytest + BDD | Sesiones, CSRF, permisos/RLS, ventas, dinero, billing, CFDI, inventario, concurrencia, offline, reportes y asistente | Python 3.12, uv.lock, Postgres 16 + pgvector, transacciones aisladas | `backend/reports/backend.xml`, 40 casos más lentos con setup/call/teardown |
+| Migraciones | Upgrade/downgrade/upgrade; datos poblados, atribución de sucursal y grants | Base Postgres desechable propia, Alembic | `backend/reports/migrations.xml`, durations |
+| Vitest | Comportamiento de componentes, persistencia IndexedDB, permisos, cálculos, PWA y secretos en fuente | Node 24, package-lock, jsdom/fake-indexeddb | `frontend/reports/vitest.xml` |
 | Playwright preview | Interacciones, rutas/prerender, variantes móviles y offline sobre bundle compilado | Chromium, build de producción; APIs simuladas explícitamente | `frontend/reports/preview.xml`, HTML, screenshots y traces de fallos |
-| Playwright stack real (4 casos) | Venta real, stock y cambio; aislamiento entre tenants; accesibilidad de vistas y modal financiero | Docker Compose, API real, Postgres y rol de aplicación sin bypass RLS | `frontend/reports/integration.xml`, HTML y diagnóstico |
-| Contratos de release (21 casos; uno exclusivo de Windows) | SHA/health/proxy, orden de promoción y restauración, incidentes de recuperación | Node; proveedores simulados, sin credenciales | Log de `test:release-contract` |
-| Contratos operativos/política CI (26 casos) | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
+| Playwright stack real | Ventas, pedidos, lealtad, stock, cambio, roles y aislamiento; recarga offline y respuesta perdida sin duplicados; accesibilidad | Build PWA de producción, API real, Postgres y rol de aplicación sin bypass RLS | `frontend/reports/integration.xml`, HTML y diagnóstico |
+| Contratos de release | SHA/health/proxy, orden de promoción y restauración, incidentes de recuperación | Node; proveedores simulados, sin credenciales; un caso exclusivo de Windows | Log de `test:release-contract` |
+| Contratos operativos/política CI | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
 | Parser | Rechazo adversarial y aislamiento de archivos de negocio | Contenedor y firmas antivirus actuales | Log del job |
 | Reproducibilidad/SBOM | Dos builds idénticos y lista de dependencias | BuildKit, bases fijadas por digest | SBOM por commit |
 | Secretos/dependencias | Gitleaks, cuatro locks npm completos, locks Python nativo/Workers, paquetes directos del parser y bundle público | Git completo, npm audit, pip-audit 2.10.1 | JSON por inventario y comprobación del bundle |
 | CVE de imágenes | Imágenes nativa y parser realmente construidas; paquetes OS y Python transitivos | Trivy 0.76.1 fijado por digest, archivos `docker save` sin socket ni credenciales | JSON por imagen, retención 14 días |
 
 Las duraciones de JUnit incluyen trabajo por caso; el tiempo de runner se mide con timestamps de GitHub e incluye preparación. No se comparan estos números como si fueran la misma métrica.
+Los conteos vigentes se obtienen del resultado de cada ejecución, no de cifras históricas en esta tabla.
 
 ## Política de vulnerabilidades
 

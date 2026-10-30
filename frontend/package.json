@@ -19,7 +19,7 @@
     "test:e2e-mocked": "npm run test:e2e-dev",
     "test:e2e-dev": "node scripts/check-e2e-imports.mjs && playwright test --config=playwright.mocked.config.ts",
     "test:e2e-preview": "npm run build && npm run test:e2e-preview:built",
-    "test:integration": "playwright test e2e/integration.spec.ts e2e/pos-real-integration.spec.ts e2e/business-automation-real.spec.ts e2e/business-operations-real.spec.ts e2e/business-lifecycle-real.spec.ts e2e/connected-owner-real.spec.ts e2e/dashboard-supervision-real.spec.ts e2e/loyalty-card-real.spec.ts e2e/loyalty-reward-real.spec.ts e2e/loyalty-enrollment-real.spec.ts e2e/order-intake-real.spec.ts e2e/service-cases-real.spec.ts e2e/operations-queue-real.spec.ts e2e/accessibility.spec.ts --project=chromium",
+    "test:integration": "playwright test e2e/integration.spec.ts e2e/pos-real-integration.spec.ts e2e/offline-sale-real.spec.ts e2e/business-automation-real.spec.ts e2e/business-operations-real.spec.ts e2e/business-lifecycle-real.spec.ts e2e/connected-owner-real.spec.ts e2e/dashboard-supervision-real.spec.ts e2e/loyalty-card-real.spec.ts e2e/loyalty-reward-real.spec.ts e2e/loyalty-enrollment-real.spec.ts e2e/order-intake-real.spec.ts e2e/service-cases-real.spec.ts e2e/operations-queue-real.spec.ts e2e/accessibility.spec.ts --project=chromium",
     "test:production-smoke": "playwright test --config=playwright.production.config.ts",
     "test:release-contract": "node --test scripts/verify-deployment.test.mjs scripts/release-recovery.test.mjs scripts/release.test.mjs scripts/cloudflare-provider.test.mjs scripts/cloudflare-backend-provider.test.mjs scripts/cloudflare-native-readiness.test.mjs scripts/cloudflare-container-provider.test.mjs",
     "capture:showcase": "node scripts/capture-showcase.mjs",

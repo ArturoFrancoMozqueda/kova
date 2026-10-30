@@ -76,7 +76,7 @@ export function scheduleOfflineSyncRetry(tenantId: string, error: unknown) {
 }
 
 export async function triggerSync(tenantId: string): Promise<void> {
-  if (!tenantId || getActiveOfflineTenant() !== tenantId || syncingTenant) return;
+  if (!tenantId || getActiveOfflineTenant() !== tenantId || syncingTenant || !navigator.onLine) return;
   syncingTenant = tenantId;
   try {
     await recoverExpiredLeases(tenantId);

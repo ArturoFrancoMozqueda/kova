@@ -58,6 +58,7 @@ vi.mock("@/settings/api", () => ({
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { AuthProvider, useAuthContext } from "./AuthContext";
 import { TrialChip } from "@/billing/TrialChip";
+import { getActiveOfflineTenant } from "@/offline/activeTenant";
 
 const session = (tenantId: string, userId: string, role = "owner") => ({
   authenticated: true as const,
@@ -316,9 +317,15 @@ describe("AuthProvider identity continuity", () => {
     );
 
     expect(await screen.findByText("tenant-a:user-a:offline")).toBeVisible();
+    expect(getActiveOfflineTenant()).toBeNull();
     expect(reportIdentity).toHaveBeenLastCalledWith(null);
     expect(billingIdentity).toHaveBeenLastCalledWith(null);
     expect(offlineAccess.cache).not.toHaveBeenCalled();
+
+    vi.mocked(getSession).mockResolvedValue(session("tenant-a", "user-a"));
+    act(() => { window.dispatchEvent(new Event("online")); });
+    await screen.findByText("tenant-a:user-a:online");
+    await waitFor(() => expect(getActiveOfflineTenant()).toBe("tenant-a"));
   });
 
   it("keeps the shell unavailable when no prepared identity can be verified", async () => {

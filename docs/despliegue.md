@@ -125,7 +125,10 @@ puede repetir con el workflow manual `native-backend.yml` (`verify_public_images
 - Detalle de precios del Container y de alertas: `deploy/cloudflare-native/README.md` y
   `deploy/cloudflare-backend/README.md`.
 
-## Pendiente conocido
+## Protección de main
 
-- La protección de rama de `main` que exige `CI required` se configura en GitHub, no en el repo.
-  Verifica en GitHub si ya está activa.
+Comprobada en GitHub el 29 de octubre de 2026: `main` exige un PR y el check `CI required`,
+con la rama actualizada antes de fusionar. La regla también aplica a administradores, exige
+resolver conversaciones y bloquea pushes forzados y borrados. No exige una aprobación humana
+adicional. Esta configuración vive en GitHub; verificarla de nuevo si se cambian las reglas o
+el plan del repositorio. Activarla no publica código ni cambia el entorno `production`.
