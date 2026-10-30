@@ -10,9 +10,19 @@ revisión no envió correos, no ejecutó restauraciones ni cambió proveedores.
 
 Actualización de evidencia del 29 de octubre: la consulta del proveedor confirma las seis
 plantillas de prueba entregadas a Gmail el 27 de octubre y el logo público responde HTTP 200.
-No acredita Inbox ni el recorrido actual del backend. Se revisó además el simulacro lógico de R2
-del 27 de octubre; restauró la revisión 0095, anterior a la 0098 productiva. No se cierra la
-recuperación completa del servicio ni la aceptación de correo en otros clientes.
+Esa consulta por sí sola no acredita Inbox ni el origen del envío. Posteriormente, la solicitud
+real de recuperación a través del proxy de la versión `49d96f4bb994` produjo un correo `delivered`
+el 30 de octubre a las 02:50 UTC; no se leyó el token ni se cambió la contraseña.
+
+El 30 de octubre a las 14:48 UTC se repitió el recorrido con la presentación premium publicada en
+`aa9c856e8f11`: HTTP 200 y `delivered`. La verificación pública confirmó sitio, API y proxy en esa
+versión y base accesible. La apariencia en el buzón QA sigue pendiente de aceptación humana.
+
+La restauración ampliada del 30 de octubre (29 CDMX) ya recuperó la revisión 0098 y comprobó
+autenticación por cookies, CSRF/identidad, exportación por API de un negocio restaurado y logout
+usando la imagen `57fe4cf7004f`, en un namespace sin red externa. La cuenta sintética y todos los
+datos desechables se eliminaron. No se cierra la recuperación regional con bindings/tráfico de
+producción ni la aceptación de correo en otros clientes. [Alcance exacto](restore-supabase-backup.md).
 
 ## OPS-1 y OPS-2 — correo y soporte
 
@@ -102,16 +112,18 @@ prueba real posterior. Esta revisión no sustituye Inbox, modo oscuro ni render 
 - [x] Restauración lógica de respaldos reales en PostgreSQL 17 desechable, sin SQL en producción:
       snapshots 0078 y 0079 del 10 de octubre, con checksum, runtime/RLS, conteos, pagos/lotes y
       limpieza verificados en la [evidencia fechada](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
-- [ ] Compatibilidad y migración desde el snapshot hasta la revisión del servicio que se pretenda
-      recuperar; el ejercicio histórico no prueba migraciones posteriores al respaldo.
+- [x] Compatibilidad del snapshot 0098 con la imagen `57fe4cf7004f`: igualdad con el head de
+      migraciones, arranque ASGI y lectura autenticada aprobados. Este corte no requirió migrar;
+      recuperar un snapshot anterior exige validar las migraciones posteriores por separado.
 - [ ] Recuperación completa del servicio: nuevo host si corresponde, Auth/Storage/Vault, binarios,
       arranque de aplicación, smoke y cambio de tráfico bajo autorización independiente.
 - [ ] RTO y RPO del servicio medidos, con límites y limpieza del destino completo registrados.
 
 No sigue vigente describir OPS-3 como ausencia de restore real o bloqueo exclusivo por slots/costo.
 El [drill lógico en runner](restore-supabase-backup.md#logical-restore-without-creating-a-supabase-project)
-usa infraestructura existente y no exige crear un proyecto Supabase. Sus tiempos de 13.605 y 19.852
-segundos y edades de snapshot son mediciones de ese ejercicio, no un RTO/RPO completo del servicio.
+usa infraestructura existente y no exige crear un proyecto Supabase. El último ejercicio lógico y
+ASGI duró 18.244 segundos desde la descarga, sin incluir la construcción de la imagen, con una edad
+del snapshot de 11 h 30 min. Estas mediciones no equivalen a un RTO/RPO regional completo.
 Crear o eliminar un proyecto, restaurar o cambiar tráfico requiere su propia autorización; este
 checklist no la concede.
 
@@ -140,9 +152,9 @@ checklist no la concede.
 
 | Gate | Fecha UTC | Entorno/proveedor | Commit | Resultado | Evidencia privada | Bloqueo |
 |---|---|---|---|---|---|---|
-| OPS-1 | 2026-10-29 | Resend y HTTP público | Consulta de proveedor; no certifica origen del backend | Seis plantillas QA `delivered` a Gmail el 27 de octubre; logo HTTP 200 | [Alcance de la entrega](../email-deliverability.md) | Inbox, recorrido actual del backend, Outlook/Hotmail, móvil/oscuro y monitoreo |
+| OPS-1 | 2026-10-30 | Backend Cloudflare/proxy y Resend | `aa9c856e8f11` | Recuperación con diseño nuevo solicitada por API, HTTP 200 y `delivered` a las 14:48 UTC; seis plantillas del 27 de octubre conservan su alcance histórico | [Alcance de la entrega](../email-deliverability.md) | Aceptación de la nueva presentación, Inbox, Outlook/Hotmail, móvil/oscuro y disparadores actuales de las otras plantillas |
 | OPS-2 | 2026-10-26 | Decisión de soporte beta y fuente del producto | SELL-06 / `support.ts` | Gmail aceptado como canal; buzón de dominio diferido | Evidencia de respuesta operativa todavía requerida | Responsable, recepción/respuesta y tiempos; dominio sólo si se decide migrarlo |
-| OPS-3 | 2026-10-29 | Evidencia del 27 de octubre: GitHub runner / R2 / PostgreSQL 17 aislado | `bc217fb0`; respaldo con revisión 0095 | Restore lógico, RLS e integridad aprobados; limpieza verificada | [Run 40431841128](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40431841128) | Restaurar revisión productiva 0098; esquemas del proveedor, binarios/tráfico y RTO/RPO de servicio |
+| OPS-3 | 2026-10-30 | GitHub runner / R2 / PostgreSQL 17 y ASGI aislados (29 CDMX) | `57fe4cf7004f`; snapshot 0098 | Restore, runtime RLS, integridad, login/CSRF, exportación de 2,217 pedidos existentes y logout aprobados; dos contenedores y dump eliminados | [Run 40996995394](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40996995394) | Recuperación regional, esquemas del proveedor, bindings/tráfico y RTO/RPO completos |
 | OPS-4 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | No aplica | Tenant, responsable, autorización y conteo humano |
 | OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
 | OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |

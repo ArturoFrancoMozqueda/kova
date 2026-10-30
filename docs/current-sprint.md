@@ -1,17 +1,20 @@
 # Estado actual
 
-Última actualización: 2026-10-29.
+Última actualización: 2026-10-30.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
 
 ## En producción
 
-Producción corre `49d96f4bb994` (PR #291): frontend `kovasuite.com` y API `api.kovasuite.com`
+Producción corre `aa9c856e8f11` (PR #294): frontend `kovasuite.com` y API `api.kovasuite.com`
 reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
+- Correos con presentación premium compartida y ajustes de móvil (#294). Reset solicitado desde
+  la API publicada y `delivered` a Gmail el 30 de octubre; Inbox/render en clientes sigue pendiente.
+- Restauración 0098 con autenticación, exportación por API y limpieza en entorno aislado (#293).
 - Navegación por rol con Caja, Pedidos y Ventas fijos y categorías desplegables (#285). Aceptada en
   producción.
 - Pedidos con seguimiento público y operación diaria simplificada (#283). Aceptado en producción
@@ -64,12 +67,13 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
    octubre pasó con revisión 0095 y el del 29 de octubre CDMX ya restauró la revisión actual 0098
    con RLS e integridad aprobadas. El simulacro ampliado también aprobó autenticación, exportación
-   por API y logout sobre datos restaurados, con la imagen actual y una cuenta sintética aislada.
+   por API y logout sobre datos restaurados, con la imagen `57fe4cf7004f` y una cuenta sintética aislada.
    Falta la recuperación regional con bindings de producción, tráfico y RTO/RPO completos.
    [Alcance comprobado](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. El reset solicitado desde el proxy del backend
-   actual llegó a `delivered` el 29 de octubre CDMX. Faltan Inbox, enlaces, otros clientes y
+   publicado llegó a `delivered` el 29 de octubre CDMX y se repitió con el diseño nuevo sobre
+   `aa9c856e8f11` el 30 de octubre. Faltan Inbox, enlaces, otros clientes y
    disparadores actuales de las otras plantillas. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
 5. **Dispositivos físicos.** Lectura del QR de la tarjeta, cajón de dinero y operación offline en
