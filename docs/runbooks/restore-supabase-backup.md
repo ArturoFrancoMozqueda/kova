@@ -12,7 +12,7 @@ Linux runner. Run it from `main` with acknowledgement `KOVA-R2-RESTORE-RUNNER-ON
 the workflow. It uses only the four existing R2 storage secrets, never a production database URL.
 GitHub Actions minutes use the existing repository plan; no new external hosting is provisioned.
 
-The target has no network, published ports or host mounts; database files stay in temporary RAM
+The target has no external network, published ports or host mounts; database files stay in temporary RAM
 filesystems. The drill requires a custom archive, matching size and trusted SHA-256 metadata,
 and a backup no older than 48 hours. It restores Kova's `public` and `assistant_control` schemas,
 preinstalls pgvector in `extensions`, reapplies the checked-in runtime grants, and checks
@@ -24,10 +24,24 @@ counts, validation results, snapshot age and measured restore/drill duration. Th
 database output and container logs are never uploaded or printed. Cleanup runs on failure too;
 successful evidence requires confirmed container and private-file removal.
 
+The workflow also builds the current `backend/Dockerfile.api` image before passing any R2 secrets.
+With `RESTORE_SERVICE_SMOKE=true`, acceptance requires the backup revision to equal the repository's
+single migration head. A read-only, non-root API container shares the database's `--network none`
+namespace, whose only interface is loopback. No public HTTP listener is started. The probe uses the
+real ASGI middleware, routes and runtime role for database health, cookie login, CSRF/identity
+rejection, tenant-only account export and logout. Exported orders/payments/products must match
+independent SQL counts from an existing restored tenant. A synthetic owner is added only to the
+disposable clone; existing users, passwords and subscription states are not changed. Export bytes,
+identities and credentials never leave the containers. Both containers are removed before evidence
+can pass. The SQL-only mode remains available without the API image.
+
 This proves application-owned **logical backup restorability**. Snapshot age describes that
 backup's recovery window; runner restore time is not regional recovery RTO. It does not prove
 Supabase project provisioning, provider-schema recovery, migrations to the latest application
-revision, traffic switching, or regional disaster recovery. Keep the fresh-project procedure
+revision, production Cloudflare bindings, external billing/email, traffic switching, or regional
+disaster recovery. The ASGI check runs with CI configuration and ephemeral credentials; it does not
+validate the production configuration gate or browser/POS usability. Its measured drill duration
+starts at the R2 download and excludes API image construction. Keep the fresh-project procedure
 below for those remaining checks and record the exact scope in the dated drill evidence.
 
 The [2026-10-10 real R2 restore evidence](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md)
@@ -269,4 +283,5 @@ Record every drill execution here (store detailed evidence in restricted storage
 |---|---|---|---|---|---|---|---|
 | 2026-10-10 | Authorized operator | Two real R2 snapshots, revisions 0078/0079 | Logical drill only; full service RTO not established | Snapshot ages recorded; service RPO not established | Runtime RLS, payment/lot checks passed | Verified | [Dated aggregate evidence](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md); no new Supabase host, Auth/Storage/Vault or traffic recovery |
 | 2026-10-27 | Authorized workflow; evidence reviewed 2026-10-29 | R2 snapshot 2026-10-26 15:52:58 UTC, revision 0095 | Logical drill 17.055 s; restore 0.791 s; service RTO not established | Snapshot age 9 h 26 min; service RPO not established | RLS, payments/lots and Data API grants passed; no API service smoke | Verified | [Run 40431841128](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40431841128); does not validate current revision 0098 or regional service recovery |
+| 2026-10-30 | Authorized workflow (29 October CDMX) | R2 snapshot 2026-10-29 15:52:45 UTC, revision 0098 | Logical drill 20.747 s; restore 0.576 s; service RTO not established | Snapshot age 10 h 43 min; service RPO not established | 14 tenants, 2,218 orders; 106 policies; tenant RLS, payments/lots, Data API grants passed | Verified | [Run 40992603802](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40992603802), source `071e2bd8c7c0`; no API service smoke in this run |
 | _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |

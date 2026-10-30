@@ -107,14 +107,14 @@ class RestoreSafetyTests(unittest.TestCase):
 
     def test_cleanup_removes_own_rejected_container_and_its_anonymous_volumes(self):
         calls = []
-        state = {"live": True}
+        state = {"live": {"kova-r2-restore-123-1"}}
         def run(args):
             calls.append(args)
             if "inspect" in args:
                 return json.dumps(container(NetworkMode="bridge")).encode()
             if "rm" in args:
-                state["live"] = False
-            return b"container-id" if state["live"] else b""
+                state["live"].discard(args[-1])
+            return b"container-id" if any(f"name=^/{name}$" in args for name in state["live"]) else b""
         with tempfile.TemporaryDirectory() as directory:
             private = Path(directory)/"private"
             private.mkdir()
@@ -203,6 +203,84 @@ class RestoreSafetyTests(unittest.TestCase):
         for forbidden in ("SUPABASE_DB_URL", "DATABASE_URL", "RESTORE_URL", "schedule:", "pull_request:", "push:"):
             self.assertNotIn(forbidden, workflow)
         self.assertEqual(workflow.count("secrets."), 4)
+        self.assertIn('RESTORE_SERVICE_SMOKE: "true"', workflow)
+        self.assertIn('backend/Dockerfile.api', workflow)
+
+    def test_current_migration_head_is_unique_and_known(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            migrations = root / "backend/alembic/versions"
+            migrations.mkdir(parents=True)
+            (migrations / "first.py").write_text("revision = 'first'\ndown_revision = None\n")
+            (migrations / "second.py").write_text("revision = 'second'\ndown_revision = 'first'\n")
+            with patch.object(DRILL, "ROOT", root):
+                self.assertEqual(DRILL.current_revision(), "second")
+                (migrations / "branch.py").write_text("revision = 'branch'\ndown_revision = 'first'\n")
+                with self.assertRaises(DRILL.DrillError):
+                    DRILL.current_revision()
+
+    def _service_run(self, result, *, api_network=None, image_sha=None):
+        calls = []
+        def run(args, **kwargs):
+            calls.append((args, kwargs))
+            if args[:3] == ["docker", "image", "inspect"]:
+                sha = image_sha or "a" * 40
+                return json.dumps([{"Config": {"Env": [f"KOVA_RELEASE_SHA={sha}", f"KOVA_IMAGE_SHA={sha}"]}}]).encode()
+            if args[:2] == ["docker", "inspect"]:
+                if args[-1].endswith("-api"):
+                    details = container(NetworkMode=api_network or "container:synthetic-database-id")
+                    details[0]["Config"]["User"] = "10001:10001"
+                else:
+                    details = container()
+                    details[0]["Id"] = "synthetic-database-id"
+                return json.dumps(details).encode()
+            if args[:2] == ["docker", "start"]:
+                return json.dumps(result).encode()
+            return b""
+        return calls, run
+
+    def test_service_acceptance_uses_reviewed_image_and_offline_namespace_only(self):
+        flags = dict.fromkeys(("health", "database", "cookie_login", "restored_export", "logout", "runtime_rls"), True)
+        calls, run = self._service_run({**flags, "restored_orders": 31, "private_rows": "must-not-escape"})
+        report = DRILL.service_smoke({"GITHUB_SHA": "a" * 40}, "123-1", "kova-r2-restore-123-1", "ephemeral-canary", ["psql"], run)
+        self.assertEqual(report["restored_orders"], 31)
+        self.assertNotIn("must-not-escape", json.dumps(report))
+        self.assertFalse(report["production_bindings_tested"])
+        create = next(args for args, _ in calls if args[:2] == ["docker", "create"])
+        self.assertEqual(create[create.index("--network")+1], "container:synthetic-database-id")
+        self.assertIn("--read-only", create)
+        self.assertIn("no-new-privileges", create)
+        self.assertFalse(any(arg in create for arg in ("--publish", "--volume", "--mount", "--privileged")))
+        start_index = next(i for i, (args, _) in enumerate(calls) if args[:2] == ["docker", "start"])
+        self.assertEqual(calls[start_index-1][0], ["docker", "inspect", "kova-r2-restore-123-1-api"])
+        self.assertEqual(calls[start_index][1]["input_data"], (DRILL.ROOT / "scripts/restore_service_smoke.py").read_bytes())
+
+    def test_service_refuses_wrong_image_or_network_before_start(self):
+        for options in ({"api_network": "bridge"}, {"image_sha": "b" * 40}):
+            calls, run = self._service_run({}, **options)
+            with self.subTest(options=options), self.assertRaises(DRILL.DrillError):
+                DRILL.service_smoke({"GITHUB_SHA": "a" * 40}, "123-1", "kova-r2-restore-123-1", "ephemeral-canary", ["psql"], run)
+            self.assertFalse(any(args[:2] == ["docker", "start"] for args, _ in calls))
+
+    def test_service_never_accepts_partial_or_untyped_results(self):
+        for result in ({}, {"health": "true"}, dict.fromkeys(("health", "database", "cookie_login", "restored_export", "logout", "runtime_rls", "restored_orders"), True)):
+            _, run = self._service_run(result)
+            with self.subTest(result=result), self.assertRaises(DRILL.DrillError):
+                DRILL.service_smoke({"GITHUB_SHA": "a" * 40}, "123-1", "kova-r2-restore-123-1", "ephemeral-canary", ["psql"], run)
+
+    def test_cleanup_removes_both_owned_containers_before_private_files(self):
+        live = {"kova-r2-restore-123-1", "kova-r2-restore-123-1-api"}
+        removed = []
+        def run(args):
+            if "inspect" in args:
+                return json.dumps(container()).encode()
+            if "rm" in args:
+                removed.append(args[-1])
+                live.remove(args[-1])
+            return b"id" if any(f"name=^/{name}$" in args for name in live) else b""
+        with tempfile.TemporaryDirectory() as directory:
+            DRILL.cleanup("123-1", "kova-r2-restore-123-1", Path(directory)/"private", run)
+        self.assertEqual(removed, ["kova-r2-restore-123-1-api", "kova-r2-restore-123-1"])
 
 
 if __name__ == "__main__":

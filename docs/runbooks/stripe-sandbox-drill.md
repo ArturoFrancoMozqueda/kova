@@ -28,6 +28,14 @@ described as active unless GitHub shows them on the environment.
 
 ## Run
 
+Preflight del 29 de octubre de 2026: el environment conserva el Price y la variable de cuenta del
+sandbox, pero no el secreto `KOV005_STRIPE_SECRET_KEY` (se retiró tras la evidencia anterior, según
+el paso 6). La conexión Stripe disponible sólo permite la cuenta live. El último simulacro aprobado
+es del 8 de septiembre, anterior a la corrección de acceso por facturación; no acredita el checkout
+de la versión actual. Reinstalar una clave test directamente en el Secret store antes de ejecutar;
+no pegarla en chat, logs o archivos, ni sustituirla por una clave live. La aceptación controlada de
+checkout/cancelación live continúa como gate separado en [estado actual](../current-sprint.md).
+
 1. Merge the runner into `main` and select **Actions → KOV-005 Stripe sandbox drill**.
 2. Choose `main` and enter the acknowledgement exactly as
    `KOV-005-STRIPE-SANDBOX-ONLY`.

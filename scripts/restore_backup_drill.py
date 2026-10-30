@@ -122,15 +122,16 @@ def validate_container(details, identity, *, cleanup_only=False):
 
 def cleanup(identity, container, private, run=run_command):
     try:
-        containers = run(["docker", "ps", "-aq", "--filter", f"name=^/{container}$"]).decode().strip()
-        if containers:
-            details = json.loads(run(["docker", "inspect", container]))
-            # Remove our own failed container even when the isolation preflight
-            # rejected it. Never remove an unrelated container with the same name.
-            validate_container(details, identity, cleanup_only=True)
-            run(["docker", "rm", "--volumes", "-f", container])
-        if run(["docker", "ps", "-aq", "--filter", f"name=^/{container}$"]).strip():
-            raise DrillError("Disposable container cleanup could not be verified")
+        # Remove the API first: it shares only the offline database namespace.
+        for name in (f"{container}-api", container):
+            containers = run(["docker", "ps", "-aq", "--filter", f"name=^/{name}$"]).decode().strip()
+            if containers:
+                details = json.loads(run(["docker", "inspect", name]))
+                # Remove our own rejected container, never an unrelated one.
+                validate_container(details, identity, cleanup_only=True)
+                run(["docker", "rm", "--volumes", "-f", name])
+            if run(["docker", "ps", "-aq", "--filter", f"name=^/{name}$"]).strip():
+                raise DrillError("Disposable container cleanup could not be verified")
     finally:
         if private.exists():
             shutil.rmtree(private)
@@ -148,8 +149,74 @@ def known_revisions():
     return revisions
 
 
+def current_revision():
+    parents = set()
+    for path in (ROOT / "backend/alembic/versions").glob("*.py"):
+        for node in ast.parse(path.read_text()).body:
+            target = node.targets[0] if isinstance(node, ast.Assign) else node.target if isinstance(node, ast.AnnAssign) else None
+            if isinstance(target, ast.Name) and target.id == "down_revision":
+                value = ast.literal_eval(node.value)
+                parents.update(value if isinstance(value, tuple) else (value,))
+    heads = known_revisions() - parents
+    if len(heads) != 1:
+        raise DrillError("Service recovery requires one unambiguous migration head")
+    return heads.pop()
+
+
+def service_smoke(environ, identity, container, owner_password, psql, run):
+    """Run the current ASGI application without egress or a public listener."""
+    image = f"kova-restore-api:{environ['GITHUB_SHA']}"
+    image_env = json.loads(run(["docker", "image", "inspect", image]))[0]["Config"]["Env"]
+    for key in ("KOVA_RELEASE_SHA", "KOVA_IMAGE_SHA"):
+        if f"{key}={environ['GITHUB_SHA']}" not in image_env:
+            raise DrillError("Restore API image does not match the reviewed source revision")
+    runtime_password = uuid4().hex
+    run(psql, input_data=f"ALTER ROLE kova_app LOGIN PASSWORD '{runtime_password}';".encode())
+    name = f"{container}-api"
+    # The database's network mode is still 'none'. Sharing that namespace grants
+    # loopback only; neither container has a route to the host or Internet.
+    database_details = json.loads(run(["docker", "inspect", container]))
+    validate_container(database_details, identity)
+    database_id = database_details[0]["Id"]
+    run([
+        "docker", "create", "-i", "--name", name, "--label", f"{LABEL}={identity}",
+        "--network", f"container:{database_id}", "--user", "10001:10001", "--read-only",
+        "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", "1g", "--cpus", "1",
+        "--tmpfs", "/tmp:rw,nosuid,noexec,mode=1777,size=256m",
+        "-e", "APP_ENV=ci", "-e", "CLOUDFLARE_CONTAINER_MODE=false",
+        "-e", "FRONTEND_URL=https://restore.invalid", "-e", f"RESTORE_DRILL_ID={identity}",
+        "-e", f"RESTORE_EXPECTED_REVISION={current_revision()}",
+        "-e", f"DATABASE_URL=postgresql+psycopg://restore_owner:{owner_password}@127.0.0.1:5432/kova_restore?sslmode=disable",
+        "-e", f"APP_DATABASE_URL=postgresql+psycopg://kova_app:{runtime_password}@127.0.0.1:5432/kova_restore?sslmode=disable",
+        image, "/app/.venv/bin/python", "-",
+    ])
+    details = json.loads(run(["docker", "inspect", name]))
+    validate_container(details, identity, cleanup_only=True)
+    config, host = details[0]["Config"], details[0]["HostConfig"]
+    if (config.get("User") != "10001:10001" or not host.get("ReadonlyRootfs")
+            or host.get("NetworkMode") != f"container:{database_id}" or host.get("PortBindings")
+            or any(m.get("Type") != "tmpfs" for m in details[0].get("Mounts", []))):
+        raise DrillError("Restore API must share only the offline database namespace")
+    result = json.loads(run(
+        ["docker", "start", "-a", "-i", name],
+        input_data=(ROOT / "scripts/restore_service_smoke.py").read_bytes(), timeout=180,
+    ))
+    # Never publish arbitrary helper/provider output, even if it is valid JSON.
+    flags = ("health", "database", "cookie_login", "restored_export", "logout", "runtime_rls")
+    if any(result.get(key) is not True for key in flags):
+        raise DrillError("Restored application acceptance did not pass")
+    count = result.get("restored_orders")
+    if type(count) is not int or count < 1:
+        raise DrillError("Restored application did not read existing orders")
+    return {**dict.fromkeys(flags, True), "restored_orders": count,
+            "scope": "current native image; ASGI in offline namespace; synthetic clone-only owner; account export",
+            "production_bindings_tested": False}
+
+
 def restore(environ, run=run_command):
     identity, container, private, evidence = runner_identity(environ)
+    with_service = environ.get("RESTORE_SERVICE_SMOKE") == "true"
+    owner_password = uuid4().hex
     if not all(environ.get(name) for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET")):
         raise DrillError("Required read access to R2 backup storage is unavailable")
     account = environ.get("CLOUDFLARE_ACCOUNT_ID", "")
@@ -189,11 +256,12 @@ def restore(environ, run=run_command):
             # alone would leave an anonymous persistent Docker volume behind.
             "--tmpfs", "/var/lib/postgresql/data:rw,nosuid,mode=1777,size=16m",
             "-e", "PGDATA=/tmp/pgdata", "-e", "POSTGRES_USER=restore_owner", "-e", "POSTGRES_DB=kova_restore",
-            "-e", f"POSTGRES_PASSWORD={uuid4().hex}", IMAGE,
+            "-e", f"POSTGRES_PASSWORD={owner_password}", IMAGE,
             # The image entrypoint creates POSTGRES_DB using psql's default
             # socket path. Its temporary bootstrap server receives these flags
             # too, so changing this path would prevent database initialization.
-            "postgres", "-c", "listen_addresses=", "-c", f"unix_socket_directories={SOCKET_DIRECTORY}",
+            "postgres", "-c", "listen_addresses=127.0.0.1" if with_service else "listen_addresses=",
+            "-c", f"unix_socket_directories={SOCKET_DIRECTORY}",
         ])
         stage = "container-isolation"
         validate_container(json.loads(run(["docker", "inspect", container])), identity)
@@ -230,6 +298,12 @@ def restore(environ, run=run_command):
         checks = json.loads(run(psql, input_data=(ROOT / "scripts/restore_backup_checks.sql").read_bytes()))
         if checks.get("revision") not in known_revisions():
             raise DrillError("Restored migration revision is not recognized by this repository")
+        service_checks = None
+        if with_service:
+            stage = "application-service"
+            if checks.get("revision") != current_revision():
+                raise DrillError("Service acceptance requires a backup at the current migration head")
+            service_checks = service_smoke(environ, identity, container, owner_password, psql, run)
         report = {
             "scope": "Kova logical restore; public and assistant_control; disposable PostgreSQL 17 runner",
             "commit": environ["GITHUB_SHA"], "run_id": environ["GITHUB_RUN_ID"],
@@ -238,6 +312,7 @@ def restore(environ, run=run_command):
             "snapshot_age_seconds": round((started - backup_at).total_seconds(), 3),
             "restore_seconds": restore_seconds, "drill_seconds": round(time.monotonic() - timer, 3),
             "server_version_num": version, "checks": checks,
+            "application_service": service_checks,
             "regional_supabase_recovery_tested": False,
         }
     except (ValueError, KeyError, TypeError):

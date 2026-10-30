@@ -8,7 +8,17 @@ envío habilitado. Las seis pruebas de plantillas del 27 de octubre a las 01:05 
 invitación, figuran como `delivered` a Gmail; el recibo del 26 de octubre a las 23:05 UTC también.
 Esto confirma aceptación por el servidor receptor, no Inbox, render, enlaces ni el origen de cada
 envío en el backend. El logo público responde HTTP 200 con PNG. Siguen pendientes Outlook/Hotmail,
-móvil, modo oscuro y el recorrido de correo completo desde el backend vigente.
+móvil y modo oscuro.
+
+El 29 de octubre de 2026 a las 20:50 CDMX (30 de octubre 02:50 UTC) se solicitó un
+restablecimiento desde `https://kovasuite.com/api/v1/auth/password-reset/request` al buzón QA
+designado por el dueño. La API publicada en `49d96f4bb994` respondió HTTP 200 con el mensaje
+anti-enumeración y sin token de desarrollo. Resend registró el nuevo correo de recuperación como
+`delivered` a las 02:50:28 UTC. Esto acredita el recorrido frontend proxy → backend Cloudflare
+actual → proveedor → servidor receptor para recuperación. No se leyó el token ni se cambió la
+contraseña. El buzón QA no está conectado a las herramientas de lectura: Inbox, render y uso del
+enlace real siguen sin verificarse; tampoco se acredita con este envío el disparador de las otras
+cinco plantillas.
 
 ## 1. Configuración de producción
 
