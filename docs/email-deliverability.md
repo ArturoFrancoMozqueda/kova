@@ -20,6 +20,13 @@ contraseña. El buzón QA no está conectado a las herramientas de lectura: Inbo
 enlace real siguen sin verificarse; tampoco se acredita con este envío el disparador de las otras
 cinco plantillas.
 
+Las seis plantillas comparten una presentación editorial con fondo claro, tarjeta blanca, acento
+azul, encabezado de marca y una acción principal. Los resúmenes de recibo y fin de prueba aparecen
+antes del botón; los enlaces de respaldo quedan en un bloque secundario que permite copiarlos.
+Las tablas y estilos inline conservan un baseline sin hojas externas; los ajustes de móvil son una
+mejora progresiva. El texto alternativo conserva acciones, importes, fechas y Unicode. La QA local
+cubre 320/390/800 px y ausencia de estilos adaptables, sin equivaler a render en Gmail u Outlook.
+
 ## 1. Configuración de producción
 
 - [x] Dominio `mail.kovasuite.com` verificado en Resend.
@@ -117,5 +124,6 @@ La muestra actual es demasiado pequeña para inferir una tasa estable de entrega
 - [x] GitHub Actions ejecuta `uv run python scripts/send_trial_reminders.py` diariamente a las
       `06:00 UTC` (`00:00` en Ciudad de México).
 - [x] El job es idempotente por tenant mediante `trial_reminder_sent_at`.
-- [x] Los diez runs programados más recientes al 12 de agosto de 2026 terminaron correctamente.
+- [x] Los diez runs programados más recientes al 29 de octubre de 2026 terminaron correctamente;
+      último [run 40870140304](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40870140304).
 - [ ] Confirmar que la retención de logs operativos cubra al menos 30 días.

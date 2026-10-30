@@ -117,13 +117,15 @@ def plain_text_email(html: str) -> str:
 def _button(label: str, url: str) -> str:
     return (
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        f'style="margin: 24px 0;"><tr><td align="left" '
-        f'style="border-radius: 8px; background-color: {KOVA_INK};">'
+        f'class="kova-action" style="margin: 28px 0;"><tr><td align="center" '
+        f'bgcolor="{KOVA_BLUE}" style="border-radius: 10px; background-color: {KOVA_BLUE}; '
+        f'mso-padding-alt: 15px 24px;">'
         f'<a href="{escape(url, quote=True)}" target="_blank" '
-        f'style="display: inline-block; padding: 12px 20px; font-family: {FONT_STACK}; '
-        f"font-size: 14px; line-height: 20px; font-weight: 600; color: #ffffff; "
+        f'style="display: inline-block; padding: 15px 24px; font-family: {FONT_STACK}; '
+        f"font-size: 15px; line-height: 20px; font-weight: 600; color: #ffffff; "
         f"text-decoration: none; "
-        f'border-radius: 8px; letter-spacing: -0.01em;">'
+        f'border: 1px solid {KOVA_BLUE}; border-radius: 10px; letter-spacing: -0.01em; '
+        f'mso-padding-alt: 0;">'
         f"{escape(label)}</a></td></tr></table>"
     )
 
@@ -137,22 +139,25 @@ def render_email(
     cta_url: str | None = None,
     body_html: str = "",
     footer_html: str | None = None,
+    eyebrow: str = "Tu cuenta Kova",
+    detail_html: str = "",
 ) -> str:
     """Render a Kova-branded HTML email.
 
     ``intro_html`` and ``body_html`` should already be HTML (caller is
     responsible for escaping any untrusted values inside them).
-    ``heading``, ``preheader``, ``cta_label`` are escaped here.
+    ``heading``, ``preheader``, ``cta_label`` and ``eyebrow`` are escaped here.
+    ``detail_html`` is trusted markup placed before the primary action.
     """
     cta = _button(cta_label, cta_url) if cta_label and cta_url else ""
     footer = footer_html or (
-        f'<p style="margin: 0 0 4px 0; font-family: {FONT_STACK}; font-size: 12px; '
+        f'<p style="margin: 0 0 4px 0; font-family: {FONT_STACK}; font-size: 13px; '
         f'color: {KOVA_TERTIARY}; line-height: 1.5;">'
-        "Recibes este correo porque tienes una cuenta activa en Kova."
+        "Un mensaje de Kova sobre tu cuenta."
         "</p>"
-        f'<p style="margin: 0; font-family: {FONT_STACK}; font-size: 12px; '
+        f'<p style="margin: 0; font-family: {FONT_STACK}; font-size: 13px; '
         f'color: {KOVA_TERTIARY}; line-height: 1.5;">'
-        "Kova · Tu negocio, en flujo constante."
+        "Tu negocio, en flujo constante."
         "</p>"
     )
 
@@ -163,7 +168,22 @@ def render_email(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light only">
 <meta name="supported-color-schemes" content="light">
+<meta name="x-apple-disable-message-reformatting">
 <title>{escape(heading)}</title>
+<style>
+  body, table, td, a {{ -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
+  table, td {{ mso-table-lspace: 0; mso-table-rspace: 0; }}
+  @media only screen and (max-width: 620px) {{
+    .kova-shell {{ padding: 24px 12px !important; }}
+    .kova-brand {{ padding: 0 12px 24px !important; }}
+    .kova-content {{ padding: 32px 24px !important; }}
+    .kova-heading {{ font-size: 28px !important; line-height: 34px !important; }}
+    .kova-action {{ width: 100% !important; }}
+    .kova-action a {{ display: block !important; padding-left: 12px !important;
+      padding-right: 12px !important; }}
+    .kova-footnote {{ padding: 24px 12px 0 !important; }}
+  }}
+</style>
 </head>
 <body style="margin: 0; padding: 0; background-color: {KOVA_MIST}; \
 font-family: {FONT_STACK}; color: {KOVA_INK};">
@@ -173,13 +193,11 @@ color: transparent; visibility: hidden;">{escape(preheader)}</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
 style="background-color: {KOVA_MIST};">
   <tr>
-    <td align="center" style="padding: 32px 16px;">
+    <td align="center" class="kova-shell" style="padding: 48px 20px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" \
-style="max-width: 600px; width: 100%; background-color: #ffffff; \
-border: 1px solid {KOVA_BORDER}; border-radius: 14px; overflow: hidden;">
-        <!-- Header -->
+style="max-width: 600px; width: 100%;">
         <tr>
-          <td style="padding: 24px 32px; border-bottom: 1px solid {KOVA_BORDER};">
+          <td class="kova-brand" style="padding: 0 8px 28px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="vertical-align: middle; padding-right: 12px;">
@@ -188,37 +206,42 @@ style="display: block; width: 40px; height: 40px; border: 0; outline: none; \
 text-decoration: none;">
                 </td>
                 <td style="vertical-align: middle; font-family: {FONT_STACK}; \
-font-size: 22px; font-weight: 600; color: {KOVA_INK}; letter-spacing: -0.02em;">kova</td>
+font-size: 28px; line-height: 34px; font-weight: 700; color: {KOVA_INK}; \
+letter-spacing: -1px;">kova</td>
               </tr>
             </table>
           </td>
         </tr>
-        <!-- Body -->
         <tr>
-          <td style="padding: 32px;">
-            <h1 style="margin: 0 0 16px 0; font-family: {FONT_STACK}; font-size: 24px; \
-font-weight: 600; color: {KOVA_INK}; line-height: 1.3; letter-spacing: -0.5px;">\
+          <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid {KOVA_BORDER}; \
+border-top: 3px solid {KOVA_BLUE}; border-radius: 16px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr><td class="kova-content" style="padding: 40px;">
+            <p style="margin: 0 0 18px; font-family: {FONT_STACK}; font-size: 11px; \
+line-height: 16px; font-weight: 700; color: {KOVA_BLUE}; letter-spacing: 1.4px; \
+text-transform: uppercase;">{escape(eyebrow)}</p>
+            <h1 class="kova-heading" style="margin: 0 0 20px; font-family: {FONT_STACK}; \
+font-size: 32px; \
+font-weight: 700; color: {KOVA_INK}; line-height: 38px; letter-spacing: -1px;">\
 {escape(heading)}</h1>
-            <div style="font-family: {FONT_STACK}; font-size: 15px; line-height: 1.6; \
-color: {KOVA_INK};">{intro_html}</div>
+            <div style="font-family: {FONT_STACK}; font-size: 16px; line-height: 26px; \
+color: {KOVA_INK}; overflow-wrap: anywhere; word-wrap: break-word;">{intro_html}</div>
+            {detail_html}
             {cta}
             {body_html}
+              </td></tr>
+            </table>
           </td>
         </tr>
-        <!-- Brand accent line -->
         <tr>
-          <td style="height: 4px; background: linear-gradient(90deg, {KOVA_BLUE} 0%, \
-#7BA7FF 100%); font-size: 0; line-height: 0;">&nbsp;</td>
-        </tr>
-        <!-- Footer -->
-        <tr>
-          <td style="padding: 24px 32px; background-color: {KOVA_MIST};">
+          <td class="kova-footnote" style="padding: 28px 8px 0;">
+            <p style="margin: 0 0 16px; font-family: {FONT_STACK}; font-size: 13px; \
+line-height: 20px; color: {KOVA_MUTED};">¿Necesitas ayuda? \
+{link('Hablar con soporte', f'mailto:{SUPPORT_EMAIL}')}</p>
             {footer}
           </td>
         </tr>
       </table>
-      <p style="margin: 16px 0 0 0; font-family: {FONT_STACK}; font-size: 11px; \
-color: {KOVA_TERTIARY};">© Kova · POS para tu negocio</p>
     </td>
   </tr>
 </table>
@@ -230,8 +253,8 @@ color: {KOVA_TERTIARY};">© Kova · POS para tu negocio</p>
 def p(text_or_html: str) -> str:
     """Helper for callers: build a body paragraph with brand styling."""
     return (
-        f'<p style="margin: 0 0 12px 0; font-family: {FONT_STACK}; font-size: 15px; '
-        f'line-height: 1.6; color: {KOVA_INK};">{text_or_html}</p>'
+        f'<p style="margin: 0 0 14px; font-family: {FONT_STACK}; font-size: 16px; '
+        f'line-height: 26px; color: {KOVA_INK};">{text_or_html}</p>'
     )
 
 
@@ -244,10 +267,11 @@ def muted(text_or_html: str) -> str:
 
 def kv_row(label: str, value: str) -> str:
     return (
-        f'<tr><td style="padding: 8px 0; font-family: {FONT_STACK}; font-size: 13px; '
+        f'<tr><td style="padding: 10px 0; font-family: {FONT_STACK}; font-size: 13px; '
         f'color: {KOVA_MUTED}; width: 40%;">{escape(label)}</td>'
-        f'<td style="padding: 8px 0; font-family: {FONT_STACK}; font-size: 14px; '
-        f'color: {KOVA_INK}; font-weight: 500;">{value}</td></tr>'
+        f'<td align="right" style="padding: 10px 0 10px 16px; font-family: {FONT_STACK}; '
+        f'font-size: 15px; color: {KOVA_INK}; font-weight: 600; overflow-wrap: anywhere; '
+        f'word-wrap: break-word;">{value}</td></tr>'
     )
 
 
@@ -255,8 +279,23 @@ def kv_table(rows: list[tuple[str, str]]) -> str:
     body = "".join(kv_row(k, v) for k, v in rows)
     return (
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        f'width="100%" style="margin: 16px 0; border-top: 1px solid {KOVA_BORDER}; '
-        f'border-bottom: 1px solid {KOVA_BORDER};">{body}</table>'
+        f'width="100%" style="margin: 24px 0; background-color: {KOVA_MIST}; '
+        f'border: 1px solid {KOVA_BORDER}; border-radius: 12px;">'
+        f'<tr><td style="padding: 10px 20px;">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        f'width="100%" style="table-layout: fixed;">{body}</table>'
+        f'</td></tr></table>'
+    )
+
+
+def fallback_link(url: str) -> str:
+    """Keep a copyable capability URL secondary to the action, with safe wrapping."""
+    return (
+        f'<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid {KOVA_BORDER};">'
+        + muted("Si el botón no abre, copia este enlace en tu navegador:")
+        + f'<p style="margin: 0; font-family: {FONT_STACK}; font-size: 12px; line-height: 19px; '
+        f'color: {KOVA_MUTED}; overflow-wrap: anywhere; word-break: break-all;">'
+        f'{escape(url)}</p></div>'
     )
 
 

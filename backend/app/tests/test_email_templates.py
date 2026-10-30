@@ -1,3 +1,5 @@
+from html.parser import HTMLParser
+
 import pytest
 
 from app.email.templates import (
@@ -6,6 +8,8 @@ from app.email.templates import (
     KOVA_MIST,
     KOVA_MUTED,
     KOVA_TERTIARY,
+    fallback_link,
+    kv_table,
     p,
     plain_text_email,
     render_email,
@@ -58,6 +62,56 @@ def test_plain_text_ignores_hidden_nested_content_and_handles_rows_and_breaks():
     assert "Folio | QA-ÁRBOL" in text
     assert "Primero\nSegundo & tercero" in text
     assert "hidden-note" not in text and "secret-" not in text
+
+
+def test_summary_precedes_primary_action_and_untrusted_labels_stay_text():
+    html = render_email(
+        preheader="Resumen",
+        heading="Recibo",
+        eyebrow='<script>alert("label")</script>',
+        intro_html=p("Pago confirmado"),
+        detail_html=kv_table([("Monto", "$299.00 MXN")]),
+        cta_label="Ver recibo",
+        cta_url='https://qa.kova.invalid/receipt?one=1&two="2"',
+    )
+    assert html.index("$299.00 MXN") < html.index("Ver recibo</a>")
+    assert "&lt;script&gt;" in html and "<script>" not in html
+    assert 'href="https://qa.kova.invalid/receipt?one=1&amp;two=&quot;2&quot;"' in html
+
+
+def test_long_fallback_capability_url_remains_copyable_and_escaped():
+    url = 'https://qa.kova.invalid/reset-password?token=' + "a"*128 + '&note=<qa>'
+    html = fallback_link(url)
+    assert url in plain_text_email(html)
+    assert "&lt;qa&gt;" in html and "<qa>" not in html
+    assert "word-break: break-all" in html
+
+
+class _EmailStructure(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.headings = 0
+        self.layout_tables = []
+        self.image_alts = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "h1":
+            self.headings += 1
+        if tag == "table":
+            self.layout_tables.append(attributes.get("role"))
+        if tag == "img":
+            self.image_alts.append(attributes.get("alt"))
+
+
+def test_presentation_keeps_semantic_heading_decorative_logo_and_table_roles():
+    html = render_email(preheader="Prueba", heading="Tu cuenta", intro_html=p("Hola"))
+    structure = _EmailStructure()
+    structure.feed(html)
+    assert structure.headings == 1
+    assert structure.layout_tables and set(structure.layout_tables) == {"presentation"}
+    assert structure.image_alts == [""]
+    assert 'href="mailto:' in html
 
 
 def _luminance(hex_color):

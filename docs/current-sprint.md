@@ -63,7 +63,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    la conexión disponible sólo tiene acceso live. [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
 2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
    octubre pasó con revisión 0095 y el del 29 de octubre CDMX ya restauró la revisión actual 0098
-   con RLS e integridad aprobadas. Falta acreditar el servicio completo, con RTO/RPO.
+   con RLS e integridad aprobadas. El simulacro ampliado también aprobó autenticación, exportación
+   por API y logout sobre datos restaurados, con la imagen actual y una cuenta sintética aislada.
+   Falta la recuperación regional con bindings de producción, tráfico y RTO/RPO completos.
    [Alcance comprobado](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. El reset solicitado desde el proxy del backend
