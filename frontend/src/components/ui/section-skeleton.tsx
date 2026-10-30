@@ -8,7 +8,7 @@ export function SectionSkeleton({
   className,
 }: {
   label: string;
-  variant?: "list" | "chart" | "form" | "summary";
+  variant?: "list" | "chart" | "form" | "summary" | "notice";
   className?: string;
 }) {
   return (
@@ -17,6 +17,11 @@ export function SectionSkeleton({
       {variant === "chart" ? <Skeleton className="h-56 w-full" /> : variant === "summary" ? (
         <div className="grid grid-cols-3 gap-3" aria-hidden="true">
           {[0, 1, 2].map(index => <Skeleton key={index} className="h-12" />)}
+        </div>
+      ) : variant === "notice" ? (
+        <div className="flex flex-col items-center gap-3" aria-hidden="true">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-4 w-48 max-w-full" />
         </div>
       ) : (
         <div className="space-y-4" aria-hidden="true">

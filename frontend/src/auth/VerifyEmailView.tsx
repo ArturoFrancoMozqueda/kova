@@ -34,7 +34,7 @@ export default function VerifyEmailView() {
   return (
     <AuthLayout title={copy.auth.verifyEmail} contentClassName="text-center">
             {state === "verifying" && (
-              <SectionSkeleton label={copy.auth.submitting} variant="form" className="py-4" />
+              <SectionSkeleton label={copy.auth.submitting} variant="notice" className="py-4" />
             )}
             {state === "success" && (
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
