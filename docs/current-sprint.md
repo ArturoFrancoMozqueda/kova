@@ -7,7 +7,7 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-Producción corre `a573b3e94a6d` (PR #290): frontend `kovasuite.com` y API `api.kovasuite.com`
+Producción corre `49d96f4bb994` (PR #291): frontend `kovasuite.com` y API `api.kovasuite.com`
 reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
@@ -38,39 +38,42 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Cajón de dinero | Código publicado; sin evidencia física de un modelo real ([contrato](../specs/shifts/cash_drawer.md)). |
 | Terminal bancaria | No contratada; Caja registra tarjeta manual. |
 
-## Corrección local pendiente de publicación
+## Reconexión offline publicada
 
-La recarga sin conexión conserva las ventas, pero la sincronización debe esperar a la sesión
-revalidada por el servidor. La corrección local evita consumir reintentos mientras el navegador
+La recarga sin conexión conserva las ventas y la sincronización espera a la sesión
+revalidada por el servidor. La corrección evita consumir reintentos mientras el navegador
 está offline, reactiva la cola al reconectar y vuelve a cargar catálogo, existencias y turno para
 continuar cobrando. La regresión de navegador usa API/PostgreSQL/RLS reales, a 390 y 1440 px, y
 pierde una respuesta exitosa para comprobar una sola venta, pago y salida de inventario.
-Contrato: [sincronización offline](../specs/orders/offline_sync.md). Aún no está publicada.
+Contrato: [sincronización offline](../specs/orders/offline_sync.md).
+
+El [CI completo del PR](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40987680895) y el
+[release coordinado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40988258073) aprobaron.
+La verificación pública posterior confirmó sitio HTTP 200, frontend/API/proxy con el mismo SHA y
+base accesible por API directa y proxy. No se hicieron escrituras de negocio en producción.
 
 ## Gates abiertos
 
 Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 
-1. **Publicar la corrección offline** después de su CI y aceptación del release. Las pruebas
-   locales no cambian la versión productiva.
-2. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
+1. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
    confirma renovación pagada y pago fallido recientes, procesados por Kova. Falta la aceptación
    controlada de checkout y cancelación sobre la versión vigente antes del acceso pagado general.
    [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
-3. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
+2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
    octubre pasó con revisión 0095; falta restaurar la revisión actual 0098 y acreditar el servicio
    completo, con RTO/RPO. [Alcance comprobado](runbooks/restore-supabase-backup.md).
-4. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
+3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. Falta acreditar el recorrido del backend actual,
    Inbox, enlaces y otros clientes. [Evidencia y límites](email-deliverability.md).
-5. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
-6. **Dispositivos físicos.** Lectura del QR de la tarjeta, cajón de dinero y operación offline en
+4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
+5. **Dispositivos físicos.** Lectura del QR de la tarjeta, cajón de dinero y operación offline en
    los equipos del negocio ([checklist](claude/manual-qa-checklist.md#offline-funciona-sin-internet)).
-7. **WhatsApp real.** App de Meta, número de prueba, credenciales en el Secret store, challenge del
+6. **WhatsApp real.** App de Meta, número de prueba, credenciales en el Secret store, challenge del
    webhook y una entrega aceptada.
-8. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación
+7. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación
    Live controlada.
-9. **Piloto multi-giro.** Reclutar y observar la cohorte para medir la activación del análisis
+8. **Piloto multi-giro.** Reclutar y observar la cohorte para medir la activación del análisis
    ([spec](../specs/reports/analysis_activation.md)). Es investigación comercial, no código.
 
 ## Reglas de este archivo
