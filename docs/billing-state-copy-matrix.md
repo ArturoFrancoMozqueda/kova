@@ -15,6 +15,7 @@ the banner.
 | State key (`access.reason`) | Backend trigger | Banner tone | Allowed? | Recovery path |
 |---|---|---:|:---:|---|
 | `signup_trial` | No subscription, tenant within `billing_trial_days` window | info | yes | `/settings/billing` |
+| `complimentary` | Operator-managed `complimentary_access = true`, without a Stripe subscription | none | yes | `/settings/billing` |
 | `trialing` | Stripe subscription `status = trialing` | info | yes | `/settings/billing` |
 | `past_due_grace` | Status `past_due` AND `now < min(grace_period_ends_at, past_due_at + 48h)` | warning | yes | `/settings/billing` |
 | `trial_expired` | No subscription, signup-trial window has passed | danger | no | `/settings/billing` |
@@ -33,6 +34,7 @@ Bodies are 1 sentence, cause + recovery action.
 
 | State | Title | Body |
 |---|---|---|
+| `complimentary` | Acceso de cortesía activo | Tu negocio tiene acceso permanente a Kova, sin vencimiento ni cobros automáticos. |
 | `signup_trial` | Prueba activa | Prueba activa por *N días*. Activa el Plan Estándar para conservar la operación al terminar. |
 | `trialing` | Prueba activa | Tu suscripción está en prueba. Activa el Plan Estándar por $299 MXN/mes para seguir vendiendo cuando termine. |
 | `past_due_grace` | Pago vencido | El pago falló. Tienes hasta 48 horas desde el primer intento fallido para recuperarlo antes de perder el acceso. |

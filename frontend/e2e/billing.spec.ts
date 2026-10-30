@@ -55,6 +55,24 @@ async function mockAuthAs(page: Page, role: string) {
   });
 }
 
+for (const width of [390, 1440]) {
+  test(`permanent courtesy access has no expiry or payment actions at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockAuthAs(page, "owner");
+    await page.route("**/api/v1/billing/subscription", async (route) => {
+      await route.fulfill({ json: {
+        plan, subscription: { ...activeSubscription, status: "incomplete" },
+        access: { ...activeAccess, reason: "complimentary" },
+      } });
+    });
+    await page.goto("/settings/billing");
+    await expect(page.getByRole("heading", { name: "Acceso de cortesía activo" })).toBeVisible();
+    await expect(page.getByText("Sin vencimiento", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /activar|cancelar/i })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}
+
 test("billing page displays the Standard Plan and active subscription", async ({ page }) => {
   await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {

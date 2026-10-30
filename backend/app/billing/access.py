@@ -77,11 +77,24 @@ def _verification_required(now: datetime) -> BillingAccessStatus:
     )
 
 
+def has_complimentary_access(subscription) -> bool:
+    # A grant must never hide the status of a Stripe-managed subscription.
+    return (getattr(subscription, "complimentary_access", False) is True
+            and not subscription.stripe_subscription_id)
+
+
 def get_billing_access_status(db: Session, *, tenant_id: UUID) -> BillingAccessStatus:
     now = datetime.now(UTC)
     subscription = billing_repo.get_subscription_by_tenant(db, tenant_id=tenant_id)
 
     if subscription:
+        if has_complimentary_access(subscription):
+            return BillingAccessStatus(
+                allowed=True, reason="complimentary", trialing=False,
+                trial_ends_at=None, blocked_at=None, recovery_path=BILLING_RECOVERY_PATH,
+                # The grant never expires; cached/offline authorization still does.
+                valid_until=now + BILLING_PERIOD_FRESHNESS_MAX_AGE,
+            )
         status = subscription.status
         # Courtesy trials have no Stripe lifecycle webhook to expire them.
         # Require a finite end date; Stripe-managed trials keep their existing policy.
