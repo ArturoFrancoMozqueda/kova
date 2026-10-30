@@ -1628,13 +1628,14 @@ function RegularRegisterView() {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredProducts.map((product) => {
                   const stock = stockMap.get(product.id);
                   const isOut = stock?.track_inventory && stock.available_quantity <= quantityInCart(product.id);
                   const isLow = stock?.is_low_stock && !isOut;
                   return (
                     <RegisterProductCard
+                      gridTile
                       key={product.id}
                       ariaLabel={
                         isOut

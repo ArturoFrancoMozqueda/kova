@@ -883,9 +883,9 @@ test.describe("register photos on a high-density phone", () => {
     expect(initial).toBeLessThan(12);
     await expect.poll(() => photos.evaluateAll(images => images.every(image => {
       const img = image as HTMLImageElement;
-      return img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width === 48;
+      return img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().height === 80 && img.getBoundingClientRect().width <= innerWidth / 2;
     }))).toBe(true);
-    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "400")).toBe(true);
 
     const content = page.locator("#contenido-principal");
     await content.evaluate(element => element.scrollTo(0, element.scrollHeight));
@@ -905,7 +905,7 @@ test.describe("register photos on a high-density phone", () => {
     await page.waitForLoadState("networkidle");
     // Leaving a screen must not fetch larger versions of its detached images.
     expect(photoRequests).toHaveLength(afterScroll);
-    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "160")).toBe(true);
+    expect(photoRequests.every(url => new URL(url).searchParams.get("w") === "400")).toBe(true);
   });
 });
 

@@ -36,7 +36,7 @@ function ViewportPhoto({ product }: { product: PhotoProduct }) {
   return <div
     ref={element}
     aria-hidden="true"
-    className="relative aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full"
+    className="relative h-20 w-full shrink-0 overflow-hidden rounded-lg bg-muted/50"
   >
     {product.image_url && (!admitted || !loaded) && !failed && <span className="absolute inset-0 bg-muted/50" />}
     {(failed || !product.image_url) && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground/60">
@@ -46,7 +46,7 @@ function ViewportPhoto({ product }: { product: PhotoProduct }) {
       src={productImageSrc(product.image_url, 400)}
       srcSet={productImageSrcSet(product.image_url)}
       // Auto sizing can select the intrinsic 400px width when this lazy image detaches.
-      sizes="(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px"
+      sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 200px"
       width={400}
       height={400}
       alt=""

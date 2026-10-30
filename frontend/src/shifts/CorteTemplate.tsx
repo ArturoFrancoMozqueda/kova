@@ -120,7 +120,7 @@ function CorteLine({
     >
       <span>{label}</span>
       {strong ? <span className="tkt-leader print:hidden" aria-hidden="true" /> : null}
-      <span className={cn(strong && "tkt-money")}>{value}</span>
+      <span className={cn("shrink-0 whitespace-nowrap", strong && "tkt-money")}>{value}</span>
     </div>
   );
 }

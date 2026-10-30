@@ -17,6 +17,9 @@ import {
 // (workbox globPatterns includes woff2), so the brand font works offline too.
 import "@fontsource-variable/inter";
 import "./styles.css";
+import { installThermalPrinting } from "./lib/thermalPrint";
+
+installThermalPrinting(window);
 
 // Independent acquisition and real-user performance sources. The project has
 // both products enabled in Vercel; the official packages receive Vercel's

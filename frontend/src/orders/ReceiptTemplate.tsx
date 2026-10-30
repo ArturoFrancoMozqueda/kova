@@ -138,12 +138,12 @@ export function ReceiptTemplate({
 
       <div {...band(1)} className="space-y-1">
         {items.map((item, index) => (
-          <div key={`${item.product_name}-${index}`} className="space-y-0.5">
+          <div key={`${item.product_name}-${index}`} className="space-y-0.5" data-receipt-item="">
             <div className="flex justify-between gap-3">
-              <span className="truncate">
+              <span className="min-w-0 flex-1 break-words">
                 {item.quantity} x {item.product_name}
               </span>
-              <span>{formatMoney(item.line_total_amount)}</span>
+              <span className="shrink-0 whitespace-nowrap">{formatMoney(item.line_total_amount)}</span>
             </div>
             <p className="text-[10px] tkt-caption">
               {formatMoney(item.unit_price_amount)} c/u
@@ -251,7 +251,7 @@ function ReceiptLine({
     >
       <span>{label}</span>
       {strong ? <span className="tkt-leader print:hidden" aria-hidden="true" /> : null}
-      <span className={cn(strong && "tkt-money")}>{value}</span>
+      <span className={cn("shrink-0 whitespace-nowrap", strong && "tkt-money")}>{value}</span>
     </div>
   );
 }
