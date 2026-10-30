@@ -1,13 +1,10 @@
 ---
 paths:
   - "backend/**/*"
-  - "app/**/*"
-  - "api/**/*"
   - "**/*.py"
-  - "**/requirements*.txt"
   - "**/pyproject.toml"
+  - "**/uv.lock"
   - "**/alembic/**/*"
-  - "**/migrations/**/*"
 ---
 
 # Backend Rules
@@ -27,8 +24,11 @@ Kova backend must be safe, predictable, and production-ready.
 
 Before changing migrations or models:
 
-1. Inspect current schema and migration history.
-2. Confirm whether the change is backward compatible.
-3. Preserve tenant ownership columns and indexes.
-4. Preserve RLS and policy assumptions.
-5. Avoid destructive operations unless explicitly requested.
+1. Inspect current schema and migration history in `backend/alembic/versions/`.
+2. Confirm the change is backward compatible with the previous app version: a release rollback never downgrades the database.
+3. Every migration needs a working `downgrade()`; CI runs upgrade → downgrade → upgrade.
+4. Preserve tenant ownership columns and indexes.
+5. Preserve forced RLS: production refuses to start if a tenant table lacks it.
+6. Avoid destructive operations unless explicitly requested.
+7. Money is `Decimal`, never `float`.
+8. If an endpoint changes, regenerate `specs/openapi.json` with `uv run python scripts/export_openapi.py`.

@@ -1,6 +1,7 @@
 # Claude Code Hooks for Kova
 
-Markdown rules guide Claude, but they do not truly enforce safety. For Kova, the highest-value future hooks are:
+Markdown rules guide Claude, but they do not truly enforce safety. No hooks are implemented yet; this
+file is a proposal. For Kova, the highest-value future hooks are:
 
 ## Secret protection
 
@@ -18,7 +19,7 @@ grep -R "sk_live_" .
 Require explicit user approval before:
 
 ```bash
-fly deploy
+wrangler deploy
 vercel --prod
 supabase db push
 supabase migration repair
