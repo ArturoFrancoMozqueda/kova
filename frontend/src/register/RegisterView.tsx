@@ -251,6 +251,7 @@ function RegularRegisterView() {
   const customerSelectionScope = `${tenantId}:${userId}`;
   const [customerSelection, setCustomerSelection] = useState<{ scope: string; id: string; name: string } | null>(null);
   const online = useOnline();
+  const sessionMode = state.status === "authenticated" ? state.sessionMode : null;
   const rewardIdentity = { tenantId: tenantId ?? "", userId, branchId: tenantId ? getActiveBranchId(tenantId, userId) : "" };
   const rewardIdentityKey = `${rewardIdentity.tenantId}:${rewardIdentity.userId}:${rewardIdentity.branchId}:${customerId}`;
   const [rewardChoice, setRewardChoice] = useState<{ scope: string; offer: RewardOffer } | null>(null);
@@ -746,7 +747,7 @@ function RegularRegisterView() {
     if (tenantId) void triggerSync(tenantId);
     void refreshStock();
     refreshShift();
-  }, [load, refreshShift, refreshStock, tenantId]);
+  }, [load, refreshShift, refreshStock, tenantId, sessionMode]);
 
   // Re-check the shift when the cashier returns to the tab: another device may
   // have opened or closed the drawer in the meantime.
@@ -1329,6 +1330,10 @@ function RegularRegisterView() {
     setSplitPayments([createPaymentDraft("cash")]);
     submittingRef.current = false;
     setSubmitting(false);
+
+    // The sale and its printable receipt are already durable. A known offline
+    // session must not claim a sync lease or spend retries before reconnecting.
+    if (!navigator.onLine || (state.status === "authenticated" && state.sessionMode === "offline")) return;
 
     void claimOfflineSale(tenantId!, queueItem.client_uuid, `register:${crypto.randomUUID()}`)
       .then((claimed) => claimed ? syncOfflineSales(tenantId!, [claimed]) : [])

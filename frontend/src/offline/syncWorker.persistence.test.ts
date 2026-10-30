@@ -39,6 +39,36 @@ describe("offline worker mixed retry budgets", () => {
     await Dexie.delete("pos_offline");
   });
 
+  it("does not claim sales or consume retry budgets while the browser is offline", async () => {
+    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const fetchMock = vi.fn(async (_url, init) => new Response(JSON.stringify({
+      results: JSON.parse(init.body).sales.map((sale: { client_uuid: string }, index: number) => ({
+        client_uuid: sale.client_uuid,
+        status: "synced",
+        order_id: `10000000-0000-4000-8000-00000000000${index + 1}`,
+      })),
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await triggerSync("tenant-a");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(await offlineDb.offline_sales.get("a-exhausted"))
+        .toMatchObject({ status: "pending", attempt_count: 5 });
+      for (const clientUuid of ["b-retryable", "c-retryable"]) {
+        const row = await offlineDb.offline_sales.get(clientUuid);
+        expect(row).toMatchObject({ status: "pending", attempt_count: 0 });
+        expect(row?.lease_id).toBeUndefined();
+      }
+      online.mockReturnValue(true);
+      await triggerSync("tenant-a");
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(await offlineDb.offline_sales.get("b-retryable")).toMatchObject({ status: "synced" });
+      expect(await offlineDb.offline_sales.get("c-retryable")).toMatchObject({ status: "synced" });
+    } finally {
+      online.mockRestore();
+    }
+  });
+
   it.each([503, 429])("releases every retryable lease on HTTP %s and resumes the original sales", async (status) => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(null, { status, headers: { "Retry-After": "1" } }))

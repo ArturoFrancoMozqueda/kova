@@ -30,6 +30,11 @@ docker compose up --build --wait
 
 Las pruebas de backend necesitan Postgres real; SQLite no prueba locks, constraints, grants ni RLS.
 
+El frontend de `docker-compose.test.yml` compila y sirve el build de producción con `vite preview`.
+La integración real incluye recarga offline con el service worker y pérdida de una respuesta de
+sincronización exitosa: la venta, el pago y el descuento de inventario deben ocurrir una sola vez.
+El servidor de desarrollo no acredita este recorrido porque tiene el service worker desactivado.
+
 | Qué | Comando | Dónde |
 |---|---|---|
 | Backend completo con base desechable | `scripts/test-stack.sh backend` | raíz |

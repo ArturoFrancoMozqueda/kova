@@ -1,14 +1,15 @@
 # Estado actual
 
-Última actualización: 2026-10-28.
+Última actualización: 2026-10-29.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
 
 ## En producción
 
-Producción corre `fb67e755` (PR #288): frontend `kovasuite.com` y API `api.kovasuite.com`
-reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. Lo más reciente:
+Producción corre `a573b3e94a6d` (PR #290): frontend `kovasuite.com` y API `api.kovasuite.com`
+reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
+también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
 - Navegación por rol con Caja, Pedidos y Ventas fijos y categorías desplegables (#285). Aceptada en
@@ -37,19 +38,31 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Cajón de dinero | Código publicado; sin evidencia física de un modelo real ([contrato](../specs/shifts/cash_drawer.md)). |
 | Terminal bancaria | No contratada; Caja registra tarjeta manual. |
 
+## Corrección local pendiente de publicación
+
+La recarga sin conexión conserva las ventas, pero la sincronización debe esperar a la sesión
+revalidada por el servidor. La corrección local evita consumir reintentos mientras el navegador
+está offline, reactiva la cola al reconectar y vuelve a cargar catálogo, existencias y turno para
+continuar cobrando. La regresión de navegador usa API/PostgreSQL/RLS reales, a 390 y 1440 px, y
+pierde una respuesta exitosa para comprobar una sola venta, pago y salida de inventario.
+Contrato: [sincronización offline](../specs/orders/offline_sync.md). Aún no está publicada.
+
 ## Gates abiertos
 
 Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 
-1. **Cobro live de Stripe.** Aceptar checkout, renovación y cancelación reales con la cuenta live
-   antes de abrir acceso pagado general. El simulacro en sandbox está en
-   [stripe-sandbox-drill](runbooks/stripe-sandbox-drill.md).
-2. **Restauración de respaldo.** Ensayar la restauración completa con
-   [restore-supabase-backup](runbooks/restore-supabase-backup.md). El respaldo diario a R2 corre.
-3. **Correo transaccional.** Dominio y DNS de Resend están verificados, pero la entrega de los
-   cinco correos se comprobó en agosto con Fly. Repetirla desde el backend en Cloudflare
-   ([email-deliverability](email-deliverability.md)).
-4. **Protección de rama.** Exigir `CI required` en `main` desde GitHub ([despliegue](despliegue.md)).
+1. **Publicar la corrección offline** después de su CI y aceptación del release. Las pruebas
+   locales no cambian la versión productiva.
+2. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
+   confirma renovación pagada y pago fallido recientes, procesados por Kova. Falta la aceptación
+   controlada de checkout y cancelación sobre la versión vigente antes del acceso pagado general.
+   [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
+3. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
+   octubre pasó con revisión 0095; falta restaurar la revisión actual 0098 y acreditar el servicio
+   completo, con RTO/RPO. [Alcance comprobado](runbooks/restore-supabase-backup.md).
+4. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
+   octubre, incluido invitación; logo HTTP 200. Falta acreditar el recorrido del backend actual,
+   Inbox, enlaces y otros clientes. [Evidencia y límites](email-deliverability.md).
 5. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
 6. **Dispositivos físicos.** Lectura del QR de la tarjeta, cajón de dinero y operación offline en
    los equipos del negocio ([checklist](claude/manual-qa-checklist.md#offline-funciona-sin-internet)).

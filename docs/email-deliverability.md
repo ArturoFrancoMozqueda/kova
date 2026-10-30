@@ -3,6 +3,13 @@
 Estado verificado el 12 de agosto de 2026 para los cinco correos de ciclo de vida:
 verificación, bienvenida, recibo de pago, fin de prueba y restablecimiento de contraseña.
 
+Comprobación de sólo lectura del 29 de octubre de 2026: Resend mantiene el dominio verificado y el
+envío habilitado. Las seis pruebas de plantillas del 27 de octubre a las 01:05 UTC, incluida
+invitación, figuran como `delivered` a Gmail; el recibo del 26 de octubre a las 23:05 UTC también.
+Esto confirma aceptación por el servidor receptor, no Inbox, render, enlaces ni el origen de cada
+envío en el backend. El logo público responde HTTP 200 con PNG. Siguen pendientes Outlook/Hotmail,
+móvil, modo oscuro y el recorrido de correo completo desde el backend vigente.
+
 ## 1. Configuración de producción
 
 - [x] Dominio `mail.kovasuite.com` verificado en Resend.

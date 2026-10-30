@@ -20,3 +20,20 @@ Feature: Offline sales sync
     Given a verified cashier with an invalid queued offline sale
     When the cashier syncs offline sales
     Then the queued sale fails with a recoverable error
+
+  @p0 @offline @orders @idempotency @browser @integration
+  Scenario Outline: A prepared register resumes after an offline reload and a lost sync response
+    Given a prepared register with an open shift at <width> pixels
+    When the browser loses its connection and saves a cash sale
+    Then the queued sale has not consumed synchronization attempts
+    When the register reloads without a connection
+    Then the same queued sale remains on the device
+    When the browser reconnects and loses the first successful sync response
+    Then the server revalidates the session before synchronization
+    And retrying creates one sale, one payment and one inventory debit
+    And the catalog and shift refresh so the next cash sale can proceed
+
+    Examples:
+      | width |
+      | 390   |
+      | 1440  |

@@ -99,7 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshPromise = useRef<Promise<boolean> | null>(null);
   const initialProbeStarted = useRef(false);
   const identityChangePending = useRef(false);
-  const authenticatedTenantId = state.status === "authenticated" && state.commercialAccess?.allowed !== false ? state.tenantId : null;
+  // A prepared offline identity can ring local sales, but cannot synchronize
+  // until the server has revalidated its session. Publishing the tenant only
+  // then also wakes the worker after a cold-offline reload and reconnect.
+  const syncTenantId = state.status === "authenticated" && state.sessionMode === "online"
+    && state.commercialAccess?.allowed !== false ? state.tenantId : null;
 
   const applyState = useCallback((next: AuthState) => {
     const cacheIdentity = next.status === "authenticated" && next.sessionMode === "online"
@@ -128,13 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setActiveOfflineTenant(authenticatedTenantId);
+    setActiveOfflineTenant(syncTenantId);
     clearLatestRequestId();
     return () => {
       setActiveOfflineTenant(null);
       clearLatestRequestId();
     };
-  }, [authenticatedTenantId]);
+  }, [syncTenantId]);
 
   // Session probes and API retries must share the same single-use cookie
   // rotation. Separate flights can log out a tab whose other request won.
