@@ -98,13 +98,14 @@ export default function InventoryView() {
   const load = useCallback(async () => {
     const generation = ++requestId.current;
     setLoadState({ status: "loading" });
+    const stockRead = listStock();
     const velocityRead = listVelocity().then(velocity => ({ velocity, failed: false }),
       () => ({ velocity: [] as InventoryVelocityItem[], failed: true }));
     const productsRead = listProducts().catch(() => [] as Product[]);
     const lowStockRead = listLowStock().then(lowStock => ({ lowStock, failed: false }),
       () => ({ lowStock: [] as StockItem[], failed: true }));
     try {
-      const stock = await listStock();
+      const stock = await stockRead;
       if (generation !== requestId.current) return;
       setLoadState({
         status: "loaded", identity: dataIdentity, velocityPending: true, velocityFailed: false,

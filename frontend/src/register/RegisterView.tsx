@@ -553,9 +553,10 @@ function RegularRegisterView() {
       }
     }
     try {
+      const productsRead = listProducts();
       const categoriesRead = listCategories().then(categories => ({ categories, failed: false }),
         () => ({ categories: cachedCategories, failed: true }));
-      const allProducts = await listProducts();
+      const allProducts = await productsRead;
       if (generation !== catalogRequestRef.current) return;
       const products = allProducts.filter((product) => product.is_active);
       setLoadState({ status: "ready", products, categories: cachedCategories, categoriesPending: true });
