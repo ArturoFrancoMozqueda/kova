@@ -25,10 +25,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Build the reviewed API image without storage credentials
+        run: docker build --file backend/Dockerfile.api --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-restore-api:$GITHUB_SHA" backend
+
       - name: Restore latest verified R2 backup in an isolated runner container
         id: restore
         env:
           RESTORE_ACKNOWLEDGEMENT: ${{ inputs.acknowledgement }}
+          RESTORE_SERVICE_SMOKE: "true"
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
