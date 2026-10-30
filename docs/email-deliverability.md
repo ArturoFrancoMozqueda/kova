@@ -1,7 +1,7 @@
 # Entregabilidad de correo — Kova
 
-Estado verificado el 12 de agosto de 2026 para los cinco correos de ciclo de vida:
-verificación, bienvenida, recibo de pago, fin de prueba y restablecimiento de contraseña.
+Evidencia acumulada al 30 de octubre de 2026. Las comprobaciones históricas conservan su fecha y
+alcance; no certifican automáticamente las seis plantillas de la versión actual.
 
 Comprobación de sólo lectura del 29 de octubre de 2026: Resend mantiene el dominio verificado y el
 envío habilitado. Las seis pruebas de plantillas del 27 de octubre a las 01:05 UTC, incluida
@@ -19,6 +19,13 @@ actual → proveedor → servidor receptor para recuperación. No se leyó el to
 contraseña. El buzón QA no está conectado a las herramientas de lectura: Inbox, render y uso del
 enlace real siguen sin verificarse; tampoco se acredita con este envío el disparador de las otras
 cinco plantillas.
+
+Tras publicar el rediseño de las seis plantillas en `aa9c856e8f11`, se repitió la solicitud desde el
+proxy el 30 de octubre a las 08:48 CDMX. La API respondió HTTP 200, sin token de desarrollo, y
+Resend confirmó `delivered` a las 14:48:57 UTC. Sitio, API directa y proxy reportaron la misma
+versión; health y health/db aprobaron. El [release](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40998664640)
+terminó correctamente. No se leyó el enlace ni se cambió la contraseña; Inbox/render de este
+rediseño todavía requiere aceptación del buzón QA.
 
 Las seis plantillas comparten una presentación editorial con fondo claro, tarjeta blanca, acento
 azul, encabezado de marca y una acción principal. Los resúmenes de recibo y fin de prueba aparecen
