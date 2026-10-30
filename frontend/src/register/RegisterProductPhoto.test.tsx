@@ -34,7 +34,7 @@ it("does not mount a source before entering the viewport and admits each photo i
   expect(image).toHaveAttribute("src", `${product.image_url}&w=400`);
   expect(image).toHaveAttribute("srcset", expect.stringContaining("w=160 160w"));
   expect(image).toHaveAttribute("fetchpriority", "low");
-  expect(image).toHaveAttribute("sizes", "(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px");
+  expect(image).toHaveAttribute("sizes", "(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 200px");
   expect(image).toHaveStyle({ objectPosition: "25% 70%", transform: "scale(1.5)" });
   expect(image.closest('[aria-hidden="true"]')).not.toBeNull();
   fireEvent.load(image);
@@ -42,10 +42,10 @@ it("does not mount a source before entering the viewport and admits each photo i
   expect(container.querySelector("img")).toBe(image);
 });
 
-it("preserves the square mobile and full-width desktop layout before or after admission", () => {
+it("keeps the photo height bounded and full-width before or after admission", () => {
   const { container } = render(<RegisterProductPhoto product={product} />);
   const wrapper = container.firstElementChild!;
-  expect(wrapper).toHaveClass("aspect-square", "w-12", "shrink-0", "sm:w-full", "overflow-hidden");
+  expect(wrapper).toHaveClass("h-20", "w-full", "shrink-0", "overflow-hidden");
   act(() => observers[0].intersect(true));
   expect(container.firstElementChild).toBe(wrapper);
   expect(container.querySelector("img")).toHaveAttribute("width", "400");

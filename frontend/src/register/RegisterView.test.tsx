@@ -243,7 +243,7 @@ describe("RegisterView cash-without-shift guard", () => {
     const card = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
     const image = await within(card).findByAltText("");
     expect(image).toHaveAttribute("loading", "lazy");
-    expect(image).toHaveAttribute("sizes", "(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px");
+    expect(image).toHaveAttribute("sizes", "(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 200px");
     expect(image).toHaveAttribute("width", "400");
     expect(image).toHaveAttribute("height", "400");
     expect(image.getAttribute("srcset")).toContain(`${imageUrl}&w=160 160w`);

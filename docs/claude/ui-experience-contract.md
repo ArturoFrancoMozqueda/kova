@@ -14,6 +14,20 @@ Guía para mantener una experiencia común entre módulos. Conserva los contrato
 
 Caja conserva su disposición especializada para vender rápido; comparte controles y significado financiero con el cobro de Pedidos. El menú público conserva su experiencia de cliente y no expone cantidades exactas, costos ni herramientas administrativas.
 
+## Densidad de Caja e impresión térmica
+
+- Las tarjetas de Caja muestran nombre y precio con fotografías de altura acotada; no crecen
+  como imágenes cuadradas con todo el ancho disponible. Teléfono y tablet permiten ver varias
+  opciones completas antes de desplazarse. Se conservan búsqueda/escáner, foco y objetivos táctiles.
+- Recibos y cortes usan papel de 58 u 80 mm y márgenes para un contenido de 48 o 72 mm.
+  El documento de impresión contiene únicamente una copia del recibo/corte confirmado y mide
+  su altura; los tickets extensos paginan si superan 2000 mm. Al cerrar el diálogo se retira la copia.
+- Nombres largos pueden ocupar varias líneas; importes conservan su cifra completa y el texto
+  imprime en negro. No alterar datos, totales, devoluciones o estado de sincronización al imprimir.
+- Se mantiene el diálogo del navegador. El equipo debe tener la impresora/controlador y papel
+  correctos; desactivar encabezados/pies del navegador si aparecen. Un PDF con geometría correcta
+  no certifica márgenes físicos, corte ni compatibilidad del modelo de impresora.
+
 ## Carga progresiva
 
 - Usar skeletons con la forma del contenido pendiente, dentro del marco de la pantalla. El

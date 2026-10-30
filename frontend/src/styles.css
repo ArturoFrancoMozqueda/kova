@@ -557,6 +557,27 @@
   color: var(--ticket-muted);
 }
 
+.thermal-print-document {
+  display: none;
+}
+
+.thermal-print-measure {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  visibility: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+.thermal-print-measure .tkt-leader { display: none !important; }
+.thermal-print-measure .tkt-total {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  justify-content: space-between;
+}
+
 @media print {
   @page accountant-report {
     margin: 12mm;
@@ -564,16 +585,30 @@
   }
 
   @page receipt-80 {
-    margin: 6mm;
-    size: 80mm auto;
+    margin: 3mm 4mm;
+    size: 80mm 200mm;
   }
 
   @page receipt-58 {
-    margin: 4mm;
-    size: 58mm auto;
+    margin: 3mm 5mm;
+    size: 58mm 200mm;
   }
 
-  body {
+  body[data-thermal-printing] {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  body[data-thermal-printing] > :not(.thermal-print-document) {
+    display: none !important;
+  }
+  .thermal-print-document {
+    display: block !important;
+  }
+
+  html, body {
     background: white !important;
   }
 
@@ -603,10 +638,12 @@
 
   .print-receipt-root,
   .print-corte-root {
-    position: absolute;
+    position: static;
     left: 0;
     top: 0;
-    width: 68mm;
+    width: 72mm;
+    padding: 0 !important;
+    margin: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -620,15 +657,11 @@
   .print-receipt-root[data-paper-width="58"],
   .print-corte-root[data-paper-width="58"] {
     page: receipt-58;
-    width: 50mm;
+    width: 48mm;
   }
 
-  /* En pantalla el scroller de contenido es `position: relative` para que los
-     descendientes absolutos (los resúmenes .sr-only de las gráficas) no se
-     escapen de él y estiren el documento. Al imprimir tiene que volver a
-     `static`: si no, sería el bloque contenedor de .print-receipt-root y
-     .print-corte-root (position: absolute) y el ticket saldría desplazado del
-     origen de la página. Mismo precedente que `.tkt-paper { filter: none }`. */
+  /* Los reportes A4 se posicionan respecto a la página, no al scroller.
+     Los tickets térmicos se aíslan en un documento medido al imprimir. */
   #contenido-principal {
     position: static !important;
   }
@@ -663,15 +696,22 @@
     color: #0f1117 !important;
   }
   .tkt-rule {
-    border-top: 1px dashed var(--kova-border) !important;
+    border-top: 1px dashed #000 !important;
   }
   .tkt-total {
     font-size: 11px !important;
     font-weight: 600 !important;
     letter-spacing: normal !important;
   }
-  .tkt-caption {
-    color: hsl(var(--muted-foreground)) !important;
+  .receipt-template *, .corte-template * {
+    color: #000 !important;
+    overflow-wrap: anywhere;
+  }
+  .receipt-template img, .corte-template img {
+    max-width: 100%;
+  }
+  [data-receipt-item] {
+    break-inside: avoid;
   }
 }
 

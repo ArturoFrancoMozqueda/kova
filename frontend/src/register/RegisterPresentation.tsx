@@ -14,6 +14,7 @@ export type RegisterProductCardProps = {
   onDisabledSelect?: () => void;
   ariaLabel: string;
   compact?: boolean;
+  gridTile?: boolean;
 };
 
 /** Product tile shared by the live register and the public local demo. */
@@ -28,6 +29,7 @@ export function RegisterProductCard({
   onDisabledSelect,
   ariaLabel,
   compact = false,
+  gridTile = false,
 }: RegisterProductCardProps) {
   return (
     <button
@@ -50,11 +52,12 @@ export function RegisterProductCard({
         // way. Properties named explicitly — transition-all here also animated
         // box-shadow spread and border-width on every hover.
         "group relative flex items-stretch gap-3 rounded-xl border bg-card p-2.5 text-left shadow-kova-card transition-[border-color,box-shadow,transform] duration-press ease-standard hover:border-primary/40 hover:shadow-kova-card-hover active:scale-[0.97]",
-        !compact && "sm:flex-col sm:justify-between sm:gap-0 sm:p-3",
+        gridTile && "flex-col justify-between gap-2",
+        !compact && !gridTile && "sm:flex-col sm:justify-between sm:gap-0 sm:p-3",
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:shadow-kova-card active:scale-100",
       )}
     >
-      <div className={cn("flex flex-1 min-w-0 items-center gap-3", !compact && "sm:block sm:space-y-2")}>
+      <div className={cn("flex flex-1 min-w-0 items-center gap-3", gridTile && "flex-col items-stretch gap-2", !compact && !gridTile && "sm:block sm:space-y-2")}>
         {image}
         <div className="flex min-w-0 flex-1 items-start justify-between gap-1">
           <p className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug transition-colors group-hover:text-primary">
@@ -70,7 +73,7 @@ export function RegisterProductCard({
           ) : null}
         </div>
       </div>
-      <div className={cn("flex shrink-0 items-center gap-2", !compact && "sm:mt-3 sm:justify-between")}>
+      <div className={cn("flex shrink-0 items-center gap-2", gridTile && "flex-wrap justify-between", !compact && !gridTile && "sm:mt-3 sm:justify-between")}>
         <span className="tabular-nums text-base font-bold text-primary">{formatMoney(price)}</span>
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-70 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
           <Plus className="h-3.5 w-3.5" />
