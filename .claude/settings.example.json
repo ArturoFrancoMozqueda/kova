@@ -4,9 +4,8 @@
       "Bash(npm test:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(pytest:*)",
-      "Bash(ruff check:*)",
-      "Bash(mypy:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff check:*)",
       "Bash(git diff:*)",
       "Bash(git status:*)"
     ],
@@ -15,8 +14,10 @@
       "Bash(env:*)",
       "Bash(cat .env*)",
       "Bash(git push:*)",
-      "Bash(fly deploy:*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(npx wrangler deploy:*)",
       "Bash(vercel --prod:*)",
+      "Bash(supabase db push:*)",
       "Bash(supabase db reset:*)",
       "Bash(supabase migration repair:*)"
     ]

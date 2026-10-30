@@ -1,54 +1,48 @@
-# Kova Architecture Context
+# Contexto de arquitectura para agentes
 
-Resumen corto para agentes. El detalle, escrito desde el código, está en
-[`../arquitectura.md`](../arquitectura.md) y [`../despliegue.md`](../despliegue.md).
+Resumen de las invariantes que ningún cambio puede debilitar. La topología, los componentes y el
+flujo de datos, escritos desde el código, están en [`../arquitectura.md`](../arquitectura.md); el
+flujo de release, en [`../despliegue.md`](../despliegue.md).
 
-- Frontend: React/Vite PWA servida por el Worker `kova-frontend` (Cloudflare Static Assets). El
-  Worker reenvía `/api` en el mismo origen a `api.kovasuite.com`, sin cachear respuestas privadas
-  ni tener credenciales de base de datos. Vercel queda como candidato de publicación y respaldo.
-- Backend: FastAPI nativo en un Container Cloudflare `basic` residente (una instancia, un proceso
-  Uvicorn), detrás de `kova-backend-gateway` y del controlador `kova-backend`. FastAPI en Python
-  Workers con Hyperdrive queda como ruta de reversión validada; `kova-backend-jobs` atiende los
-  jobs privados del asistente.
-- Database: Supabase Postgres solo como Postgres administrado; PostgreSQL local para desarrollo y
-  pruebas. Es la autoridad para sesiones, permisos, RLS y escrituras. SQLite de Durable Objects no
-  guarda tablas del negocio.
-- Auth: propia de Kova (contraseñas con hash, sesiones persistidas, cookies HttpOnly). Supabase
-  Auth no forma parte del runtime.
-- Billing: Stripe subscriptions.
-- Ingesta de documentos del asistente desactivada para controlar el gasto.
-- Fly se retiró el 2026-10-19; publicación y recuperación usan versiones exactas de Cloudflare.
+## Áreas de mayor riesgo
 
-## Safety boundaries
+- Auth y sesiones.
+- RLS y aislamiento entre tenants.
+- Billing y webhooks de Stripe.
+- Despliegue a producción.
+- Sincronización offline del POS e idempotencia.
+- Corrección de la analítica.
 
-The highest-risk areas are:
+## Datos e identidad
 
-- Auth and sessions.
-- Supabase RLS and tenant isolation.
-- Billing and Stripe webhooks.
-- Production deployment.
-- Offline POS sync and idempotency.
-- Analytics correctness.
+- El backend es el único cliente de PostgreSQL. El frontend nunca recibe credenciales de Supabase.
+- `APP_DATABASE_URL` usa el rol runtime `kova_app`, sin `BYPASSRLS`. `MIGRATION_DATABASE_URL` queda
+  reservado para migraciones y rutas privilegiadas explícitas.
+- El backend fija `app.tenant_id` por transacción y el RLS forzado lo compara. Producción no arranca
+  si el rol runtime puede saltarse RLS o si una tabla de tenant no tiene RLS forzado.
+- Identidad y tenant se resuelven desde una sesión válida en el servidor. Un tenant enviado por el
+  navegador nunca autoriza una operación.
+- Access y refresh token viajan solo en cookies HttpOnly; nada sensible en `localStorage` ni
+  `sessionStorage`. La auth es propia de Kova; Supabase Auth no es parte del runtime.
+- SQLite de Durable Objects no guarda tablas del negocio.
 
-## Data and identity boundaries
+## Decisiones que conviene recordar
 
-- El backend es el único cliente de PostgreSQL; el frontend no recibe credenciales de Supabase.
-- `APP_DATABASE_URL` usa el rol runtime sin bypass de RLS; `MIGRATION_DATABASE_URL` queda reservado
-  para migraciones y rutas privilegiadas explícitas.
-- La identidad y el tenant se resuelven desde una sesión válida en el servidor. Nunca se confía en
-  un tenant enviado por el navegador para autorizar una operación.
-- Access y refresh tokens viajan únicamente en cookies seguras; ningún token sensible se guarda en
-  `localStorage` o `sessionStorage`.
+- Dinero en `Decimal` ([ADR-005](../adr/ADR-005-decimal-money.md)).
+- Las migraciones deben ser reversibles y compatibles con la versión anterior de la app, porque un
+  rollback nunca baja la base.
+- Facturación de la suscripción y pagos del POS son dominios distintos
+  ([ADR-008](../adr/ADR-008-billing-vs-pos-payments.md)).
+- La ingesta de documentos del asistente está desactivada a propósito para controlar el gasto.
+- Fly.io se retiró el 2026-10-19; publicación y recuperación usan versiones exactas de Cloudflare.
 
-## Engineering principles
+## Principios de ingeniería
 
-- Make small, reviewable changes.
-- Preserve API contracts unless explicitly changing them.
-- Inspect migrations before database work.
-- Use real backend data in production flows.
-- Do not introduce fake data to make UI look complete.
-- Keep environment separation clear.
+- Cambios pequeños y revisables; contratos de API estables salvo que la tarea los cambie.
+- Revisa las migraciones antes de tocar la base de datos.
+- Datos reales del backend en flujos de producción; nada de datos de relleno para que una pantalla
+  se vea completa.
+- Entornos claramente separados (local, prueba y producción; Stripe test y live).
 
-El índice de setup, pruebas y operación está en
-[`../README.md`](../README.md). Los estados históricos
-de auditorías o sprints no reemplazan [`../current-sprint.md`](../current-sprint.md).
+Los estados históricos de auditorías o sprints no reemplazan a
+[`../current-sprint.md`](../current-sprint.md).

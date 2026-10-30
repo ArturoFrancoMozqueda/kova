@@ -8,7 +8,7 @@ paths:
   - "**/*rls*"
   - "**/middleware*"
   - "**/policies/**/*"
-  - "**/migrations/**/*"
+  - "**/alembic/**/*"
 ---
 
 # Auth, Tenant Isolation, and Security Rules
@@ -31,7 +31,7 @@ Before touching tables, policies, or migrations:
 
 1. Identify the tenant/company/business ownership model.
 2. Inspect existing policies and helper functions.
-3. Verify whether frontend uses anon role, backend uses service role, or both.
+3. Confirm which database role runs the query: the runtime role `kova_app` (`APP_DATABASE_URL`, no `BYPASSRLS`) or the owner role (`MIGRATION_DATABASE_URL`, migrations and explicit privileged paths only). The frontend never receives database credentials.
 4. Preserve least privilege.
 5. Add or update tests/manual QA notes for cross-tenant access risks.
 

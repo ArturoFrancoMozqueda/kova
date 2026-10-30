@@ -1,80 +1,64 @@
-# Kova Product Context
+# Contexto de producto de Kova
 
-Kova is a SaaS POS and business analytics platform for Mexican SMBs.
+Kova es un SaaS de punto de venta y analítica para PyMEs mexicanas. Este documento recoge la
+intención del producto y las decisiones del dueño que el código no explica por sí solo. La
+disponibilidad real de cada función y los gates abiertos están en
+[`../current-sprint.md`](../current-sprint.md); el comportamiento por dominio, en [`../../specs/`](../../specs/).
 
-The product should help owners:
+## Qué debe lograr
 
-- Sell with order and speed.
-- Control products, inventory, and employees.
-- Understand business performance through real analytics.
-- Know what sells, when sales happen, and where money is coming from.
-- Feel that the subscription is worth paying for.
+Que el dueño del negocio pueda:
 
-## Positioning
+- Vender con orden y rapidez.
+- Controlar productos, inventario y empleados.
+- Entender el desempeño con analítica real: qué se vende, cuándo y de dónde viene el dinero.
+- Sentir que la suscripción vale lo que cuesta.
 
-Kova is more than a POS. It combines:
+Kova es más que un POS: combina punto de venta, control de inventario, configuración de productos y
+empleados, reportes y claridad operativa. No es una caja registradora genérica, un panel de
+demostración ni un producto de "IA" sin valor concreto.
 
-- Point of sale.
-- Inventory control.
-- Employee/product setup.
-- Business reports.
-- Operational clarity.
+## Usuario principal
 
-## Product direction requested on 2026-10-18
+Dueño o gerente de una PyME en México, probablemente no técnico. Necesita flujos claros, datos en
+los que pueda confiar y un producto que se vea profesional.
 
-Evolve toward end-to-end business automation: acquisition, customer conversations, confirmed
-orders, verified payments, fulfillment, replenishment and repeat purchases. Connect these steps
-to real sales, inventory and costs, with explicit permissions and measurable outcomes. The
-[E2E evolution plan](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/plans/PLAN-AUTOMATIZACION-E2E.md) defines competitive evidence, gaps and
-phased acceptance. This is future direction, not a claim of current availability or a replacement
-for the active sprint and production gates.
+## Barra de calidad
 
-The owner subsequently authorized implementation and merge. The internal commercial circuit now
-has reviewable catalog intake, explicit opportunity/quote/order/sale attribution, opt-in post-sale
-tasks and an inbox/draft/outbox domain. Connected channels remain inactive. Exact validation and
-release status: [implementation continuation](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+Premium, confiable, claro, humano, rápido y simple sin sentirse básico.
 
-Internal agenda/loyalty have their own bounded contracts. The latest locally validated slice adds
-customer service cases: explicit customer/source, branch-scoped assignment, author-attributed
-append-only notes and manual deadlines. Closing a case does not compensate a customer, send a
-message or change POS data. Source and local validation are recorded in the
-[customer service delivery](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-SERVICE-CASES-2026-10-19.md); release acceptance remains
-separate from implementation, and the full E2E roadmap is not declared complete.
+El dueño exige un producto terminado en todas las pantallas: sin UUID de base de datos, versiones
+técnicas, excepciones crudas ni etiquetas de implementación en pantallas de cliente o comercio.
+Prefiere contexto de negocio y enlaces al registro exacto. Se conservan los folios, SKU, RFC e
+identificadores fiscales útiles, y los estados de facturación, conexión y pago deben ser honestos.
+El diagnóstico va en el contexto protegido de soporte y operación.
 
-The 2026-10-26 scope adds an owner-issued [digital points card](../../specs/loyalty/digital_card.md)
-for the customer to read their actual balance and return to the published menu. It is locally
-validated, with production acceptance pending. The authorized continuation adds reviewed menu intake
-directly into operational orders, private customer tracking, and owner-defined POS rewards with
-atomic checkout and refund restoration. Missing-cost analysis opens the exact catalog record;
-historical financial snapshots remain unchanged. The owner then excluded Wallet and paid pass
-providers and authorized device-based web cards from the menu. Enrollment is owner opt-in,
-creates a new customer with an alias, and uses a separate HttpOnly cookie. A public member code/QR
-identifies the customer only in authenticated POS; it cannot authenticate a public balance lookup.
-Verified-contact recovery across devices and external provider acceptance remain future work.
-Current validation and availability live in the active sprint.
+## Voz y copy
 
-## Target user
+Español de México por defecto. Seguro pero sin exagerar, y comprensible para cualquier dueño. Evita
+clichés, promesas infladas y relleno corporativo.
 
-The main user is a small or medium business owner in Mexico. They may not be technical. They need clear flows, trustworthy data, and a product that feels professional.
+## Dirección: automatización de punta a punta
 
-## Product quality bar
+El dueño pidió evolucionar hacia automatizar el negocio completo: captación, conversaciones con
+clientes, pedidos confirmados, pagos verificados, entrega, reposición y recompra, conectado a ventas,
+inventario y costos reales, con permisos explícitos y resultados medibles.
 
-The product should feel:
+Es dirección, no una afirmación de disponibilidad: los canales conectados (por ejemplo WhatsApp) y los
+proveedores externos no se presentan como activos salvo que `current-sprint.md` y el código lo
+confirmen. Registrar que algo se compartió no lo envía; cerrar una atención no devuelve dinero ni
+contacta al cliente.
 
-- Premium.
-- Reliable.
-- Clear.
-- Human.
-- Fast.
-- Worth paying for.
-- Simple without feeling basic.
+## Decisiones del dueño sobre lealtad
 
-The owner explicitly requires a finished product throughout Kova: no database UUIDs, technical
-versions, raw exceptions or implementation labels in ordinary customer/merchant screens.
-Prefer business context and record links. A card presents its QR; its number is an explicit
-manual alternative. Preserve useful folios, SKU, RFC and fiscal identifiers, and honest billing,
-connection and payment states. Diagnostics belong in protected support/operations context.
+- Las tarjetas de puntos son digitales y basadas en el dispositivo desde el menú publicado. Wallet y
+  proveedores de pases de pago quedan fuera.
+- La inscripción es opt-in del dueño, crea un cliente nuevo con alias y usa una cookie HttpOnly
+  separada. El código de socio o QR identifica al cliente solo dentro del POS autenticado y nunca
+  autentica una consulta pública de saldo.
+- La tarjeta muestra primero el QR; el número es una alternativa manual explícita.
+- Las recompensas del POS son definidas por el dueño, se aplican de forma atómica al cobrar y se
+  restauran al reembolsar. Los snapshots financieros históricos no cambian.
+- La recuperación entre dispositivos con contacto verificado queda como trabajo futuro.
 
-## Copy voice
-
-Spanish/es-MX by default. Confident but not exaggerated. Clear enough for any owner to understand.
+Especificaciones: [`../../specs/loyalty/`](../../specs/loyalty/).
