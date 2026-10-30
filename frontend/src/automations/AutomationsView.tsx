@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCheck, CirclePause, RefreshCw, Workflow } from "lucide-react";
@@ -169,7 +170,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {notice}
         </p>
       )}
-      {loading && !data && <p role="status">Cargando automatizaciones…</p>}
+      {loading && !data && <SectionSkeleton label="Cargando automatizaciones…" />}
       {data && (
         <>
           <section

@@ -79,12 +79,13 @@ def test_summary_precedes_primary_action_and_untrusted_labels_stay_text():
     assert 'href="https://qa.kova.invalid/receipt?one=1&amp;two=&quot;2&quot;"' in html
 
 
-def test_long_fallback_capability_url_remains_copyable_and_escaped():
+def test_long_fallback_capability_url_remains_actionable_in_html_and_plain_text():
     url = 'https://qa.kova.invalid/reset-password?token=' + "a"*128 + '&note=<qa>'
     html = fallback_link(url)
     assert url in plain_text_email(html)
     assert "&lt;qa&gt;" in html and "<qa>" not in html
-    assert "word-break: break-all" in html
+    assert 'href="https://qa.kova.invalid/reset-password?token=' in html
+    assert "abre este enlace alternativo" in html
 
 
 class _EmailStructure(HTMLParser):

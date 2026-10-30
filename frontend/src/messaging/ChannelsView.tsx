@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { OperationsError, OperationsSession, useOperationsRequest, type WorkspaceIdentity } from "@/automations/workspace";
@@ -39,7 +40,7 @@ function ChannelsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   return <ViewLayout className="space-y-6">
     <ViewHeader eyebrow="Atención al cliente" title="Canales del negocio" meta="Conecta las conversaciones con tus clientes, pedidos y seguimiento." />
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Consultar de nuevo" />}
-    {!data && !error && <p role="status">Consultando preparación de WhatsApp…</p>}
+    {!data && !error && <SectionSkeleton label="Consultando preparación de WhatsApp…" variant="form" />}
     {data && <>
       <section aria-label="Estado de WhatsApp" className="space-y-3 rounded-2xl border border-kova-border bg-white p-6">
         <h2 className="text-xl font-semibold">WhatsApp Business</h2><p className="inline-block rounded-full bg-kova-mist px-3 py-1 text-sm font-medium">{data.status === "connected" ? "Conexión configurada" : data.status === "configuration_error" ? "Requiere revisión" : "Sin conectar"}</p>

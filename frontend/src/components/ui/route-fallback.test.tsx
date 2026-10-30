@@ -1,9 +1,16 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ShellRouteFallback } from "./route-fallback";
+import { RouteFallback, ShellRouteFallback } from "./route-fallback";
 
 describe("ShellRouteFallback", () => {
+  it("reserves the initial layout without a spinner or pre-session controls", () => {
+    const { container } = render(<RouteFallback />);
+    expect(screen.getByRole("status", { name: "Cargando" })).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector(".animate-spin")).toBeNull();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
   afterEach(() => {
     vi.useRealTimers();
   });

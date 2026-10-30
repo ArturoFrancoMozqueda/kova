@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -126,7 +127,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
-      {panel.loading && <p role="status">Cargando solicitudes…</p>}
+      {panel.loading && <SectionSkeleton label="Cargando solicitudes…" />}
       {panel.data?.requests.length === 0 && (
         <section className="rounded-2xl border border-kova-border bg-white p-6">
           <h2 className="font-semibold">

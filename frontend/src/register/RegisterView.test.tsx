@@ -134,6 +134,19 @@ describe("RegisterView cash-without-shift guard", () => {
     inventoryApi.listStock.mockResolvedValue([]);
   });
 
+  it("shows fetched products before categories finish without caching a partial catalog", async () => {
+    let finish!: (value: []) => void;
+    catalogApi.listCategories.mockReturnValue(new Promise<[]>(resolve => { finish = resolve; }));
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    expect(await screen.findByText(product.name)).toBeVisible();
+    expect(screen.getByRole("status", { name: "Cargando categorías" })).toBeVisible();
+    expect(catalogCache.saveCatalogCache).not.toHaveBeenCalled();
+    await act(async () => finish([]));
+    await waitFor(() => expect(catalogCache.saveCatalogCache).toHaveBeenCalled());
+    expect(screen.queryByRole("status", { name: "Cargando categorías" })).not.toBeInTheDocument();
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });

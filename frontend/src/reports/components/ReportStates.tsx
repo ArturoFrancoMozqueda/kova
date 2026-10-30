@@ -7,7 +7,7 @@ import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view
 
 export function LoadingState() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-label="Cargando análisis" aria-busy="true" className="space-y-6">
       {/* Mirrors the dashboard grid: 4 KPI tiles, hero chart 2/3 + rail 1/3,
           then the first bento row, so the page doesn't jump on load. */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

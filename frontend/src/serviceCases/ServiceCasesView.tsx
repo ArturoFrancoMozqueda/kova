@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { ClipboardCheck } from "lucide-react";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
@@ -540,7 +541,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             Actualizar atenciones
           </Button>
         </div>
-        {panel.loading && <p role="status">Consultando atenciones…</p>}
+        {panel.loading && <SectionSkeleton label="Consultando atenciones…" />}
         {!panel.loading && !panel.error && panel.data?.items.length === 0 && (
           <ViewEmpty
             icon={<ClipboardCheck className="h-6 w-6" aria-hidden="true" />}
@@ -941,7 +942,7 @@ function ServiceCaseDetail({
             retryLabel="Consultar historial"
           />
         )}
-        {history.loading && <p role="status">Consultando historial…</p>}
+        {history.loading && <SectionSkeleton label="Consultando historial…" />}
         <ol className="space-y-3">
           {history.data?.items.map((event) => (
             <li

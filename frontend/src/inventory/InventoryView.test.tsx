@@ -329,11 +329,22 @@ describe("inventory ambiguous-response retries", () => {
     else authIdentity.user.id = "user-2";
     rerender(<MemoryRouter><ToastProvider><InventoryView /></ToastProvider></MemoryRouter>);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+    // A different identity must load its own stock before another write.
+    expect(screen.queryByRole("button", { name: copy.inventoryView.adjust })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: copy.inventoryView.adjust }));
     submitAdjustment();
     await waitFor(() => expect(adjustStock).toHaveBeenCalledTimes(2));
     expect(vi.mocked(adjustStock).mock.calls[0][4]).not.toBe(vi.mocked(adjustStock).mock.calls[1][4]);
   });
+});
+
+it("shows authoritative stock while alerts and rotation are still pending", async () => {
+  vi.mocked(listLowStock).mockReturnValue(new Promise(() => {}));
+  vi.mocked(listVelocity).mockReturnValue(new Promise(() => {}));
+  renderView();
+  expect(await screen.findByRole("button", { name: copy.inventoryView.adjust })).toBeEnabled();
+  expect(screen.getByRole("status", { name: "Cargando alertas de inventario" })).toBeVisible();
+  expect(screen.getByText(item.product_name)).toBeVisible();
 });
 
 it.each([4, 10])("distinguishes physical stock from available units with %s reserved", async reservedQuantity => {

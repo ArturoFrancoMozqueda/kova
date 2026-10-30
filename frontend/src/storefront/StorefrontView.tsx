@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowDownUp, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
@@ -54,7 +55,7 @@ export default function StorefrontView() {
     {error ? <div role="alert" className="mx-auto max-w-xl px-5 py-20">
       <h1 className="text-2xl font-semibold">Menú no disponible</h1><p className="mt-3 text-kova-muted">{error}</p>
       <Button className="mt-5" variant="outline" onClick={() => setAttempt(value => value + 1)}>Volver a intentar</Button>
-    </div> : !data ? <div className="mx-auto max-w-6xl px-5 py-16"><p role="status">Cargando menú…</p></div>
+    </div> : !data ? <div className="mx-auto max-w-6xl px-5 py-16"><SectionSkeleton label="Cargando menú…" /></div>
       : <CatalogContent key={token} token={token ?? ""} data={data} />}
   </main>;
 }

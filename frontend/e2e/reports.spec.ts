@@ -273,6 +273,38 @@ async function mockReports(
 }
 
 for (const width of [390, 1440]) {
+  test(`progressive reports show ready sales while stock is delayed at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.clock.setFixedTime(new Date("2026-05-19T18:00:00Z"));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await markFirstUseToursSeen(page);
+    await mockAuthAs(page, "owner");
+    await mockReports(page);
+    let releaseStock!: () => void;
+    const stockReady = new Promise<void>(resolve => { releaseStock = resolve; });
+    await page.route("**/api/v1/inventory/stock", async route => {
+      await stockReady;
+      await route.fulfill({ json: [] });
+    });
+    await page.goto("/reports");
+    try {
+      await expect(page.getByText("Ventas netas", { exact: true }).first()).toBeVisible();
+      await expect(page.getByRole("status", { name: "Cargando reposición", exact: true })).toBeVisible();
+      await expect(page.getByRole("status", { name: "Preparando prioridades" })).toBeVisible();
+      await expect(page.getByText("Dona", { exact: true }).first()).toBeVisible();
+      await expect(page.locator("main .animate-spin")).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.addScriptTag({ content: axe.source });
+      const violations = await page.evaluate(async () => {
+        const engine = (window as unknown as { axe: { run: (selector: string, options: object) => Promise<AxeResults> } }).axe;
+        return (await engine.run("main", { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } })).violations.map(item => item.id);
+      });
+      expect(violations).toEqual([]);
+    } finally { releaseStock(); }
+    await expect(page.getByRole("status", { name: "Cargando reposición", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Ventas netas", { exact: true }).first()).toBeVisible();
+  });
+
   test(`populated reports remain accessible at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });

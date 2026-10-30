@@ -73,11 +73,16 @@ test("drawer can navigate and desktop resize makes the sidebar operable", async 
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.setViewportSize({ width: 1280, height: 800 });
-  await expect(page.getByRole("link", { name: "Catálogo", exact: true })).toBeVisible();
+  // Ready page content may also link to Catálogo. Check the actual sidebar,
+  // independently of how quickly the destination finishes loading.
+  const sidebar = page.locator("#menu-de-navegacion");
+  await expect(sidebar).not.toHaveAttribute("inert", "");
+  await expect(sidebar.getByRole("link", { name: "Catálogo", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Contraer menú" }).click();
   await expect(page.getByRole("button", { name: "Expandir menú" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("link", { name: "Catálogo", exact: true })).toHaveCount(0);
+  await expect(sidebar).toHaveAttribute("inert", "");
+  await expect(sidebar.getByRole("link", { name: "Catálogo", exact: true })).toHaveCount(0);
 });
 
 test("support opened from the drawer receives focus and returns to the menu trigger", async ({ page }) => {
