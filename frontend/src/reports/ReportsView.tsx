@@ -8,6 +8,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
@@ -94,9 +95,11 @@ export default function ReportsView() {
   // full story; memoized so typing in the date inputs (or any unrelated state
   // change) doesn't recompute them. Hoisted above the permission early-return
   // to keep hook order unconditional.
+  const planPending = data.pending.previous || data.pending.stock || data.pending.velocity;
+  const inventoryPending = data.pending.stock || data.pending.velocity;
   const plan = useMemo(() => {
     const story = data.story;
-    if (data.status !== "loaded" || !story || story.summary.completed_orders === 0) {
+    if (data.status !== "loaded" || planPending || !story || story.summary.completed_orders === 0) {
       return null;
     }
     return buildActionPlan({
@@ -104,12 +107,12 @@ export default function ReportsView() {
       story,
       previousStory: data.previousStory,
     });
-  }, [data.status, data.story, data.previousStory, data.stock, data.velocity, data.stockFailed]);
+  }, [data.status, data.story, data.previousStory, data.stock, data.velocity, data.stockFailed, planPending]);
 
   const trackedAnalysisKey = useRef("");
   useEffect(() => {
     const story = data.story;
-    if (data.status !== "loaded" || !story || story.summary.completed_orders === 0) return;
+    if (data.status !== "loaded" || planPending || !story || story.summary.completed_orders === 0) return;
     const key = `${story.summary.start_date}:${story.summary.end_date}:${story.summary.completed_orders}`;
     if (trackedAnalysisKey.current === key) return;
     trackedAnalysisKey.current = key;
@@ -125,7 +128,7 @@ export default function ReportsView() {
       recommendation_count:
         (plan?.hero ? 1 : 0) + (plan?.actions.length ?? 0),
     });
-  }, [data.status, data.story, data.previousStory, plan, tz]);
+  }, [data.status, data.story, data.previousStory, plan, planPending, tz]);
 
   const toggleTrackedAction = (id: string, context: AnalysisActionContext) => {
     const completed = !doneIds.has(id);
@@ -202,7 +205,7 @@ export default function ReportsView() {
       {data.status === "subscription-inactive" ? <SubscriptionInactivePanel /> : null}
 
       {loaded && !hasSales ? <section id="analisis-productos-reposicion">
-        <RestockPlan stock={data.stock} velocity={data.velocity} stockFailed={data.stockFailed} velocityFailed={data.velocityFailed} horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
+        {inventoryPending ? <SectionSkeleton label="Cargando reposición" /> : <RestockPlan stock={data.stock} velocity={data.velocity} stockFailed={data.stockFailed} velocityFailed={data.velocityFailed} horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />}
       </section> : null}
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 
@@ -218,6 +221,10 @@ export default function ReportsView() {
             trendStory={data.trendStory}
             hourly={data.hourly}
             hourlyFailed={data.hourlyFailed}
+            previousPending={data.pending.previous}
+            hourlyPending={data.pending.hourly}
+            trendPending={data.pending.trend}
+            priorityPending={planPending}
             priority={plan?.hero ?? null}
             priorityDone={heroId !== null && doneIds.has(heroId)}
             priorityFeedback={heroId ? feedbackById[heroId] : undefined}
@@ -249,21 +256,21 @@ export default function ReportsView() {
 
           {/* Deeper operational reading remains below the compact overview. */}
           <div id="analisis-operacion" className="grid scroll-mt-4 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DaypartsPanel story={story} previousStory={data.previousStory} />
+            {data.pending.previous ? <SectionSkeleton label="Cargando comparación por horario" /> : <DaypartsPanel story={story} previousStory={data.previousStory} />}
             <RefundsAndCancellations story={story} />
             <EmployeePerformance story={story} />
           </div>
 
           <section id="analisis-productos-reposicion" aria-label="Productos y reposición a detalle" className="scroll-mt-4 space-y-4">
-            <RestockPlan stock={data.stock} velocity={data.velocity}
+            {inventoryPending ? <SectionSkeleton label="Cargando reposición" /> : <RestockPlan stock={data.stock} velocity={data.velocity}
               stockFailed={data.stockFailed} velocityFailed={data.velocityFailed}
-              horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
-            <ProductTableSection story={story} stock={data.stock} velocity={data.velocity}
-              inventoryAvailable={!data.stockFailed} />
+              horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />}
+            {inventoryPending ? <SectionSkeleton label="Cargando inventario de productos" /> : <ProductTableSection story={story} stock={data.stock} velocity={data.velocity}
+              inventoryAvailable={!data.stockFailed} />}
           </section>
 
           <section id="analisis-plan-accion" aria-label="Plan de acción a detalle" className="scroll-mt-4">
-            <ActionPlanSection
+            {planPending ? <SectionSkeleton label="Preparando plan de acción" /> : <ActionPlanSection
               actions={plan?.actions ?? []}
               signals={plan?.signals ?? []}
               doneIds={doneIds}
@@ -286,7 +293,7 @@ export default function ReportsView() {
                   surface: "plan",
                 });
               }}
-            />
+            />}
           </section>
         </div>
       ) : null}

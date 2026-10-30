@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { MessagesSquare } from "lucide-react";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
@@ -306,7 +307,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
-      {panel.loading && <p role="status">Cargando conversaciones…</p>}
+      {panel.loading && <SectionSkeleton label="Cargando conversaciones…" variant="list" />}
       {newOpen && (
         <form
           id="inbox-conversation-form"
@@ -526,7 +527,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               />
             )}
             {!messages && !messagesError && (
-              <p role="status">Cargando mensajes…</p>
+              <SectionSkeleton label="Cargando mensajes…" variant="list" />
             )}
             {messages?.items.length === 0 && (
               <p className="text-sm text-kova-muted">
@@ -819,7 +820,7 @@ function AutomationDraft({
         ni se envía el aviso.
       </p>
       {automation.loading && (
-        <p role="status">Consultando tareas de pedidos…</p>
+        <SectionSkeleton label="Consultando tareas de pedidos…" variant="list" />
       )}
       {automation.error && (
         <ViewError

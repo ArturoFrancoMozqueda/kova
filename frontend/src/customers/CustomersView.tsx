@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Users } from "lucide-react";
@@ -235,7 +236,7 @@ function CustomersWorkspace() {
               </div>
               <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
             </div>
-            {profileLoading && <p role="status" className="text-sm text-muted-foreground">Cargando cliente…</p>}
+            {profileLoading && <SectionSkeleton label="Cargando cliente…" variant="form" />}
             {profileError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive-strong">{profileError}</p><Button variant="outline" size="sm" disabled={profileLoading} onClick={() => setRevision((value) => value + 1)}>Reintentar cliente</Button></div>}
             {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
             {selected?.is_active && <div className="flex flex-wrap gap-2">
@@ -244,7 +245,7 @@ function CustomersWorkspace() {
               {canHistory && <Link className={buttonVariants({ variant: "outline" })} to={`/appointments?customerId=${encodeURIComponent(selected.id)}`}>Agendar cita</Link>}
             </div>}
             {selected && canHistory && <CustomerActivityPanel key={selected.id} customerId={selected.id} />}
-            {historyLoading && <p role="status" className="text-sm text-muted-foreground">Cargando compras del cliente…</p>}
+            {historyLoading && <SectionSkeleton label="Cargando compras del cliente…" />}
           </section>
         </Card>
       )}

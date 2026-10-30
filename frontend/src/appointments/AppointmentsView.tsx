@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { CalendarDays } from "lucide-react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
@@ -659,7 +660,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             </p>
           )}
         </form>
-        {panel.loading && <p role="status">Consultando agenda…</p>}
+        {panel.loading && <SectionSkeleton label="Consultando agenda…" variant="list" />}
         {!panel.loading && !panel.error && visibleAppointments.length === 0 && !linked.loading && (
           <ViewEmpty
             icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
@@ -874,7 +875,7 @@ function AppointmentHistory({
       aria-label="Historial de la cita"
     >
       <h4 className="font-medium">Historial de cambios</h4>
-      {panel.loading && <p role="status">Consultando historial…</p>}
+      {panel.loading && <SectionSkeleton label="Consultando historial…" variant="list" />}
       {panel.error && (
         <ViewError
           message={panel.error}
@@ -982,7 +983,7 @@ function AppointmentReminders({
         />
       )}
       {panel.notice && <p role="status">{panel.notice}</p>}
-      {panel.loading && <p role="status">Consultando recordatorios…</p>}
+      {panel.loading && <SectionSkeleton label="Consultando recordatorios…" variant="list" />}
       {panel.data?.items.length === 0 && (
         <p className="text-sm text-kova-muted">
           No hay recordatorios pendientes por revisar en esta página.

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "./AuthLayout";
@@ -176,10 +177,7 @@ function AcceptInviteForm({ token }: { token: string }) {
   if (phase === "loading" || !preview) {
     return (
       <ShellCard heading={copy.auth.acceptInviteTitle}>
-        <div className="flex flex-col items-center gap-3 py-4">
-          <Loader2 className="h-8 w-8 text-kova-blue animate-spin" />
-          <p className="text-muted-foreground">{copy.auth.acceptInviteLoading}</p>
-        </div>
+        <SectionSkeleton label={copy.auth.acceptInviteLoading} variant="form" className="py-4" />
       </ShellCard>
     );
   }

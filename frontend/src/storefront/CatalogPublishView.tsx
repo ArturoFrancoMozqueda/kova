@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
@@ -85,7 +86,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     {!online && <p role="status">Conéctate para publicar cambios.</p>}
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
     {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice}</p>}
-    {!settings && !error && <p role="status">Cargando publicación…</p>}
+    {!settings && !error && <SectionSkeleton label="Cargando publicación…" variant="form" />}
     {settings && <form onSubmit={event => void save(event)} className="space-y-6">
       <fieldset disabled={busy || !online} className="space-y-5 rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Información pública</legend>

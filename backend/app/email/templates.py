@@ -20,7 +20,7 @@ KOVA_TERTIARY = "#667185"
 KOVA_BORDER = "#E2E6EF"
 
 FONT_STACK = (
-    "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
     "'Helvetica Neue', Arial, sans-serif"
 )
 
@@ -118,13 +118,13 @@ def _button(label: str, url: str) -> str:
     return (
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
         f'class="kova-action" style="margin: 28px 0;"><tr><td align="center" '
-        f'bgcolor="{KOVA_BLUE}" style="border-radius: 10px; background-color: {KOVA_BLUE}; '
+        f'bgcolor="{KOVA_INK}" style="border-radius: 6px; background-color: {KOVA_INK}; '
         f'mso-padding-alt: 15px 24px;">'
         f'<a href="{escape(url, quote=True)}" target="_blank" '
         f'style="display: inline-block; padding: 15px 24px; font-family: {FONT_STACK}; '
         f"font-size: 15px; line-height: 20px; font-weight: 600; color: #ffffff; "
         f"text-decoration: none; "
-        f'border: 1px solid {KOVA_BLUE}; border-radius: 10px; letter-spacing: -0.01em; '
+        f'border: 1px solid {KOVA_INK}; border-radius: 6px; letter-spacing: -0.01em; '
         f'mso-padding-alt: 0;">'
         f"{escape(label)}</a></td></tr></table>"
     )
@@ -150,16 +150,7 @@ def render_email(
     ``detail_html`` is trusted markup placed before the primary action.
     """
     cta = _button(cta_label, cta_url) if cta_label and cta_url else ""
-    footer = footer_html or (
-        f'<p style="margin: 0 0 4px 0; font-family: {FONT_STACK}; font-size: 13px; '
-        f'color: {KOVA_TERTIARY}; line-height: 1.5;">'
-        "Un mensaje de Kova sobre tu cuenta."
-        "</p>"
-        f'<p style="margin: 0; font-family: {FONT_STACK}; font-size: 13px; '
-        f'color: {KOVA_TERTIARY}; line-height: 1.5;">'
-        "Tu negocio, en flujo constante."
-        "</p>"
-    )
+    footer = footer_html or muted("Kova · Tu negocio, en flujo constante.")
 
     return f"""<!doctype html>
 <html lang="es-MX" dir="ltr">
@@ -173,78 +164,58 @@ def render_email(
 <style>
   body, table, td, a {{ -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
   table, td {{ mso-table-lspace: 0; mso-table-rspace: 0; }}
-  @media only screen and (max-width: 620px) {{
-    .kova-shell {{ padding: 24px 12px !important; }}
-    .kova-brand {{ padding: 0 12px 24px !important; }}
-    .kova-content {{ padding: 32px 24px !important; }}
-    .kova-heading {{ font-size: 28px !important; line-height: 34px !important; }}
+  @media only screen and (max-width: 600px) {{
+    .kova-shell {{ padding: 32px 24px !important; }}
+    .kova-heading {{ font-size: 26px !important; line-height: 34px !important; }}
     .kova-action {{ width: 100% !important; }}
     .kova-action a {{ display: block !important; padding-left: 12px !important;
       padding-right: 12px !important; }}
-    .kova-footnote {{ padding: 24px 12px 0 !important; }}
   }}
 </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: {KOVA_MIST}; \
-font-family: {FONT_STACK}; color: {KOVA_INK};">
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: {FONT_STACK}; \
+color: {KOVA_INK};">
 <div lang="es-MX" dir="ltr">
 <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; \
 color: transparent; visibility: hidden;">{escape(preheader)}</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
-style="background-color: {KOVA_MIST};">
-  <tr>
-    <td align="center" class="kova-shell" style="padding: 48px 20px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" \
-style="max-width: 600px; width: 100%;">
-        <tr>
-          <td class="kova-brand" style="padding: 0 8px 28px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="vertical-align: middle; padding-right: 12px;">
-                  <img src="{KOVA_LOGO_URL}" width="40" height="40" alt="" \
-style="display: block; width: 40px; height: 40px; border: 0; outline: none; \
-text-decoration: none;">
-                </td>
-                <td style="vertical-align: middle; font-family: {FONT_STACK}; \
-font-size: 28px; line-height: 34px; font-weight: 700; color: {KOVA_INK}; \
-letter-spacing: -1px;">kova</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid {KOVA_BORDER}; \
-border-top: 3px solid {KOVA_BLUE}; border-radius: 16px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr><td class="kova-content" style="padding: 40px;">
-            <p style="margin: 0 0 18px; font-family: {FONT_STACK}; font-size: 11px; \
-line-height: 16px; font-weight: 700; color: {KOVA_BLUE}; letter-spacing: 1.4px; \
-text-transform: uppercase;">{escape(eyebrow)}</p>
-            <h1 class="kova-heading" style="margin: 0 0 20px; font-family: {FONT_STACK}; \
-font-size: 32px; \
-font-weight: 700; color: {KOVA_INK}; line-height: 38px; letter-spacing: -1px;">\
-{escape(heading)}</h1>
-            <div style="font-family: {FONT_STACK}; font-size: 16px; line-height: 26px; \
-color: {KOVA_INK}; overflow-wrap: anywhere; word-wrap: break-word;">{intro_html}</div>
-            {detail_html}
-            {cta}
-            {body_html}
-              </td></tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td class="kova-footnote" style="padding: 28px 8px 0;">
-            <p style="margin: 0 0 16px; font-family: {FONT_STACK}; font-size: 13px; \
-line-height: 20px; color: {KOVA_MUTED};">¿Necesitas ayuda? \
-{link('Hablar con soporte', f'mailto:{SUPPORT_EMAIL}')}</p>
-            {footer}
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
+style="background-color: #ffffff;">
+<tr><td align="center" class="kova-shell" style="padding: 56px 32px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" \
+style="width: 100%; max-width: 520px;">
+  <tr><td style="padding-bottom: 44px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="padding-right: 12px; vertical-align: middle;">
+        <img src="{KOVA_LOGO_URL}" width="40" height="40" alt="" \
+style="display: block; width: 40px; height: 40px; border: 0; outline: none;">
+      </td>
+      <td style="font-family: {FONT_STACK}; font-size: 25px; line-height: 32px; \
+font-weight: 700; color: {KOVA_INK}; letter-spacing: -0.8px;">kova</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="overflow-wrap: anywhere; word-wrap: break-word;">
+    <p style="margin: 0 0 12px; font-family: {FONT_STACK}; font-size: 13px; \
+line-height: 20px; color: {KOVA_MUTED};">{escape(eyebrow)}</p>
+    <h1 class="kova-heading" style="margin: 0 0 24px; font-family: {FONT_STACK}; \
+font-size: 30px; line-height: 38px; font-weight: 600; color: {KOVA_INK}; \
+letter-spacing: -0.6px;">{escape(heading)}</h1>
+    <div style="font-family: {FONT_STACK}; font-size: 16px; line-height: 26px; \
+color: {KOVA_INK};">{intro_html}</div>
+    {detail_html}
+    {cta}
+    {body_html}
+  </td></tr>
+  <tr><td style="padding-top: 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr><td style="border-top: 1px solid {KOVA_BORDER}; padding-top: 24px;">
+      <p style="margin: 0 0 12px; font-family: {FONT_STACK}; font-size: 13px; \
+line-height: 21px; color: {KOVA_MUTED};">¿Necesitas ayuda? \
+{link('Contactar soporte', f'mailto:{SUPPORT_EMAIL}')}</p>
+      {footer}
+    </td></tr></table>
+  </td></tr>
 </table>
+</td></tr></table>
 </div>
 </body>
 </html>"""
@@ -279,23 +250,20 @@ def kv_table(rows: list[tuple[str, str]]) -> str:
     body = "".join(kv_row(k, v) for k, v in rows)
     return (
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        f'width="100%" style="margin: 24px 0; background-color: {KOVA_MIST}; '
-        f'border: 1px solid {KOVA_BORDER}; border-radius: 12px;">'
-        f'<tr><td style="padding: 10px 20px;">'
+        f'width="100%" style="margin: 28px 0; border-top: 1px solid {KOVA_BORDER}; '
+        f'border-bottom: 1px solid {KOVA_BORDER};"><tr><td style="padding: 4px 0;">'
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
         f'width="100%" style="table-layout: fixed;">{body}</table>'
         f'</td></tr></table>'
     )
 
 
-def fallback_link(url: str) -> str:
-    """Keep a copyable capability URL secondary to the action, with safe wrapping."""
-    return (
-        f'<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid {KOVA_BORDER};">'
-        + muted("Si el botón no abre, copia este enlace en tu navegador:")
-        + f'<p style="margin: 0; font-family: {FONT_STACK}; font-size: 12px; line-height: 19px; '
-        f'color: {KOVA_MUTED}; overflow-wrap: anywhere; word-break: break-all;">'
-        f'{escape(url)}</p></div>'
+def fallback_link(url: str, label: str = "abre este enlace alternativo") -> str:
+    """A discreet alternative link; plain text still includes the full URL."""
+    return muted(
+        "Si el botón no funciona, "
+        + link(label, url)
+        + "."
     )
 
 

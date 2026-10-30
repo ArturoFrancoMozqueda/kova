@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
@@ -465,7 +466,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {notice}
         </p>
       )}
-      {loading && !data && <p role="status">Cargando seguimiento…</p>}
+      {loading && !data && <SectionSkeleton label="Cargando seguimiento…" />}
       {data && (
         <>
           <section

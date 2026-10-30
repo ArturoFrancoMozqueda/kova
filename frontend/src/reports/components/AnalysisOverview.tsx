@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { WeeklyKpiChart, type WeeklyKpiPoint } from "@/components/ui/weekly-kpi-chart";
 import { formatDayWithWeekday } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
@@ -96,6 +98,7 @@ function RankListCard({
   emptyLabel,
   failure,
   action,
+  loading = false,
 }: {
   title: string;
   icon: ReactNode;
@@ -103,6 +106,7 @@ function RankListCard({
   emptyLabel: string;
   failure?: string | null;
   action?: ReactNode;
+  loading?: boolean;
 }) {
   const max = Math.max(...rows.map((row) => row.value), 1);
   return (
@@ -114,7 +118,7 @@ function RankListCard({
         </h2>
       </CardHeader>
       <CardContent className="p-5">
-        {failure ? (
+        {loading ? <SectionSkeleton label={`Cargando ${title.toLowerCase()}`} /> : failure ? (
           <PartialFailureNote message={failure} />
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-kova-muted">{emptyLabel}</p>
@@ -225,6 +229,10 @@ export function AnalysisOverview({
   priorityFeedback,
   onTogglePriority,
   onPriorityFeedback,
+  previousPending = false,
+  hourlyPending = false,
+  trendPending = false,
+  priorityPending = false,
 }: {
   story: BusinessStoryReport;
   previousStory: BusinessStoryReport | null;
@@ -237,6 +245,10 @@ export function AnalysisOverview({
   priorityFeedback?: AnalysisHelpfulness;
   onTogglePriority: () => void;
   onPriorityFeedback: (value: AnalysisHelpfulness) => void;
+  previousPending?: boolean;
+  hourlyPending?: boolean;
+  trendPending?: boolean;
+  priorityPending?: boolean;
 }) {
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
   const chartStory = rangeDays === 1 && trendStory ? trendStory : story;
@@ -271,7 +283,7 @@ export function AnalysisOverview({
             <p className="text-4xl font-bold tracking-[-0.045em] text-kova-ink sm:text-5xl">
               {formatMoney(story.summary.net_sales)}
             </p>
-            {comparison.growthLabel ? (
+            {!previousPending && comparison.growthLabel ? (
               <span
                 className={cn(
                   "inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold tabular-nums",
@@ -284,7 +296,8 @@ export function AnalysisOverview({
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm tabular-nums text-kova-muted">{comparison.text}</p>
+          {previousPending ? <div role="status" aria-label="Cargando comparación" aria-busy="true" className="mt-3"><Skeleton className="h-4 w-2/3" /></div>
+            : <p className="mt-2 text-sm tabular-nums text-kova-muted">{comparison.text}</p>}
           {rangeDays === 1 && trendStory ? (
             <p className="mt-5 text-sm text-kova-muted">
               {copy.reportsView.overviewDailyTrend(
@@ -294,16 +307,16 @@ export function AnalysisOverview({
               )}
             </p>
           ) : null}
-          <WeeklyKpiChart
+          {trendPending ? <SectionSkeleton label="Cargando tendencia de ventas" variant="chart" className="mt-5" /> : <WeeklyKpiChart
             className={rangeDays === 1 && trendStory ? "mt-2" : "mt-5"}
             data={points}
-            referenceValue={previousAverage}
+            referenceValue={previousPending ? undefined : previousAverage}
             referenceLabel={
               previousAverage > 0
                 ? copy.reportsView.overviewPreviousAverage(formatMoney(previousAverage))
                 : undefined
             }
-          />
+          />}
         </CardContent>
       </Card>
 
@@ -330,6 +343,7 @@ export function AnalysisOverview({
           rows={hourRows}
           emptyLabel={copy.reportsView.noHourlySales}
           failure={hourlyFailed ? copy.reportsView.hourlyUnavailable : null}
+          loading={hourlyPending}
         />
       </div>
 
@@ -343,13 +357,13 @@ export function AnalysisOverview({
             </h2>
           </CardHeader>
           <CardContent className="p-5">
-            <PriorityActionCard
+            {priorityPending ? <SectionSkeleton label="Preparando prioridades" /> : <PriorityActionCard
               recommendation={priority}
               done={priorityDone}
               feedback={priorityFeedback}
               onToggleDone={onTogglePriority}
               onFeedback={onPriorityFeedback}
-            />
+            />}
           </CardContent>
         </Card>
       </div>

@@ -14,6 +14,21 @@ Guía para mantener una experiencia común entre módulos. Conserva los contrato
 
 Caja conserva su disposición especializada para vender rápido; comparte controles y significado financiero con el cobro de Pedidos. El menú público conserva su experiencia de cliente y no expone cantidades exactas, costos ni herramientas administrativas.
 
+## Carga progresiva
+
+- Usar skeletons con la forma del contenido pendiente, dentro del marco de la pantalla. El
+  arranque no muestra controles ni datos de identidad antes de validar la sesión.
+- Mostrar cada lectura independiente al resolverse. Una comparación, fotografía, categoría o
+  recomendación lenta no debe tapar las ventas, productos o existencias ya confirmados.
+- Distinguir pendiente, vacío y error. No mostrar ceros, comparaciones ni “todo en orden” mientras
+  faltan sus fuentes; conservar skeletons sólo en esas secciones y ofrecer el estado de error local.
+- No mezclar resultados de distintos negocios, usuarios, fechas o consultas. Descartar respuestas
+  tardías y limpiar los datos anteriores al cambiar el contexto; no guardar cachés parciales.
+- Conservar los bloqueos de sesión, facturación, recuperación de venta y turno. Las acciones de
+  escritura mantienen confirmación y prevención de duplicados; ver productos no autoriza cobrar.
+- Anunciar la región pendiente con un nombre en español y `aria-busy`; los trazos son decorativos,
+  no capturan foco y respetan movimiento reducido. Lo que ya está listo permanece utilizable.
+
 ## Navegación por rol
 
 - Caja, Pedidos y Ventas son accesos directos en la barra lateral y en el pie móvil;

@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import {
   useCallback,
@@ -364,7 +365,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {notice}
         </p>
       )}
-      {loading && !page && <p role="status">Cargando cotizaciones…</p>}
+      {loading && !page && <SectionSkeleton label="Cargando cotizaciones…" />}
       {createOpen && !linked.requested && (
         <form
           onSubmit={create}

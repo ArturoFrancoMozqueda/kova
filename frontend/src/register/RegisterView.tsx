@@ -102,7 +102,7 @@ import {
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; products: Product[]; categories: Category[]; fromCache?: boolean };
+  | { status: "ready"; products: Product[]; categories: Category[]; fromCache?: boolean; categoriesPending?: boolean; categoriesFailed?: boolean };
 
 type CartItem = {
   product: Product;
@@ -245,6 +245,7 @@ function RegularRegisterView() {
   const { toast } = useToast();
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const catalogRequestRef = useRef(0);
   const [discount, setDiscount] = useState("0.00");
   const [taxRate, setTaxRate] = useState(() => cachedTaxRate(tenantId));
   const [customerId, setCustomerId] = useState("");
@@ -530,16 +531,20 @@ function RegularRegisterView() {
   }, [paymentMethod, resetCashInteraction]);
 
   const load = useCallback(async () => {
+    const generation = ++catalogRequestRef.current;
     setLoadState({ status: "loading" });
     // Cache-first: paint the tenant's cached catalog immediately so the
     // register is usable while the network fetch runs. The cached paint
     // deliberately omits `fromCache` — the offline notice only appears once
     // the fetch actually fails, so opening online never flashes it.
     let paintedFromCache = false;
+    let cachedCategories: Category[] = [];
     if (tenantId) {
       const cached = await readCatalogCache(tenantId).catch(() => undefined);
+      if (generation !== catalogRequestRef.current) return;
       if (cached) {
         paintedFromCache = true;
+        cachedCategories = cached.categories;
         setLoadState({
           status: "ready",
           products: cached.products.filter((product) => product.is_active),
@@ -548,30 +553,35 @@ function RegularRegisterView() {
       }
     }
     try {
-      const [allProducts, categories] = await Promise.all([
-        listProducts(),
-        listCategories(),
-      ]);
+      const categoriesRead = listCategories().then(categories => ({ categories, failed: false }),
+        () => ({ categories: cachedCategories, failed: true }));
+      const allProducts = await listProducts();
+      if (generation !== catalogRequestRef.current) return;
+      const products = allProducts.filter((product) => product.is_active);
+      setLoadState({ status: "ready", products, categories: cachedCategories, categoriesPending: true });
+      const { categories, failed } = await categoriesRead;
+      if (generation !== catalogRequestRef.current) return;
       // Persist the full catalog so the register can open offline from a cold
       // start. Best-effort: a cache write must never block ringing a sale, and
       // its rejection must never surface (e.g. no IndexedDB in a test env).
-      if (tenantId) {
+      if (tenantId && !failed) {
         void saveCatalogCache(tenantId, allProducts, categories).catch(() => undefined);
       }
-      const products = allProducts.filter((product) => product.is_active);
-      setLoadState({ status: "ready", products, categories });
+      setLoadState({ status: "ready", products, categories, categoriesFailed: failed });
     } catch {
+      if (generation !== catalogRequestRef.current) return;
       // Offline / fetch failed. Keep (or fall back to) the cached catalog so
       // the cashier can still open the register and queue sales without
       // connectivity — now the notice is warranted.
       if (paintedFromCache) {
         setLoadState((prev) =>
-          prev.status === "ready" ? { ...prev, fromCache: true } : prev,
+          generation === catalogRequestRef.current && prev.status === "ready" ? { ...prev, fromCache: true } : prev,
         );
         return;
       }
       if (tenantId) {
         const cached = await readCatalogCache(tenantId).catch(() => undefined);
+        if (generation !== catalogRequestRef.current) return;
         if (cached) {
           setLoadState({
             status: "ready",
@@ -747,6 +757,7 @@ function RegularRegisterView() {
     if (tenantId) void triggerSync(tenantId);
     void refreshStock();
     refreshShift();
+    return () => { catalogRequestRef.current += 1; };
   }, [load, refreshShift, refreshStock, tenantId, sessionMode]);
 
   // Re-check the shift when the cashier returns to the tab: another device may
@@ -1494,6 +1505,8 @@ function RegularRegisterView() {
               </div>
             </div>
             {/* SKU / barcode search */}
+            {loadState.categoriesPending && <div role="status" aria-label="Cargando categorías" aria-busy="true" className="mt-3 flex gap-2"><Skeleton className="h-8 w-24" /><Skeleton className="h-8 w-24" /></div>}
+            {loadState.categoriesFailed && <p role="status" className="mt-3 text-xs text-kova-muted">No pudimos actualizar las categorías. Puedes buscar los productos para continuar.</p>}
             <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
@@ -1555,7 +1568,7 @@ function RegularRegisterView() {
             )}
 
             {/* Category pills — show readable names */}
-            {categoriesInUse.length > 0 && (
+            {(categoriesInUse.length > 0 || loadState.categoriesPending || loadState.categoriesFailed) && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button
                   onClick={() => setSelectedCategory(null)}
@@ -2152,7 +2165,7 @@ function RegularRegisterView() {
                     )}
                   >
                     {cashShiftLoading
-                      ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                      ? <Skeleton className="mt-0.5 h-4 w-4 shrink-0" />
                       : <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />}
                     <span className="min-w-0 flex-1">
                       {cashShiftMessage}

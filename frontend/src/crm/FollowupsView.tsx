@@ -1,3 +1,4 @@
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
@@ -202,7 +203,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
-      {panel.loading && <p role="status">Cargando seguimiento…</p>}
+      {panel.loading && <SectionSkeleton label="Cargando seguimiento…" />}
       {panel.data && (
         <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
           <h2 className="text-xl font-semibold">Regla de postventa</h2>

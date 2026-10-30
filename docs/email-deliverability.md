@@ -27,9 +27,10 @@ versión; health y health/db aprobaron. El [release](https://github.com/ArturoFr
 terminó correctamente. No se leyó el enlace ni se cambió la contraseña; Inbox/render de este
 rediseño todavía requiere aceptación del buzón QA.
 
-Las seis plantillas comparten una presentación editorial con fondo claro, tarjeta blanca, acento
-azul, encabezado de marca y una acción principal. Los resúmenes de recibo y fin de prueba aparecen
-antes del botón; los enlaces de respaldo quedan en un bloque secundario que permite copiarlos.
+Las seis plantillas comparten una presentación de carta editorial sobre fondo blanco, sin tarjeta
+ni recuadros, con encabezado de marca y una acción principal en tinta. Los resúmenes de recibo y fin
+de prueba aparecen antes del botón, entre separadores discretos; el enlace alternativo describe la
+acción y evita mostrar tokens largos en el cuerpo. La versión de texto conserva la URL completa.
 Las tablas y estilos inline conservan un baseline sin hojas externas; los ajustes de móvil son una
 mejora progresiva. El texto alternativo conserva acciones, importes, fechas y Unicode. La QA local
 cubre 320/390/800 px y ausencia de estilos adaptables, sin equivaler a render en Gmail u Outlook.

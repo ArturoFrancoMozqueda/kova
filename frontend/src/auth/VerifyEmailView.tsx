@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { verifyEmail, ApiError } from "./api";
 import { Link } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { AuthLayout } from "./AuthLayout";
 
 type State = "verifying" | "success" | "error" | "missing" | "expired";
@@ -33,10 +34,7 @@ export default function VerifyEmailView() {
   return (
     <AuthLayout title={copy.auth.verifyEmail} contentClassName="text-center">
             {state === "verifying" && (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <Loader2 className="h-8 w-8 text-kova-blue animate-spin" />
-                <p className="text-muted-foreground">{copy.auth.submitting}...</p>
-              </div>
+              <SectionSkeleton label={copy.auth.submitting} variant="form" className="py-4" />
             )}
             {state === "success" && (
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">

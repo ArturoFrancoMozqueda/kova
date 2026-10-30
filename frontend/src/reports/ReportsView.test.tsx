@@ -61,6 +61,25 @@ afterEach(() => {
 });
 
 describe("ReportsView", () => {
+  it("reveals real sales and products before hourly and inventory sections settle", async () => {
+    let finishHourly!: (value: []) => void;
+    (getBusinessStory as Mock).mockImplementation((start: string, end: string) => {
+      const story = makeStory();
+      return Promise.resolve({ ...story, summary: { ...story.summary, start_date: start, end_date: end } });
+    });
+    (getSalesByHour as Mock).mockReturnValue(new Promise<[]>(resolve => { finishHourly = resolve; }));
+    (listStock as Mock).mockReturnValue(new Promise(() => {}));
+    (listVelocity as Mock).mockReturnValue(new Promise(() => {}));
+    renderView();
+    expect(await screen.findByText(copy.reportsView.kpiNetSalesLabel)).toBeVisible();
+    expect(screen.getByText("Latte mediano")).toBeVisible();
+    expect(screen.getByRole("status", { name: `Cargando ${copy.reportsView.overviewTopHours.toLowerCase()}` })).toBeVisible();
+    expect(screen.getByRole("status", { name: "Preparando prioridades" })).toBeVisible();
+    await act(async () => finishHourly([]));
+    expect(await screen.findByText(copy.reportsView.noHourlySales)).toBeVisible();
+    expect(screen.getByText(copy.reportsView.kpiNetSalesLabel)).toBeVisible();
+    expect(screen.getByRole("status", { name: "Cargando reposición" })).toBeVisible();
+  });
   it("separates the dashboard entry from detailed analysis and groups replenishment with products", async () => {
     (getBusinessStory as Mock).mockResolvedValue(makeStory());
     renderView();

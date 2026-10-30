@@ -69,7 +69,7 @@ def send_verification_email(*, to: str, token: str) -> None:
         cta_url=verify_url,
         body_html=(
             muted("El enlace expira en 24 horas.")
-            + fallback_link(verify_url)
+            + fallback_link(verify_url, "verifica tu correo")
         ),
     )
     _send(to=to, subject="Verifica tu correo — Kova", html=html, kind="verification")
@@ -192,7 +192,7 @@ def send_invitation_email(
         cta_url=accept_url,
         body_html=(
             muted("El enlace expira en 7 días.")
-            + fallback_link(accept_url)
+            + fallback_link(accept_url, "acepta la invitación")
         ),
         footer_html=muted(
             "Recibes este correo porque te invitaron a un negocio que usa Kova. "
@@ -218,7 +218,7 @@ def send_password_reset_email(*, to: str, token: str) -> None:
         cta_url=reset_url,
         body_html=(
             muted("El enlace expira en 1 hora. Si no fuiste tú, ignora este correo.")
-            + fallback_link(reset_url)
+            + fallback_link(reset_url, "restablece tu contraseña")
         ),
     )
     _send(to=to, subject="Restablece tu contraseña — Kova", html=html, kind="password_reset")

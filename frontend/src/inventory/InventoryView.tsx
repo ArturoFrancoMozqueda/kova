@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -35,6 +36,12 @@ type LoadState =
   | { status: "error" }
   | {
       status: "loaded";
+      identity: string | null;
+      velocityPending: boolean;
+      velocityFailed: boolean;
+      lowStockPending: boolean;
+      lowStockFailed: boolean;
+      productsPending: boolean;
       stock: StockItem[];
       lowStock: StockItem[];
       velocity: InventoryVelocityItem[];
@@ -60,7 +67,12 @@ export default function InventoryView() {
   const auth = useOptionalAuth();
   const identity = auth?.state.status === "authenticated"
     ? `${auth.state.tenantId}:${auth.state.user.id}` : null;
-  const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const dataIdentity = auth?.state.status === "authenticated"
+    ? `${identity}:${auth.state.user.role}:${auth.state.sessionMode}` : null;
+  const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const loadState = useMemo<LoadState>(() => storedLoadState.status === "loaded" && storedLoadState.identity !== dataIdentity
+    ? { status: "loading" } : storedLoadState, [storedLoadState, dataIdentity]);
+  const requestId = useRef(0);
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
   const submissionPending = useRef(false);
@@ -80,32 +92,55 @@ export default function InventoryView() {
 
   useEffect(() => {
     writeAttempt.current = null;
-    setModal(null);
   }, [identity]);
+  useEffect(() => { setModal(null); }, [dataIdentity]);
 
   const load = useCallback(async () => {
+    const generation = ++requestId.current;
     setLoadState({ status: "loading" });
+    const velocityRead = listVelocity().then(velocity => ({ velocity, failed: false }),
+      () => ({ velocity: [] as InventoryVelocityItem[], failed: true }));
+    const productsRead = listProducts().catch(() => [] as Product[]);
+    const lowStockRead = listLowStock().then(lowStock => ({ lowStock, failed: false }),
+      () => ({ lowStock: [] as StockItem[], failed: true }));
     try {
-      const [stock, lowStock, velocity, products] = await Promise.all([
-        listStock(),
-        listLowStock(),
-        listVelocity().catch(() => [] as InventoryVelocityItem[]),
-        listProducts().catch(() => [] as Product[]),
-      ]);
+      const stock = await listStock();
+      if (generation !== requestId.current) return;
       setLoadState({
-        status: "loaded",
+        status: "loaded", identity: dataIdentity, velocityPending: true, velocityFailed: false,
+        lowStockPending: true, lowStockFailed: false,
+        productsPending: true,
         stock,
-        lowStock,
-        velocity,
-        productsById: Object.fromEntries(products.map((product) => [product.id, product])),
+        lowStock: [],
+        velocity: [], productsById: {},
+      });
+      void lowStockRead.then(({ lowStock, failed }) => {
+        if (generation !== requestId.current) return;
+        setLoadState(current => generation === requestId.current && current.status === "loaded" && current.identity === dataIdentity ? {
+          ...current, lowStock, lowStockPending: false, lowStockFailed: failed,
+        } : current);
+      });
+      void velocityRead.then(({ velocity, failed }) => {
+        if (generation !== requestId.current) return;
+        setLoadState(current => generation === requestId.current && current.status === "loaded" && current.identity === dataIdentity ? {
+          ...current, velocity, velocityPending: false, velocityFailed: failed,
+        } : current);
+      });
+      void productsRead.then(products => {
+        if (generation !== requestId.current) return;
+        setLoadState(current => generation === requestId.current && current.status === "loaded" && current.identity === dataIdentity ? {
+          ...current, productsPending: false, productsById: Object.fromEntries(products.map(product => [product.id, product])),
+        } : current);
       });
     } catch {
+      if (generation !== requestId.current) return;
       setLoadState({ status: "error" });
     }
-  }, []);
+  }, [dataIdentity]);
 
   useEffect(() => {
     void load();
+    return () => { requestId.current += 1; };
   }, [load]);
 
   const visibleStock = useMemo(() => {
@@ -271,6 +306,9 @@ export default function InventoryView() {
         </div>
       </div>
 
+      {(loadState.lowStockPending || loadState.velocityPending) && <SectionSkeleton label="Cargando alertas de inventario" variant="summary" className="mb-5" />}
+      {loadState.lowStockFailed && <p role="status" className="mb-5 text-sm text-kova-muted">No pudimos consultar las alertas. Las existencias disponibles se muestran abajo.</p>}
+      {loadState.velocityFailed && <p role="status" className="mb-5 text-sm text-kova-muted">No pudimos consultar la rotación. Las existencias disponibles se muestran abajo.</p>}
       {(attentionStock.length > 0 || attentionVelocity.some(isActionableInventoryVelocity)) && (
         <Card className="mb-5 border-warning/30 bg-warning/5 lg:border-l-[3px]">
           <CardHeader className="px-4 pb-2 pt-3">
@@ -436,6 +474,7 @@ export default function InventoryView() {
                   key={item.product_id}
                   item={item}
                   product={loadState.productsById[item.product_id]}
+                  imagePending={loadState.productsPending}
                   canAdjust={canAdjust}
                   onModal={setModal}
                 />
@@ -475,11 +514,13 @@ function reasonCodeLabel(code: InventoryReasonCode): string {
 function StockCard({
   item,
   product,
+  imagePending,
   canAdjust,
   onModal,
 }: {
   item: StockItem;
   product?: Product;
+  imagePending: boolean;
   canAdjust: boolean;
   onModal: (modal: ModalState) => void;
 }) {
@@ -518,7 +559,7 @@ function StockCard({
       <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(180px,1fr)_88px_88px_270px] lg:items-center lg:gap-4 lg:py-3">
         <div className="flex items-start justify-between gap-3 lg:items-center">
           <div className="flex min-w-0 items-center gap-3">
-            {product?.image_url ? (
+            {imagePending ? <Skeleton className="h-12 w-12 shrink-0" /> : product?.image_url ? (
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-kova-md bg-kova-mist">
                 <img
                   src={productImageSrc(product.image_url, 160)}
