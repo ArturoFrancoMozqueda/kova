@@ -28,10 +28,11 @@ for extension in sorted(stdlib.glob("*.so")):
     name = extension.name.split(".")[0]
     importlib.import_module(name)
     extensions.append(name)
-for optional in ("readline", "_curses", "_curses_panel", "_uuid", "_tkinter"):
+for optional in ("readline", "_curses", "_curses_panel", "_uuid", "_tkinter",
+                 "sqlite3", "_sqlite3"):
     assert importlib.util.find_spec(optional) is None, optional
 
-import bcrypt, jwt, psycopg, psycopg.pq, sqlite3, uvloop
+import bcrypt, jwt, psycopg, psycopg.pq, uvloop
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from PIL import Image
 assert psycopg.pq.__impl__ == "binary"
@@ -43,8 +44,6 @@ assert AESGCM(key).decrypt(nonce, encrypted, b"scope") == b"private"
 jwt_key = "synthetic-runtime-test-key-32-bytes-minimum"
 token = jwt.encode({"sub": "synthetic"}, jwt_key, algorithm="HS256")
 assert jwt.decode(token, jwt_key, algorithms=["HS256"])["sub"] == "synthetic"
-with sqlite3.connect(":memory:") as db:
-    assert db.execute("select 1").fetchone() == (1,)
 for format in ("PNG", "JPEG", "WEBP"):
     output = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(output, format=format)
@@ -87,6 +86,10 @@ for directory in ("/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/
 assert not pathlib.Path("/app/app/tests").exists()
 assert pathlib.Path("/var/lib/dpkg/status.d").is_dir()
 provenance = json.loads(pathlib.Path("/usr/share/kova/native-runtime.json").read_text())
+assert "sqlite3" in provenance["excluded_stdlib_packages"]
+assert any(name.startswith("_sqlite3.") for name in provenance["excluded_extensions"])
+assert not any("sqlite" in package["name"] for package in provenance["debian_libraries"])
+assert not list(pathlib.Path("/usr/lib").rglob("libsqlite3.so*"))
 for package in provenance["debian_libraries"]:
     assert pathlib.Path("/", package["status"]).is_file(), package["name"]
     assert all(pathlib.Path(name).exists() for name in package["files"]), package["name"]

@@ -64,7 +64,7 @@ COPY --from=ocr-build /install/usr/local/ /usr/local/
 ENV TESSDATA_PREFIX=/usr/local/share/tessdata
 LABEL org.kovasuite.parser.tesseract.version="5.5.3" \
       org.kovasuite.parser.tesseract.commit="f139e578a37c5c18717195c7d603ddb357717e23"
-RUN pip install --no-cache-dir pypdf==6.21.2 defusedxml==0.7.1
+RUN pip install --no-cache-dir pypdf==6.21.4 defusedxml==0.7.1
 # Refuse to build a scanner with no signatures. Refresh/rebuild under release gates.
 RUN freshclam --stdout
 # The runtime only extracts documents; it never installs Python packages.

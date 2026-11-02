@@ -13,6 +13,24 @@ SPEC.loader.exec_module(RUNTIME)
 
 
 class RuntimeAssemblyTests(unittest.TestCase):
+    def test_postgres_runtime_removes_sqlite_before_resolving_shared_libraries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            stdlib = Path(directory)
+            package = stdlib / "sqlite3"
+            package.mkdir()
+            (package / "__init__.py").write_text("import _sqlite3\n")
+            extensions = stdlib / "lib-dynload"
+            extensions.mkdir()
+            sqlite = extensions / "_sqlite3.cpython-312-x86_64-linux-gnu.so"
+            ssl = extensions / "_ssl.cpython-312-x86_64-linux-gnu.so"
+            sqlite.write_bytes(b"unused SQLite ELF")
+            ssl.write_bytes(b"required SSL ELF")
+
+            self.assertEqual(RUNTIME.prune_optional_stdlib(stdlib), [sqlite.name])
+            self.assertFalse(package.exists())
+            self.assertFalse(sqlite.exists())
+            self.assertEqual(ssl.read_bytes(), b"required SSL ELF")
+
     def test_library_copy_preserves_real_bytes_and_relative_symlink(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source/libtest.so.1.2"
