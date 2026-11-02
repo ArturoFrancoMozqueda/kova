@@ -66,3 +66,4 @@ class PublicCatalogResponse(BaseModel):
     products: list[PublicProduct]
     checkout_available: bool = False
     loyalty_available: bool = False
+    requests_available: bool = True

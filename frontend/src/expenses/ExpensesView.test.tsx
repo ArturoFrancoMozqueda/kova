@@ -1,3 +1,4 @@
+import type { CommercialAccess } from "@/auth/types";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -5,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite
 import { ToastProvider } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 
-const access = vi.hoisted(() => ({ featureEnabled: true, timezone: "America/Mexico_City", timezoneResolved: true }));
+const access = vi.hoisted(() => ({ commercialAccess: undefined as CommercialAccess | undefined, featureEnabled: true, timezone: "America/Mexico_City", timezoneResolved: true }));
 
+vi.mock("@/auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", commercialAccess: access.commercialAccess } }) }));
 vi.mock("@/hooks/useTenantTimezone", () => ({
   useTenantTimezone: () => ({ timezone: access.timezone, isResolved: access.timezoneResolved }),
 }));
@@ -14,7 +16,7 @@ vi.mock("@/hooks/useTenantTimezone", () => ({
 vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => access.featureEnabled }));
 vi.mock("@/auth/permissions", () => ({
-  EXPENSES_MANAGE_PERMISSION: "expenses.manage",
+  EXPENSES_MANAGE_PERMISSION: "expenses.manage", BILLING_VIEW_PERMISSION: "billing.view",
   usePermission: () => true,
 }));
 vi.mock("./api", () => ({
@@ -39,6 +41,7 @@ function renderView() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  access.commercialAccess = undefined;
   access.featureEnabled = true;
   access.timezone = "America/Mexico_City";
   access.timezoneResolved = true;
@@ -190,4 +193,16 @@ describe("expense business dates", () => {
     await waitFor(() => expect(listExpenses).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText(copy.expenses.endDate)).toHaveValue("2026-07-20");
   });
+});
+
+
+it("keeps expense history editable after downgrade while disabling new expenses even with the rollout enabled", async () => {
+  access.commercialAccess = { allowed: true, reason: "active", valid_until: null, plan_code: "esencial", features: ["sales_reports"] };
+  vi.mocked(listExpenses).mockResolvedValue([{ id: "expense-1", category: "servicios", amount: "425.50", expense_date: "2026-11-01", note: "Recibo previo", created_by_user_id: "user-1", created_at: "2026-11-01T12:00:00Z", updated_at: "2026-11-01T12:00:00Z" }]);
+  renderView();
+  await screen.findByText(/Recibo previo/);
+  expect(screen.getByRole("button", { name: copy.expenses.add })).toBeDisabled();
+  expect(screen.getByRole("button", { name: copy.expenses.edit })).toBeEnabled();
+  expect(screen.getByRole("button", { name: copy.expenses.delete })).toBeEnabled();
+  expect(createExpense).not.toHaveBeenCalled();
 });

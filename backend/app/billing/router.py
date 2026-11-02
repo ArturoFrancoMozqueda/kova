@@ -3,12 +3,16 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.billing import repository, service
+from app.billing.plans import PLANS, tiered_pricing_enabled
 from app.billing.schemas import (
     BillingSubscriptionResponse,
+    CheckoutSessionRequest,
     CheckoutSessionResponse,
     InternalReconcileRequest,
     InternalReconcileResponse,
     InternalSubscriptionListResponse,
+    PortalSessionResponse,
+    PublicPlansResponse,
     ReconcileCheckoutRequest,
 )
 from app.config import settings
@@ -39,6 +43,16 @@ def _require_verified_email(user: User) -> None:
         raise forbidden("Verify your email before starting a subscription")
 
 
+@router.get("/plans", response_model=PublicPlansResponse)
+def public_plans():
+    enabled = tiered_pricing_enabled()
+    codes = ("esencial", "gestion") if enabled else ("standard",)
+    return {
+        "tiered_pricing_enabled": enabled,
+        "available_plans": [PLANS[code].public() for code in codes],
+    }
+
+
 @router.get("/subscription", response_model=BillingSubscriptionResponse)
 def subscription_status(
     db: Session = Depends(get_db),
@@ -58,19 +72,22 @@ def subscription_status(
 )
 def create_checkout_session(
     response: Response,
+    body: CheckoutSessionRequest | None = None,
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_permission(Permission.BILLING_MANAGE)
     ),
 ):
-    user, membership, _ = ctx
+    user, membership, user_session = ctx
     _require_verified_email(user)
     status_code, response_body = service.create_checkout_session(
         db,
         tenant_id=membership.tenant_id,
         user_id=user.id,
         idempotency_key=idempotency_key,
+        plan_code=body.plan_code if body else None,
+        session_id=user_session.id,
     )
     response.status_code = status_code
     return response_body
@@ -110,6 +127,21 @@ def cancel_subscription(
         tenant_id=membership.tenant_id,
         user_id=user.id,
     )
+
+
+@router.post(
+    "/portal", response_model=PortalSessionResponse,
+    dependencies=[Depends(rate_limit(5, key="billing-portal"))],
+)
+def create_portal_session(
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.BILLING_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    _require_verified_email(user)
+    return service.create_portal_session(db, tenant_id=membership.tenant_id, user_id=user.id)
 
 
 @router.post("/webhooks/stripe")

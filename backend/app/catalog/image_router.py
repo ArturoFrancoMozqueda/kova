@@ -480,6 +480,12 @@ async def upload_product_image(
         _revalidate_image_upload, request, db, tenant_id, user_id, product_id,
     )
 
+    from app.billing.plan_policy import enforce_product_image_quota
+
+    enforce_product_image_quota(
+        db, tenant_id=tenant_id, product_id=product_id, incoming_bytes=len(parsed.data),
+    )
+
     now = datetime.now(UTC)
     image = (
         db.query(ProductImageFile)

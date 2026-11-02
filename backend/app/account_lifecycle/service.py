@@ -545,6 +545,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "messaging_channel_bindings",
         "messaging_channel_events",
         "audit_logs",
+        # Internal retry payload and Stripe session capability are not account exports.
+        "billing_checkout_attempts",
         "idempotency_keys",
         "ops_notes",
         "sessions",
@@ -641,6 +643,7 @@ _TENANT_DELETE_ORDER = (
     "tenant_onboarding_state",
     "membership_invitations",
     "subscriptions",
+    "billing_checkout_attempts",
     "idempotency_keys",
     "telemetry_events",
     "sessions",
@@ -838,13 +841,14 @@ def schedule_deletion(
     if not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
+    billing_repository.lock_billing_tenant(db, tenant_id=tenant_id)
     existing = get_deletion_status(db, tenant_id=tenant_id)
     if existing:
         return existing
 
     # Billing cancellation is an existing idempotent contract. The data purge
     # never precedes an already-paid Stripe period.
-    billing_service.cancel_subscription(db, tenant_id=tenant_id, user_id=user.id)
+    billing_service.cancel_subscription(db, tenant_id=tenant_id, user_id=user.id, commit=False)
     subscription = billing_repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
     purge_after = datetime.now(UTC) + timedelta(days=settings.account_deletion_grace_days)
     if subscription and subscription.current_period_end:
@@ -969,6 +973,9 @@ def _purge_account_graph(
     unknown_tables = schema_tables - _PURGE_TENANT_TABLES
     if unknown_tables:
         raise RuntimeError("account purge ownership graph is incomplete")
+
+    # Do not erase the only mapping for a potentially billable external attempt.
+    billing_service.assert_checkout_resolved_for_account_purge(db, tenant_id=tenant_id)
 
     from app.assistant.storage import purge_tenant as purge_assistant_objects
 

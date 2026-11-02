@@ -1,3 +1,6 @@
+import { useOptionalAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -29,6 +32,8 @@ type DraftLine = { product_id: string; quantity: number; unit_cost: string };
 export default function PurchasingView() {
   useDocumentTitle("Compras y proveedores");
   const allowed = usePermission(INVENTORY_ADJUST_PERMISSION);
+  const auth = useOptionalAuth();
+  const canCreate = hasPlanFeature(auth?.state.status === "authenticated" ? auth.state.commercialAccess : undefined, "purchasing");
   const [searchParams] = useSearchParams();
   const linkedPurchaseId = searchParams.get("purchase_id");
   const linkedPurchaseRef = useRef<HTMLDivElement>(null);
@@ -96,6 +101,7 @@ export default function PurchasingView() {
   }
   function submitSupplier(event: FormEvent) {
     event.preventDefault();
+    if (!canCreate) return;
     void mutate({ supplierName, contact }, key => createSupplier(supplierName, contact, key), supplier => {
       setSuppliers(current => [...current.filter(row => row.id !== supplier.id), supplier]);
       setSupplierId(supplier.id); setSupplierName(""); setContact(""); setActiveSetup("purchase");
@@ -104,15 +110,17 @@ export default function PurchasingView() {
   }
   function submitPurchase(event: FormEvent) {
     event.preventDefault();
+    if (!canCreate) return;
     void mutate({ supplierId, notes, lines }, key => createPurchase(supplierId, notes, lines, key), () => { setNotes(""); setLines([{ product_id: "", quantity: 1, unit_cost: "0.00" }]); });
   }
   const disabled = busy || !online;
   if (!allowed) return <ViewPermissionDenied title="Compras y proveedores" description="Necesitas permiso para administrar inventario." />;
   return <ViewLayout className="space-y-6">
     <ViewHeader title="Compras y proveedores" meta="Pide mercancía, recibe lo que llegó y conserva el costo de cada compra." actions={<div className="flex flex-wrap gap-2">
-      <Button type="button" aria-expanded={activeSetup === "purchase"} aria-controls={purchasePanelId} onClick={() => setActiveSetup(current => current === "purchase" ? null : "purchase")}>Preparar compra</Button>
-      <Button type="button" variant="outline" aria-expanded={activeSetup === "supplier"} aria-controls={supplierPanelId} onClick={() => setActiveSetup(current => current === "supplier" ? null : "supplier")}>Nuevo proveedor</Button>
+      <Button type="button" disabled={!canCreate} aria-expanded={activeSetup === "purchase"} aria-controls={purchasePanelId} onClick={() => setActiveSetup(current => current === "purchase" ? null : "purchase")}>Preparar compra</Button>
+      <Button type="button" variant="outline" disabled={!canCreate} aria-expanded={activeSetup === "supplier"} aria-controls={supplierPanelId} onClick={() => setActiveSetup(current => current === "supplier" ? null : "supplier")}>Nuevo proveedor</Button>
     </div>} />
+    {!canCreate && <PlanFeatureNotice /> }
     {!online && <p role="status" className="rounded-kova-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">Conéctate a internet para crear compras y recibir mercancía.</p>}
     {notice && <p role="status" className="rounded-kova-md bg-kova-growth/10 p-4 text-sm text-kova-growth-strong">{notice}</p>}
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-kova-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong"><span>{error}</span><Button variant="outline" size="sm" onClick={() => void load()}>Actualizar</Button></div>}
@@ -141,7 +149,7 @@ export default function PurchasingView() {
         <div className="flex gap-3"><Button disabled={disabled || !Object.values(quantities).some(value => value > 0)} type="submit">Confirmar recepción</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setReceiving(null)}>Cerrar</Button></div>
       </form>
     </CardContent></Card>}
-    {activeSetup === "supplier" && <Card id={supplierPanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Registrar proveedor" className="max-w-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>
+    {canCreate && activeSetup === "supplier" && <Card id={supplierPanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Registrar proveedor" className="max-w-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>
         <form onSubmit={submitSupplier} className="space-y-3">
           <Label htmlFor="supplier-name">Nombre</Label><Input id="supplier-name" required maxLength={160} value={supplierName} onChange={e => setSupplierName(e.target.value)} />
           <Label htmlFor="supplier-contact">Teléfono o correo (opcional)</Label><Input id="supplier-contact" maxLength={200} value={contact} onChange={e => setContact(e.target.value)} />
@@ -152,7 +160,7 @@ export default function PurchasingView() {
             : !error ? <p className="text-sm text-muted-foreground">Agrega tu primer proveedor para preparar una compra.</p> : null
         ) : <ul className="space-y-2 text-sm">{suppliers.map(s => <li key={s.id}><strong>{s.name}</strong>{s.contact && <p className="text-muted-foreground">{s.contact}</p>}</li>)}</ul>}
     </CardContent></Card>}
-    {activeSetup === "purchase" && <Card id={purchasePanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Preparar compra pendiente" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
+    {canCreate && activeSetup === "purchase" && <Card id={purchasePanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Preparar compra pendiente" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Preparar compra</h2>
         <form onSubmit={submitPurchase} className="space-y-4">
           <Label htmlFor="purchase-supplier">Proveedor</Label><Select id="purchase-supplier" required value={supplierId} onChange={e => setSupplierId(e.target.value)}><option value="">Selecciona un proveedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
           <Button type="button" variant="link" className="px-0" disabled={disabled} onClick={() => setActiveSetup("supplier")}>Registrar proveedor sin perder la compra</Button>

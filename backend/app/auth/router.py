@@ -272,6 +272,7 @@ def session_probe(
 
     me_response = service.get_me(db, user=user, membership=membership)
     from app.billing.access import get_billing_access_status
+    from app.billing.plans import build_plan_snapshot
 
     commercial = get_billing_access_status(db, tenant_id=membership.tenant_id)
     return SessionProbeResponse(
@@ -284,5 +285,6 @@ def session_probe(
             "allowed": commercial.allowed,
             "reason": commercial.reason,
             "valid_until": commercial.valid_until,
+            **build_plan_snapshot(db, tenant_id=membership.tenant_id),
         },
     )

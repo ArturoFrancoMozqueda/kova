@@ -1,3 +1,6 @@
+import { usePublicPlans, formatCommercialPrice, type PublicPlansState } from "@/billing/publicPlans";
+import { PLAN_FEATURE_LABELS } from "@/billing/entitlements";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCallback,
   useEffect,
@@ -15,7 +18,6 @@ import {
 } from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
-  STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
 import Logo from "@/components/brand/Logo";
@@ -205,9 +207,11 @@ function Navbar({
 function Hero({
   primaryTarget,
   onCtaClick,
+  offer,
 }: {
   primaryTarget: string;
   onCtaClick: (cta: string) => void;
+  offer: PublicPlansState;
 }) {
   return (
     <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
@@ -276,7 +280,7 @@ function Hero({
             </div>
 
             <p className="lp-hero-pricing">
-              <strong>{STANDARD_PLAN_PRICE_LABEL_ES}</strong>
+              <strong>{offer.status === "ready" ? `${offer.catalog.tiered_pricing_enabled ? "Desde " : ""}${formatCommercialPrice(offer.catalog.available_plans[0])}` : "Consulta nuestros planes"}</strong>
               <span aria-hidden="true">·</span>
               <span>{t.hero.trialBadge}</span>
             </p>
@@ -300,12 +304,20 @@ function Hero({
 function FAQ({
   onOpen,
   onWhatsAppClick,
+  offer,
 }: {
   onOpen: (faq: string) => void;
   onWhatsAppClick: (section: string) => void;
+  offer: PublicPlansState;
 }) {
   const [open, setOpen] = useState<number | null>(null);
-  const items = t.faq.items;
+  const items = t.faq.items.map((item) => {
+    if (offer.status === "ready" && !offer.catalog.tiered_pricing_enabled) return item;
+    if (item.q.startsWith("¿Qué incluye el plan") && offer.status !== "ready") return { q: "¿Qué incluyen los planes?", a: "Consulta los planes disponibles para confirmar sus funciones, precios y límites antes de contratar." };
+    if (item.q.startsWith("¿Qué incluye el plan")) return { q: "¿Qué incluyen los planes?", a: "Esencial reúne caja, inventario, resumen de ventas y catálogo público. Gestión añade compras, análisis avanzado, lealtad, pedidos y cotizaciones. Consulta los precios y límites en la sección de planes." };
+    if (item.q === "¿Qué pasa cuando termina la prueba?") return { ...item, a: "Elige un plan disponible para seguir usando las funciones operativas. La suscripción es mensual y Kova confirma la activación después del pago en Stripe." };
+    return item;
+  });
 
   return (
     <section id="faq" className="lp-section">
@@ -418,10 +430,32 @@ const tktLine = (i: number): CSSProperties => ({ ["--tkt-i" as string]: String(i
 function Pricing({
   primaryTarget,
   onCtaClick,
+  offer,
+  onRetry,
 }: {
   primaryTarget: string;
   onCtaClick: (cta: string) => void;
+  offer: PublicPlansState;
+  onRetry: () => void;
 }) {
+  if (offer.status !== "ready") return <section id="precio" className="lp-section"><div className="lp-section-inner">
+    <h2 className="lp-section-title">Planes para tu negocio</h2>
+    {offer.status === "loading" ? <div role="status" aria-label="Consultando planes"><Skeleton className="mx-auto mt-6 h-64 max-w-xl" /></div>
+      : <div role="alert" className="mt-6 text-center"><p>No pudimos consultar los precios actuales.</p><button className="lp-cta-fill mt-4 min-h-11 px-5" onClick={onRetry}>Consultar planes de nuevo</button></div>}
+  </div></section>;
+  if (offer.catalog.tiered_pricing_enabled) return <section id="precio" className="lp-section lp-reveal-block"><div className="lp-section-inner">
+    <h2 className="lp-section-title text-center">Elige cómo operar tu negocio</h2>
+    <p className="lp-section-copy mx-auto mt-4 max-w-2xl text-center">Prueba las funciones de Gestión sin tarjeta. Al terminar, elige el plan que necesitas. Los acuerdos de clientes actuales se conservan.</p>
+    <div className="mx-auto mt-8 grid max-w-4xl gap-6 md:grid-cols-2">{offer.catalog.available_plans.map((plan) => <TicketPaper key={plan.code} className="flex h-full flex-col [&>.lp-tkt-body]:flex [&>.lp-tkt-body]:flex-1 [&>.lp-tkt-body]:flex-col">
+      <h3 className="text-xl font-semibold">{plan.name}</h3><p className="mt-3 text-3xl font-semibold tracking-tight">{formatCommercialPrice(plan)}</p>
+      {plan.tax_inclusive && <p className="mt-2 text-sm">IVA incluido</p>}
+      <ul className="my-6 space-y-3 text-sm">{plan.features.map((feature) => PLAN_FEATURE_LABELS[feature] ? <li key={feature}>✓ {PLAN_FEATURE_LABELS[feature]}</li> : null)}</ul>
+      {plan.limits.branches != null && <p className="mb-3 text-sm">Incluye {plan.limits.branches} sucursal{plan.limits.branches === 1 ? "" : "es"}.</p>}
+      {plan.limits.product_image_bytes !== null && <p className="mb-5 text-sm">Fotos de productos: {plan.limits.product_image_bytes >= 1_073_741_824 ? `${plan.limits.product_image_bytes / 1_073_741_824} GiB` : `${plan.limits.product_image_bytes / 1_000_000} MB`} de archivos originales.</p>}
+      <p className="mb-5 text-sm">Ventas offline en dispositivos preparados. Sin comisiones por venta de Kova.</p>
+      <Link className="lp-cta-fill mt-auto inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-3" style={{ background: "var(--cta-blue, var(--kova-blue))", color: "#fff" }} to={primaryTarget} onClick={() => onCtaClick("pricing")}>Probar Kova</Link>
+    </TicketPaper>)}</div>
+  </div></section>;
   const feats = t.pricing.features;
   return (
     <section id="precio" className="lp-section lp-reveal-block">
@@ -597,6 +631,7 @@ export default function Home(): ReactNode {
     document.title = "Kova | Punto de venta e inventario para negocios en México";
   }, []);
   const { state } = useAuth();
+  const offer = usePublicPlans();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
   const theme: Theme = "dark";
@@ -718,6 +753,7 @@ export default function Home(): ReactNode {
         <Hero
           primaryTarget={primaryTarget}
           onCtaClick={onCtaClick}
+          offer={offer}
         />
         <ProblemSection />
         <SaleFlowStory
@@ -731,8 +767,8 @@ export default function Home(): ReactNode {
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("testimonials")}
         />
-        <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
-        <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} />
+        <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} offer={offer} onRetry={offer.retry} />
+        <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} offer={offer} />
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer onLoginClick={onLoginClick} onWhatsAppClick={onWhatsAppClick} />

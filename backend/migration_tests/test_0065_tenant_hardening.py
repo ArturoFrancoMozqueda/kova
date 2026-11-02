@@ -94,6 +94,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
         table: {"SELECT", "INSERT", "UPDATE"}
         for table in (
             "account_deletion_requests",
+            # Durable Checkout reservations are runtime-owned, tenant-scoped state;
+            # deletion remains exclusive to the privileged account-purge workflow.
+            "billing_checkout_attempts",
             "categories",
             "customer_orders",
             "idempotency_keys",
@@ -270,6 +273,7 @@ _SEMANTIC_INSERT_ORDER = (
     "suppliers",
     "fiscal_issuer_profiles",
     "account_deletion_requests",
+    "billing_checkout_attempts",
     "audit_logs",
     "categories",
     "expenses",
@@ -373,6 +377,19 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if table.name == "billing_checkout_attempts":
+        checkout_values = {
+            "billing_cohort": "standard",
+            "status": "uncertain",
+            "credential_fingerprint": "f" * 64,
+            "request_payload": {
+                "tenant_id": str(tenant), "price_id": "price_semantic_standard",
+                "success_url": "https://example.com/billing/success",
+                "cancel_url": "https://example.com/billing/cancel",
+            },
+        }
+        if name in checkout_values:
+            return checkout_values[name]
     if table.name in {"service_cases", "service_case_events"}:
         if name == "status":
             return "open"

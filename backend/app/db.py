@@ -57,6 +57,7 @@ TENANT_SCOPED_TABLES = (
     "settlement_entries",
     "account_deletion_requests",
     "audit_logs",
+    "billing_checkout_attempts",
     "assistant_records",
     "assistant_chunks",
     "branches",

@@ -21,6 +21,7 @@ type PublicCatalog = {
   products: MenuProduct[];
   checkout_available: boolean;
   loyalty_available?: boolean;
+  requests_available?: boolean;
 };
 class MenuReadError extends Error {}
 
@@ -61,6 +62,7 @@ export default function StorefrontView() {
 }
 
 function CatalogContent({ data, token }: { data: PublicCatalog; token: string }) {
+  const requestsAvailable = data.requests_available !== false;
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
@@ -86,6 +88,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
     }
   }, [reviewOpen]);
   const openReview = (mode?: "order" | "question") => {
+    if (!requestsAvailable) return;
     menuScroll.current = window.scrollY;
     returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (mode && !busy && !received) setRequestMode(mode);
@@ -100,7 +103,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
   const whatsapp = data.whatsapp_phone && /^[1-9][0-9]{9,14}$/.test(data.whatsapp_phone)
     ? `https://wa.me/${data.whatsapp_phone}?text=${encodeURIComponent(`Hola, estoy viendo el menú de ${data.title}. ¿Me ayudan con una consulta?`)}` : null;
   const changeQuantity = (id: string, quantity: number) => {
-    if (busy || received || !Number.isInteger(quantity) || quantity < 0 || quantity > MAX_MENU_QUANTITY) return;
+    if (!requestsAvailable || busy || received || !Number.isInteger(quantity) || quantity < 0 || quantity > MAX_MENU_QUANTITY) return;
     const product = data.products.find(row => row.id === id);
     if (!product || product.availability !== "available") return;
     setQuantities(current => {
@@ -119,12 +122,12 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
     <div className="border-b border-kova-border bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-8 lg:py-4">
         <span className="flex items-center gap-2 text-xs font-medium lg:text-sm"><UtensilsCrossed className="h-4 w-4 text-kova-blue" aria-hidden="true" />Menú digital</span>
-        <Button type="button" variant="ghost" className="px-2 lg:hidden" onClick={() => reviewOpen ? setReviewOpen(false) : openReview()}>
+        {requestsAvailable && <Button type="button" variant="ghost" className="px-2 lg:hidden" onClick={() => reviewOpen ? setReviewOpen(false) : openReview()}>
           {reviewOpen ? <><ArrowLeft aria-hidden="true" />Volver al menú</> : <><ShoppingBag aria-hidden="true" />Mi pedido{count > 0 && <span className="rounded-full bg-kova-ink px-2 py-0.5 text-xs text-white">{count}</span>}</>}
-        </Button>
-        <a href="#mi-pedido" className="hidden min-h-11 items-center gap-2 rounded-full border border-kova-border px-4 text-sm font-medium lg:inline-flex">
+        </Button>}
+        {requestsAvailable && <a href="#mi-pedido" className="hidden min-h-11 items-center gap-2 rounded-full border border-kova-border px-4 text-sm font-medium lg:inline-flex">
           <ShoppingBag className="h-4 w-4" aria-hidden="true" />Mi pedido{count > 0 && <span className="rounded-full bg-kova-ink px-2 py-0.5 text-xs text-white">{count}</span>}
-        </a>
+        </a>}
       </div>
     </div>
     <header className={`${reviewOpen ? "hidden lg:block " : ""}border-b border-kova-border bg-white`}>
@@ -133,7 +136,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
           <p className="mb-4 hidden text-xs font-semibold uppercase tracking-[0.18em] text-kova-muted lg:block">Elige a tu gusto</p>
           <h1 className="break-words text-2xl font-semibold tracking-tight lg:text-5xl">{data.title}</h1>
           {data.description && <p className="mt-2 max-w-xl break-words text-sm leading-relaxed text-kova-muted lg:mt-4 lg:text-base">{data.description}</p>}
-          <p className="mt-5 hidden max-w-xl text-sm leading-relaxed lg:block">Estés aquí o a distancia, arma tu pedido y envíalo al negocio para que lo revise y confirme contigo.</p>
+          <p className="mt-5 hidden max-w-xl text-sm leading-relaxed lg:block">{requestsAvailable ? "Estés aquí o a distancia, arma tu pedido y envíalo al negocio para que lo revise y confirme contigo." : "Consulta nuestros productos y precios. Para pedir o hacer una consulta, acércate al equipo del negocio."}</p>
           <div className="mt-5 hidden flex-wrap gap-x-5 gap-y-2 text-xs text-kova-muted lg:flex">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Precios en MXN</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Sin crear una cuenta</span>
@@ -148,7 +151,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
       </div>
     </header>
     <div className={`mx-auto max-w-6xl px-4 py-4 sm:px-8 lg:py-10 ${count > 0 && !reviewOpen ? "pb-28 lg:pb-10" : ""}`}>
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
+      <div className={`grid items-start gap-8 ${requestsAvailable ? "lg:grid-cols-[minmax(0,1fr)_360px]" : ""} xl:gap-10`}>
         <section id="menu" tabIndex={-1} aria-labelledby="menu-title" className={`${reviewOpen ? "hidden lg:block " : ""}min-w-0 scroll-mt-6`}>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 lg:mb-5"><h2 id="menu-title" className="text-lg font-semibold tracking-tight lg:text-2xl">Nuestro menú</h2>
             <span id="menu-results" role="status" aria-atomic="true" className="text-xs text-kova-muted lg:text-sm">{query.trim() || onlyAvailable ? `${products.length} de ${data.products.length}` : data.products.length} {data.products.length === 1 ? "producto" : "productos"} · <span className="lg:hidden">MXN</span><span className="hidden lg:inline">precios en MXN</span></span></div>
@@ -184,22 +187,22 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
             <Button type="button" variant="outline" className="mt-4" onClick={() => { setQuery(""); setOnlyAvailable(false); }}>Limpiar búsqueda y filtros</Button>
           </div> : <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 lg:grid-cols-1">
             {products.map(product => <MenuProductCard key={product.id} product={product} quantity={quantities[product.id] ?? 0} priority={product.id === priorityPhotoId}
-              disabled={busy || received} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
+              disabled={busy || received || !requestsAvailable} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
               onQuantityChange={value => changeQuantity(product.id, value)} onDetails={() => setDetailId(product.id)} />)}
           </div>}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 lg:hidden">
-            <Button type="button" variant="link" className="px-0" disabled={busy || received} onClick={() => openReview("question")}>Hacer una consulta</Button>
+            <Button type="button" variant="link" className="px-0" disabled={busy || received || !requestsAvailable} onClick={() => openReview("question")}>Hacer una consulta</Button>
             {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm text-kova-muted underline">WhatsApp<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a>}
           </div>
         </section>
-        <aside ref={review} tabIndex={-1} aria-label="Revisar pedido" className={`${reviewOpen ? "" : "hidden lg:block "}min-w-0 focus:outline-none`}>
+        {requestsAvailable && <aside ref={review} tabIndex={-1} aria-label="Revisar pedido" className={`${reviewOpen ? "" : "hidden lg:block "}min-w-0 focus:outline-none`}>
           <StorefrontRequest token={token} lines={lines} onQuantityChange={changeQuantity} mode={requestMode} setMode={setRequestMode}
             busy={busy} setBusy={setBusy} received={received} onReceived={() => setReceived(true)} onBrowse={() => setReviewOpen(false)} />
-        </aside>
+        </aside>}
       </div>
       <footer className="mt-5 border-t border-kova-border py-4 text-xs leading-relaxed text-kova-muted lg:mt-10 lg:py-6">
         <p>Menú compartido con <span className="font-semibold text-kova-ink">Kova</span></p>
-        <p className="mt-2">El negocio revisa y confirma tu pedido. Acuerda el pago y la entrega con el equipo.</p>
+        <p className="mt-2">{requestsAvailable ? "El negocio revisa y confirma tu pedido. Acuerda el pago y la entrega con el equipo." : "Confirma disponibilidad, pago y entrega directamente con el equipo del negocio."}</p>
       </footer>
     </div>
     {count > 0 && <div className={`${reviewOpen ? "hidden " : ""}fixed inset-x-0 bottom-0 z-20 border-t border-kova-border bg-white px-4 pt-3 lg:hidden`} style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
@@ -210,7 +213,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
       <p role="status" className="sr-only">{count} {count === 1 ? "artículo" : "artículos"} en tu pedido. Subtotal estimado: {menuMoney(subtotal)} MXN.</p>
     </div>}
     <MenuProductDetails product={detailProduct} quantity={detailId ? quantities[detailId] ?? 0 : 0}
-      disabled={busy || received} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
+      disabled={busy || received || !requestsAvailable} cannotAdd={lines.length >= MAX_MENU_PRODUCTS}
       onQuantityChange={value => { if (detailId) changeQuantity(detailId, value); }} onClose={() => setDetailId(null)} />
   </>;
 }

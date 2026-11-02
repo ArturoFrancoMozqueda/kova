@@ -45,6 +45,10 @@ export type CommercialAccess = {
   allowed: boolean;
   reason: string;
   valid_until: string | null;
+  plan_code?: import("@/billing/entitlements").PlanCode | "unknown";
+  plan_name?: string;
+  features?: string[];
+  limits?: { product_image_bytes: number | null; branches?: number | null };
 };
 
 export type SessionProbeResponse =

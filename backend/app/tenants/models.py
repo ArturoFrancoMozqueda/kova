@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,10 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Assigned by the server at signup. Existing businesses retain their agreement.
+    billing_cohort: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -30,4 +34,9 @@ class Tenant(Base):
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
-    __table_args__ = (UniqueConstraint("slug", name="uq_tenants_slug"),)
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_tenants_slug"),
+        CheckConstraint(
+            "billing_cohort IN ('standard','tiered')", name="ck_tenants_billing_cohort",
+        ),
+    )

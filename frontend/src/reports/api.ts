@@ -36,8 +36,8 @@ let reportIdentity: string | null = null;
 let reportEpoch = 0;
 
 /** AuthContext owns this identity; never infer a tenant from persisted storage. */
-export function setReportsCacheIdentity(identity: { tenantId: string; userId: string; role?: string; branchId?: string } | null): void {
-  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role, identity.branchId ?? getActiveBranchId(identity.tenantId, identity.userId)]) : null;
+export function setReportsCacheIdentity(identity: { tenantId: string; userId: string; role?: string; branchId?: string; commercialPlan?: string } | null): void {
+  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role, identity.branchId ?? getActiveBranchId(identity.tenantId, identity.userId), identity.commercialPlan]) : null;
   if (next === reportIdentity) return;
   reportIdentity = next;
   invalidateReportsCache();

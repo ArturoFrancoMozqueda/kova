@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { BasicSalesReportView } from "@/reports/BasicSalesReportView";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
@@ -473,6 +475,12 @@ function DashboardExecutiveSummary({
 }
 
 export default function DashboardView() {
+  const { state } = useAuth();
+  return hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "advanced_reports")
+    ? <AdvancedDashboardView /> : <BasicSalesReportView dashboard />;
+}
+
+function AdvancedDashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
   const navigation = useOutletContext<WorkspaceNavigationContext | undefined>();
@@ -506,6 +514,7 @@ export default function DashboardView() {
         const control = overview.control_center ?? null;
         if (control) setScopeChoices({ identity, branches: control.branches, canViewAll: control.scope.can_view_all, effective: control.scope.branch_id ?? "all" });
         const story = overview.story;
+        if (!story) throw new Error("El análisis no está disponible para este plan.");
         const subscriptionStatus = overview.billing?.subscription?.status;
         setLoadState({
           status: "ready", identity, story, scope: selectedScope, control,

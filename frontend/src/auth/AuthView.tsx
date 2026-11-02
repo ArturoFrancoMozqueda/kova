@@ -1,3 +1,5 @@
+import { usePublicPlans, formatCommercialPrice } from "@/billing/publicPlans";
+import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
@@ -118,6 +120,12 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 }
 
 function AuthForm({ mode }: { mode: AuthMode }) {
+  const offer = usePublicPlans(mode === "signup");
+  const signupSubtitle = offer.status === "ready"
+    ? offer.catalog.tiered_pricing_enabled
+      ? `Prueba Gestión ${BILLING_TRIAL_LABEL} sin tarjeta. Después elige ${offer.catalog.available_plans.map((plan) => `${plan.name} por ${formatCommercialPrice(plan)}`).join(" o ")}, IVA incluido.`
+      : copy.auth.signupSubtitle
+    : `Prueba Kova ${BILLING_TRIAL_LABEL} sin tarjeta. Consulta los planes disponibles antes de contratar.`;
   useDocumentTitle(mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -340,7 +348,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   return (
     <AuthLayout
       title={mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
-      subtitle={mode === "login" ? copy.auth.loginSubtitle : copy.auth.signupSubtitle}
+      subtitle={mode === "login" ? copy.auth.loginSubtitle : signupSubtitle}
     >
       <form
         onSubmit={(event) => void submit(event)}

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 BILLING_PERIOD_FRESHNESS_MAX_AGE = timedelta(hours=24)
 PeriodFreshness = Literal["verified", "stale", "unavailable"]
+PlanCode = Literal["standard", "esencial", "gestion", "unknown"]
 
 
 def _utc(value: datetime) -> datetime:
@@ -19,6 +20,23 @@ class StandardPlanResponse(BaseModel):
     interval: str
 
 
+class PlanLimitsResponse(BaseModel):
+    product_image_bytes: int | None = None
+    branches: int | None = None
+
+
+class CommercialPlanResponse(StandardPlanResponse):
+    code: Literal["standard", "esencial", "gestion"]
+    tax_inclusive: bool | None
+    features: list[str]
+    limits: PlanLimitsResponse
+
+
+class PublicPlansResponse(BaseModel):
+    tiered_pricing_enabled: bool
+    available_plans: list[CommercialPlanResponse]
+
+
 class SubscriptionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,6 +44,7 @@ class SubscriptionResponse(BaseModel):
     tenant_id: UUID
     status: str
     plan_name: str
+    plan_code: PlanCode = "standard"
     currency: str
     amount_minor_units: int
     current_period_start: datetime | None
@@ -65,17 +84,34 @@ class BillingAccessResponse(BaseModel):
     recovery_path: str
     valid_until: datetime | None = None
     grace_period_ends_at: datetime | None = None
+    plan_code: PlanCode = "standard"
+    plan_name: str = "Standard Plan"
+    features: list[str] = Field(default_factory=list)
+    limits: PlanLimitsResponse = Field(default_factory=PlanLimitsResponse)
 
 
 class BillingSubscriptionResponse(BaseModel):
     plan: StandardPlanResponse
     subscription: SubscriptionResponse | None
     access: BillingAccessResponse
+    available_plans: list[CommercialPlanResponse] = Field(default_factory=list)
+    tiered_pricing_enabled: bool = False
+    portal_available: bool = False
+
+
+class CheckoutSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    plan_code: Literal["standard", "esencial", "gestion"] | None = None
 
 
 class CheckoutSessionResponse(BaseModel):
     checkout_url: str
     checkout_session_id: str
+
+
+class PortalSessionResponse(BaseModel):
+    portal_url: str
 
 
 class ReconcileCheckoutRequest(BaseModel):

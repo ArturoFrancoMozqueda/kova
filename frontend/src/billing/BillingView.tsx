@@ -5,8 +5,10 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { useOptionalAuth } from "../auth/useAuth";
 import { copy } from "../i18n/messages";
-import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
+import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, startBillingPortal, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
+import { PLAN_FEATURE_LABELS, type PlanCode } from "./entitlements";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +18,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { SUPPORT_MAILTO } from "@/lib/support";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 import {
   trackCheckoutStateViewed,
@@ -77,7 +80,7 @@ type LoadState =
   | { status: "error" }
   | { status: "loaded"; billing: BillingSubscription };
 
-type ActionState = "idle" | "checkout" | "cancel" | "error";
+type ActionState = "idle" | "checkout" | "portal" | "cancel" | "error";
 type CheckoutConfirmationState = "idle" | "confirming" | "confirmed" | "delayed";
 
 const statusLabels: Record<string, string> = {
@@ -189,6 +192,23 @@ export default function BillingView() {
   const [checkoutConfirmationState, setCheckoutConfirmationState] =
     useState<CheckoutConfirmationState>(checkoutReturnState === "success" ? "confirming" : "idle");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [selectedPlanCode, setSelectedPlanCode] = useState<PlanCode | null>(null);
+  const availablePlans = loadState.status === "loaded" ? loadState.billing.available_plans : undefined;
+  const tieredPlans = loadState.status === "loaded" && loadState.billing.tiered_pricing_enabled
+    ? availablePlans?.filter((plan) => plan.code !== "standard") ?? [] : [];
+  const selectedPlan = tieredPlans.find((plan) => plan.code === selectedPlanCode);
+  const requiresPlanSelection = tieredPlans.length > 0;
+  const checkoutUnavailable = availablePlans !== undefined && availablePlans.length === 0;
+  const commercialAccess = loadState.status === "loaded" && loadState.billing.access.plan_code
+    ? loadState.billing.access : auth?.state.status === "authenticated" ? auth.state.commercialAccess : undefined;
+  const tieredAccount = availablePlans?.some((plan) => plan.code !== "standard")
+    || Boolean(commercialAccess?.plan_code && commercialAccess.plan_code !== "standard");
+  const includedFeatures = selectedPlan?.features ?? commercialAccess?.features;
+  const valueItems = includedFeatures ? includedFeatures.map((feature) => PLAN_FEATURE_LABELS[feature]).filter(Boolean) : copy.billingView.valueItems;
+  const trialBody = tieredAccount
+    ? "Tu prueba incluye las funciones de Gestión. Elige un plan para continuar cuando termine; no se cobra automáticamente sin una suscripción."
+    : copy.billingView.noSubscriptionBanner;
+  const expiredTrialBody = tieredAccount ? "La prueba terminó. Elige un plan disponible para recuperar tu operación." : copy.billingView.expiredTrialBanner;
   // Ref (not state) so marking the reconcile as started never re-triggers the
   // effect below and cancels its own in-flight retry loop.
   const reconcileStartedRef = useRef(false);
@@ -254,7 +274,19 @@ export default function BillingView() {
     return () => { cancelled = true; };
   }, [shouldReconcile, location.search, refreshAuth]);
 
+  const openBillingPortal = async () => {
+    if (!canManageBilling || !emailVerified || loadState.status !== "loaded" || !loadState.billing.portal_available || actionState === "portal") return;
+    setActionState("portal");
+    try {
+      const { portal_url } = await startBillingPortal();
+      const destination = new URL(portal_url);
+      if (destination.protocol !== "https:" || destination.hostname !== "billing.stripe.com") throw new Error("Portal unavailable");
+      window.location.assign(destination.href);
+    } catch { setActionState("error"); toast(copy.billingView.operationError, "error"); }
+  };
+
   const beginCheckout = async () => {
+    if (checkoutUnavailable || (requiresPlanSelection && !selectedPlan)) return;
     if (loadState.status === "loaded" && hasCheckoutBlockingSubscription(loadState.billing)) {
       toast(copy.billingView.checkoutAlreadyActive, "info");
       return;
@@ -266,9 +298,14 @@ export default function BillingView() {
     setActionState("checkout");
     void trackFunnelEvent("checkout_started");
     try {
-      const session = await startCheckout();
+      const session = await startCheckout(selectedPlan?.code);
       window.location.assign(session.checkout_url);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setActionState("idle");
+        toast(resolveUserFacingError(error, copy.billingView.operationError), "warning");
+        return;
+      }
       if (error instanceof ApiError && error.status === 400) {
         invalidateBillingSubscription();
         const billing = await load();
@@ -419,7 +456,7 @@ export default function BillingView() {
               tone="info"
               icon={<Clock />}
               title={copy.billingView.trialAccess}
-              body={copy.billingView.noSubscriptionBanner}
+              body={trialBody}
             />
           )}
 
@@ -430,7 +467,7 @@ export default function BillingView() {
               title={copy.billingBanner.blockedTitle}
               body={
                 loadState.billing.access.reason === "trial_expired"
-                  ? copy.billingBanner.blockedTrialExpired
+                  ? tieredAccount ? "Tu prueba terminó. Elige un plan para seguir vendiendo." : copy.billingBanner.blockedTrialExpired
                   : loadState.billing.access.reason === "verification_required"
                     ? copy.billingView.verificationRequiredBody : copy.billingBanner.blockedGeneric
               }
@@ -456,8 +493,8 @@ export default function BillingView() {
               icon={<AlertCircle />}
               body={
                 loadState.billing.access.reason === "trial_expired"
-                  ? copy.billingView.expiredTrialBanner
-                  : copy.billingView.noSubscriptionBanner
+                  ? expiredTrialBody
+                  : trialBody
               }
               bodyClassName="text-foreground"
             />
@@ -467,9 +504,9 @@ export default function BillingView() {
             <CardContent className="grid gap-6 p-6 md:grid-cols-[minmax(0,1.5fr)_minmax(180px,.75fr)_minmax(180px,.75fr)] md:divide-x md:divide-kova-border">
             <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
-                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-kova-ink">{loadState.billing.plan.name}</h2>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-kova-ink">{commercialAccess?.plan_code === "unknown" ? copy.billingView.verificationPending : loadState.billing.plan.name}</h2>
                   <p className="mt-1 text-3xl font-bold tracking-tight text-kova-ink tabular-nums">
-                    {formatPlanPrice(loadState.billing.plan)}
+                    {commercialAccess?.plan_code === "unknown" ? "Estamos verificando el plan de este negocio." : formatPlanPrice(loadState.billing.plan)}
                   </p>
             </div>
 
@@ -556,10 +593,35 @@ export default function BillingView() {
           {/* Actions */}
           <Card>
             <CardContent className="space-y-5 p-5">
+              {requiresPlanSelection && !hasCheckoutBlockingSubscription(loadState.billing) && (
+                <section className="space-y-4" aria-label="Elegir plan">
+                  <h2 className="text-lg font-semibold">Elige el plan para tu negocio</h2>
+                  <SegmentedControl
+                    ariaLabel="Plan a contratar"
+                    className="max-w-full [&>div]:flex-wrap [&_button]:h-auto [&_button]:min-h-11 [&_button]:whitespace-normal"
+                    options={tieredPlans.map((plan) => ({ value: plan.code, label: `${plan.name} · ${formatPlanPrice(plan)}` }))}
+                    value={selectedPlan?.code ?? null}
+                    onValueChange={setSelectedPlanCode}
+                  />
+                  {selectedPlan ? <div className="space-y-2 rounded-kova-md border p-4">
+                    <p className="font-semibold">{selectedPlan.name} · {formatPlanPrice(selectedPlan)}</p>
+                    {selectedPlan.tax_inclusive && <p className="text-sm text-muted-foreground">IVA incluido en la mensualidad.</p>}
+                    <p className="text-sm">{selectedPlan.features.includes("advanced_reports")
+                      ? "Caja e inventario, más compras, análisis del negocio, lealtad y seguimiento comercial."
+                      : "Caja, inventario, turnos, cortes, recibos y resumen de ventas para la operación diaria."}</p>
+                    {selectedPlan.limits.branches != null && <p className="text-sm text-muted-foreground">Incluye {selectedPlan.limits.branches} sucursal{selectedPlan.limits.branches === 1 ? "" : "es"}.</p>}
+                    {selectedPlan.limits.product_image_bytes !== null && <p className="text-sm text-muted-foreground">Fotos de productos: hasta {selectedPlan.limits.product_image_bytes >= 1_073_741_824 ? `${selectedPlan.limits.product_image_bytes / 1_073_741_824} GiB` : `${selectedPlan.limits.product_image_bytes / 1_000_000} MB`} de archivos originales.</p>}
+                    <p className="text-sm text-muted-foreground">Las condiciones y la confirmación del cobro se muestran en Stripe antes de pagar.</p>
+                  </div> : <p className="text-sm text-muted-foreground">Selecciona un plan antes de continuar al pago.</p>}
+                </section>
+              )}
+              {checkoutUnavailable && !hasCheckoutBlockingSubscription(loadState.billing) && <p role="status" className="text-sm text-muted-foreground">
+                La contratación de tu plan todavía no está disponible. Conservamos el estado actual de tu cuenta.
+              </p>}
               <div>
                 <p className="text-sm font-semibold">{copy.billingView.valueTitle}</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {copy.billingView.valueItems.map((item) => (
+                  {valueItems.map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
                       <span>{item}</span>
@@ -570,6 +632,9 @@ export default function BillingView() {
               {canManageBilling ? (
                 <>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  {loadState.billing.portal_available && <Button variant="outline" disabled={actionState === "portal" || !emailVerified} onClick={() => void openBillingPortal()}>
+                    <ExternalLink className="h-4 w-4" />{actionState === "portal" ? "Abriendo suscripción…" : "Administrar suscripción"}
+                  </Button>}
                   {needsPaymentRecovery(loadState.billing) ? (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">{loadState.billing.access.reason === "verification_required"
@@ -585,12 +650,12 @@ export default function BillingView() {
                         // Mirrors the server-side gate in `app.billing.router`:
                         // we do not take money from an address nobody confirmed.
                         // Disabling here turns a 403 into an explainable state.
-                        disabled={actionState === "checkout" || !emailVerified}
+                        disabled={actionState === "checkout" || !emailVerified || commercialAccess?.plan_code === "unknown" || checkoutUnavailable || (requiresPlanSelection && !selectedPlan)}
                       >
                         {actionState === "checkout" ? (
                           <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
                         ) : (
-                          <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout(formatPlanPrice(loadState.billing.plan))}</>
+                          <><ExternalLink className="h-4 w-4" />{commercialAccess?.plan_code === "unknown" ? "Verificar suscripción" : requiresPlanSelection && !selectedPlan ? "Elige un plan para continuar" : copy.billingView.startCheckout(formatPlanPrice(selectedPlan ?? loadState.billing.plan))}</>
                         )}
                       </Button>
                       {!emailVerified && (

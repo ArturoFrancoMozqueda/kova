@@ -218,10 +218,12 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
         if ids
         else {}
     )
+    from app.billing.plans import plan_has_feature
     from app.loyalty.enrollment import available as enrollment_available
 
     return PublicCatalogResponse(
         loyalty_available=enrollment_available(db, row),
+        requests_available=plan_has_feature(db, tenant_id=tenant_id, feature="customer_orders"),
         title=row.title,
         description=row.description,
         whatsapp_phone=row.whatsapp_phone,

@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import {
@@ -48,14 +51,15 @@ type Action = "mark-sent" | "accept" | "cancel";
 
 export default function QuotesView() {
   useDocumentTitle("Cotizaciones");
+  const { state } = useAuth();
   return (
     <OperationsSession>
-      {(identity) => <QuotesWorkspace identity={identity} />}
+      {(identity) => <QuotesWorkspace identity={identity} canCreate={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "quotes")} />}
     </OperationsSession>
   );
 }
 
-function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+function QuotesWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; canCreate: boolean }) {
   const request = useOperationsRequest("/api/v1", identity);
   const online = useOnline();
   const location = useLocation();
@@ -261,6 +265,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   const create = (event: FormEvent) => {
     event.preventDefault();
+    if (!canCreate) return;
     if (!items.length || !customerId || !expiresAt) return;
     const expiration = new Date(expiresAt);
     if (
@@ -324,7 +329,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         meta="Acuerda productos, cantidades y vigencia antes de comprometer la operación."
         actions={
           <Button
-            disabled={busy || !online || !page || linked.requested}
+            disabled={busy || !online || !page || linked.requested || !canCreate}
             onClick={toggleCreate}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -337,6 +342,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         comparte la propuesta y registra la aceptación del cliente. Aceptarla
         crea un pedido nuevo; no cobra ni reserva inventario automáticamente.
       </p>
+      {!canCreate && <PlanFeatureNotice /> }
       {!online && (
         <p role="status" className="rounded-xl border p-4 text-sm">
           Conéctate para crear o actualizar cotizaciones.
@@ -366,7 +372,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </p>
       )}
       {loading && !page && <SectionSkeleton label="Cargando cotizaciones…" />}
-      {createOpen && !linked.requested && (
+      {canCreate && createOpen && !linked.requested && (
         <form
           onSubmit={create}
           aria-label="Nueva cotización"

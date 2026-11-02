@@ -9,9 +9,12 @@ aquí: sus gates viven en [`current-sprint.md`](current-sprint.md).
 
 ## Plan y cobro
 
-Un solo Plan Standard ([ADR-003](adr/ADR-003-single-standard-plan.md)). No se construyen:
+Producción conserva un solo Plan Standard ([ADR-003](adr/ADR-003-single-standard-plan.md)). El diseño
+de Esencial/Gestión está aprobado en [ADR-019](adr/ADR-019-commercial-plan-design.md) y su base con
+activación apagada se implementa bajo [ADR-020](adr/ADR-020-commercial-plan-foundation.md). Esto no
+publica precios ni migra suscripciones. Siguen fuera:
 
-- Niveles (Basic/Pro/Premium) ni gates de funciones por plan.
+- Más niveles o personalizaciones de planes distintos de Esencial/Gestión y Standard anterior.
 - Precio por usuario o por sucursal, planes anuales, add-ons ni cobro por uso.
 - Multimoneda.
 

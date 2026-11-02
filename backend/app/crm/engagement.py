@@ -50,6 +50,9 @@ def _finish(db, tenant_id, user_id, key, fingerprint, row, result, action, statu
 
 
 def capture_request(db, catalog, body):
+    from app.billing.plan_policy import require_plan_feature
+
+    require_plan_feature(db, tenant_id=catalog.tenant_id, feature="customer_orders")
     # Serialize against withdrawal/rotation and public retries without a global identity key.
     from app.catalog.models import Product
     from app.storefront.models import PublicCatalog, PublicCatalogItem
@@ -157,6 +160,9 @@ def resolve_request(db, tenant_id, user_id, request_id, body, key):
     if row.version != body.expected_version or row.status != "new":
         raise conflict("La solicitud cambió. Actualiza antes de continuar")
     if body.status == "converted":
+        from app.billing.plan_policy import require_plan_feature
+
+        require_plan_feature(db, tenant_id=tenant_id, feature="customer_orders")
         customer = _customer(db, tenant_id, body.customer_id)
         if not customer.is_active:
             raise bad_request("Reactiva al cliente antes de convertir la solicitud")
@@ -361,6 +367,10 @@ def update_task(db, tenant_id, user_id, task_id, body, key):
 
 
 def process_due_followups(db, tenant_id, *, limit=100):
+    from app.billing.plans import plan_has_feature
+
+    if not plan_has_feature(db, tenant_id=tenant_id, feature="customer_orders"):
+        return 0
     """Called within an authorized tenant+branch; caller owns commit. Bounded, no network."""
     policy = _policy(db, tenant_id, lock=True)
     if not policy or not policy.enabled or not policy.enabled_since:

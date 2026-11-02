@@ -49,6 +49,15 @@ proveedores externos no se presentan como activos salvo que `current-sprint.md` 
 confirmen. Registrar que algo se compartió no lo envía; cerrar una atención no devuelve dinero ni
 contacta al cliente.
 
+## Dirección comercial aprobada, sin publicar
+
+El dueño aprobó avanzar con el diseño de Esencial a $399 y Gestión a $699 MXN/mes, conservando
+los acuerdos actuales y midiendo atención y consumo antes de cerrar la rentabilidad. El alcance y
+las condiciones están en [ADR-019](../adr/ADR-019-commercial-plan-design.md). Después autorizó su
+implementación con activación apagada ([ADR-020](../adr/ADR-020-commercial-plan-foundation.md)).
+No cambia el Standard vigente de $299 ni autoriza publicar precios, migrar clientes o contratar
+proveedores.
+
 ## Decisiones del dueño sobre lealtad
 
 - Las tarjetas de puntos son digitales y basadas en el dispositivo desde el menú publicado. Wallet y

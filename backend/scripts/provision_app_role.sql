@@ -123,6 +123,7 @@ BEGIN
             ('automation_rules', 'SELECT, INSERT'),
             ('automation_runs', 'SELECT, INSERT'),
             ('business_events', 'SELECT, INSERT'),
+            ('billing_checkout_attempts', 'SELECT, INSERT, UPDATE'),
             ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
             ('crm_catalog_requests', 'SELECT, INSERT'),
             ('service_cases', 'SELECT, INSERT'),

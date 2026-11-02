@@ -402,6 +402,7 @@ def process(db, tenant_id, *, limit=100):
             Order.tenant_id == tenant_id,
             Order.branch_id == branch_id,
             Order.status.in_(["completed", "voided"]),
+            Order.loyalty_eligible.is_(True),
             Customer.is_active.is_(True),
             revision.enabled.is_(True),
             missing,

@@ -1,3 +1,4 @@
+import type { CommercialAccess } from "@/auth/types";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { BranchesSettings } from "./BranchesSettings";
@@ -6,6 +7,8 @@ import { listBranches, saveBranch } from "./api";
 vi.mock("./EmployeeBranchAccess", () => ({ EmployeeBranchAccess: () => null }));
 vi.mock("./InventoryTransfers", () => ({ InventoryTransfers: () => null }));
 vi.mock("./api", () => ({ listBranches: vi.fn(), saveBranch: vi.fn() }));
+const authPlan = vi.hoisted(() => ({ access: undefined as CommercialAccess | undefined }));
+vi.mock("@/auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", commercialAccess: authPlan.access } }) }));
 const principal = {
   id: "principal",
   name: "Sucursal principal",
@@ -13,6 +16,7 @@ const principal = {
   created_at: "2026-10-04",
 };
 beforeEach(() => {
+  authPlan.access = undefined;
   vi.clearAllMocks();
   vi.mocked(listBranches).mockResolvedValue([principal]);
 });
@@ -61,4 +65,15 @@ it("preserves the entered name after a rejection and allows renaming an existing
     expect(saveBranch).toHaveBeenLastCalledWith("Matriz", "", "principal"),
   );
   expect(await screen.findByText("Matriz")).toBeVisible();
+});
+
+
+it("preserves existing branch editing when the plan branch limit is reached", async () => {
+  authPlan.access = { allowed: true, reason: "active", valid_until: null, plan_code: "esencial", features: ["pos"], limits: { product_image_bytes: 250_000_000, branches: 1 } };
+  render(<BranchesSettings />);
+  await screen.findByText("Sucursal principal");
+  expect(screen.queryByRole("button", { name: "Crear sucursal" })).not.toBeInTheDocument();
+  expect(screen.getByText(/Tu plan incluye 1 sucursal/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Editar Sucursal principal" }));
+  expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeEnabled();
 });

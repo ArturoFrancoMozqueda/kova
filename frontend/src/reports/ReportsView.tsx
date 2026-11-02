@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { BasicSalesReportView } from "./BasicSalesReportView";
 import { Link } from "react-router-dom";
 import { BranchComparison } from "@/branches/BranchComparison";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -63,6 +66,12 @@ function recommendationsFor(
 }
 
 export default function ReportsView() {
+  const { state } = useAuth();
+  return hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "advanced_reports")
+    ? <AdvancedReportsView /> : <BasicSalesReportView />;
+}
+
+function AdvancedReportsView() {
   useDocumentTitle(copy.documentTitles.reports);
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");

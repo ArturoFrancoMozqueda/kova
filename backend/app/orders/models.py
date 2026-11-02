@@ -54,6 +54,11 @@ class Order(BranchScoped, Base):
     )
 
     customer_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    # Private server snapshot; new Esencial sales must never earn retroactive
+    # points after a later upgrade. Historical sales remain eligible.
+    loyalty_eligible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true",
+    )
     discount_amount: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), nullable=False, default=0, server_default="0"
     )

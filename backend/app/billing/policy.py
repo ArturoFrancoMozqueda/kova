@@ -60,3 +60,7 @@ def enforce_session_commercial_policy(request: Request, db: Session, user, membe
     from app.billing.access import enforce_commercial_access
 
     enforce_commercial_access(db, request=request, user=user, membership=membership)
+
+    from app.billing.plan_policy import enforce_session_plan_policy
+
+    enforce_session_plan_policy(request, db, membership)

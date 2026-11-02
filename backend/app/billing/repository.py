@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.billing.models import Subscription, WebhookEvent
+from app.billing.models import CheckoutAttempt, Subscription, WebhookEvent
 
 
 def get_subscription_by_tenant(db: Session, *, tenant_id: UUID) -> Subscription | None:
@@ -30,6 +30,11 @@ def lock_billing_tenant(db: Session, *, tenant_id: UUID) -> None:
         text("SELECT pg_advisory_xact_lock(hashtextextended(:tenant_id, 0))"),
         {"tenant_id": str(tenant_id)},
     )
+
+
+def lock_checkout_attempt(db: Session, *, tenant_id: UUID) -> CheckoutAttempt | None:
+    return (db.query(CheckoutAttempt).filter(CheckoutAttempt.tenant_id == tenant_id)
+            .populate_existing().with_for_update().first())
 
 
 def get_subscription_by_stripe_id(

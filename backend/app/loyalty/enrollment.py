@@ -194,6 +194,10 @@ def policy(db, tenant_id):
 
 
 def available(db, catalog):
+    from app.billing.plans import plan_has_feature
+
+    if not plan_has_feature(db, tenant_id=catalog.tenant_id, feature="loyalty"):
+        return False
     enrollment = latest(db, catalog.tenant_id)
     points = service._latest(db, catalog.tenant_id)
     return bool(

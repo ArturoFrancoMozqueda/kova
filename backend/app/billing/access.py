@@ -55,6 +55,10 @@ def _subscription_valid_until(subscription) -> datetime | None:
         boundary = subscription.trial_ends_at or subscription.current_period_end
     else:
         boundary = subscription.current_period_end
+    plan_until = getattr(subscription, "plan_effective_until", None)
+    if (getattr(subscription, "plan_code", None) in {"esencial", "gestion"}
+            and subscription.status in {"active", "trialing"} and plan_until is not None):
+        boundary = min(_as_utc(boundary), _as_utc(plan_until)) if boundary else plan_until
     if boundary is None:
         return None
     return min(observed + BILLING_PERIOD_FRESHNESS_MAX_AGE, _as_utc(boundary))
@@ -95,6 +99,13 @@ def get_billing_access_status(db: Session, *, tenant_id: UUID) -> BillingAccessS
                 # The grant never expires; cached/offline authorization still does.
                 valid_until=now + BILLING_PERIOD_FRESHNESS_MAX_AGE,
             )
+        if subscription.stripe_subscription_id:
+            from app.billing.plans import is_tiered_tenant
+
+            if (getattr(subscription, "plan_code", None) not in {"esencial", "gestion"}
+                    and is_tiered_tenant(db, tenant_id)):
+                # Unknown prices cannot turn an unpaid or unrelated item into POS access.
+                return _verification_required(now)
         status = subscription.status
         # Courtesy trials have no Stripe lifecycle webhook to expire them.
         # Require a finite end date; Stripe-managed trials keep their existing policy.
@@ -129,6 +140,12 @@ def get_billing_access_status(db: Session, *, tenant_id: UUID) -> BillingAccessS
                 return _verification_required(now)
             if subscription is None:
                 return _verification_required(now)
+            if subscription.stripe_subscription_id:
+                from app.billing.plans import is_tiered_tenant
+
+                if (subscription.plan_code not in {"esencial", "gestion"}
+                        and is_tiered_tenant(db, tenant_id)):
+                    return _verification_required(now)
             status = subscription.status
             valid_until = _subscription_valid_until(subscription)
         if status in {"active", "trialing"}:

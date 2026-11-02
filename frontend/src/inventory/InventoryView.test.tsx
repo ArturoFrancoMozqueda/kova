@@ -1,3 +1,4 @@
+import type { CommercialAccess } from "@/auth/types";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +9,7 @@ import InventoryView from "./InventoryView";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { StockItem } from "./types";
 
-const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" } }));
+const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" }, commercialAccess: undefined as CommercialAccess | undefined }));
 vi.mock("../auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", ...authIdentity } }) }));
 
 vi.mock("../auth/permissions", () => ({
@@ -54,6 +55,7 @@ async function openModal(action = copy.inventoryView.adjust) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  authIdentity.commercialAccess = undefined;
   authIdentity.tenantId = "tenant-1";
   authIdentity.user.id = "user-1";
   vi.mocked(listStock).mockResolvedValue([item]);
@@ -359,4 +361,16 @@ it.each([4, 10])("distinguishes physical stock from available units with %s rese
   fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
   fireEvent.change(screen.getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: "1" } });
   expect(screen.getByText(copy.inventoryModal.resultingStock(10, 11))).toBeVisible();
+});
+
+
+it("loads core stock and minimum alerts without requesting or awaiting premium velocity", async () => {
+  authIdentity.commercialAccess = { allowed: true, reason: "active", valid_until: null, plan_code: "esencial", features: ["inventory"] };
+  vi.mocked(listVelocity).mockReturnValue(new Promise(() => {}));
+  render(<MemoryRouter><ToastProvider><InventoryView /></ToastProvider></MemoryRouter>);
+  await screen.findByText(item.product_name);
+  await waitFor(() => expect(listLowStock).toHaveBeenCalled());
+  expect(listVelocity).not.toHaveBeenCalled();
+  expect(screen.queryByText(/No pudimos consultar la rotación/)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Cargando alertas de inventario")).not.toBeInTheDocument();
 });

@@ -168,16 +168,20 @@ beforeAll(async () => {
 
 describe("App shell", () => {
   it("renders the public landing page for unauthenticated users", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
-    );
+    setupFetchMock({
+      "/api/v1/auth/session": [{ authenticated: false }],
+      "/api/v1/billing/plans": [{ tiered_pricing_enabled: false, available_plans: [{
+        code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month",
+        tax_inclusive: null, features: [], limits: { product_image_bytes: null },
+      }] }],
+    });
     render(<App />);
     expect(
       await screen.findByRole("heading", {
         name: /vende con orden\. conoce tu negocio\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Plan Standard")).toBeInTheDocument();
+    expect(await screen.findByText("Plan Standard")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {

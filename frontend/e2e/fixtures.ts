@@ -50,6 +50,15 @@ export const test = base.extend<GuardFixtures>({
         await page.route("**/api/v1/**", async (route) => {
           const request = route.request();
           const pathname = new URL(request.url()).pathname;
+          // Existing stories keep the explicitly confirmed Standard offer. Tiered
+          // stories override this public endpoint with their authoritative catalog.
+          if (request.method() === "GET" && pathname === "/api/v1/billing/plans") {
+            await route.fulfill({ json: { tiered_pricing_enabled: false, available_plans: [{
+              code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month",
+              tax_inclusive: null, features: ["pos", "inventory", "sales_reports", "public_catalog", "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"], limits: { product_image_bytes: null },
+            }] } });
+            return;
+          }
           // Branch discovery is shared by every authenticated screen. Scenarios
           // that exercise it override this typed, empty background response.
           if (request.method() === "GET" && pathname === "/api/v1/branches") {

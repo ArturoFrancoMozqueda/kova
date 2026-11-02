@@ -1,3 +1,4 @@
+import { commercialPlanIdentity, hasPlanFeature } from "@/billing/entitlements";
 import { LotAllocationEditor, LotsPanel } from "./LotControls";
 import { allocationValid, listLots, type Lot, type LotAllocation } from "./lots";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -65,10 +66,12 @@ export default function InventoryView() {
   useDocumentTitle(copy.documentTitles.inventory);
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
   const auth = useOptionalAuth();
+  const commercialAccess = auth?.state.status === "authenticated" ? auth.state.commercialAccess : undefined;
+  const advancedReports = hasPlanFeature(commercialAccess, "advanced_reports");
   const identity = auth?.state.status === "authenticated"
     ? `${auth.state.tenantId}:${auth.state.user.id}` : null;
   const dataIdentity = auth?.state.status === "authenticated"
-    ? `${identity}:${auth.state.user.role}:${auth.state.sessionMode}` : null;
+    ? `${identity}:${auth.state.user.role}:${auth.state.sessionMode}:${commercialPlanIdentity(commercialAccess) ?? "legacy"}` : null;
   const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const loadState = useMemo<LoadState>(() => storedLoadState.status === "loaded" && storedLoadState.identity !== dataIdentity
     ? { status: "loading" } : storedLoadState, [storedLoadState, dataIdentity]);
@@ -99,8 +102,9 @@ export default function InventoryView() {
     const generation = ++requestId.current;
     setLoadState({ status: "loading" });
     const stockRead = listStock();
-    const velocityRead = listVelocity().then(velocity => ({ velocity, failed: false }),
-      () => ({ velocity: [] as InventoryVelocityItem[], failed: true }));
+    const velocityRead = advancedReports ? listVelocity().then(velocity => ({ velocity, failed: false }),
+      () => ({ velocity: [] as InventoryVelocityItem[], failed: true }))
+      : Promise.resolve({ velocity: [] as InventoryVelocityItem[], failed: false });
     const productsRead = listProducts().catch(() => [] as Product[]);
     const lowStockRead = listLowStock().then(lowStock => ({ lowStock, failed: false }),
       () => ({ lowStock: [] as StockItem[], failed: true }));
@@ -108,7 +112,7 @@ export default function InventoryView() {
       const stock = await stockRead;
       if (generation !== requestId.current) return;
       setLoadState({
-        status: "loaded", identity: dataIdentity, velocityPending: true, velocityFailed: false,
+        status: "loaded", identity: dataIdentity, velocityPending: advancedReports, velocityFailed: false,
         lowStockPending: true, lowStockFailed: false,
         productsPending: true,
         stock,
@@ -137,7 +141,7 @@ export default function InventoryView() {
       if (generation !== requestId.current) return;
       setLoadState({ status: "error" });
     }
-  }, [dataIdentity]);
+  }, [dataIdentity, advancedReports]);
 
   useEffect(() => {
     void load();

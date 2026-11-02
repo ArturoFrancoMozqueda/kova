@@ -196,6 +196,9 @@ def signup(
 
     slug = _unique_slug(db, _slugify(tenant_name))
     tenant = tenant_repo.create(db, name=tenant_name, slug=slug)
+    from app.billing.plans import tiered_pricing_enabled
+
+    tenant.billing_cohort = "tiered" if tiered_pricing_enabled() else "standard"
     repo.create_membership(db, tenant_id=tenant.id, user_id=user.id, role="owner")
 
     plain_token = _generate_token()

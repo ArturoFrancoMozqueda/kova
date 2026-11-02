@@ -5,13 +5,14 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
+from urllib.parse import urlsplit
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
-from app.auth.models import Membership, User
+from app.auth.models import Membership, User, UserSession
 from app.billing import repository
 from app.billing.access import (
     BILLING_MAX_GRACE_DAYS,
@@ -19,11 +20,23 @@ from app.billing.access import (
     has_complimentary_access,
     serialize_billing_access,
 )
-from app.billing.models import Subscription, WebhookEvent
+from app.billing.models import CheckoutAttempt, Subscription, WebhookEvent
+from app.billing.plans import (
+    PLANS,
+    CommercialPlan,
+    available_plans,
+    build_plan_snapshot,
+    configured_price_id,
+    is_tiered_tenant,
+    plan_for_price,
+    tiered_pricing_enabled,
+)
 from app.billing.schemas import BILLING_PERIOD_FRESHNESS_MAX_AGE
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
+    StripePortalClient,
+    StripePortalError,
     StripePriceClient,
     StripePriceError,
     StripeSubscriptionClient,
@@ -32,15 +45,16 @@ from app.billing.stripe_client import (
 from app.config import settings
 from app.email import service as email_service
 from app.idempotency import service as idempotency_service
-from app.shared.exceptions import bad_request, forbidden
+from app.rbac.permissions import Permission, has_permission
+from app.shared.exceptions import bad_request, conflict, forbidden
 
 logger = logging.getLogger(__name__)
 
 # A tenant in any of these statuses already has a live Stripe subscription that
 # may still bill them, so a new checkout would mint a duplicate customer +
-# subscription (double billing). `canceled`/`incomplete` are intentionally
-# excluded so a churned or never-completed tenant can re-subscribe (reusing the
-# stored Stripe customer).
+# subscription (double billing). Historical `incomplete` rows with a Stripe ID
+# also require authoritative proof of a terminal state before re-subscribing.
+# A safe re-subscription reuses the stored Stripe customer.
 LIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "past_due", "unpaid"}
 STANDARD_PLAN_NAME = "Standard Plan"
 STANDARD_PLAN_AMOUNT_MINOR_UNITS = 29_900
@@ -68,6 +82,7 @@ EVENT_PRECEDENCE = {
 checkout_client = StripeCheckoutClient()
 price_client = StripePriceClient()
 subscription_client = StripeSubscriptionClient()
+portal_client = StripePortalClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
 LIVE_MODE_CONFIGURATION_ERROR = "Stripe checkout is not configured for live mode"
 
@@ -81,23 +96,24 @@ def _hash_payload(payload: dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
-def _checkout_config() -> tuple[str, str, str, str]:
+def _checkout_config(plan_code: str = "standard") -> tuple[str, str, str, str]:
+    price_id = configured_price_id(plan_code)
     required = (
         settings.stripe_secret_key,
-        settings.stripe_standard_price_id,
+        price_id,
         settings.stripe_checkout_success_url,
         settings.stripe_checkout_cancel_url,
     )
     if not all(required):
         raise HTTPException(status_code=503, detail="Stripe checkout is not configured")
     assert settings.stripe_secret_key is not None
-    assert settings.stripe_standard_price_id is not None
+    assert price_id is not None
     assert settings.stripe_checkout_success_url is not None
     assert settings.stripe_checkout_cancel_url is not None
     _validate_live_checkout_configuration(secret_key=settings.stripe_secret_key)
     return (
         settings.stripe_secret_key,
-        settings.stripe_standard_price_id,
+        price_id,
         settings.stripe_checkout_success_url,
         settings.stripe_checkout_cancel_url,
     )
@@ -135,23 +151,30 @@ def _validate_live_checkout_session(stripe_session: dict[str, Any]) -> None:
         raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
 
 
-def _validate_standard_price_configuration(*, secret_key: str, price_id: str) -> None:
+def _validate_standard_price_configuration(
+    *, secret_key: str, price_id: str, plan_code: str = "standard",
+) -> None:
     try:
         price = price_client.retrieve_price(secret_key=secret_key, price_id=price_id)
     except StripePriceError as exc:
         raise HTTPException(status_code=502, detail="Stripe price validation failed") from exc
 
+    plan = PLANS[plan_code]
     recurring = price.get("recurring") or {}
     currency = str(price.get("currency") or "").upper()
     if (
         price.get("active") is not True
-        or price.get("unit_amount") != STANDARD_PLAN_AMOUNT_MINOR_UNITS
+        or price.get("unit_amount") != plan.amount_minor_units
         or currency != STANDARD_PLAN_CURRENCY
         or recurring.get("interval") != STANDARD_PLAN_INTERVAL
+        or recurring.get("interval_count", 1) != 1
+        or (plan.tax_inclusive is True and price.get("tax_behavior") != "inclusive")
+        or (plan_code != "standard" and price.get("id") != price_id)
     ):
         raise HTTPException(
             status_code=503,
-            detail="Stripe Standard Plan price is misconfigured",
+            detail=("Stripe Standard Plan price is misconfigured" if plan_code == "standard"
+                    else "Stripe commercial plan price is misconfigured"),
         )
 
 
@@ -240,6 +263,8 @@ def _maybe_resync_period(db: Session, subscription: Subscription) -> None:
         or current_end_utc <= now
         or synced_at_utc is None
         or synced_at_utc <= now - BILLING_PERIOD_RESYNC_TTL
+        or (subscription.plan_code == "unknown"
+            and is_tiered_tenant(db, subscription.tenant_id))
     )
     if not needs_resync:
         return
@@ -283,16 +308,269 @@ def get_subscription_status(db: Session, *, tenant_id: UUID, resync: bool = Fals
     if resync and subscription is not None:
         _maybe_resync_period(db, subscription)
     access = get_billing_access_status(db, tenant_id=tenant_id)
+    snapshot = build_plan_snapshot(db, tenant_id=tenant_id)
+    plan_code = "standard"
+    if is_tiered_tenant(db, tenant_id):
+        if subscription and subscription.plan_code in PLANS:
+            plan_code = subscription.plan_code
+        elif snapshot["plan_code"] in PLANS:
+            plan_code = snapshot["plan_code"]
+    plan = PLANS[plan_code]
+    unknown = snapshot["plan_code"] == "unknown"
     return {
         "plan": {
-            "name": STANDARD_PLAN_NAME,
-            "amount_minor_units": STANDARD_PLAN_AMOUNT_MINOR_UNITS,
+            "name": "Verificación pendiente" if unknown else plan.name,
+            "amount_minor_units": (subscription.amount_minor_units if unknown and subscription
+                                   else plan.amount_minor_units),
             "currency": STANDARD_PLAN_CURRENCY,
             "interval": STANDARD_PLAN_INTERVAL,
         },
         "subscription": subscription,
-        "access": serialize_billing_access(access),
+        "access": {**serialize_billing_access(access), **snapshot},
+        "available_plans": available_plans(db, tenant_id=tenant_id),
+        "tiered_pricing_enabled": tiered_pricing_enabled(),
+        "portal_available": (
+            _portal_configuration_id(db, tenant_id=tenant_id, subscription=subscription) is not None
+        ),
     }
+
+
+def _revalidate_checkout_actor(
+    db: Session, *, tenant_id: UUID, user_id: UUID, session_id: UUID | None,
+    cohort: str,
+) -> None:
+    # A durable reservation commits before HTTP. Re-read all authorization after
+    # that boundary; ORM objects from the original request may now be stale.
+    from app.account_lifecycle.models import AccountDeletionRequest
+    from app.tenants.models import Tenant
+
+    user = db.query(User).filter(User.id == user_id).populate_existing().first()
+    member = (db.query(Membership).filter(
+        Membership.user_id == user_id, Membership.tenant_id == tenant_id,
+        Membership.is_active.is_(True),
+    ).populate_existing().first())
+    tenant = db.get(Tenant, tenant_id, populate_existing=True)
+    if (user is None or not user.is_active or not user.is_email_verified or member is None
+            or not has_permission(member.role, Permission.BILLING_MANAGE)):
+        raise forbidden("Tu acceso cambió. Inicia sesión nuevamente para continuar.")
+    if tenant is None or not tenant.is_active or tenant.billing_cohort != cohort:
+        raise conflict("La contratación cambió. Actualiza la página antes de continuar.")
+    deletion = db.query(AccountDeletionRequest.id).filter(
+        AccountDeletionRequest.tenant_id == tenant_id, AccountDeletionRequest.status == "pending",
+    ).first()
+    if deletion is not None:
+        raise conflict("Este negocio tiene una eliminación programada. Cancélala para contratar.")
+    if session_id is not None:
+        session = (db.query(UserSession).filter(UserSession.id == session_id)
+                   .populate_existing().first())
+        expiry = session.expires_at if session else None
+        if expiry is not None and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=UTC)
+        if (session is None or session.user_id != user_id or session.tenant_id != tenant_id
+                or session.revoked_at is not None or expiry is None or expiry <= _now_utc()):
+            raise forbidden("Tu sesión cambió. Inicia sesión nuevamente para continuar.")
+
+
+def _assert_checkout_can_start(db: Session, *, tenant_id: UUID) -> None:
+    subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if subscription is None:
+        return
+    if has_complimentary_access(subscription):
+        raise bad_request("Tenant already has complimentary access")
+    courtesy_trial = subscription.status == "trialing" and not subscription.stripe_subscription_id
+    if subscription.status in LIVE_SUBSCRIPTION_STATUSES and not courtesy_trial:
+        raise bad_request("Tenant already has an active subscription")
+    if subscription.stripe_subscription_id and subscription.status == "incomplete":
+        # An incomplete subscription can still be paid: it is not proof that a
+        # second checkout is safe, including pre-migration historical records.
+        try:
+            live = _retrieve_authoritative_subscription(subscription.stripe_subscription_id)
+        except StripeSubscriptionError as exc:
+            raise HTTPException(
+                status_code=502, detail="No pudimos verificar la contratación.",
+            ) from exc
+        customer = subscription.stripe_customer_id
+        if not customer:
+            raise HTTPException(status_code=503, detail="No pudimos verificar la contratación.")
+        _validate_checkout_subscription(
+            live, tenant_id=tenant_id, subscription_id=subscription.stripe_subscription_id,
+            customer_id=customer, livemode=live.get("livemode"),
+        )
+        if live.get("status") not in {"canceled", "incomplete_expired"}:
+            raise conflict("Ya hay una contratación en proceso. Retómala antes de iniciar otra.")
+
+
+def assert_checkout_resolved_for_account_purge(db: Session, *, tenant_id: UUID) -> None:
+    """Read-only Stripe verification: never erase an uncertain or billable attempt."""
+    repository.lock_billing_tenant(db, tenant_id=tenant_id)
+    attempt = repository.lock_checkout_attempt(db, tenant_id=tenant_id)
+    if attempt is None:
+        return
+    secret = settings.stripe_secret_key
+    if (not attempt.stripe_session_id or not secret
+            or attempt.credential_fingerprint != hashlib.sha256(secret.encode()).hexdigest()):
+        raise StripeCheckoutError("Unresolved Checkout attempt blocks account purge")
+    try:
+        remote = checkout_client.retrieve_session(
+            secret_key=secret, session_id=attempt.stripe_session_id,
+        )
+    except (StripeCheckoutError, TimeoutError, ValueError) as exc:
+        raise StripeCheckoutError("Cannot verify Checkout attempt before account purge") from exc
+    if (remote.get("id") != attempt.stripe_session_id or remote.get("mode") != "subscription"
+            or _tenant_id_from_event_object(remote) != tenant_id
+            or (_requires_live_stripe() and remote.get("livemode") is not True)):
+        raise StripeCheckoutError("Invalid Checkout mapping blocks account purge")
+    if remote.get("status") == "expired":
+        attempt.status = "expired"
+        db.flush()
+        return
+    if remote.get("status") != "complete":
+        raise StripeCheckoutError("Billable Checkout attempt blocks account purge")
+    subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if (subscription is None or remote.get("subscription") != subscription.stripe_subscription_id
+            or remote.get("customer") != subscription.stripe_customer_id
+            or not subscription.stripe_subscription_id or not subscription.stripe_customer_id):
+        raise StripeCheckoutError("Unreconciled Checkout attempt blocks account purge")
+    try:
+        live = _retrieve_authoritative_subscription(subscription.stripe_subscription_id)
+        _validate_checkout_subscription(
+            live, tenant_id=tenant_id, subscription_id=subscription.stripe_subscription_id,
+            customer_id=subscription.stripe_customer_id, livemode=remote.get("livemode"),
+        )
+    except (StripeSubscriptionError, HTTPException) as exc:
+        raise StripeCheckoutError(
+            "Cannot verify Checkout subscription before account purge",
+        ) from exc
+    if live.get("status") not in {"canceled", "incomplete_expired"}:
+        raise StripeCheckoutError("Live Checkout subscription blocks account purge")
+    attempt.status = "complete"
+    db.flush()
+
+
+def _tenant_checkout_attempt(
+    db: Session, *, tenant_id: UUID, user_id: UUID, session_id: UUID | None,
+    secret_key: str, plan_code: str, payload: dict[str, Any],
+) -> dict[str, Any]:
+    cohort = "tiered" if is_tiered_tenant(db, tenant_id) else "standard"
+    fingerprint = hashlib.sha256(secret_key.encode()).hexdigest()
+    attempt = repository.lock_checkout_attempt(db, tenant_id=tenant_id)
+    fresh = attempt is None
+    stripe_session = None
+    if attempt is not None:
+        if attempt.credential_fingerprint != fingerprint or attempt.billing_cohort != cohort:
+            raise HTTPException(
+                status_code=503, detail="Necesitamos verificar la contratación previa.",
+            )
+        if attempt.stripe_session_id:
+            try:
+                remote = checkout_client.retrieve_session(
+                    secret_key=secret_key, session_id=attempt.stripe_session_id,
+                )
+            except (StripeCheckoutError, TimeoutError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=502, detail="No pudimos verificar la contratación.",
+                ) from exc
+            if (remote.get("id") != attempt.stripe_session_id
+                    or remote.get("mode") != "subscription"
+                    or _tenant_id_from_event_object(remote) != tenant_id):
+                raise HTTPException(status_code=503, detail="No pudimos verificar la contratación.")
+            _validate_live_checkout_session(remote)
+            if _requires_live_stripe() and remote.get("livemode") is not True:
+                raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
+            remote_status = remote.get("status")
+            if remote_status not in {"open", "complete", "expired"}:
+                raise HTTPException(status_code=503, detail="No pudimos verificar la contratación.")
+            attempt.status = remote_status
+            if remote_status == "complete":
+                previous_attempt_id = attempt.id
+                previous_session_id = attempt.stripe_session_id
+                db.commit()  # Never lose evidence of a completed external effect.
+                reconciled = reconcile_checkout_session(
+                    db, tenant_id=tenant_id, user_id=user_id, session_id=previous_session_id,
+                )
+                repository.lock_billing_tenant(db, tenant_id=tenant_id)
+                attempt = repository.lock_checkout_attempt(db, tenant_id=tenant_id)
+                if attempt is None or attempt.id != previous_attempt_id:
+                    raise conflict("La contratación cambió. Actualiza la página para continuar.")
+                current = reconciled.get("subscription")
+                if current is None or current.status not in {"canceled", "incomplete_expired"}:
+                    raise conflict("Tu contratación ya se recibió. Revisa el estado de tu plan.")
+                fresh = True
+            elif remote_status == "expired":
+                fresh = True
+            else:
+                stripe_session = {
+                    "id": remote["id"],
+                    "url": remote.get("url") or attempt.stripe_session_url,
+                }
+        if not fresh and attempt.request_payload.get("price_id") != payload["price_id"]:
+            raise conflict("Ya hay una contratación en proceso. Retómala o espera a que venza.")
+        if not fresh and not attempt.stripe_session_id:
+            created_at = attempt.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=UTC)
+            if _now_utc() - created_at >= timedelta(hours=23):
+                raise HTTPException(
+                    status_code=503, detail="Necesitamos verificar la contratación previa.",
+                )
+    if fresh:
+        _validate_standard_price_configuration(
+            secret_key=secret_key, price_id=payload["price_id"], plan_code=plan_code,
+        )
+        if attempt is None:
+            attempt = CheckoutAttempt(tenant_id=tenant_id)
+            db.add(attempt)
+        attempt.id = uuid4()
+        attempt.request_payload = payload
+        attempt.credential_fingerprint = fingerprint
+        attempt.billing_cohort = cohort
+        attempt.status = "uncertain"
+        attempt.stripe_session_id = None
+        attempt.stripe_session_url = None
+        attempt.created_at = _now_utc()
+        reserved_id = attempt.id
+        db.commit()  # Reserve the immutable Stripe key BEFORE the external write.
+        repository.lock_billing_tenant(db, tenant_id=tenant_id)
+        attempt = repository.lock_checkout_attempt(db, tenant_id=tenant_id)
+        if attempt is None or attempt.id != reserved_id:
+            raise conflict("La contratación cambió. Actualiza la página para continuar.")
+    assert attempt is not None
+    _revalidate_checkout_actor(
+        db, tenant_id=tenant_id, user_id=user_id, session_id=session_id, cohort=cohort,
+    )
+    _assert_checkout_can_start(db, tenant_id=tenant_id)
+    if stripe_session is None:
+        # All actors and browser keys share this durable Stripe key and exact
+        # server payload. Unknown outcomes remain reserved across HTTP failures.
+        try:
+            stripe_session = checkout_client.create_checkout_session(
+                secret_key=secret_key, **attempt.request_payload,
+                idempotency_key=f"checkout:{tenant_id}:{attempt.id}",
+            )
+        except (StripeCheckoutError, TimeoutError, ValueError) as exc:
+            raise HTTPException(status_code=502, detail="Stripe checkout failed") from exc
+        _validate_live_checkout_session(stripe_session)
+        if isinstance(stripe_session.get("id"), str) and stripe_session["id"]:
+            attempt.stripe_session_id = stripe_session["id"]
+        if isinstance(stripe_session.get("url"), str) and stripe_session["url"]:
+            attempt.stripe_session_url = stripe_session["url"]
+        if (attempt.stripe_session_id
+                and stripe_session.get("status") in {"open", "complete", "expired"}):
+            attempt.status = stripe_session["status"]
+        reserved_id = attempt.id
+        db.commit()  # Preserve even an incomplete response before returning an error.
+        repository.lock_billing_tenant(db, tenant_id=tenant_id)
+        attempt = repository.lock_checkout_attempt(db, tenant_id=tenant_id)
+        if attempt is None or attempt.id != reserved_id:
+            raise conflict("La contratación cambió. Actualiza la página para continuar.")
+    _revalidate_checkout_actor(
+        db, tenant_id=tenant_id, user_id=user_id, session_id=session_id, cohort=cohort,
+    )
+    _assert_checkout_can_start(db, tenant_id=tenant_id)
+    if (not isinstance(stripe_session.get("url"), str) or not stripe_session["url"]
+            or not isinstance(stripe_session.get("id"), str) or not stripe_session["id"]):
+        raise HTTPException(status_code=502, detail="Stripe checkout response was incomplete")
+    return {"checkout_url": stripe_session["url"], "checkout_session_id": stripe_session["id"]}
 
 
 def create_checkout_session(
@@ -301,62 +579,52 @@ def create_checkout_session(
     tenant_id: UUID,
     user_id: UUID,
     idempotency_key: str,
+    plan_code: str | None = None,
+    session_id: UUID | None = None,
 ) -> tuple[int, dict[str, Any]]:
+    repository.lock_billing_tenant(db, tenant_id=tenant_id)
+    _assert_checkout_can_start(db, tenant_id=tenant_id)
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
-    if subscription and has_complimentary_access(subscription):
-        raise bad_request("Tenant already has complimentary access")
-    courtesy_trial = bool(
-        subscription
-        and subscription.status == "trialing"
-        and not subscription.stripe_subscription_id
+    _revalidate_checkout_actor(
+        db, tenant_id=tenant_id, user_id=user_id, session_id=session_id,
+        cohort="tiered" if is_tiered_tenant(db, tenant_id) else "standard",
     )
-    if subscription and subscription.status in LIVE_SUBSCRIPTION_STATUSES and not courtesy_trial:
-        raise bad_request("Tenant already has an active subscription")
 
-    secret_key, price_id, success_url, cancel_url = _checkout_config()
+    if is_tiered_tenant(db, tenant_id):
+        if not tiered_pricing_enabled():
+            raise HTTPException(status_code=503, detail="Commercial plans are not available")
+        if plan_code not in {"esencial", "gestion"}:
+            raise bad_request("Choose an available commercial plan")
+    elif plan_code not in {None, "standard"}:
+        raise bad_request("Existing Standard agreement cannot be changed through checkout")
+    plan_code = plan_code or "standard"
+    secret_key, price_id, success_url, cancel_url = (
+        _checkout_config() if plan_code == "standard" else _checkout_config(plan_code)
+    )
     payload = {
         "tenant_id": str(tenant_id),
         "user_id": str(user_id),
         "price_id": price_id,
     }
     request_hash = _hash_payload(payload)
-    existing = idempotency_service.claim(
-        db,
-        tenant_id=tenant_id,
-        key=idempotency_key,
-        request_hash=request_hash,
-    )
+    existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
     if existing:
+        existing = idempotency_service.claim(
+            db, tenant_id=tenant_id, key=idempotency_key, request_hash=request_hash,
+        )
+        assert existing is not None
         return existing.response_status or 200, existing.response_body or {}
 
-    _validate_standard_price_configuration(secret_key=secret_key, price_id=price_id)
-
-    try:
-        stripe_session = checkout_client.create_checkout_session(
-            secret_key=secret_key,
-            price_id=price_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            tenant_id=str(tenant_id),
-            user_id=str(user_id),
-            idempotency_key=f"checkout:{tenant_id}:{idempotency_key}",
-            # Reuse the tenant's Stripe customer on re-subscription so we never
-            # create a second customer that could keep billing in parallel.
-            customer=subscription.stripe_customer_id if subscription else None,
-        )
-    except StripeCheckoutError as exc:
-        raise HTTPException(status_code=502, detail="Stripe checkout failed") from exc
-
-    _validate_live_checkout_session(stripe_session)
-    checkout_url = stripe_session.get("url")
-    checkout_session_id = stripe_session.get("id")
-    if not checkout_url or not checkout_session_id:
-        raise HTTPException(status_code=502, detail="Stripe checkout response was incomplete")
-
-    response_body = {
-        "checkout_url": checkout_url,
-        "checkout_session_id": checkout_session_id,
-    }
+    response_body = _tenant_checkout_attempt(
+        db, tenant_id=tenant_id, user_id=user_id, session_id=session_id,
+        secret_key=secret_key, plan_code=plan_code,
+        payload={"price_id": price_id, "success_url": success_url, "cancel_url": cancel_url,
+                 "tenant_id": str(tenant_id), "user_id": str(user_id),
+                 "customer": subscription.stripe_customer_id if subscription else None},
+    )
+    idempotency_service.claim(
+        db, tenant_id=tenant_id, key=idempotency_key, request_hash=request_hash,
+    )
     audit_service.log(
         db,
         action="billing.checkout_started",
@@ -364,9 +632,9 @@ def create_checkout_session(
         user_id=user_id,
         resource_type="checkout_session",
         changes={
-            "checkout_session_id": checkout_session_id,
+            "checkout_session_id": response_body["checkout_session_id"],
             "price_id": price_id,
-            "plan_name": STANDARD_PLAN_NAME,
+            "plan_name": PLANS[plan_code].name,
         },
     )
     idempotency_service.store(
@@ -379,6 +647,86 @@ def create_checkout_session(
     )
     db.commit()
     return 201, response_body
+
+
+def _portal_configuration_id(
+    db: Session, *, tenant_id: UUID, subscription: Subscription | None,
+) -> str | None:
+    if (not settings.billing_portal_enabled or not settings.stripe_secret_key
+            or subscription is None or not subscription.stripe_subscription_id
+            or not subscription.stripe_customer_id or has_complimentary_access(subscription)):
+        return None
+    return (
+        settings.stripe_tiered_portal_configuration_id if is_tiered_tenant(db, tenant_id)
+        else settings.stripe_standard_portal_configuration_id
+    )
+
+
+def _validate_portal_configuration(
+    configuration: dict, *, configuration_id: str, tiered: bool,
+) -> None:
+    if (configuration.get("id") != configuration_id or configuration.get("active") is not True
+            or (_requires_live_stripe() and configuration.get("livemode") is not True)):
+        raise HTTPException(status_code=503, detail="Billing portal configuration is not accepted")
+    update = (configuration.get("features") or {}).get("subscription_update") or {}
+    if not tiered:
+        if update.get("enabled") is True:
+            raise HTTPException(status_code=503, detail="Standard agreements must be preserved")
+        return
+    if update.get("enabled") is not True:
+        return  # Payment-method recovery and invoice history need no tier changes.
+    allowed_prices = {settings.stripe_esencial_price_id, settings.stripe_gestion_price_id}
+    products = update.get("products") or []
+    listed_prices = {price for product in products for price in product.get("prices") or []}
+    conditions = ((update.get("schedule_at_period_end") or {}).get("conditions") or [])
+    if (None in allowed_prices or len(allowed_prices) != 2 or listed_prices != allowed_prices
+            or set(update.get("default_allowed_updates") or []) != {"price"}
+            or update.get("proration_behavior") != "always_invoice"
+            or not any(c.get("type") == "decreasing_item_amount" for c in conditions)):
+        raise HTTPException(status_code=503, detail="Commercial plan changes are not accepted")
+
+
+def create_portal_session(db: Session, *, tenant_id: UUID, user_id: UUID) -> dict[str, str]:
+    subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    configuration_id = _portal_configuration_id(db, tenant_id=tenant_id, subscription=subscription)
+    if configuration_id is None:
+        raise HTTPException(status_code=503, detail="Billing portal is not available")
+    assert subscription is not None and subscription.stripe_customer_id is not None
+    secret_key = _stripe_secret_key()
+    _validate_live_checkout_configuration(secret_key=secret_key)
+    base = urlsplit(settings.frontend_url)
+    if (base.scheme not in {"http", "https"} or not base.netloc or base.username or base.password
+            or (_is_production() and base.scheme != "https")):
+        raise HTTPException(status_code=503, detail="Billing return URL is not configured")
+    return_url = f"{base.scheme}://{base.netloc}/settings/billing"
+    try:
+        configuration = portal_client.retrieve_configuration(
+            secret_key=secret_key, configuration_id=configuration_id,
+        )
+        _validate_portal_configuration(
+            configuration, configuration_id=configuration_id,
+            tiered=is_tiered_tenant(db, tenant_id),
+        )
+        result = portal_client.create_session(
+            secret_key=secret_key, customer_id=subscription.stripe_customer_id,
+            configuration_id=configuration_id, return_url=return_url,
+        )
+    except StripePortalError as exc:
+        raise HTTPException(status_code=502, detail="Billing portal could not be opened") from exc
+    url = result.get("url")
+    parsed_url = urlsplit(url) if isinstance(url, str) else None
+    if (parsed_url is None or parsed_url.scheme != "https"
+            or parsed_url.netloc != "billing.stripe.com"
+            or result.get("customer") != subscription.stripe_customer_id
+            or result.get("configuration") != configuration_id
+            or (_requires_live_stripe() and result.get("livemode") is not True)):
+        raise HTTPException(status_code=502, detail="Billing portal returned an invalid session")
+    audit_service.log(
+        db, action="billing.portal_opened", tenant_id=tenant_id, user_id=user_id,
+        resource_type="subscription", resource_id=subscription.id,
+    )
+    db.commit()
+    return {"portal_url": url}
 
 
 def reconcile_checkout_session(
@@ -519,12 +867,13 @@ def cancel_subscription(
     *,
     tenant_id: UUID,
     user_id: UUID,
+    commit: bool = True,
 ) -> dict:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
     if not subscription:
-        return get_subscription_status(db, tenant_id=tenant_id)
+        return get_subscription_status(db, tenant_id=tenant_id) if commit else {}
     if subscription.cancel_at_period_end or subscription.status == "canceled":
-        return get_subscription_status(db, tenant_id=tenant_id)
+        return get_subscription_status(db, tenant_id=tenant_id) if commit else {}
     if not subscription.stripe_subscription_id:
         raise bad_request("Subscription is missing Stripe subscription id")
 
@@ -567,8 +916,11 @@ def cancel_subscription(
             "cancel_at_period_end": subscription.cancel_at_period_end,
         },
     )
-    db.commit()
-    return get_subscription_status(db, tenant_id=tenant_id)
+    if commit:
+        db.commit()
+        return get_subscription_status(db, tenant_id=tenant_id)
+    db.flush()
+    return {}
 
 
 def _timestamp(value: Any) -> Any:
@@ -643,6 +995,74 @@ def _clear_subscription_past_due(subscription: Subscription) -> None:
     subscription.grace_period_ends_at = None
 
 
+def _invoice_confirms_plan(stripe_object: dict[str, Any], plan: CommercialPlan) -> bool:
+    """A previously paid invoice is not proof that an upgraded item was paid."""
+    invoice = stripe_object.get("latest_invoice")
+    if (not isinstance(invoice, dict) or invoice.get("status") != "paid"
+            or invoice.get("amount_remaining") != 0):
+        return False
+    subscription_id = stripe_object.get("id")
+    invoice_subscription = invoice.get("subscription") or (
+        (invoice.get("parent") or {}).get("subscription_details") or {}
+    ).get("subscription")
+    if (invoice_subscription != subscription_id
+            or invoice.get("customer") != stripe_object.get("customer")):
+        return False
+    _, period_end = _extract_period(stripe_object)
+    if type(period_end) is not int:
+        return False
+    for line in (invoice.get("lines") or {}).get("data") or []:
+        price = line.get("price") or {}
+        line_price_id = price.get("id") if isinstance(price, dict) else price
+        line_price_id = line_price_id or (
+            (line.get("pricing") or {}).get("price_details") or {}
+        ).get("price")
+        period = line.get("period") or {}
+        if (line_price_id == configured_price_id(plan.code)
+                and type(line.get("amount")) is int and line["amount"] > 0
+                and type(period.get("end")) is int and period["end"] >= period_end
+                and type(period.get("start")) is int
+                and period["start"] <= int(_now_utc().timestamp())):
+            return True
+    return False
+
+
+def _apply_commercial_plan(
+    subscription: Subscription, stripe_object: dict[str, Any], *, new_subscription: bool,
+) -> bool:
+    items = (stripe_object.get("items") or {}).get("data") or []
+    plan = None
+    if (len(items) == 1 and not (stripe_object.get("items") or {}).get("has_more")
+            and items[0].get("quantity", 1) == 1):
+        plan = plan_for_price(items[0].get("price") or {})
+    if plan is None or plan.code == "standard":
+        subscription.plan_code = "unknown"
+        return False
+    previous = PLANS.get(subscription.plan_code or "unknown")
+    paid = _invoice_confirms_plan(stripe_object, plan)
+    trialing = stripe_object.get("status") == "trialing"
+    changing = previous is None or previous.code != plan.code
+    effective_until = subscription.plan_effective_until
+    if effective_until and effective_until.tzinfo is None:
+        effective_until = effective_until.replace(tzinfo=UTC)
+    scheduled_downgrade = bool(
+        changing and previous and previous.code in {"esencial", "gestion"}
+        and plan.amount_minor_units < previous.amount_minor_units
+        and effective_until and effective_until > _now_utc()
+    )
+    if changing and (scheduled_downgrade or stripe_object.get("pending_update")
+                     or not (paid or trialing)):
+        # Keep the last paid agreement. A newly seen unpaid item has no entitlement.
+        if new_subscription or subscription.plan_code not in {"esencial", "gestion"}:
+            subscription.plan_code = "unknown"
+        return False
+    subscription.plan_code = plan.code
+    subscription.plan_name = plan.name
+    if paid or trialing:
+        subscription.plan_effective_until = _timestamp(_extract_period(stripe_object)[1])
+    return True
+
+
 def _upsert_subscription_from_stripe_object(
     db: Session,
     *,
@@ -654,9 +1074,29 @@ def _upsert_subscription_from_stripe_object(
     if not stripe_subscription_id:
         raise ValueError("Missing Stripe subscription id")
     subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    new_subscription = subscription is None
+    tiered = is_tiered_tenant(db, tenant_id)
+    if tiered:
+        # Signed events can be delayed. Financial items for a new cohort always
+        # come from the current Stripe object, with latest_invoice expanded.
+        live = _retrieve_authoritative_subscription(str(stripe_subscription_id))
+        customer_id = (
+            subscription.stripe_customer_id if subscription else stripe_object.get("customer")
+        ) or live.get("customer")
+        if not isinstance(customer_id, str) or not customer_id:
+            raise StripeSubscriptionError("Missing Stripe customer mapping")
+        _validate_checkout_subscription(
+            live, tenant_id=tenant_id, subscription_id=str(stripe_subscription_id),
+            customer_id=customer_id, livemode=live.get("livemode"),
+        )
+        stripe_object = live
     if not subscription:
         subscription = Subscription(tenant_id=tenant_id)
         db.add(subscription)
+
+    apply_price = not tiered or _apply_commercial_plan(
+        subscription, stripe_object, new_subscription=new_subscription,
+    )
 
     subscription.stripe_customer_id = stripe_object.get("customer")
     subscription.stripe_subscription_id = stripe_subscription_id
@@ -694,7 +1134,7 @@ def _upsert_subscription_from_stripe_object(
         if subscription.status in {"active", "trialing"}:
             _clear_subscription_past_due(subscription)
     items = stripe_object.get("items", {}).get("data", [])
-    if items:
+    if items and (apply_price or subscription.plan_code == "unknown"):
         price = items[0].get("price", {})
         subscription.stripe_price_id = price.get("id")
         if price.get("unit_amount") is not None:
@@ -722,6 +1162,11 @@ def _owner_email_for_tenant(db: Session, *, tenant_id: UUID) -> str | None:
 
 
 def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
+    # Stripe active alone is insufficient for a tiered agreement. Do not claim
+    # activation while the authoritative Price/payment evidence is unresolved.
+    # This snapshot is local and never refreshes or commits a webhook transaction.
+    if build_plan_snapshot(db, tenant_id=tenant_id)["plan_code"] == "unknown":
+        return
     email = _owner_email_for_tenant(db, tenant_id=tenant_id)
     if not email:
         return
@@ -1204,6 +1649,13 @@ def _process_temporal_event(
             action = "billing.subscription_status_updated"
     else:
         payment_succeeded = event_type in {"invoice.paid", "invoice.payment_succeeded"}
+        if payment_succeeded and is_tiered_tenant(db, tenant_id) and not reconciled:
+            # An invoice paid after an item update must converge the paid plan too,
+            # including when the earlier lifecycle event preserved a pending upgrade.
+            live = _retrieve_authoritative_subscription(subscription.stripe_subscription_id)
+            subscription = _upsert_subscription_from_stripe_object(
+                db, tenant_id=tenant_id, stripe_object=live, apply_status=status_applied,
+            )
         # Stripe increments attempt_count on retries. Only the signed first
         # attempt's own event timestamp can establish a new 48-hour window.
         first_failure_at = (

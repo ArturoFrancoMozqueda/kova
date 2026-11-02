@@ -1,6 +1,6 @@
 # Billing State Copy Matrix
 
-Last updated: 2026-10-26
+Last updated: 2026-11-02
 
 Single reference for every billing state surfaced in the Kova UI. Source of truth for
 `frontend/src/billing/BillingBanner.tsx`, `frontend/src/billing/BillingView.tsx`, and the
@@ -57,6 +57,26 @@ All states show a single primary action:
 
 Only `info` tone banners are dismissible. Warning and danger banners stay visible until
 the underlying state changes.
+
+## Contexto de plan y oferta
+
+La oferta nueva sigue apagada por defecto. Los textos de Standard y $299 de esta matriz describen
+la cohorte anterior; no se sustituyen masivamente ni se muestran como una oferta disponible para
+una cohorte nueva. El [contrato comercial](../specs/billing/commercial_plans.md) añade información
+de plan y catálogo resuelta por el backend:
+
+- La prueba finita de una nueva cohorte permite evaluar Gestión sin afirmar que hubo un pago.
+- Las acciones de contratación usan solo `available_plans`; la UI no inventa Price IDs ni habilita
+  opciones ocultas por el servidor. Mostrar el precio final del plan seleccionado y la periodicidad.
+- Una función excluida por plan muestra una restricción de plan; no aparenta falta de datos, falta
+  de permiso de rol ni deuda. El estado de facturación conserva sus motivos y su recuperación.
+- Si la oferta está deshabilitada después de asignar un plan, conservar el nombre/alcance efectivo
+  y no proponer un Checkout inexistente ni un cambio automático a Standard.
+- Plan desconocido o verificación pendiente no se presenta como Gestión activo, cancelación o
+  prueba renovada. Una cortesía conserva su presentación sin acciones de cobro.
+
+La publicación de precios y la configuración de proveedores requieren aceptación posterior; estos
+textos no acreditan que el nuevo recorrido esté publicado.
 
 ## Behavior rules
 

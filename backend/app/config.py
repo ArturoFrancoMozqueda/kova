@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
     stripe_standard_price_id: str | None = None
+    stripe_esencial_price_id: str | None = None
+    stripe_gestion_price_id: str | None = None
+    # Enrollment only. Existing cohorts and confirmed entitlements survive a rollback.
+    billing_tiered_plans_enabled: bool = False
+    billing_portal_enabled: bool = False
+    stripe_standard_portal_configuration_id: str | None = None
+    stripe_tiered_portal_configuration_id: str | None = None
     stripe_checkout_success_url: str | None = None
     stripe_checkout_cancel_url: str | None = None
     stripe_allow_test_mode_in_production: bool = False
