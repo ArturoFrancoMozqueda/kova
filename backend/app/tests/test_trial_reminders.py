@@ -172,9 +172,112 @@ def test_trial_reminder_does_not_mark_sent_when_delivery_fails(
         lambda **kwargs: False,
     )
 
-    count = trial_reminders.send_due_trial_reminders(db, now=now)
+    with pytest.raises(trial_reminders.TrialReminderBatchError) as failure:
+        trial_reminders.send_due_trial_reminders(db, now=now)
+
+    assert failure.value.sent == 0
+    assert failure.value.failed == 1
 
     tenant = db.query(Tenant).filter(Tenant.id == signup["tenant_id"]).first()
     assert tenant is not None
-    assert count == 0
     assert tenant.trial_reminder_sent_at is None
+
+
+@pytest.mark.parametrize("status", ["incomplete", "trialing"])
+def test_permanent_courtesy_never_receives_a_trial_reminder(
+    client: TestClient, db: Session, monkeypatch, status: str
+) -> None:
+    signup = _signup_verify(client, f"courtesy-{uuid4().hex}@example.com", "Courtesy Tenant")
+    now = datetime.now(UTC)
+    _set_tenant_created_at(
+        db, signup["tenant_id"], now - timedelta(days=settings.billing_trial_days - 3)
+    )
+    db.add(Subscription(
+        tenant_id=signup["tenant_id"], status=status, complimentary_access=True,
+        trial_ends_at=now + timedelta(days=3),
+    ))
+    db.flush()
+    sent = []
+    monkeypatch.setattr(email_service, "send_trial_ending_email", lambda **kw: sent.append(kw) or True)
+
+    assert trial_reminders.send_due_trial_reminders(db, now=now) == 0
+    assert sent == []
+
+
+def test_failed_recipient_does_not_block_others_and_catches_up_next_day(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    failed_email = f"retry-{uuid4().hex}@example.com"
+    accepted_email = f"accepted-{uuid4().hex}@example.com"
+    now = datetime.now(UTC)
+    created = now - timedelta(days=settings.billing_trial_days) + timedelta(days=3, hours=12)
+    for email in (failed_email, accepted_email):
+        signup = _signup_verify(client, email, "Reminder Recovery")
+        _set_tenant_created_at(db, signup["tenant_id"], created)
+    calls = []
+
+    def partially_accept(**kwargs):
+        calls.append(kwargs["to"])
+        return kwargs["to"] != failed_email
+
+    monkeypatch.setattr(email_service, "send_trial_ending_email", partially_accept)
+    with pytest.raises(trial_reminders.TrialReminderBatchError) as failure:
+        trial_reminders.send_due_trial_reminders(db, now=now)
+    assert (failure.value.sent, failure.value.failed) == (1, 1)
+    assert set(calls) == {failed_email, accepted_email}
+    assert failed_email not in str(failure.value)
+    assert accepted_email not in str(failure.value)
+
+    calls.clear()
+    monkeypatch.setattr(
+        email_service, "send_trial_ending_email", lambda **kw: calls.append(kw["to"]) or True
+    )
+    assert trial_reminders.send_due_trial_reminders(db, now=now + timedelta(days=1)) == 1
+    assert calls == [failed_email]
+    calls.clear()
+    assert trial_reminders.send_due_trial_reminders(db, now=now + timedelta(days=2)) == 0
+    assert calls == []
+
+
+def test_courtesy_flag_does_not_suppress_a_stripe_managed_trial(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    email = f"managed-{uuid4().hex}@example.com"
+    signup = _signup_verify(client, email, "Managed Trial")
+    now = datetime.now(UTC)
+    db.add(Subscription(
+        tenant_id=signup["tenant_id"], status="trialing", complimentary_access=True,
+        stripe_subscription_id=f"sub_{uuid4().hex}", trial_ends_at=now + timedelta(hours=1),
+    ))
+    db.flush()
+    sent = []
+    monkeypatch.setattr(email_service, "send_trial_ending_email", lambda **kw: sent.append(kw) or True)
+    assert trial_reminders.send_due_trial_reminders(db, now=now) == 1
+    assert sent[0]["to"] == email
+
+
+@pytest.mark.parametrize("hours_to_expiry", [0, -1, 97])
+def test_reminders_exclude_expired_and_early_trials(
+    client: TestClient, db: Session, monkeypatch, hours_to_expiry: int
+) -> None:
+    signup = _signup_verify(client, f"boundary-{uuid4().hex}@example.com", "Boundary Tenant")
+    now = datetime.now(UTC)
+    _set_tenant_created_at(
+        db, signup["tenant_id"],
+        now - timedelta(days=settings.billing_trial_days) + timedelta(hours=hours_to_expiry),
+    )
+    sent = []
+    monkeypatch.setattr(email_service, "send_trial_ending_email", lambda **kw: sent.append(kw) or True)
+    assert trial_reminders.send_due_trial_reminders(db, now=now) == 0
+    assert sent == []
+
+
+def test_reminder_script_returns_failure_without_private_provider_details(monkeypatch, caplog):
+    module = _load_reminder_script()
+
+    def fail(_db):
+        raise trial_reminders.TrialReminderBatchError(sent=2, failed=1)
+
+    monkeypatch.setattr(module, "send_due_trial_reminders", fail)
+    assert module.main() == 1
+    assert "trial_reminder.batch_failed sent=2 failed=1" in caplog.text

@@ -1,6 +1,6 @@
 # Entregabilidad de correo — Kova
 
-Evidencia acumulada al 30 de octubre de 2026. Las comprobaciones históricas conservan su fecha y
+Evidencia acumulada al 2 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
 
 Comprobación de sólo lectura del 29 de octubre de 2026: Resend mantiene el dominio verificado y el
@@ -34,6 +34,19 @@ acción y evita mostrar tokens largos en el cuerpo. La versión de texto conserv
 Las tablas y estilos inline conservan un baseline sin hojas externas; los ajustes de móvil son una
 mejora progresiva. El texto alternativo conserva acciones, importes, fechas y Unicode. La QA local
 cubre 320/390/800 px y ausencia de estilos adaptables, sin equivaler a render en Gmail u Outlook.
+
+La consulta de sólo lectura del 2 de noviembre confirma el dominio verificado, envío habilitado y
+el reset del 30 de octubre a las 18:32:33 UTC (`4b14f2ca6659`, diseño editorial) como `delivered`.
+Esa consulta no envió correo ni leyó el token. El Gmail QA designado no está conectado a las
+herramientas de lectura y no hay otro buzón Outlook/Hotmail identificado para la matriz actual.
+
+Posteriormente, a las 16:14 UTC (10:14 CDMX), se envió un lote limitado de seis muestras del diseño
+editorial al buzón QA designado. Resend confirmó `delivered` en las seis: verificación, bienvenida,
+recibo, fin de prueba, invitación y reset. Se renderizaron con las funciones de aplicación de esta
+revisión y se enviaron mediante el conector de Resend, con prefijo QA, aviso visible, datos
+ficticios y tokens deliberadamente inválidos. No se crearon cuentas, suscripciones ni cargos;
+el recibo omitió el enlace opcional de Stripe. Esto acredita las plantillas y aceptación del
+receptor, no los disparadores del backend publicado, Inbox, enlaces reales ni Outlook/Hotmail.
 
 ## 1. Configuración de producción
 
@@ -132,6 +145,10 @@ La muestra actual es demasiado pequeña para inferir una tasa estable de entrega
 - [x] GitHub Actions ejecuta `uv run python scripts/send_trial_reminders.py` diariamente a las
       `06:00 UTC` (`00:00` en Ciudad de México).
 - [x] El job es idempotente por tenant mediante `trial_reminder_sent_at`.
+- Los recordatorios excluyen cortesías permanentes sin Stripe. Una falla de transporte deja el
+  job en rojo después de intentar el lote; las aceptaciones confirmadas conservan su marca y los
+  pendientes pueden recuperarse en otra ejecución antes del vencimiento. No hay cola durable ni
+  garantía de entrega única del proveedor ante una caída entre aceptación y commit.
 - [x] Los diez runs programados más recientes al 29 de octubre de 2026 terminaron correctamente;
       último [run 40870140304](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40870140304).
 - [ ] Confirmar que la retención de logs operativos cubra al menos 30 días.

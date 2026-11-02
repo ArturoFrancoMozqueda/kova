@@ -106,6 +106,13 @@ def test_reply_destination_matches_the_public_beta_support_source():
     assert f'export const SUPPORT_EMAIL = "{SUPPORT_EMAIL}";' in support.read_text()
 
 
+def test_receipt_formats_minor_units_without_float_rounding(sent_mail):
+    service.send_payment_receipt_email(
+        to="recipient@example.invalid", amount_minor_units=9007199254740993, currency="mxn"
+    )
+    assert "$90,071,992,547,409.93 MXN" in sent_mail[0]["text"]
+
+
 def test_provider_failures_log_only_a_fixed_category_without_addresses_tokens_or_payload(
     sent_mail, monkeypatch, caplog
 ):

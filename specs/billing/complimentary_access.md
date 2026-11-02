@@ -20,6 +20,8 @@ sin simular un pago de Stripe ni extender artificialmente un periodo de prueba. 
   no vence; `valid_until` sigue limitado a 24 horas para revalidación de sesión y caché offline.
 - Checkout rechaza crear una suscripción de pago para un negocio con esta concesión. La pantalla
   no muestra renovación, fecha de prueba ni acciones de cobro/cancelación.
+- El job de correo no envía recordatorios de fin de prueba a esta concesión. Si existe una
+  suscripción de Stripe, conserva su política normal; la marca no oculta su vencimiento.
 - Revocar la concesión restaura la política normal. Un dispositivo desconectado conserva como
   máximo la autorización offline ya emitida; al reconectar debe revalidarla.
 - La operación administrativa registra `billing.complimentary_access_granted` o

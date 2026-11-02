@@ -1,0 +1,43 @@
+{
+  "scope": "Kova logical restore; public and assistant_control; disposable PostgreSQL 17 runner",
+  "commit": "79f73a326b141e0eb77971aaaefc05c0fe3e969f",
+  "run_id": "41478117936",
+  "backup_key": "supabase/postgres/kova-2026-11-01T15-48-29Z.dump",
+  "backup_sha256": "41a3a142cbbcacaf9af3d146c2fec53f51bd7ad9bcd042996ff5c9bc32c42302",
+  "backup_bytes": 4512229,
+  "backup_at": "2026-11-01T15:48:29+00:00",
+  "started_at": "2026-11-02T16:06:29.115489+00:00",
+  "snapshot_age_seconds": 87480.115,
+  "restore_seconds": 0.488,
+  "drill_seconds": 20.766,
+  "server_version_num": 170011,
+  "checks": {
+    "revision": "0099_complimentary_access",
+    "tenants": 14,
+    "orders": 2219,
+    "orders_last_seven_days": 2,
+    "latest_order_at": "2026-10-30T20:54:23.686119+00:00",
+    "products": 37,
+    "public_tables": 105,
+    "assistant_control_tables": 5,
+    "policies": 106,
+    "validated_foreign_keys": 253,
+    "legacy_unvalidated_foreign_keys": 1,
+    "rls_scope_checks": true,
+    "payment_and_lot_integrity": true,
+    "data_api_grants": 0
+  },
+  "application_service": {
+    "health": true,
+    "database": true,
+    "cookie_login": true,
+    "restored_export": true,
+    "logout": true,
+    "runtime_rls": true,
+    "restored_orders": 2218,
+    "scope": "current native image; ASGI in offline namespace; synthetic clone-only owner; account export",
+    "production_bindings_tested": false
+  },
+  "regional_supabase_recovery_tested": false,
+  "cleanup_verified": true
+}
