@@ -339,7 +339,13 @@ describe("existing API inside Python Durable Objects", () => {
       expect(session.status).toBe(200);
       const current = await session.json();
       expect(current).toEqual({ authenticated: true, ...identity,
-        commercial_access: { allowed: true, reason: "signup_trial", valid_until: expect.any(String) },
+        commercial_access: {
+          allowed: true, reason: "signup_trial", valid_until: expect.any(String),
+          plan_code: "standard", plan_name: "Standard Plan",
+          features: ["pos", "inventory", "sales_reports", "public_catalog", "purchasing",
+            "advanced_reports", "loyalty", "customer_orders", "quotes"],
+          limits: { product_image_bytes: null, branches: null },
+        },
       });
       expect(Date.parse(current.commercial_access.valid_until)).toBeGreaterThan(Date.now());
     }
