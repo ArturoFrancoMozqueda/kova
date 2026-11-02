@@ -7,20 +7,25 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-Producción verificada el 2 de noviembre corre `79f73a326b14` (PR #299): frontend `kovasuite.com` y API `api.kovasuite.com`
+Producción verificada el 2 de noviembre corre `4e3a58060f81` (PR #300): frontend `kovasuite.com` y API `api.kovasuite.com`
 reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
+- Recordatorios que excluyen cortesía permanente, recuperan envíos pendientes antes de vencer y
+  reportan fallas al scheduler; importes de correo en Decimal (#300).
+- Dependencias PDF corregidas, motor OCR con fix oficial de propiedad de palabras y sus dos
+  regresiones, y SQLite retirado de la imagen nativa PostgreSQL (#300). CI exige los 20 avisos
+  OCR revisados, 18 suites/70 regresiones ejecutadas y los escaneos sin excepciones nuevas.
 - Caja compacta a 390/768/998/1440 px y tickets de 58/80 mm con altura calculada (#299).
   PDF y navegador aprobados; impresión/corte físico pendientes.
 - Acceso permanente de cortesía explícito y auditado, sin simular pago de Stripe (#298).
 - Carga progresiva con skeletons y correos con presentación editorial compartida (#296).
   Reset desde API publicado y `delivered` a Gmail el 30 de octubre. Las seis muestras QA actuales
   llegaron a Inbox y se revisaron en Gmail web el 2 de noviembre; otros clientes siguen pendientes.
-- Restauración 0099 del respaldo real del 1 de noviembre, con autenticación por cookies,
-  exportación por API, RLS/integridad y limpieza en entorno aislado. [Evidencia](audits/KOVA-R2-RESTORE-2026-11-02.json)
-  y [run](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936).
+- Restauración 0099 con la imagen `4e3a58060f81` y el respaldo nuevo del 2 de noviembre: login,
+  exportación por API, RLS/integridad y limpieza aprobados. [Run actual](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223)
+  y [alcance y tiempos](runbooks/restore-supabase-backup.md#drill-log).
 - Navegación por rol con Caja, Pedidos y Ventas fijos y categorías desplegables (#285). Aceptada en
   producción.
 - Pedidos con seguimiento público y operación diaria simplificada (#283). Aceptado en producción
@@ -73,9 +78,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    la API vigente; esta lectura no prueba un checkout nuevo. [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
 2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
    octubre pasó con revisión 0095; el del 2 de noviembre restauró la revisión actual 0099 con RLS
-   e integridad aprobadas. También aprobó login, exportación por API y logout sobre datos
-   restaurados, con la imagen `79f73a326b14` y una cuenta sintética aislada. Snapshot de 24 h 18 min;
-   drill lógico/ASGI de 20.766 s sin construcción de imagen: no equivalen a RTO/RPO regionales.
+   e integridad aprobadas. La repetición sobre `4e3a58060f81` aprobó login, exportación por API
+   y logout con una cuenta sintética aislada. Snapshot de 23 min 37 s; drill lógico/ASGI de
+   22.447 s sin construcción de imagen: no equivalen a RTO/RPO regionales.
    Falta la recuperación regional con bindings de producción, tráfico y RTO/RPO completos.
    [Alcance comprobado](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
@@ -88,6 +93,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    los disparadores del backend. Faltan enlaces reales, clientes móviles/oscuro, Outlook/Hotmail y
    disparadores actuales de las otras plantillas. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
+   La revisión de navegador del 2 de noviembre confirmó cortesía permanente en Suscripción y Caja
+   sin desbordamiento a 390/998/1440 px, sin crear ventas ni alterar inventario. No sustituye el
+   conteo físico, conciliación ni aceptación operativa de los pilotos.
 5. **Dispositivos físicos.** El dueño dispone de tablets, laptop Windows y Mac; faltan modelos/OS
    y aceptación real. Impresora, lector y cajón no se han probado físicamente. Seguir la
    [matriz de equipos](runbooks/pos-hardware-acceptance.md) y el
@@ -97,7 +105,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 7. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación
    Live controlada.
 8. **Piloto multi-giro.** Reclutar y observar la cohorte para medir la activación del análisis
-   ([spec](../specs/reports/analysis_activation.md)). Es investigación comercial, no código.
+   ([spec](../specs/reports/analysis_activation.md)). Definir responsables/soporte y cerrar los
+   acuerdos y revisión profesional del [gate operativo](runbooks/ops-beta-gate.md#ops-6--legal-y-comercial).
+   Es aceptación comercial y operativa, no código.
 
 ## Reglas de este archivo
 

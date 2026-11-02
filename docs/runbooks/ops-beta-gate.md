@@ -30,10 +30,16 @@ Revalidación del 2 de noviembre: producción `79f73a326b14` con web/API/proxy y
 dominio de correo verificado y reset editorial del 30 de octubre confirmado `delivered`. El nuevo
 [restore con revisión 0099](../audits/KOVA-R2-RESTORE-2026-11-02.json) también aprobó login,
 exportación, logout, runtime RLS, integridad y limpieza. Estos resultados reemplazan el corte
-anterior de compatibilidad de esquema, no la aceptación Inbox ni la recuperación regional.
+anterior de compatibilidad de esquema, no la aceptación en otros clientes ni la recuperación regional.
 El lote posterior de seis muestras QA del diseño editorial también llegó a `delivered` a las
 16:14 UTC. El dueño abrió el buzón y se verificó Inbox y presentación en Gmail web de las seis,
 con SPF/DKIM/DMARC PASS en la muestra QA de reset. [Método y límites](../email-deliverability.md).
+
+Cierre posterior sobre `4e3a58060f81` (PR #300): [CI protegido](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41482372217)
+y [release](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483548278) aprobados; smoke
+público con web/API/proxy en el mismo SHA y DB accesible. El [restore repetido](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223)
+usó esa imagen y el backup nuevo del 2 de noviembre, con login/exportación/logout, RLS, integridad
+y limpieza aprobados. Los gates sin aceptación física, comercial o de proveedores siguen abiertos.
 
 - [ ] Las seis plantillas actuales llegaron a Inbox en buzones QA autorizados de Gmail, Outlook y
       Hotmail: verificación, bienvenida, recibo de pago, fin de prueba, invitación y contraseña.
@@ -123,18 +129,21 @@ prueba real posterior. Esta revisión no sustituye Inbox, modo oscuro ni render 
 - [x] Restauración lógica de respaldos reales en PostgreSQL 17 desechable, sin SQL en producción:
       snapshots 0078 y 0079 del 10 de octubre, con checksum, runtime/RLS, conteos, pagos/lotes y
       limpieza verificados en la [evidencia fechada](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-R2-REAL-RESTORE-2026-10-10.md).
-- [x] Compatibilidad del snapshot 0099 con la imagen `79f73a326b14`: igualdad con el head de
+- [x] Compatibilidad del snapshot 0099 con la imagen `4e3a58060f81`: igualdad con el head de
       migraciones, arranque ASGI y lectura autenticada aprobados. Este corte no requirió migrar;
       recuperar un snapshot anterior exige validar las migraciones posteriores por separado.
-- [ ] Recuperación completa del servicio: nuevo host si corresponde, Auth/Storage/Vault, binarios,
-      arranque de aplicación, smoke y cambio de tráfico bajo autorización independiente.
+- [ ] Recuperación completa del servicio: nuevo Postgres si corresponde, roles/grants/RLS,
+      configuración y binarios de Cloudflare, smoke y cambio de tráfico controlado. La auth propia
+      ya se probó sobre el clon restaurado; Supabase Auth/Storage/Vault no son servicios usados
+      por Kova y no se añaden como requisitos de este gate.
 - [ ] RTO y RPO del servicio medidos, con límites y limpieza del destino completo registrados.
 
 No sigue vigente describir OPS-3 como ausencia de restore real o bloqueo exclusivo por slots/costo.
 El [drill lógico en runner](restore-supabase-backup.md#logical-restore-without-creating-a-supabase-project)
 usa infraestructura existente y no exige crear un proyecto Supabase. El último ejercicio lógico y
-ASGI duró 20.766 segundos desde la descarga, sin incluir la construcción de la imagen, con una edad
-del snapshot de 24 h 18 min. Estas mediciones no equivalen a un RTO/RPO regional completo.
+ASGI duró 22.447 segundos desde la descarga, sin incluir la construcción de la imagen, con una edad
+del snapshot de 23 min 37 s. [Run de la imagen actual](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223).
+Estas mediciones no equivalen a un RTO/RPO regional completo.
 Crear o eliminar un proyecto, restaurar o cambiar tráfico requiere su propia autorización; este
 checklist no la concede.
 
