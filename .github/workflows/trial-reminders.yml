@@ -3,9 +3,8 @@ name: Trial-ending reminders
 on:
   schedule:
     # Daily at 06:00 UTC = 00:00 (medianoche) hora de México (CST, UTC-6, sin
-    # horario de verano desde 2023). The reminder window is a 24h band and the
-    # job is idempotent per tenant (tenants.trial_reminder_sent_at), so a single
-    # daily run reaches every eligible tenant exactly once.
+    # horario de verano desde 2023). Successful acceptance is marked per tenant;
+    # missed/failed sends catch up on a later run while the trial is still active.
     - cron: "0 6 * * *"
   workflow_dispatch:
 

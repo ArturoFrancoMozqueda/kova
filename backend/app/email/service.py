@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 
 from app.config import settings
 from app.email.templates import (
@@ -112,7 +113,7 @@ def send_payment_receipt_email(
     period_end_iso: str | None = None,
 ) -> None:
     billing_url = f"{settings.frontend_url}/settings/billing"
-    amount_str = f"${amount_minor_units / 100:,.2f} {currency.upper()}"
+    amount_str = f"${Decimal(amount_minor_units) / Decimal(100):,.2f} {currency.upper()}"
     rows: list[tuple[str, str]] = [("Monto", escape(amount_str))]
     if invoice_number:
         rows.append(("Folio", escape(invoice_number)))

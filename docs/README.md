@@ -39,6 +39,9 @@ Modelo de amenazas de cookies/CSRF y diseño de rate limiting.
 Procedimientos paso a paso para operar producción: restore de backup, drill de Stripe, uptime,
 panel interno de operación, Sentry del navegador, higiene de turnos, cuarentena offline y pilotos.
 
+[Aceptación de equipos](runbooks/pos-hardware-acceptance.md): equipo de prueba, impresión térmica,
+lector, cajón y pruebas offline en los dispositivos reales de cada negocio.
+
 ## Pruebas
 
 [testing-ci.md](testing-ci.md) tiene la política detallada de CI. Los escenarios por dominio viven

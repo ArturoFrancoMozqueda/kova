@@ -4,9 +4,9 @@
 Usage (locally):
     uv run python scripts/send_trial_reminders.py
 
-In production, schedule with the platform cron (Render/Fly/GitHub
-Actions). Safe to run multiple times per day — each tenant is reminded
-at most once via ``tenants.trial_reminder_sent_at``.
+In production, the GitHub Actions scheduler runs this entrypoint. Successful
+acceptance is recorded in ``tenants.trial_reminder_sent_at``; failures leave
+the job red and eligible for retry before trial expiry.
 """
 import logging
 import sys
@@ -18,14 +18,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.config import settings, sqlalchemy_database_url
-from app.email.trial_reminders import send_due_trial_reminders
+from app.email.trial_reminders import TrialReminderBatchError, send_due_trial_reminders
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     engine = create_engine(sqlalchemy_database_url(settings.database_url))
-    with Session(engine) as db:
-        count = send_due_trial_reminders(db)
+    try:
+        with Session(engine) as db:
+            count = send_due_trial_reminders(db)
+    except TrialReminderBatchError as exc:
+        logging.error("trial_reminder.batch_failed sent=%d failed=%d", exc.sent, exc.failed)
+        return 1
+    finally:
+        engine.dispose()
     print(f"trial_reminder.batch sent={count}")
     return 0
 

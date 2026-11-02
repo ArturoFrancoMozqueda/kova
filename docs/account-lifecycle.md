@@ -26,7 +26,7 @@ La purga borra todas las filas relacionales con `tenant_id`, el tenant y los usu
 ## Operación
 
 `.github/workflows/account-purge.yml` invoca la purga diariamente. El secreto `INTERNAL_API_KEY`
-debe contener el mismo valor en GitHub Actions y Fly. El endpoint usa una conexión privilegiada
+debe contener el mismo valor en GitHub Actions y el backend nativo de Cloudflare. El endpoint usa una conexión privilegiada
 únicamente porque procesa varios tenants; la selección de cada vencido se bloquea con `FOR UPDATE
 SKIP LOCKED`. Cada cuenta se procesa y confirma en su propia transacción. Si una falla, se revierte
 íntegra, las siguientes continúan y el endpoint finalmente falla para mantener rojo el scheduler; el

@@ -16,6 +16,10 @@ existing explicit Sentry configuration. Route inspection uses the supported
 `iter_route_contexts()` traversal, with the same security assertions and OpenAPI
 contract. See the [upstream routing change](https://fastapi.tiangolo.com/release-notes/#01370).
 
+The WASM document writer and isolated ingestion parser pin pypdf 6.21.4, including the
+[upstream malformed-PDF fixes](https://github.com/py-pdf/pypdf/releases/tag/6.21.4).
+Only that wheel's lock entry changes; its downloaded bytes are checked against the PyPI SHA-256.
+
 The existing FastAPI application runs in 16 SQLite Durable Object coordinators
 behind a small JavaScript HTTP gateway. This retains production bcrypt cost within
 the Durable Objects compute budget. PostgreSQL remains authoritative for sessions,

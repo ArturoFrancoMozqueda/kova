@@ -68,6 +68,10 @@ Vercel sigue existiendo como candidato de publicación y respaldo (ver [desplieg
 
 - El Container corre un solo proceso (`maxInstances: 1`, `instanceType: basic`) que se mantiene vivo
   en inactividad. Mantenimiento o un release pueden reiniciarlo.
+- La API nativa usa PostgreSQL. Su imagen omite `sqlite3`, `_sqlite3` y su
+  biblioteca nativa; el probe del runtime exige su ausencia y conserva la revisión completa de
+  dependencias ELF, criptografía y renderizadores. Esto no modifica el almacenamiento SQLite
+  administrado por Cloudflare en sus Durable Objects.
 - Con `KOVA_NATIVE_BACKEND=1` el gateway usa el backend nativo. La versión anterior, FastAPI dentro
   de Python Workers (`deploy/cloudflare-backend/entry.py`) con Hyperdrive, se conserva como ruta de
   reversión validada.

@@ -1,20 +1,26 @@
 # Estado actual
 
-Última actualización: 2026-10-30.
+Última actualización: 2026-11-02.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
 
 ## En producción
 
-Producción corre `aa9c856e8f11` (PR #294): frontend `kovasuite.com` y API `api.kovasuite.com`
+Producción verificada el 2 de noviembre corre `79f73a326b14` (PR #299): frontend `kovasuite.com` y API `api.kovasuite.com`
 reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
-- Correos con presentación premium compartida y ajustes de móvil (#294). Reset solicitado desde
-  la API publicada y `delivered` a Gmail el 30 de octubre; Inbox/render en clientes sigue pendiente.
-- Restauración 0098 con autenticación, exportación por API y limpieza en entorno aislado (#293).
+- Caja compacta a 390/768/998/1440 px y tickets de 58/80 mm con altura calculada (#299).
+  PDF y navegador aprobados; impresión/corte físico pendientes.
+- Acceso permanente de cortesía explícito y auditado, sin simular pago de Stripe (#298).
+- Carga progresiva con skeletons y correos con presentación editorial compartida (#296).
+  Reset desde API publicado y `delivered` a Gmail el 30 de octubre. Las seis muestras QA actuales
+  llegaron a Inbox y se revisaron en Gmail web el 2 de noviembre; otros clientes siguen pendientes.
+- Restauración 0099 del respaldo real del 1 de noviembre, con autenticación por cookies,
+  exportación por API, RLS/integridad y limpieza en entorno aislado. [Evidencia](audits/KOVA-R2-RESTORE-2026-11-02.json)
+  y [run](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936).
 - Navegación por rol con Caja, Pedidos y Ventas fijos y categorías desplegables (#285). Aceptada en
   producción.
 - Pedidos con seguimiento público y operación diaria simplificada (#283). Aceptado en producción
@@ -62,22 +68,30 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 1. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
    confirma renovación pagada y pago fallido recientes, procesados por Kova. Falta la aceptación
    controlada de checkout y cancelación sobre la versión vigente antes del acceso pagado general.
-   El sandbox requiere reinstalar su clave test en el Secret store para repetir el simulacro;
-   la conexión disponible sólo tiene acceso live. [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
+   Preflight repetido el 2 de noviembre: sigue faltando `KOV005_STRIPE_SECRET_KEY` en el environment
+   `stripe-sandbox`; la conexión disponible sólo tiene acceso live. Webhook live habilitado hacia
+   la API vigente; esta lectura no prueba un checkout nuevo. [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
 2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
-   octubre pasó con revisión 0095 y el del 29 de octubre CDMX ya restauró la revisión actual 0098
-   con RLS e integridad aprobadas. El simulacro ampliado también aprobó autenticación, exportación
-   por API y logout sobre datos restaurados, con la imagen `57fe4cf7004f` y una cuenta sintética aislada.
+   octubre pasó con revisión 0095; el del 2 de noviembre restauró la revisión actual 0099 con RLS
+   e integridad aprobadas. También aprobó login, exportación por API y logout sobre datos
+   restaurados, con la imagen `79f73a326b14` y una cuenta sintética aislada. Snapshot de 24 h 18 min;
+   drill lógico/ASGI de 20.766 s sin construcción de imagen: no equivalen a RTO/RPO regionales.
    Falta la recuperación regional con bindings de producción, tráfico y RTO/RPO completos.
    [Alcance comprobado](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. El reset solicitado desde el proxy del backend
    publicado llegó a `delivered` el 29 de octubre CDMX y se repitió con el diseño nuevo sobre
-   `aa9c856e8f11` el 30 de octubre. Faltan Inbox, enlaces, otros clientes y
+   `4b14f2ca6659` el 30 de octubre (diseño editorial actual). Resend lo mantiene como `delivered`
+   en la consulta del 2 de noviembre y el dominio sigue verificado. Seis muestras QA del diseño
+   editorial enviadas ese día con el conector Resend también llegaron a Inbox, con revisión
+   visual en Gmail web y SPF/DKIM/DMARC PASS observados en la muestra de reset. No prueban
+   los disparadores del backend. Faltan enlaces reales, clientes móviles/oscuro, Outlook/Hotmail y
    disparadores actuales de las otras plantillas. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
-5. **Dispositivos físicos.** Lectura del QR de la tarjeta, cajón de dinero y operación offline en
-   los equipos del negocio ([checklist](claude/manual-qa-checklist.md#offline-funciona-sin-internet)).
+5. **Dispositivos físicos.** El dueño dispone de tablets, laptop Windows y Mac; faltan modelos/OS
+   y aceptación real. Impresora, lector y cajón no se han probado físicamente. Seguir la
+   [matriz de equipos](runbooks/pos-hardware-acceptance.md) y el
+   [checklist offline](claude/manual-qa-checklist.md#offline-funciona-sin-internet).
 6. **WhatsApp real.** App de Meta, número de prueba, credenciales en el Secret store, challenge del
    webhook y una entrega aceptada.
 7. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación

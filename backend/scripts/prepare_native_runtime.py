@@ -27,7 +27,12 @@ BASE_SONAMES = {
 # These extensions support terminal/GUI interaction or libuuid's platform helpers.
 # Kova uses uuid4() from Python's os.urandom-backed implementation. Omitting the
 # optional _uuid extension retains Python's documented pure-Python fallback.
-EXCLUDED_EXTENSIONS = ("_curses", "_curses_panel", "readline", "_uuid", "_tkinter", "_test")
+# The production API uses PostgreSQL only. Exclude SQLite and its unused FTS
+# parser entirely instead of shipping a second database engine in the API image.
+EXCLUDED_EXTENSIONS = (
+    "_curses", "_curses_panel", "readline", "_uuid", "_tkinter", "_test", "_sqlite3",
+)
+EXCLUDED_STDLIB_PACKAGES = ("sqlite3",)
 
 
 def copy_file(source: Path, target_root: Path) -> None:
@@ -86,6 +91,17 @@ def required_packages(stdlib: Path) -> list[str]:
     return sorted(packages)
 
 
+def prune_optional_stdlib(stdlib: Path) -> list[str]:
+    excluded = []
+    for package in EXCLUDED_STDLIB_PACKAGES:
+        shutil.rmtree(stdlib / package, ignore_errors=False)
+    for extension in (stdlib / "lib-dynload").glob("*.so"):
+        if extension.name.startswith(EXCLUDED_EXTENSIONS):
+            excluded.append(extension.name)
+            extension.unlink()
+    return sorted(excluded)
+
+
 def assemble(destination: Path) -> None:
     destination.mkdir(parents=True)
     for executable in ("python3.12", "python3", "python"):
@@ -97,11 +113,7 @@ def assemble(destination: Path) -> None:
         ignore=shutil.ignore_patterns("site-packages", "__pycache__", "test", "tests",
                                      "ensurepip", "idlelib", "tkinter", "turtledemo"),
     )
-    excluded = []
-    for extension in (stdlib / "lib-dynload").glob("*.so"):
-        if extension.name.startswith(EXCLUDED_EXTENSIONS):
-            excluded.append(extension.name)
-            extension.unlink()
+    excluded = prune_optional_stdlib(stdlib)
     packages = []
     for package in required_packages(stdlib):
         status = subprocess.run(["dpkg-query", "--status", package], check=True,
@@ -143,6 +155,7 @@ def assemble(destination: Path) -> None:
         "zlib_runtime": zlib.ZLIB_RUNTIME_VERSION,
         "debian_libraries": packages,
         "excluded_extensions": sorted(excluded),
+        "excluded_stdlib_packages": list(EXCLUDED_STDLIB_PACKAGES),
     }, indent=2) + "\n")
     account = destination / "etc"
     account.mkdir(parents=True, exist_ok=True)

@@ -28,6 +28,12 @@ the commercial model enforceable.
   active catalog count, active team count, closed shifts, and best sales day.
 - Trial expiry blocks commercial reads and writes until billing is recovered.
 - Owners can still open billing and start checkout when trial access has expired.
+- The daily trial reminder normally runs 3–4 days before expiry. A failed or missed send
+  remains eligible while `now < trial_ends_at <= now + 4 days`; expired trials are excluded.
+- Provider acceptance is marked per tenant. A failed recipient does not prevent other eligible
+  sends, leaves no sent mark, and fails the scheduler after the batch so it can be retried.
+- Permanent complimentary access without a Stripe subscription never receives expiry reminders.
+  A complimentary flag never suppresses the normal policy for a Stripe-managed subscription.
 - Billing recovery, authentication, account export/deletion and privacy/security revocation remain
   available. Operational reads such as receipts, reports and order history require commercial access.
 
@@ -100,6 +106,9 @@ the commercial model enforceable.
 | No subscription after trial expiry | Backend | Paid writes return `402` and audit `billing.access_blocked` |
 | Stripe `active` subscription | Backend | Paid writes are allowed |
 | Stripe `trialing` subscription | Backend | Paid writes are allowed |
+| Reminder transport fails for one recipient | Backend/Postgres | Other recipients commit; scheduler fails; a later run before expiry retries only pending recipients |
+| Complimentary access without Stripe | Backend | No trial reminder, even if a legacy trial date exists |
+| Trial has already expired | Backend | No late reminder |
 
 ## Acceptance Criteria
 

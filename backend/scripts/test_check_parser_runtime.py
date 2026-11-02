@@ -62,8 +62,8 @@ def valid_report(expected):
             "model_sha256": manifest["model"]["sha256"],
             "summary": {
                 "architecture": "x86_64",
-                "suites": 17,
-                "tests": 17,
+                "suites": 18,
+                "tests": 18,
                 "failures": 0,
                 "errors": 0,
                 "skipped": 0,
@@ -90,7 +90,7 @@ class RuntimeGateTests(unittest.TestCase):
 
     def test_real_manifest_has_complete_reviewed_patch_and_source_inventory(self):
         self.assertEqual(len(self.expected["patches"]), 6)
-        self.assertGreaterEqual(len(self.expected["manifest"]["advisories"]), 19)
+        self.assertGreaterEqual(len(self.expected["manifest"]["advisories"]), 20)
         self.assertTrue(self.expected["source_files"])
         GATE.validate_report(valid_report(self.expected), self.expected)
 
@@ -143,7 +143,7 @@ class RuntimeGateTests(unittest.TestCase):
                 with self.assertRaises(GATE.GateError):
                     GATE.validate_report(report, self.expected)
 
-    def test_17_suites_must_have_executed_cases_and_consistent_summary(self):
+    def test_18_suites_must_have_executed_cases_and_consistent_summary(self):
         for problem in ("missing_suite", "zero_cases", "failure", "mismatched_summary"):
             report = valid_report(self.expected)
             if problem == "missing_suite":
@@ -369,7 +369,7 @@ class AdvisoryFeedTests(unittest.TestCase):
     def test_public_feed_uses_no_credentials_and_covers_all_reviewed_severities(self):
         opener = mock.Mock(return_value=Response(self.rows))
         result = GATE.check_upstream_advisories(self.expected, open_url=opener)
-        self.assertEqual(len(result), 19)
+        self.assertEqual(len(result), 20)
         request = opener.call_args.args[0]
         self.assertNotIn("Authorization", dict(request.header_items()))
         self.assertNotIn("Cookie", dict(request.header_items()))

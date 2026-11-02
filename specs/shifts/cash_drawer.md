@@ -5,7 +5,8 @@
 El propietario pidió compatibilidad con el cajón de dinero y operación desde cualquier equipo.
 La implementación permite solicitar aperturas desde Kova en Windows, macOS, Linux, Android e
 iPadOS mediante la API existente de Kova. El equipo móvil no necesita acceso USB ni Web Serial.
-La comprobación física de modelos concretos y la publicación en producción están pendientes.
+El código está publicado en producción; sigue pendiente la comprobación física de modelos
+concretos. Usar la [matriz de aceptación](../../docs/runbooks/pos-hardware-acceptance.md).
 
 Un conector Python 3.12+, sin dependencias adicionales, se ejecuta en un equipo Windows/macOS/Linux
 en la misma red que una impresora ESC/POS con puerto TCP RAW y un cajón compatible conectado a

@@ -15,21 +15,34 @@ class UpstreamRegressionGateTest(unittest.TestCase):
 
     def report(self, name, *, failures=0, skipped=0, reason=""):
         skip = f'<skipped message="{reason}"/>' if skipped else ""
+        cases = (["ReplaceCurrentWordCopiesSharedInputWord",
+                  "ReplaceCurrentWordCopiesSharedCombinationWord"]
+                 if name == "pageres_test" else ["security-regression"])
+        body = "".join(f'<testcase name="{case}">{skip}</testcase>' for case in cases)
         (self.directory / f"{name}.xml").write_text(
-            f'<testsuites tests="1" failures="{failures}" errors="0" skipped="{skipped}">'
-            f'<testsuite><testcase name="security-regression">{skip}</testcase></testsuite>'
+            f'<testsuites tests="{len(cases)}" failures="{failures}" '
+            f'errors="0" skipped="{skipped}">'
+            f'<testsuite>{body}</testsuite>'
             '</testsuites>'
         )
 
     def test_accepts_complete_passing_security_reports(self):
         summary = verify(self.directory)
-        self.assertEqual(summary["suites"], 17)
-        self.assertEqual(summary["tests"], 17)
+        self.assertEqual(summary["suites"], 18)
+        self.assertEqual(summary["tests"], 19)
         self.assertEqual(summary["skipped"], 0)
 
     def test_fails_closed_on_missing_suite(self):
         (self.directory / "lstm_nullchar_test.xml").unlink()
         with self.assertRaises(FileNotFoundError):
+            verify(self.directory)
+
+    def test_both_shared_word_ownership_regressions_are_required(self):
+        report = self.directory / "pageres_test.xml"
+        report.write_text(report.read_text().replace(
+            '<testcase name="ReplaceCurrentWordCopiesSharedCombinationWord"></testcase>', ""
+        ))
+        with self.assertRaisesRegex(ValueError, "Both shared-word"):
             verify(self.directory)
 
     def test_rejects_failing_security_regression(self):
