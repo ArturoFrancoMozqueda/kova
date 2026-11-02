@@ -909,6 +909,13 @@
             ],
             "title": "Blocked At"
           },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
           "grace_period_ends_at": {
             "anyOf": [
               {
@@ -920,6 +927,25 @@
               }
             ],
             "title": "Grace Period Ends At"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsResponse"
+          },
+          "plan_code": {
+            "default": "standard",
+            "enum": [
+              "standard",
+              "esencial",
+              "gestion",
+              "unknown"
+            ],
+            "title": "Plan Code",
+            "type": "string"
+          },
+          "plan_name": {
+            "default": "Standard Plan",
+            "title": "Plan Name",
+            "type": "string"
           },
           "reason": {
             "title": "Reason",
@@ -974,8 +1000,20 @@
           "access": {
             "$ref": "#/components/schemas/BillingAccessResponse"
           },
+          "available_plans": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialPlanResponse"
+            },
+            "title": "Available Plans",
+            "type": "array"
+          },
           "plan": {
             "$ref": "#/components/schemas/StandardPlanResponse"
+          },
+          "portal_available": {
+            "default": false,
+            "title": "Portal Available",
+            "type": "boolean"
           },
           "subscription": {
             "anyOf": [
@@ -986,6 +1024,11 @@
                 "type": "null"
               }
             ]
+          },
+          "tiered_pricing_enabled": {
+            "default": false,
+            "title": "Tiered Pricing Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2590,6 +2633,29 @@
         "title": "CategoryUpdate",
         "type": "object"
       },
+      "CheckoutSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "plan_code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "standard",
+                  "esencial",
+                  "gestion"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Code"
+          }
+        },
+        "title": "CheckoutSessionRequest",
+        "type": "object"
+      },
       "CheckoutSessionResponse": {
         "properties": {
           "checkout_session_id": {
@@ -2614,6 +2680,37 @@
             "title": "Allowed",
             "type": "boolean"
           },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "limits": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Limits",
+            "type": "object"
+          },
+          "plan_code": {
+            "default": "standard",
+            "title": "Plan Code",
+            "type": "string"
+          },
+          "plan_name": {
+            "default": "Standard Plan",
+            "title": "Plan Name",
+            "type": "string"
+          },
           "reason": {
             "title": "Reason",
             "type": "string"
@@ -2636,6 +2733,68 @@
           "reason"
         ],
         "title": "CommercialAccessResponse",
+        "type": "object"
+      },
+      "CommercialPlanResponse": {
+        "properties": {
+          "amount_minor_units": {
+            "title": "Amount Minor Units",
+            "type": "integer"
+          },
+          "code": {
+            "enum": [
+              "standard",
+              "esencial",
+              "gestion"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsResponse"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tax_inclusive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Inclusive"
+          }
+        },
+        "required": [
+          "name",
+          "amount_minor_units",
+          "currency",
+          "interval",
+          "code",
+          "tax_inclusive",
+          "features",
+          "limits"
+        ],
+        "title": "CommercialPlanResponse",
         "type": "object"
       },
       "CommitRequest": {
@@ -4825,6 +4984,11 @@
             ],
             "title": "Active Employee Count"
           },
+          "advanced_reports_available": {
+            "default": true,
+            "title": "Advanced Reports Available",
+            "type": "boolean"
+          },
           "billing": {
             "anyOf": [
               {
@@ -4872,7 +5036,24 @@
             "$ref": "#/components/schemas/SalesSummaryResponse"
           },
           "story": {
-            "$ref": "#/components/schemas/BusinessStoryReportResponse"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessStoryReportResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SalesSummaryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timezone": {
             "title": "Timezone",
@@ -12331,6 +12512,34 @@
         "title": "PaymentResponse",
         "type": "object"
       },
+      "PlanLimitsResponse": {
+        "properties": {
+          "branches": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branches"
+          },
+          "product_image_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Image Bytes"
+          }
+        },
+        "title": "PlanLimitsResponse",
+        "type": "object"
+      },
       "PolicyResponse": {
         "properties": {
           "enabled": {
@@ -12391,6 +12600,19 @@
           "rebuy_delay_days"
         ],
         "title": "PolicyWrite",
+        "type": "object"
+      },
+      "PortalSessionResponse": {
+        "properties": {
+          "portal_url": {
+            "title": "Portal Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "portal_url"
+        ],
+        "title": "PortalSessionResponse",
         "type": "object"
       },
       "PreferenceWrite": {
@@ -13466,6 +13688,11 @@
             "title": "Products",
             "type": "array"
           },
+          "requests_available": {
+            "default": true,
+            "title": "Requests Available",
+            "type": "boolean"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -13704,6 +13931,27 @@
           "token"
         ],
         "title": "PublicOrderTrackingRead",
+        "type": "object"
+      },
+      "PublicPlansResponse": {
+        "properties": {
+          "available_plans": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialPlanResponse"
+            },
+            "title": "Available Plans",
+            "type": "array"
+          },
+          "tiered_pricing_enabled": {
+            "title": "Tiered Pricing Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tiered_pricing_enabled",
+          "available_plans"
+        ],
+        "title": "PublicPlansResponse",
         "type": "object"
       },
       "PublicProduct": {
@@ -17078,6 +17326,17 @@
             ],
             "readOnly": true,
             "title": "Period Freshness",
+            "type": "string"
+          },
+          "plan_code": {
+            "default": "standard",
+            "enum": [
+              "standard",
+              "esencial",
+              "gestion",
+              "unknown"
+            ],
+            "title": "Plan Code",
             "type": "string"
           },
           "plan_name": {
@@ -21287,6 +21546,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CheckoutSessionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {
@@ -21486,6 +21762,48 @@
         "tags": [
           "billing",
           "internal"
+        ]
+      }
+    },
+    "/api/v1/billing/plans": {
+      "get": {
+        "operationId": "public_plans_api_v1_billing_plans_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPlansResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public Plans",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/portal": {
+      "post": {
+        "operationId": "create_portal_session_api_v1_billing_portal_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Portal Session",
+        "tags": [
+          "billing"
         ]
       }
     },

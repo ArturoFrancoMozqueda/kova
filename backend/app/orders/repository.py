@@ -55,6 +55,8 @@ def create_order(
     shift_id: UUID | None = None,
     occurred_at: datetime.datetime | None = None,
 ) -> Order:
+    from app.billing.plans import plan_has_feature
+
     order = Order(
         tenant_id=tenant_id,
         client_uuid=client_uuid,
@@ -68,6 +70,7 @@ def create_order(
         tax_amount=tax_amount,
         customer_id=customer_id,
         occurred_at=occurred_at,
+        loyalty_eligible=plan_has_feature(db, tenant_id=tenant_id, feature="loyalty"),
     )
     db.add(order)
     db.flush()

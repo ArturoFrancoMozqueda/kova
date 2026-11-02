@@ -6,7 +6,9 @@ import type { DashboardControl, DashboardScope } from "./controlTypes";
 
 export type DashboardPeriod = "day" | "week" | "month";
 export type DashboardOverview = {
-  story: BusinessStoryReport;
+  story: BusinessStoryReport | null;
+  summary?: SalesSummary;
+  advanced_reports_available?: boolean;
   hourly: SalesByHourRow[];
   previous_summary: SalesSummary;
   timezone: string;

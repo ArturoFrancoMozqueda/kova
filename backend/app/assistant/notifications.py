@@ -78,7 +78,11 @@ def refresh_signals(db, ctx, branch):
         }
         for key in config["pending"]
     }
-    story = reports.business_story(db, tenant_id=member.tenant_id, start_date=None, end_date=None)
+    from app.billing.plans import plan_has_feature
+
+    story = reports.business_story(
+        db, tenant_id=member.tenant_id, start_date=None, end_date=None,
+    ) if plan_has_feature(db, tenant_id=member.tenant_id, feature="advanced_reports") else {}
     for alert in story.get("restock_alerts", [])[:20]:
         identifier = str(alert.get("product_id", ""))
         if identifier:

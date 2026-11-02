@@ -25,6 +25,10 @@ export type Subscription = {
 };
 
 export type BillingAccess = {
+  plan_code?: import("./entitlements").PlanCode | "unknown";
+  plan_name?: string;
+  features?: string[];
+  limits?: { product_image_bytes: number | null; branches?: number | null };
   allowed: boolean;
   valid_until?: string | null;
   reason: string;
@@ -40,6 +44,16 @@ export type BillingSubscription = {
   plan: StandardPlan;
   subscription: Subscription | null;
   access: BillingAccess;
+  tiered_pricing_enabled?: boolean;
+  portal_available?: boolean;
+  available_plans?: CommercialPlan[];
+};
+
+export type CommercialPlan = StandardPlan & {
+  code: import("./entitlements").PlanCode;
+  tax_inclusive: boolean | null;
+  features: string[];
+  limits: { product_image_bytes: number | null; branches?: number | null };
 };
 
 export type CheckoutSession = {

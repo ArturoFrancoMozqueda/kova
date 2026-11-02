@@ -1,9 +1,12 @@
+import type { CommercialAccess } from "@/auth/types";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
+const authPlan = vi.hoisted(() => ({ access: undefined as CommercialAccess | undefined }));
+vi.mock("@/auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", commercialAccess: authPlan.access } }) }));
 vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
-vi.mock("@/auth/permissions", () => ({ INVENTORY_ADJUST_PERMISSION: "inventory.adjust", usePermission: () => true }));
+vi.mock("@/auth/permissions", () => ({ INVENTORY_ADJUST_PERMISSION: "inventory.adjust", BILLING_VIEW_PERMISSION: "billing.view", usePermission: () => true }));
 vi.mock("@/catalog/api", () => ({ listProducts: vi.fn() }));
 vi.mock("./api", () => ({ listSuppliers: vi.fn(), listPurchases: vi.fn(), createSupplier: vi.fn(), createPurchase: vi.fn(), receivePurchase: vi.fn(), cancelPurchase: vi.fn() }));
 
@@ -15,6 +18,7 @@ import PurchasingView from "./PurchasingView";
 const mount = (path = "/purchasing") => render(<MemoryRouter initialEntries={[path]}><PurchasingView /></MemoryRouter>);
 
 beforeEach(() => {
+  authPlan.access = undefined;
   vi.clearAllMocks();
   Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
   vi.mocked(listProducts).mockResolvedValue([]);
@@ -194,4 +198,15 @@ it("returns to the purchase with the saved supplier selected and the full draft 
   expect(screen.getByLabelText("Referencia o notas (opcional)")).toHaveValue("Entrega el viernes");
   expect(screen.getByRole("region", { name: "Preparar compra pendiente" })).toHaveFocus();
   expect(createSupplier).toHaveBeenCalledWith(supplier.name, "", expect.any(String));
+});
+
+
+it("keeps an existing purchase receivable after downgrade while preventing new purchases and suppliers", async () => {
+  authPlan.access = { allowed: true, reason: "active", valid_until: null, plan_code: "esencial", features: ["inventory"] };
+  mount();
+  expect(await screen.findByRole("button", { name: "Recibir mercancía" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Preparar compra" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Nuevo proveedor" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Recibir mercancía" }));
+  expect(screen.getByRole("button", { name: "Confirmar recepción" })).toBeEnabled();
 });

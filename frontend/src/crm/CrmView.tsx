@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
@@ -49,14 +52,15 @@ const selectClass =
 
 export default function CrmView() {
   useDocumentTitle("Seguimiento comercial");
+  const { state } = useAuth();
   return (
     <OperationsSession>
-      {(identity) => <CrmWorkspace identity={identity} />}
+      {(identity) => <CrmWorkspace identity={identity} canCreate={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders")} />}
     </OperationsSession>
   );
 }
 
-function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; canCreate: boolean }) {
   const linked = useLinkedRecord<Opportunity>(
     identity,
     "opportunity_id",
@@ -219,6 +223,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   const create = (event: FormEvent) => {
     event.preventDefault();
+    if (!canCreate && !editing) return;
     const fields = {
       title: title.trim(),
       estimated_amount: amount || "0.00",
@@ -337,13 +342,14 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     ) ?? [];
   return (
     <ViewLayout className="space-y-7 [&_.animate-fade-in]:animate-none">
+      {!canCreate && <PlanFeatureNotice />}
       <ViewHeader
         eyebrow="Relación con tus clientes"
         title="Seguimiento comercial"
         meta="Cada oportunidad con su siguiente paso. Cada contacto con un permiso claro."
         actions={
           <Button
-            disabled={busy || !online || (!data && !createOpen)}
+            disabled={busy || !online || (!data && !createOpen) || !canCreate}
             onClick={() => {
               setEditing(null);
               setTitle("");
@@ -370,7 +376,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           />
         )}
       </LinkedRecordNotice>
-      {createOpen && (
+      {createOpen && (canCreate || editing) && (
         <form
           onSubmit={create}
           className="space-y-4 rounded-2xl border bg-card p-5"

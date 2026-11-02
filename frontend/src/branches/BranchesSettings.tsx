@@ -1,3 +1,4 @@
+import { useOptionalAuth } from "@/auth/useAuth";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +12,8 @@ import { listBranches, saveBranch, type Branch } from "./api";
 
 export function BranchesSettings() {
   const id = useId();
+  const auth = useOptionalAuth();
+  const branchLimit = auth?.state.status === "authenticated" ? auth.state.commercialAccess?.limits?.branches : null;
   const [branches, setBranches] = useState<Branch[]>([]);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [name, setName] = useState("");
@@ -41,6 +44,7 @@ export function BranchesSettings() {
       alive = false;
     };
   }, [attempt]);
+  const branchLimitReached = branchLimit != null && branches.length >= branchLimit;
   const reset = () => {
     setEditing(null);
     setName("");
@@ -48,7 +52,7 @@ export function BranchesSettings() {
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy || !name.trim()) return;
+    if (busy || !name.trim() || (!editing && (loading || Boolean(error) || branchLimitReached))) return;
     setBusy(true);
     setError("");
     try {
@@ -127,7 +131,8 @@ export function BranchesSettings() {
               </li>
             ))}
           </ul>
-          <form
+          {branchLimitReached && !editing && <p role="status" className="rounded-kova-md border p-4 text-sm">Tu plan incluye {branchLimit} sucursal{branchLimit === 1 ? "" : "es"}. Puedes consultar y editar tus sucursales existentes. Contacta a soporte para ampliar tu operación.</p>}
+          {(!branchLimitReached || editing) && <form
             onSubmit={(event) => void submit(event)}
             className="grid max-w-xl gap-4"
           >
@@ -175,7 +180,7 @@ export function BranchesSettings() {
                 </Button>
               ) : null}
             </div>
-          </form>
+          </form>}
         </CardContent>
       </Card>
       <EmployeeBranchAccess />

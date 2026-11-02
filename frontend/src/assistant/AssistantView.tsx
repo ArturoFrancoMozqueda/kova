@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { resolveUserFacingError, safeUserMessage } from "@/lib/apiError";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -60,6 +62,7 @@ export default function AssistantView() {
   if (state.status !== "authenticated") return null;
   if (!["owner", "manager"].includes(state.user.role)) return <p className="p-6">El asistente está disponible para administradores.</p>;
   if (state.sessionMode === "offline") return <Card className="m-5 p-5">Conéctate para usar el asistente. Puedes seguir registrando ventas offline.</Card>;
+  if (!hasPlanFeature(state.commercialAccess, "advanced_reports")) return <div className="p-6"><PlanFeatureNotice>El asistente de análisis está incluido en Gestión. Tus reportes de ventas siguen disponibles.</PlanFeatureNotice></div>;
   const identity = { tenantId: state.tenantId, userId: state.user.id, branchId: getActiveBranchId(state.tenantId, state.user.id) };
   return <AssistantWorkspace key={`${identity.tenantId}:${identity.userId}:${identity.branchId}:${state.user.role}`} identity={identity} tenantName={state.tenantName} />;
 }

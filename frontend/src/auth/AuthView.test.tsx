@@ -30,7 +30,9 @@ function renderAt(path: string) {
 }
 
 function mockFetch(handler: (input: RequestInfo | URL, init?: RequestInit) => Response | Promise<Response>) {
-  const fetchMock = vi.fn(handler);
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input).includes("/billing/plans")
+    ? new Response(JSON.stringify({ tiered_pricing_enabled: false, available_plans: [{ code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", features: [], tax_inclusive: null, limits: { product_image_bytes: null } }] }))
+    : handler(input, init));
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }

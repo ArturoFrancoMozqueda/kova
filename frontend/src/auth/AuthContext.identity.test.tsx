@@ -124,6 +124,26 @@ describe("AuthProvider identity continuity", () => {
     billingSubscription.mockReset();
   });
 
+  it("refreshes entitlements and offline snapshot without retaining premium query data after downgrade", async () => {
+    const valid_until = new Date(Date.now() + 60_000).toISOString();
+    const full = { ...session("tenant-a", "user-a"), commercial_access: { allowed: true, reason: "active", valid_until,
+      plan_code: "gestion" as const, plan_name: "Gestión", features: ["pos", "advanced_reports"], limits: { product_image_bytes: 1_073_741_824 } } };
+    const downgraded = { ...full, commercial_access: { ...full.commercial_access, plan_code: "esencial" as const, plan_name: "Esencial", features: ["pos"], limits: { product_image_bytes: 250_000_000 } } };
+    vi.mocked(getSession).mockResolvedValueOnce(full).mockResolvedValueOnce(downgraded);
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={vi.fn()} onUnmount={vi.fn()} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledOnce());
+    queryClient.setQueryData(["premium-report"], { secret: "old-plan-data" });
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
+    expect(offlineAccess.cache.mock.calls[1][0].commercial_access).toEqual(downgraded.commercial_access);
+    expect(queryClient.getQueryData(["premium-report"])).toBeUndefined();
+    expect(reportIdentity).toHaveBeenLastCalledWith(expect.objectContaining({ commercialPlan: expect.stringContaining("esencial") }));
+    expect(billingIdentity).toHaveBeenLastCalledWith(expect.objectContaining({ commercialPlan: expect.stringContaining("esencial") }));
+  });
+
   it.each([
     ["tenant", session("tenant-b", "user-a")],
     ["user", session("tenant-a", "user-b")],

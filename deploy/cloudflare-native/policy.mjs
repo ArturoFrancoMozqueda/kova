@@ -31,6 +31,9 @@ export function nativeEnvironment(env) {
     TRUSTED_CLIENT_IP_HEADER: "x-kova-client-ip",
     ASSISTANT_DOCUMENTS_ENABLED: "false",
     ASSISTANT_INGEST_ON_DEMAND: "false",
+    // This release prepares the catalog without authorizing its commercial activation.
+    BILLING_TIERED_PLANS_ENABLED: "false",
+    BILLING_PORTAL_ENABLED: "false",
     DATABASE_POOL_SIZE: "3",
     DATABASE_MAX_OVERFLOW: "0",
     DATABASE_POOL_RECYCLE_SECONDS: "1800",

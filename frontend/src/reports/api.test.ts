@@ -29,6 +29,7 @@ describe("report cache identity and invalidation", () => {
     { tenantId: "tenant-b", userId: "user-b", role: "owner" },
     { ...identityA, userId: "user-b" },
     { ...identityA, role: "cashier" },
+    { ...identityA, commercialPlan: "esencial" },
   ])("fetches fresh results after the verified tenant, user, or role changes: %j", async (identity) => {
     const fetch = vi.fn().mockResolvedValueOnce(response("100.00")).mockResolvedValueOnce(response("25.00"));
     vi.stubGlobal("fetch", fetch);

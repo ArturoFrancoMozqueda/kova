@@ -34,6 +34,9 @@ def save_branch(db, membership, body, key, user_id, branch_id=None, *, commit=Tr
         branch.name = body.name
         branch.address = body.address
     else:
+        from app.billing.plan_policy import enforce_branch_creation_limit
+
+        enforce_branch_creation_limit(db, tenant_id=membership.tenant_id)
         count = db.query(Branch).filter(Branch.tenant_id == membership.tenant_id).count()
         if count >= 50:
             raise bad_request("El negocio ya tiene 50 sucursales")

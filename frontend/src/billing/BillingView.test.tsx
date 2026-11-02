@@ -24,8 +24,9 @@ vi.mock("./api", () => ({
   getBillingSubscription: () => getBillingSubscription(),
   reconcileCheckout: (sessionId: string) => reconcileCheckout(sessionId),
   invalidateBillingSubscription: () => invalidateBillingSubscription(),
-  startCheckout: () => startCheckout(),
+  startCheckout: (...args: unknown[]) => startCheckout(...args),
   cancelSubscription: () => cancelSubscription(),
+  startBillingPortal: vi.fn(),
 }));
 
 // Grant billing view + manage so the full view renders.
@@ -339,4 +340,53 @@ it.each(["active", "trialing"])("confirms an existing subscription only with ref
   renderBilling();
   fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
   expect(await screen.findByText("Tu suscripción ya está activa. Actualizamos su estado.")).toBeVisible();
+});
+
+
+it("requires explicit tier selection and sends the selected plan", async () => {
+  const result = billing(null);
+  result.tiered_pricing_enabled = true;
+  result.available_plans = [
+    { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "inventory", "sales_reports"], limits: { product_image_bytes: 250_000_000 } },
+    { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "advanced_reports"], limits: { product_image_bytes: 1_073_741_824 } },
+  ];
+  result.access = { ...result.access, plan_code: "gestion", features: ["pos", "advanced_reports"] };
+  getBillingSubscription.mockResolvedValue(result); startCheckout.mockRejectedValue(new Error("offline"));
+  renderBilling();
+  const checkout = await screen.findByRole("button", { name: "Elige un plan para continuar" });
+  expect(checkout).toBeDisabled();
+  fireEvent.click(screen.getByRole("radio", { name: /Esencial/ }));
+  expect(screen.getByText("IVA incluido en la mensualidad.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Activar por \$399/ }));
+  await waitFor(() => expect(startCheckout).toHaveBeenCalledWith("esencial"));
+  expect(screen.queryByText(copy.billingView.noSubscriptionBanner)).not.toBeInTheDocument();
+});
+
+it("does not offer checkout or changes when the authoritative catalog and portal are disabled", async () => {
+  const result = billing(null); result.available_plans = []; result.tiered_pricing_enabled = false; result.portal_available = false;
+  getBillingSubscription.mockResolvedValue(result); renderBilling();
+  expect(await screen.findByText(/contratación de tu plan todavía no está disponible/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Activar por/ })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Administrar suscripción" })).not.toBeInTheDocument();
+});
+
+
+it.each([
+  ["Ya tienes un proceso de pago para Esencial; elige ese plan para retomarlo.", "Ya tienes un proceso de pago para Esencial; elige ese plan para retomarlo."],
+  ["Checkout cs_test_private_123 conflicts with tenant 00000000-0000-0000-0000-000000000001", copy.billingView.operationError],
+])("keeps checkout conflicts on billing and shows only safe warning guidance: %s", async (detail, expected) => {
+  getBillingSubscription.mockResolvedValue(billing(null));
+  startCheckout.mockRejectedValue(new ApiError(JSON.stringify({ detail }), 409));
+  const currentUrl = window.location.href;
+  renderBilling();
+  fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
+  const message = await screen.findByText(expected);
+  expect(message.closest('[role="status"]')).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(window.location.href).toBe(currentUrl);
+  expect(screen.getByRole("heading", { name: copy.billingView.title })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Activar por $299 MXN/mes" })).toBeEnabled();
+  expect(startCheckout).toHaveBeenCalledOnce();
+  expect(reconcileCheckout).not.toHaveBeenCalled();
+  expect(document.body).not.toHaveTextContent("cs_test_private_123");
 });

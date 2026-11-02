@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -47,7 +49,8 @@ export default function CommercialRequestsView() {
 }
 function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const { state } = useAuth();
-  const ordersEnabled = state.status === "authenticated" && state.featureFlags?.customer_orders === true;
+  const canOperate = hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders");
+  const ordersEnabled = state.status === "authenticated" && state.featureFlags?.customer_orders === true && canOperate;
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<RequestList>(
     "/api/v1",
@@ -85,7 +88,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     };
   }, [request, search]);
   const resolve = async (status: "converted" | "dismissed") => {
-    if (!selected) return;
+    if (!selected || (status === "converted" && !canOperate)) return;
     if (
       await panel.mutate(
         `/crm/requests/${selected.id}/resolve`,
@@ -106,6 +109,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   return (
     <ViewLayout className="space-y-6">
+      {!canOperate && <PlanFeatureNotice>Conservas las solicitudes anteriores. Para aceptar nuevas solicitudes o convertirlas en oportunidades necesitas Gestión.</PlanFeatureNotice>}
       <ViewHeader
         eyebrow="Captación"
         title="Solicitudes del catálogo"
@@ -232,7 +236,7 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <div className="flex flex-wrap gap-3">
             <Button
               className="h-auto min-h-11 whitespace-normal text-left"
-              disabled={!customerId || panel.busy || !panel.online}
+              disabled={!customerId || panel.busy || !panel.online || !canOperate}
               onClick={() => void resolve("converted")}
             >
               Crear oportunidad con este cliente

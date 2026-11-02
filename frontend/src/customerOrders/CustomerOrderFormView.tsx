@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
@@ -79,6 +81,9 @@ export default function CustomerOrderFormView() {
   const identity = state.status === "authenticated"
     ? `${state.tenantId}:${state.user.id}:${state.user.role}:${getActiveBranchId(state.tenantId, state.user.id)}`
     : state.status;
+  if (!hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders")) {
+    return <ViewLayout className="space-y-6"><ViewHeader title={orderId ? "Editar pedido" : "Nuevo pedido"} /><PlanFeatureNotice>Conservas tus pedidos anteriores y puedes terminarlos o cobrarlos desde su detalle. Para crear o editar pedidos necesitas Gestión.</PlanFeatureNotice></ViewLayout>;
+  }
   return <CustomerOrderFormSession key={`${identity}:${orderId ?? "new"}:${incomingCustomerId}`} orderId={orderId} incomingCustomerId={incomingCustomerId} />;
 }
 

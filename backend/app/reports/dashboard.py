@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership
 from app.billing import service as billing_service
+from app.billing.plans import plan_has_feature
 from app.billing.schemas import BillingSubscriptionResponse
 from app.branches.models import Branch
 from app.branches.scope import active_branch_id, bind_branch, tenant_wide_branches
@@ -33,7 +34,9 @@ DashboardPeriod = Literal["day", "week", "month"]
 
 
 class DashboardOverviewResponse(BaseModel):
-    story: BusinessStoryReportResponse
+    story: BusinessStoryReportResponse | None
+    summary: SalesSummaryResponse | None = None
+    advanced_reports_available: bool = True
     hourly: list[SalesByHourRow]
     previous_summary: SalesSummaryResponse
     timezone: str
@@ -76,19 +79,22 @@ def overview(
             can_view_all=allowed is None,
         )
         result = _overview(db, membership=membership, period=period)
-        result.control_center = read_control(
-            db,
-            tenant=tenant,
-            role=role,
-            branches=[branch.id for branch in options if selected is None or branch.id == selected],
-            options=options,
-            scope=scope,
-            story=result.story,
-            now=datetime.now().astimezone(),
-            billing=result.billing,
-            catalog_count=result.active_catalog_count,
-            employee_count=result.active_employee_count,
-        )
+        if result.advanced_reports_available:
+            result.control_center = read_control(
+                db,
+                tenant=tenant,
+                role=role,
+                branches=[
+                    branch.id for branch in options if selected is None or branch.id == selected
+                ],
+                options=options,
+                scope=scope,
+                story=result.story,
+                now=datetime.now().astimezone(),
+                billing=result.billing,
+                catalog_count=result.active_catalog_count,
+                employee_count=result.active_employee_count,
+            )
     # tenant_wide_branches restores the original operating scope, including on failure.
     assert active_branch_id(db, tenant) == original
     return result
@@ -111,6 +117,7 @@ def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     start = today - timedelta(days=days - 1)
     previous_end = start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=days - 1)
+    advanced = plan_has_feature(db, tenant_id=tenant_id, feature="advanced_reports")
     story = BusinessStoryReportResponse.model_validate(
         business_story_copy(
             service.business_story(
@@ -120,6 +127,9 @@ def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
                 end_date=today,
             )
         )
+    ) if advanced else None
+    summary = SalesSummaryResponse.model_validate(
+        service.sales_summary(db, tenant_id=tenant_id, start_date=start, end_date=today)
     )
     previous = SalesSummaryResponse.model_validate(
         service.sales_summary(
@@ -129,7 +139,9 @@ def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
             end_date=previous_end,
         )
     )
-    hourly = service.sales_by_hour(db, tenant_id=tenant_id, start_date=start, end_date=today)
+    hourly = service.sales_by_hour(
+        db, tenant_id=tenant_id, start_date=start, end_date=today,
+    ) if advanced else []
     stock = inventory_service.list_stock(db, tenant_id=tenant_id)
     low_stock = [InventoryStockItem.model_validate(item) for item in stock if item["is_low_stock"]]
     active_catalog_count = (
@@ -157,6 +169,8 @@ def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     del profile
     return DashboardOverviewResponse(
         story=story,
+        summary=summary,
+        advanced_reports_available=advanced,
         hourly=hourly,
         previous_summary=previous,
         timezone=str(tz),

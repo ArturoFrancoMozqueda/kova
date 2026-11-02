@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
@@ -19,6 +22,8 @@ type DraftRow = Suggestion & { selected: boolean; quantity: string; cost: string
 
 export default function ReplenishmentView() {
   useDocumentTitle("Reposición");
+  const { state } = useAuth();
+  if (!hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "advanced_reports")) return <ViewLayout className="space-y-6"><ViewHeader title="Reposición" /><PlanFeatureNotice>Las recomendaciones de reposición están incluidas en Gestión. Puedes seguir consultando existencias en Inventario.</PlanFeatureNotice></ViewLayout>;
   return <OperationsSession>{identity => <ReplenishmentWorkspace identity={identity} />}</OperationsSession>;
 }
 

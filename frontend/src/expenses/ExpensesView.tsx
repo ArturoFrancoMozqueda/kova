@@ -1,3 +1,6 @@
+import { useOptionalAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, CalendarDays, Pencil, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
 
@@ -27,6 +30,8 @@ export default function ExpensesView() {
   useDocumentTitle(copy.expenses.title);
   const enabled = useFeature("margin_reports");
   const canManage = usePermission(EXPENSES_MANAGE_PERMISSION);
+  const auth = useOptionalAuth();
+  const canCreate = hasPlanFeature(auth?.state.status === "authenticated" ? auth.state.commercialAccess : undefined, "advanced_reports");
   const { toast } = useToast();
   const { timezone, isResolved: timezoneResolved } = useTenantTimezone();
   const [startDate, setStartDate] = useState("");
@@ -89,6 +94,7 @@ export default function ExpensesView() {
   }
 
   const save = async (payload: ExpensePayload) => {
+    if (editing === "new" && !canCreate) return;
     setBusy(true);
     try {
       if (editing === "new") await createExpense(payload);
@@ -120,10 +126,11 @@ export default function ExpensesView() {
 
   return (
     <ViewLayout width="standard" className="space-y-6">
+      {!canCreate && <PlanFeatureNotice>Conservas el historial de gastos y puedes corregir registros anteriores. Para agregar nuevos gastos necesitas Gestión.</PlanFeatureNotice>}
       <ViewHeader
         eyebrow={copy.expenses.eyebrow}
         title={copy.expenses.title}
-        actions={<Button disabled={!timezoneResolved} onClick={() => setEditing("new")}><Plus className="mr-2 h-4 w-4" />{copy.expenses.add}</Button>}
+        actions={<Button disabled={!timezoneResolved || !canCreate} onClick={() => setEditing("new")}><Plus className="mr-2 h-4 w-4" />{copy.expenses.add}</Button>}
         meta={copy.expenses.meta}
       />
 
@@ -141,7 +148,7 @@ export default function ExpensesView() {
       </Card> : null}
 
       {loading ? <ExpenseSkeleton /> : error ? <ViewError message={copy.expenses.loadError} onRetry={() => void load()} retryLabel={copy.expenses.retry} /> : expenses.length === 0 ? (
-        <ViewEmpty icon={<ReceiptText className="h-6 w-6" />} title={copy.expenses.emptyTitle} body={copy.expenses.emptyBody} primaryCta={{ label: copy.expenses.add, onClick: () => setEditing("new") }} />
+        <ViewEmpty icon={<ReceiptText className="h-6 w-6" />} title={copy.expenses.emptyTitle} body={copy.expenses.emptyBody} primaryCta={canCreate ? { label: copy.expenses.add, onClick: () => setEditing("new") } : undefined} />
       ) : (
         <div className="divide-y divide-kova-border rounded-kova-lg border-[0.5px] border-kova-border bg-white shadow-kova-card">
           {expenses.map((expense) => (
@@ -155,7 +162,7 @@ export default function ExpensesView() {
         </div>
       )}
 
-      {editing ? <ExpenseDialog timezone={timezone} expense={editing === "new" ? null : editing} busy={busy} onCancel={() => setEditing(null)} onSave={save} /> : null}
+      {editing && (editing !== "new" || canCreate) ? <ExpenseDialog timezone={timezone} expense={editing === "new" ? null : editing} busy={busy} onCancel={() => setEditing(null)} onSave={save} /> : null}
       <ConfirmDialog open={deleting !== null} title={copy.expenses.deleteTitle} description={copy.expenses.deleteBody} confirmLabel={copy.expenses.deleteConfirm} busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void remove()} />
     </ViewLayout>
   );

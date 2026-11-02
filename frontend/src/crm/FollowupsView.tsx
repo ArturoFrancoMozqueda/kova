@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -52,13 +55,14 @@ const statuses = {
 const fieldClass = "mt-1 min-w-0";
 export default function FollowupsView() {
   useDocumentTitle("Postventa y seguimiento");
+  const { state } = useAuth();
   return (
     <OperationsSession>
-      {(identity) => <FollowupsWorkspace identity={identity} />}
+      {(identity) => <FollowupsWorkspace identity={identity} canConfigure={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders")} />}
     </OperationsSession>
   );
 }
-function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIdentity; canConfigure: boolean }) {
   const fieldId = useId();
   const linked = useLinkedRecord<Task>(
     identity,
@@ -111,6 +115,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   }, [request, search]);
   const createIncident = async (event: FormEvent) => {
     event.preventDefault();
+    if (!canConfigure) return;
     if (
       await panel.mutate(
         "/crm/followups",
@@ -160,6 +165,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   return (
     <ViewLayout className="space-y-6">
+      {!canConfigure && <PlanFeatureNotice />}
       <ViewHeader
         eyebrow="Relación con clientes"
         title="Postventa y seguimiento"
@@ -167,7 +173,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         actions={panel.data ? (
           <Button
             className="h-auto min-h-11 whitespace-normal"
-            disabled={panel.busy || !panel.online}
+            disabled={panel.busy || !panel.online || !canConfigure}
             aria-expanded={incidentOpen}
             aria-controls="followup-incident-form"
             onClick={() => setIncidentOpen((value) => !value)}
@@ -221,7 +227,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             <Button
               className="h-auto min-h-11 whitespace-normal text-left"
               variant="outline"
-              disabled={panel.busy}
+              disabled={panel.busy || !canConfigure}
               onClick={() => setPolicy({ ...panel.data!.policy })}
             >
               Revisar regla
@@ -230,7 +236,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               className="h-auto min-h-11 whitespace-normal text-left"
               variant="outline"
               disabled={
-                panel.busy || !panel.online || !panel.data.policy.enabled
+                panel.busy || !panel.online || !canConfigure || !panel.data.policy.enabled
               }
               onClick={() =>
                 void panel.mutate(
@@ -246,7 +252,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </div>
         </section>
       )}
-      {policy && (
+      {canConfigure && policy && (
         <form
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => {
@@ -335,7 +341,7 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </div>
         </form>
       )}
-      {incidentOpen && (
+      {canConfigure && incidentOpen && (
         <form
           id="followup-incident-form"
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"

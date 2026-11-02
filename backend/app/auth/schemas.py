@@ -92,6 +92,10 @@ class CommercialAccessResponse(BaseModel):
     allowed: bool
     reason: str
     valid_until: datetime | None = None
+    plan_code: str = "standard"
+    plan_name: str = "Standard Plan"
+    features: list[str] = Field(default_factory=list)
+    limits: dict[str, int | None] = Field(default_factory=dict)
 
 
 class SessionProbeResponse(BaseModel):

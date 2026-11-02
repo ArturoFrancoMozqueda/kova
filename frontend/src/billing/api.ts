@@ -41,8 +41,8 @@ let subscriptionIdentity: string | null = null;
 let subscriptionEpoch = 0;
 
 /** Cache identity comes only from the verified online AuthContext session. */
-export function setBillingCacheIdentity(identity: { tenantId: string; userId: string; role?: string } | null): void {
-  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role]) : null;
+export function setBillingCacheIdentity(identity: { tenantId: string; userId: string; role?: string; commercialPlan?: string } | null): void {
+  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role, identity.commercialPlan]) : null;
   if (next === subscriptionIdentity) return;
   subscriptionIdentity = next;
   invalidateBillingSubscription();
@@ -92,10 +92,11 @@ export function invalidateBillingSubscription(): void {
   subscriptionInflight = null;
 }
 
-export function startCheckout(): Promise<CheckoutSession> {
+export function startCheckout(planCode?: import("./entitlements").PlanCode): Promise<CheckoutSession> {
   return requestJson<CheckoutSession>("/api/v1/billing/checkout", {
     method: "POST",
-    headers: { "Idempotency-Key": idempotencyKey("checkout") },
+    headers: { "Idempotency-Key": idempotencyKey("checkout"), ...(planCode ? { "Content-Type": "application/json" } : {}) },
+    ...(planCode ? { body: JSON.stringify({ plan_code: planCode }) } : {}),
   });
 }
 
@@ -115,4 +116,8 @@ export function reconcileCheckout(sessionId: string): Promise<BillingSubscriptio
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ checkout_session_id: sessionId }),
   });
+}
+
+export function startBillingPortal(): Promise<{ portal_url: string }> {
+  return requestJson<{ portal_url: string }>("/api/v1/billing/portal", { method: "POST" });
 }

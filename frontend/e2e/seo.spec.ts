@@ -1,5 +1,4 @@
 import { expect, test } from "./fixtures";
-import { STANDARD_PLAN } from "../src/billing/standardPlan";
 
 // These assertions only hold against a prerendered build (Vercel or
 // `vite preview` over `dist`). The dev suite intentionally skips them, so gate
@@ -34,11 +33,13 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain(
       '<meta name="twitter:image:alt" content="Laptop y teléfono muestran Caja y Análisis de Kova junto al mensaje: Cada venta. Todo bajo control." />',
     );
-    // El JSON-LD describe la organización y su aplicación, incluida la oferta.
+    // La oferta se resuelve en el servidor en runtime. El HTML estático conserva
+    // identidad y canónico sin un precio que pueda contradecir ese catálogo.
     expect(html).toContain('"@type":"Organization"');
     expect(html).toContain('"@type":"SoftwareApplication"');
-    expect(html).toContain(`"price":"${STANDARD_PLAN.amountMinorUnits / 100}"`);
-    expect(html).toContain(`"priceCurrency":"${STANDARD_PLAN.currency}"`);
+    expect(html).not.toContain('"@type":"Offer"');
+    expect(html).not.toMatch(/"price(?:Currency)?"\s*:/);
+    expect(html).not.toContain("$299 MXN/mes");
     expect(html).not.toContain('"@type":"FAQPage"');
     expect(html).toContain('src="/hydrate-prerender.js"');
     expect(html).not.toContain('rel="modulepreload"');

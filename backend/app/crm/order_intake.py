@@ -101,6 +101,9 @@ def accept(db, tenant_id, user_id, request_id, body, key):
     fingerprint, replay = _request(db, tenant_id, key, f"catalog-order:{request_id}", body)
     if replay:
         return replay.response_status, replay.response_body
+    from app.billing.plan_policy import require_plan_feature
+
+    require_plan_feature(db, tenant_id=tenant_id, feature="customer_orders")
     row = _get_request(db, tenant_id, request_id, lock=True)
     if row.version != body.expected_version or row.status != "new":
         raise conflict("La solicitud cambió. Actualiza antes de continuar")

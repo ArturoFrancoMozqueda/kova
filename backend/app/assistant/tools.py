@@ -107,6 +107,10 @@ def call(db, tenant, user, name, arguments):
     if name not in SCHEMAS:
         raise HTTPException(422, "Herramienta no permitida.")
     body = SCHEMAS[name].model_validate(arguments)
+    if name in {"get_inventory", "compare_branches"}:
+        from app.billing.plan_policy import require_plan_feature
+
+        require_plan_feature(db, tenant_id=tenant, feature="advanced_reports")
     if name == "get_configuration":
         return configuration(db, tenant)
     if name == "get_sales":

@@ -448,6 +448,10 @@ def process_pending(
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
     if tenant is None or not get_billing_access_status(db, tenant_id=tenant_id).allowed:
         return result
+    from app.billing.plans import plan_has_feature
+
+    if not plan_has_feature(db, tenant_id=tenant_id, feature="customer_orders"):
+        return result
     rules = {row.template_key: row for row in _rule_query(db, tenant_id, branch_id).all()}
     permitted = {key: rule.enabled and _authorized(db, rule) for key, rule in rules.items()}
     if permitted.get("restock_review"):

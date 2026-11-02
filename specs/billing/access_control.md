@@ -52,7 +52,9 @@ owners to recover billing without losing operational visibility.
 
 - Access checks must run after authentication and RBAC checks.
 - Access checks must be centralized, not scattered inline in route handlers.
-- Access checks must not introduce plan-tier or feature-tier logic.
+- The payment/trial access evaluator remains independent of RBAC, plan capabilities and rollout.
+  A valid plan does not bypass a denied payment/trial state. Plan capabilities are an additional
+  server-owned condition under [the commercial plan contract](commercial_plans.md).
 
 ## Permissions
 
@@ -61,6 +63,10 @@ owners to recover billing without losing operational visibility.
   session dependency applies it by default, using the explicit route-template recovery allowlist
   in `backend/app/billing/policy.py`. Permission metadata preserves RBAC-first failures.
 - A user without the underlying RBAC permission receives `403`, not a billing block.
+- With commercial access allowed, plan-specific operations also check the effective capability.
+  Standard and complimentary cohorts preserve their committed scope. Reducing a plan is distinct
+  from losing commercial access: historical/continuity exceptions never bypass an expired or
+  unverified billing state.
 
 ## Tenant-Scoping Impact
 
@@ -105,6 +111,9 @@ owners to recover billing without losing operational visibility.
 - `GET /api/v1/auth/session` returns additive `commercial_access: {allowed, reason, valid_until}`
   for every authenticated role. A blocked account remains authenticated to recover billing and
   exercise data rights; this does not grant commercial API access.
+- Commercial access snapshots also carry the server-resolved `plan_code`, `plan_name`, `features`
+  and `limits`; these additional fields do not weaken `allowed` or its finite deadline. The new
+  offer remains disabled by default; see [commercial plans](commercial_plans.md).
 - Paid write endpoints may return `402` with:
   - `detail`
   - `reason`

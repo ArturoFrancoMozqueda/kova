@@ -28,13 +28,13 @@ function pastDueGraceBody(graceEndsAt: string | null): string {
   return copy.billingBanner.pastDueGraceBodyWithDays(days);
 }
 
-function bannerForAccess(access: BillingAccess): BannerContent | null {
+function bannerForAccess(access: BillingAccess, tiered: boolean): BannerContent | null {
   if (access.allowed) {
     if (access.reason === "signup_trial") {
-      return { tone: "info", title: copy.billingBanner.trialActive, body: copy.billingBanner.trialActiveBody };
+      return { tone: "info", title: copy.billingBanner.trialActive, body: tiered ? "Tu prueba incluye Gestión. Elige un plan antes de que termine para seguir vendiendo." : copy.billingBanner.trialActiveBody };
     }
     if (access.reason === "trialing") {
-      return { tone: "info", title: copy.billingBanner.trialingActive, body: copy.billingBanner.trialingActiveBody };
+      return { tone: "info", title: copy.billingBanner.trialingActive, body: tiered ? "Tu suscripción está en prueba. Consulta el plan y la próxima renovación en Suscripción." : copy.billingBanner.trialingActiveBody };
     }
     if (access.reason === "past_due_grace") {
       return {
@@ -48,7 +48,7 @@ function bannerForAccess(access: BillingAccess): BannerContent | null {
 
   const blockedBody =
     access.reason === "trial_expired"
-      ? copy.billingBanner.blockedTrialExpired
+      ? tiered ? "Tu prueba terminó. Elige un plan para seguir vendiendo." : copy.billingBanner.blockedTrialExpired
       : access.reason === "past_due_grace_expired" || access.reason === "past_due"
         ? copy.billingBanner.blockedPastDueExpired
         : access.reason === "canceled"
@@ -99,6 +99,7 @@ export function BillingBanner() {
   const { state } = useAuth();
   const location = useLocation();
   const [fetchedAccess, setAccess] = useState<BillingAccess | null>(null);
+  const [tieredBilling, setTieredBilling] = useState(false);
   const commercialAccess = state.status === "authenticated" ? state.commercialAccess : undefined;
   const access = useMemo<BillingAccess | null>(() => location.pathname.startsWith("/settings/billing") ? null : commercialAccess?.allowed === false ? {
     allowed: false, reason: commercialAccess.reason, trialing: false, trial_ends_at: null,
@@ -118,7 +119,10 @@ export function BillingBanner() {
     let cancelled = false;
     getBillingSubscription()
       .then((billing) => {
-        if (!cancelled) setAccess(billing.access);
+        if (!cancelled) {
+          setAccess(billing.access);
+          setTieredBilling(Boolean(billing.access.plan_code && billing.access.plan_code !== "standard") || (billing.available_plans?.some((plan) => plan.code !== "standard") ?? false));
+        }
       })
       .catch(() => {
         if (!cancelled) setAccess(null);
@@ -136,7 +140,7 @@ export function BillingBanner() {
     }
   }, [access]);
 
-  const currentContent = access ? bannerForAccess(access) : null;
+  const currentContent = access ? bannerForAccess(access, tieredBilling || Boolean(commercialAccess?.plan_code && commercialAccess.plan_code !== "standard")) : null;
   const currentDismissible = currentContent?.tone === "info";
   const shouldShow = Boolean(
     access && currentContent && !(currentDismissible && dismissedReason === access.reason),

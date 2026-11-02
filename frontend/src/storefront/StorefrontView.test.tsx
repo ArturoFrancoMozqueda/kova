@@ -503,3 +503,15 @@ it("opens the full product description and photo before adding it, without sendi
   expect(menu().getByRole("group", { name: "Cantidad de Pan de nuez" })).toHaveTextContent("1");
   expect(posts()).toHaveLength(0);
 });
+
+
+it("keeps the public menu readable when new commercial requests are unavailable", async () => {
+  fetchMock.mockResolvedValue(json({ ...catalog, requests_available: false, loyalty_available: false }));
+  showMenu();
+  expect(await screen.findByRole("heading", { name: "Pan de nuez" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Agregar Pan de nuez al pedido" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Enviar solicitud de pedido" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Revisar pedido" })).not.toBeInTheDocument();
+  expect(screen.getByText(/Confirma disponibilidad, pago y entrega directamente/)).toBeInTheDocument();
+  expect(posts()).toHaveLength(0);
+});

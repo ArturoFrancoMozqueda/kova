@@ -24,10 +24,9 @@ const DEFAULT_DESCRIPTION =
   "Kova conecta ventas, inventario, caja y reportes para que entiendas tu negocio y decidas con claridad. Pruébalo 7 días gratis, sin tarjeta.";
 
 // A <script type="application/ld+json"> is a passive data block, not
-// executable JS. Price/currency arrive from LANDING_SEO in the built SSR
-// entry, which in turn imports billing/standardPlan.ts. Keeping this builder
-// parameterized prevents the prerender script from becoming a second price.
-function buildLandingStructuredData({ price, currency }) {
+// executable JS. Commercial offers are resolved by the server at runtime;
+// prerendered metadata must not advertise a stale price after a catalog change.
+function buildLandingStructuredData() {
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -47,11 +46,6 @@ function buildLandingStructuredData({ price, currency }) {
         operatingSystem: "Web",
         url: `${CANONICAL_ORIGIN}/`,
         description: DEFAULT_DESCRIPTION,
-        offers: {
-          "@type": "Offer",
-          price,
-          priceCurrency: currency,
-        },
       },
     ],
   };
@@ -278,11 +272,7 @@ async function main() {
   const entryUrl = pathToFileURL(
     resolve(__dirname, "..", "dist-server", "entry-prerender.js"),
   ).href;
-  const { render, LANDING_SEO } = await import(entryUrl);
-
-  if (!LANDING_SEO?.price || !LANDING_SEO?.currency) {
-    throw new Error("prerender: SSR entry did not expose canonical landing price data");
-  }
+  const { render } = await import(entryUrl);
 
   for (const route of ROUTES) {
     const appHtml = await render(route.path);
@@ -292,7 +282,7 @@ async function main() {
       );
     }
     const routeHead = route.path === "/"
-      ? { ...route, structuredData: buildLandingStructuredData(LANDING_SEO) }
+      ? { ...route, structuredData: buildLandingStructuredData() }
       : route;
     let html = injectHead(shell, routeHead);
     html = injectRouteAssets(html, manifest, route.moduleKey);

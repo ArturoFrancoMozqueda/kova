@@ -1,7 +1,11 @@
+import type { PublicPlansState } from "@/billing/publicPlans";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const publicOffer = vi.hoisted(() => ({ state: { status: "ready", catalog: { tiered_pricing_enabled: false,
+  available_plans: [{ code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", features: [], limits: { product_image_bytes: null }, tax_inclusive: null }] } } as PublicPlansState }));
+vi.mock("@/billing/publicPlans", async (importOriginal) => ({ ...await importOriginal<typeof import("@/billing/publicPlans")>(), usePublicPlans: () => ({ ...publicOffer.state, retry: vi.fn() }) }));
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
 
@@ -28,6 +32,7 @@ function renderHome() {
 
 describe("landing telemetry (PLAN-UX-03)", () => {
   beforeEach(() => {
+    publicOffer.state = { status: "ready", catalog: { tiered_pricing_enabled: false, available_plans: [{ code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", tax_inclusive: null, features: [], limits: { product_image_bytes: null } }] } };
     trackAnonymousEvent.mockClear();
     trackAnonymousEventOnce.mockClear();
   });
@@ -298,4 +303,25 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       cta: "story",
     });
   });
+  it("does not announce an unconfirmed price when the public offer cannot be loaded", () => {
+    publicOffer.state = { status: "error" };
+    const { container } = renderHome();
+    expect(container.textContent).not.toContain("299");
+    expect(screen.getByRole("button", { name: "Consultar planes de nuevo" })).toBeInTheDocument();
+  });
+
+  it("shows only the server-authorized tiered offer with prices, features and photo limits", () => {
+    publicOffer.state = { status: "ready", catalog: { tiered_pricing_enabled: true, available_plans: [
+      { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "sales_reports"], limits: { product_image_bytes: 250_000_000 } },
+      { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "advanced_reports", "purchasing"], limits: { product_image_bytes: 1_073_741_824 } },
+    ] } };
+    const { container } = renderHome();
+    expect(container.textContent).not.toContain("299");
+    expect(screen.getByRole("heading", { name: "Esencial" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Gestión" })).toBeVisible();
+    expect(screen.getByText(/Fotos de productos: 250 MB/)).toBeVisible();
+    expect(screen.getByText(/Fotos de productos: 1 GiB/)).toBeVisible();
+    expect(screen.getByText("$699 MXN/mes")).toBeVisible();
+  });
+
 });

@@ -1,3 +1,4 @@
+import { hasPlanFeature } from "@/billing/entitlements";
 import { BranchSelector } from "@/branches/BranchSelector";
 import { AssistantCompanion } from "@/assistant/AssistantCompanion";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -194,7 +195,9 @@ export default function AppShell() {
   const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
   const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
-  const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
+  const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION)
+    && hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders");
+  const advancedReports = hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "advanced_reports");
   const canCreateProducts = usePermission(CATALOG_CREATE_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
@@ -235,13 +238,13 @@ export default function AppShell() {
   useEffect(() => {
     const controller = new AbortController();
     setAssistantEnabled(false);
-    if (!assistantIdentity || commercialBlocked) return;
+    if (!assistantIdentity || commercialBlocked || !advancedReports) return;
     void fetch("/api/v1/assistant/capabilities", { signal: controller.signal, cache: "no-store" })
       .then(response => response.ok ? response.json() as Promise<{ enabled: boolean }> : { enabled: false })
       .then(value => { if (!controller.signal.aborted) setAssistantEnabled(value.enabled); })
       .catch(() => { /* Unavailable assistant never blocks navigation or POS. */ });
     return () => controller.abort();
-  }, [assistantIdentity, commercialBlocked]);
+  }, [assistantIdentity, commercialBlocked, advancedReports]);
 
   const navItems = isOfflineSession
     ? adminNavItems.filter((item) => item.to === "/register")
@@ -252,7 +255,8 @@ export default function AppShell() {
   const filteredNavItems = navItems.filter((item) => {
     if (commercialBlocked) return item.to === "/settings/billing" && canViewBilling;
     if (item.to === "/loyalty" && userRole !== "owner") return false;
-    if (item.to === "/assistant" && !assistantEnabled) return false;
+    if (item.to === "/assistant" && (!assistantEnabled || !advancedReports)) return false;
+    if (item.to === "/replenishment" && !advancedReports) return false;
     if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
     if (item.permission === INVENTORY_ADJUST_PERMISSION && !canAdjustInventory) return false;
     if (item.permission === "reports.view_all") return canViewReports;
@@ -699,7 +703,7 @@ export default function AppShell() {
           ) : null}
         </div>
         {!commercialBlocked ? <FirstUseTour /> : null}
-        <AssistantCompanion enabled={assistantEnabled && !commercialBlocked} suspended={sidebarOpen || supportOpen} />
+        <AssistantCompanion enabled={assistantEnabled && !commercialBlocked && advancedReports} suspended={sidebarOpen || supportOpen} />
 
         {/* Bottom navigation — mobile only */}
         <nav

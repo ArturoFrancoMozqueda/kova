@@ -22,6 +22,45 @@ class StripeSubscriptionError(Exception):
     pass
 
 
+class StripePortalError(Exception):
+    pass
+
+
+class StripePortalClient:
+    """Only the server selects the customer, return URL and cohort configuration."""
+
+    def retrieve_configuration(self, *, secret_key: str, configuration_id: str) -> dict[str, Any]:
+        path = quote(configuration_id, safe="")
+        request = Request(
+            f"https://api.stripe.com/v1/billing_portal/configurations/{path}",
+            headers={"Authorization": f"Bearer {secret_key}"}, method="GET",
+        )
+        return self._request(request)
+
+    def create_session(
+        self, *, secret_key: str, customer_id: str, configuration_id: str, return_url: str,
+    ) -> dict[str, Any]:
+        request = Request(
+            "https://api.stripe.com/v1/billing_portal/sessions",
+            data=urlencode({"customer": customer_id, "configuration": configuration_id,
+                            "return_url": return_url, "locale": "es-419"}).encode(),
+            headers={"Authorization": f"Bearer {secret_key}",
+                     "Content-Type": "application/x-www-form-urlencoded"}, method="POST",
+        )
+        return self._request(request)
+
+    @staticmethod
+    def _request(request: Request) -> dict[str, Any]:
+        try:
+            with urlopen(request, timeout=10) as response:
+                parsed = json.loads(response.read().decode())
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise StripePortalError("Stripe portal request failed") from exc
+        if not isinstance(parsed, dict):
+            raise StripePortalError("Unexpected Stripe portal response")
+        return parsed
+
+
 STRIPE_READ_TIMEOUT_SECONDS = 3
 STRIPE_READ_MAX_ATTEMPTS = 2
 
@@ -162,7 +201,7 @@ class StripeSubscriptionClient:
         body: str | None = None
         for attempt in range(STRIPE_READ_MAX_ATTEMPTS):
             request = Request(
-                f"https://api.stripe.com/v1/subscriptions/{subscription_id}",
+                f"https://api.stripe.com/v1/subscriptions/{subscription_id}?expand[]=latest_invoice",
                 headers={"Authorization": f"Bearer {secret_key}"},
                 method="GET",
             )

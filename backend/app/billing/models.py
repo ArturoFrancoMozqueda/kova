@@ -26,6 +26,11 @@ class Subscription(Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     plan_name: Mapped[str] = mapped_column(String(100), nullable=False, default="Standard Plan")
+    # Last confirmed commercial entitlement, independent of a pending Stripe item update.
+    plan_code: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
+    plan_effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MXN")
     amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False, default=29_900)
     current_period_start: Mapped[datetime | None] = mapped_column(
@@ -73,7 +78,35 @@ class Subscription(Base):
             name="ck_subscriptions_status",
         ),
         CheckConstraint("amount_minor_units >= 0", name="ck_subscriptions_amount_non_negative"),
+        CheckConstraint(
+            "plan_code IN ('standard','esencial','gestion','unknown')",
+            name="ck_subscriptions_plan_code",
+        ),
         CheckConstraint("currency = upper(currency)", name="ck_subscriptions_currency_uppercase"),
+    )
+
+
+class CheckoutAttempt(Base):
+    __tablename__ = "billing_checkout_attempts"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False)
+    request_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    credential_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    billing_cohort: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="uncertain")
+    stripe_session_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_session_url: Mapped[str | None] = mapped_column(String(2048))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_billing_checkout_attempts_tenant"),
+        CheckConstraint("billing_cohort IN ('standard','tiered')",
+                        name="ck_checkout_attempts_cohort"),
+        CheckConstraint("status IN ('uncertain','open','complete','expired')",
+                        name="ck_checkout_attempts_status"),
+        CheckConstraint("status = 'uncertain' OR stripe_session_id IS NOT NULL",
+                        name="ck_checkout_attempts_session"),
     )
 
 

@@ -66,6 +66,18 @@ El [CI completo del PR](https://github.com/ArturoFrancoMozqueda/kova/actions/run
 La verificación pública posterior confirmó sitio HTTP 200, frontend/API/proxy con el mismo SHA y
 base accesible por API directa y proxy. No se hicieron escrituras de negocio en producción.
 
+## Diseño comercial aprobado, sin publicar
+
+El dueño aprobó avanzar con Esencial $399/Gestión $699 MXN mensuales, conservar acuerdos actuales y
+medir atención/consumo antes de cerrar la rentabilidad. [ADR-019](adr/ADR-019-commercial-plan-design.md)
+registra el diseño; [ADR-020](adr/ADR-020-commercial-plan-foundation.md) documenta la implementación
+local de cohortes/capacidades, con pruebas de backend/migración aprobadas y oferta apagada por
+defecto. El contrato está en
+[planes comerciales](../specs/billing/commercial_plans.md) y la
+[aceptación/medición](runbooks/commercial-plan-acceptance.md) sigue pendiente de evidencia.
+Standard $299 sigue vigente en producción; no se han cambiado precios, suscripciones ni planes de
+proveedores.
+
 ## Gates abiertos
 
 Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.

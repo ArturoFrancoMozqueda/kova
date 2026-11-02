@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, CloudOff, PackageCheck, Plus, Search } from "lucide-react";
@@ -47,6 +49,7 @@ export default function CustomerOrderListView() {
   useDocumentTitle("Pedidos");
   const enabled = useFeature("customer_orders");
   const { state } = useAuth();
+  const canCreate = hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders");
   const tenantId = state.status === "authenticated" ? state.tenantId : "";
   const branchId = getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : "");
   const isOnline = useIsOnline();
@@ -136,6 +139,7 @@ export default function CustomerOrderListView() {
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
+      {!canCreate && <PlanFeatureNotice />}
       <ViewHeader
         title="Pedidos"
         meta="Prepara, cobra y entrega sin mezclar el trabajo pendiente con tus ventas."
@@ -143,9 +147,9 @@ export default function CustomerOrderListView() {
           isOnline ? (
             <div className="flex flex-wrap gap-2">
             {state.status === "authenticated" && ["owner", "manager"].includes(state.user.role) && <Link to="/commercial-requests" className={buttonVariants({ variant: "outline" })}>Solicitudes del menú</Link>}
-            <Link to="/pedidos/nuevo" className={buttonVariants()}>
+            {canCreate && <Link to="/pedidos/nuevo" className={buttonVariants()}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo pedido
-            </Link>
+            </Link>}
             </div>
           ) : null
         }
@@ -215,7 +219,7 @@ export default function CustomerOrderListView() {
           icon={<ClipboardList className="h-6 w-6" />}
           title="No hay pedidos con estos filtros"
           body="Crea un pedido para reservar producto, prepararlo y cobrarlo después."
-          primaryCta={isOnline ? { label: "Crear pedido", to: "/pedidos/nuevo" } : undefined}
+          primaryCta={isOnline && canCreate ? { label: "Crear pedido", to: "/pedidos/nuevo" } : undefined}
         />
       ) : (
         <div className="grid gap-3">

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getBillingSubscription, invalidateBillingSubscription, setBillingCacheIdentity } from "./api";
+import { getBillingSubscription, invalidateBillingSubscription, setBillingCacheIdentity, startCheckout, startBillingPortal } from "./api";
 
 const identityA = { tenantId: "tenant-a", userId: "user-a", role: "owner" };
 const response = (tenantId: string) => new Response(JSON.stringify({ subscription: { tenant_id: tenantId } }), { status: 200 });
@@ -28,6 +28,7 @@ describe("subscription cache identity and invalidation", () => {
     { tenantId: "tenant-b", userId: "user-b", role: "owner" },
     { ...identityA, userId: "user-b" },
     { ...identityA, role: "cashier" },
+    { ...identityA, commercialPlan: "esencial" },
   ])("does not reuse a cached plan after the tenant, user or role changes: %j", async (identity) => {
     const fetch = vi.fn().mockResolvedValueOnce(response("old")).mockResolvedValueOnce(response("fresh"));
     vi.stubGlobal("fetch", fetch);
@@ -91,4 +92,27 @@ describe("subscription cache identity and invalidation", () => {
     expect(await getBillingSubscription({ force: true })).toEqual({ subscription: { tenant_id: "fresh" } });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+});
+
+
+it("sends an explicit chosen plan while preserving the legacy checkout request", async () => {
+  const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ checkout_url: "https://checkout.stripe.com/test", checkout_session_id: "cs_1" }), { status: 200 })));
+  vi.stubGlobal("fetch", fetch);
+  try {
+    await startCheckout("esencial");
+    expect(fetch.mock.calls[0][1].body).toBe(JSON.stringify({ plan_code: "esencial" }));
+    await startCheckout();
+    expect(fetch.mock.calls[1][1].body).toBeUndefined();
+  } finally { vi.unstubAllGlobals(); }
+});
+
+it("opens the server-selected billing portal without client customer or price IDs", async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ portal_url: "https://billing.stripe.com/session/test" }), { status: 200 }));
+  vi.stubGlobal("fetch", fetch);
+  try {
+    await expect(startBillingPortal()).resolves.toEqual({ portal_url: "https://billing.stripe.com/session/test" });
+    expect(fetch.mock.calls[0][0]).toBe("/api/v1/billing/portal");
+    expect(fetch.mock.calls[0][1].method).toBe("POST");
+    expect(fetch.mock.calls[0][1].body).toBeUndefined();
+  } finally { vi.unstubAllGlobals(); }
 });

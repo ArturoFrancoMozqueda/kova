@@ -1,3 +1,5 @@
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { resolveUserFacingError } from "@/lib/apiError";
@@ -74,11 +76,11 @@ export default function LoyaltyView() {
     );
   return (
     <OperationsSession>
-      {(identity) => <LoyaltyWorkspace identity={identity} />}
+      {(identity) => <LoyaltyWorkspace identity={identity} canManageProgram={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "loyalty")} />}
     </OperationsSession>
   );
 }
-function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceIdentity; canManageProgram: boolean }) {
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<LoyaltyOverview>(
     "/api/v1/loyalty",
@@ -164,7 +166,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     setBenefit("");
   };
   const editPolicy = () => {
-    if (!panel.data) return;
+    if (!panel.data || !canManageProgram) return;
     const row = panel.data.policy;
     setPolicyVersion(row.version);
     setEnabled(row.enabled);
@@ -176,6 +178,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   };
   const savePolicy = async (event: FormEvent) => {
     event.preventDefault();
+    if (!canManageProgram) return;
     if (
       await panel.mutate(
         "/policy",
@@ -249,8 +252,9 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
-      <RewardSettings key={`${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />
-      <EnrollmentSettings key={`enrollment:${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />
+      {!canManageProgram && <PlanFeatureNotice>Los puntos ya acumulados se conservan y pueden canjearse. Para configurar el programa o acumular nuevos puntos necesitas Gestión.</PlanFeatureNotice>}
+      {canManageProgram && <RewardSettings key={`${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />}
+      {canManageProgram && <EnrollmentSettings key={`enrollment:${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />}
       {panel.loading && <p role="status">Consultando lealtad…</p>}
       {panel.data && (
         <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
@@ -258,13 +262,13 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             <div>
               <h2 className="text-xl font-semibold">Regla de acumulación</h2>
               <p className="mt-2 text-sm">
-                {panel.data.policy.enabled ? "Activa" : "Desactivada"}
+                {!canManageProgram ? "Acumulación suspendida por el plan actual" : panel.data.policy.enabled ? "Activa" : "Desactivada"}
               </p>
             </div>
             <Button
               className={buttonClass}
               variant="outline"
-              disabled={panel.busy || !panel.online}
+              disabled={panel.busy || !panel.online || !canManageProgram}
               onClick={editPolicy}
             >
               Revisar regla de puntos
@@ -302,7 +306,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </Button>
         </section>
       )}
-      {policyOpen && (
+      {canManageProgram && policyOpen && (
         <form
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void savePolicy(event)}
@@ -479,7 +483,7 @@ function LoyaltyWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           >
             {points(ledger.balance)} puntos
           </output>
-          <DigitalCardShare key={ledger.customer_id} identity={identity} customerId={ledger.customer_id} online={panel.online} disabled={panel.busy} />
+          {canManageProgram && <DigitalCardShare key={ledger.customer_id} identity={identity} customerId={ledger.customer_id} online={panel.online} disabled={panel.busy} />}
           {ledger.adjustments_pending && (
             <p role="status" className="text-sm text-warning-strong">
               Procesa devoluciones o anulaciones pendientes antes de canjear.

@@ -1,3 +1,6 @@
+import { useAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,14 +29,15 @@ const statuses = {
 
 export default function AutomationsView() {
   useDocumentTitle("Automatizaciones");
+  const { state } = useAuth();
   return (
     <OperationsSession>
-      {(identity) => <AutomationsWorkspace identity={identity} />}
+      {(identity) => <AutomationsWorkspace identity={identity} canConfigure={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders")} />}
     </OperationsSession>
   );
 }
 
-function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+function AutomationsWorkspace({ identity, canConfigure }: { identity: WorkspaceIdentity; canConfigure: boolean }) {
   const request = useOperationsRequest("/api/v1/automations", identity);
   const online = useOnline();
   const [data, setData] = useState<AutomationsData | null>(null);
@@ -100,7 +104,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     }
   };
   const toggle = (rule: AutomationRule) =>
-    void mutate(
+    canConfigure && void mutate(
       () =>
         request(
           `/rules/${encodeURIComponent(rule.template_key)}`,
@@ -128,6 +132,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const pending = data?.runs.filter((run) => run.status === "pending") ?? [];
   return (
     <ViewLayout className="space-y-7 [&_.animate-fade-in]:animate-none">
+      {!canConfigure && <PlanFeatureNotice />}
       <ViewHeader
         eyebrow="Operación conectada"
         title="Automatizaciones"
@@ -135,7 +140,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         actions={
           <Button
             variant="outline"
-            disabled={!online || busy || loading}
+            disabled={!online || busy || loading || !canConfigure}
             onClick={() =>
               void mutate(
                 () =>
@@ -240,7 +245,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button
                           size="sm"
-                          disabled={busy || !online}
+                          disabled={busy || !online || !canConfigure}
                           onClick={() => toggle(rule)}
                         >
                           Confirmar {rule.enabled ? "pausa" : "activación"}
@@ -259,7 +264,7 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     <Button
                       className="mt-5"
                       variant="outline"
-                      disabled={busy || !online}
+                      disabled={busy || !online || !canConfigure}
                       aria-label={`${rule.enabled ? "Pausar" : "Activar"} ${rule.title}`}
                       onClick={() => setConfirmRule(rule.template_key)}
                     >

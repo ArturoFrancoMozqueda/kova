@@ -24,6 +24,7 @@ import { OFFLINE_ACCESS_MAX_AGE_MS } from "@/offline/accessPolicy";
 import type { CommercialAccess } from "./types";
 import { setReportsCacheIdentity } from "@/reports/api";
 import { setBillingCacheIdentity } from "@/billing/api";
+import { commercialPlanIdentity } from "@/billing/entitlements";
 import {
   announceSessionChange,
   clearLogoutPending,
@@ -107,7 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyState = useCallback((next: AuthState) => {
     const cacheIdentity = next.status === "authenticated" && next.sessionMode === "online"
-      ? { tenantId: next.tenantId, userId: next.user.id, role: next.user.role }
+      ? { tenantId: next.tenantId, userId: next.user.id, role: next.user.role,
+        ...(commercialPlanIdentity(next.commercialAccess) ? { commercialPlan: commercialPlanIdentity(next.commercialAccess) } : {}) }
       : null;
     setReportsCacheIdentity(next.status === "authenticated" && next.commercialAccess?.allowed === false ? null : cacheIdentity);
     const previous = stateRef.current;
@@ -292,7 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (
       previous.status === "authenticated" &&
       (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id || previous.user.role !== session.user.role
-        || commercialAccess?.allowed === false)
+        || commercialAccess?.allowed === false
+        || commercialPlanIdentity(previous.commercialAccess) !== commercialPlanIdentity(commercialAccess))
     ) {
       queryClient.clear();
     }
