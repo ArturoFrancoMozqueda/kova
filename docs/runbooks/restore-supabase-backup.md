@@ -287,3 +287,55 @@ Record every drill execution here (store detailed evidence in restricted storage
 | 2026-10-30 | Authorized workflow (29 October CDMX) | Same snapshot, revision 0098 | Isolated logical + ASGI drill 18.244 s, excluding image build; restore 0.801 s; regional RTO not established | Snapshot age 11 h 30 min; regional RPO not established | Health/db, secure cookie login, CSRF/identity rejection, tenant export of 2,217 existing orders matched SQL, logout; runtime RLS and financial checks passed | Both containers and private dump removed | [Run 40996995394](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40996995394), source `57fe4cf7004f`; CI configuration, synthetic clone-only owner, no production bindings or traffic cutover |
 | _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |
 | 2026-11-02 | Authorized workflow | R2 snapshot 2026-11-01 15:48:29 UTC, revision 0099 | Isolated logical + ASGI drill 20.766 s, excluding image build; restore 0.488 s; regional RTO not established | Snapshot age 24 h 18 min; regional RPO not established | Current-head schema, health/db, cookie login, tenant export, logout, RLS and payment/lot integrity passed | Both containers and private files removed | [Run 41478117936](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936), source `79f73a326b14`; [aggregate evidence](../audits/KOVA-R2-RESTORE-2026-11-02.json); no production bindings or traffic cutover |
+| 2026-11-02 | Authorized repeat after native-runtime changes | Fresh R2 snapshot 2026-11-02 16:17:04 UTC, revision 0099 | Isolated logical + ASGI drill 22.447 s, excluding image build; restore 0.840 s; regional RTO not established | Snapshot age 23 min 37 s; regional RPO not established | Health/db, cookie login, export, logout, runtime RLS and payment/lot integrity passed with image `4e3a58060f81` | Containers and private files removed | [Run 41483756223](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223); aggregate evidence below; no production bindings or traffic cutover |
+
+<details>
+<summary>Aggregate evidence: current native image, 2 November 2026</summary>
+
+```json
+{
+  "scope": "Kova logical restore; public and assistant_control; disposable PostgreSQL 17 runner",
+  "commit": "4e3a58060f814aea456a96bf3d6882ac5c3affd4",
+  "run_id": "41483756223",
+  "backup_key": "supabase/postgres/kova-2026-11-02T16-17-04Z.dump",
+  "backup_sha256": "b240d285964ba934bae971b0b24cfc80f39a4749c046895e9be7733ecd067031",
+  "backup_bytes": 4513088,
+  "backup_at": "2026-11-02T16:17:04+00:00",
+  "started_at": "2026-11-02T16:40:41.471705+00:00",
+  "snapshot_age_seconds": 1417.472,
+  "restore_seconds": 0.84,
+  "drill_seconds": 22.447,
+  "server_version_num": 170011,
+  "checks": {
+    "revision": "0099_complimentary_access",
+    "tenants": 14,
+    "orders": 2219,
+    "orders_last_seven_days": 2,
+    "latest_order_at": "2026-10-30T20:54:23.686119+00:00",
+    "products": 37,
+    "public_tables": 105,
+    "assistant_control_tables": 5,
+    "policies": 106,
+    "validated_foreign_keys": 253,
+    "legacy_unvalidated_foreign_keys": 1,
+    "rls_scope_checks": true,
+    "payment_and_lot_integrity": true,
+    "data_api_grants": 0
+  },
+  "application_service": {
+    "health": true,
+    "database": true,
+    "cookie_login": true,
+    "restored_export": true,
+    "logout": true,
+    "runtime_rls": true,
+    "restored_orders": 2218,
+    "scope": "current native image; ASGI in offline namespace; synthetic clone-only owner; account export",
+    "production_bindings_tested": false
+  },
+  "regional_supabase_recovery_tested": false,
+  "cleanup_verified": true
+}
+```
+
+</details>
