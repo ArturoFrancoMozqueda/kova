@@ -38,6 +38,7 @@ EXPECTED_SUITES = {
     "lstm_layer_test",
     "genericvector_test",
     "plumbing_test",
+    "pageres_test",
 }
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "assistant-parser"
 XML_SOURCE_SHA = "a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a"
@@ -64,7 +65,7 @@ def load_expected(source_root: Path = SOURCE_ROOT) -> dict:
     advisories = manifest.get("advisories", [])
     identifiers = [row.get("ghsa_id") for row in advisories]
     if (
-        len(identifiers) < 19
+        len(identifiers) < 20
         or len(set(identifiers)) != len(identifiers)
         or any(
             not isinstance(value, str)
@@ -319,8 +320,8 @@ def validate_report(report: dict, expected: dict) -> None:
         raise GateError("OCR runtime binary or fixed Spanish model hash mismatch")
     suites = ocr["suites"]
     summary = ocr["summary"]
-    if set(suites) != EXPECTED_SUITES or summary.get("suites") != 17:
-        raise GateError("All 17 OCR regression suites must be present")
+    if set(suites) != EXPECTED_SUITES or summary.get("suites") != 18:
+        raise GateError("All 18 OCR regression suites must be present")
     totals = {
         key: sum(row[key] for row in suites.values())
         for key in ("tests", "failures", "errors", "skipped")
@@ -465,7 +466,7 @@ def main() -> int:
                     "native_execution": report.get("native_execution"),
                     "reviewed_advisories": len(advisory_ids),
                     "libxml2_regressions": 6,
-                    "ocr_suites": 17,
+                    "ocr_suites": 18,
                     "ocr_skipped": report["ocr"]["summary"]["skipped"],
                 }
             )

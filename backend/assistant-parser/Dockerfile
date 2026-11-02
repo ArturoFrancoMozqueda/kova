@@ -13,8 +13,8 @@ FROM python:3.12-alpine3.24@sha256:34e2f26b1dad8311d572d4074ae315778964554ca6a97
 # Build the exact maintained source instead of relabeling an affected release.
 RUN apk upgrade --no-cache \
     && apk add --no-cache build-base cmake ninja leptonica-dev gtest-dev icu-dev
-ADD --checksum=sha256:5248c241262c509384669753ae3f561d723975cee68c0ea1b960286b9ab05fbe \
-    https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/f139e578a37c5c18717195c7d603ddb357717e23 /source.tar.gz
+ADD --checksum=sha256:c1d7238a80d9543445dddc2dc2663fe4e5dc0e0189fc1eeb4ed42c9b1e66f615 \
+    https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/a95faa0078bcbb59357468f81e079814f8f28e74 /source.tar.gz
 # This fixture is required by the null-character and recoder security tests.
 # It is not included in the final Spanish-only image.
 ADD --checksum=sha256:7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2 \
@@ -32,12 +32,12 @@ RUN mkdir /source \
         weightmatrix_deserialize_test weightmatrix_scales_test weightmatrix_intdim_test \
         lstm_recoder_test lstm_nullchar_test recoder_test matrix_deserializesize_test \
         normproto_test adaptive_test adaptive_templates_test fullyconnected_test \
-        lstm_layer_test genericvector_test plumbing_test \
+        lstm_layer_test genericvector_test plumbing_test pageres_test \
     && mkdir -p /install/usr/local/share/kova-parser/upstream-tests \
     && GTEST_OUTPUT=xml:/install/usr/local/share/kova-parser/upstream-tests/ \
         ctest --test-dir /build --output-on-failure --no-tests=error \
         --output-junit /install/usr/local/share/kova-parser/upstream-tests/ctest.xml \
-        -R '^(intproto_test|intproto_addclass_test|unicharset_load_test|weightmatrix_deserialize_test|weightmatrix_scales_test|weightmatrix_intdim_test|lstm_recoder_test|lstm_nullchar_test|recoder_test|matrix_deserializesize_test|normproto_test|adaptive_test|adaptive_templates_test|fullyconnected_test|lstm_layer_test|genericvector_test|plumbing_test)$' \
+        -R '^(intproto_test|intproto_addclass_test|unicharset_load_test|weightmatrix_deserialize_test|weightmatrix_scales_test|weightmatrix_intdim_test|lstm_recoder_test|lstm_nullchar_test|recoder_test|matrix_deserializesize_test|normproto_test|adaptive_test|adaptive_templates_test|fullyconnected_test|lstm_layer_test|genericvector_test|plumbing_test|pageres_test)$' \
     && DESTDIR=/install cmake --install /build
 COPY verify_upstream_tests.py /verify_upstream_tests.py
 RUN python /verify_upstream_tests.py /install/usr/local/share/kova-parser/upstream-tests
@@ -63,7 +63,7 @@ RUN apk add --no-network --allow-untrusted /tmp/libxml2-patched.apk \
 COPY --from=ocr-build /install/usr/local/ /usr/local/
 ENV TESSDATA_PREFIX=/usr/local/share/tessdata
 LABEL org.kovasuite.parser.tesseract.version="5.5.3" \
-      org.kovasuite.parser.tesseract.commit="f139e578a37c5c18717195c7d603ddb357717e23"
+      org.kovasuite.parser.tesseract.commit="a95faa0078bcbb59357468f81e079814f8f28e74"
 RUN pip install --no-cache-dir pypdf==6.21.4 defusedxml==0.7.1
 # Refuse to build a scanner with no signatures. Refresh/rebuild under release gates.
 RUN freshclam --stdout

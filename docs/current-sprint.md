@@ -16,7 +16,8 @@ también para administradores; [protección comprobada](despliegue.md#protecció
   PDF y navegador aprobados; impresión/corte físico pendientes.
 - Acceso permanente de cortesía explícito y auditado, sin simular pago de Stripe (#298).
 - Carga progresiva con skeletons y correos con presentación editorial compartida (#296).
-  Reset desde API publicado y `delivered` a Gmail el 30 de octubre; Inbox/render sigue pendiente.
+  Reset desde API publicado y `delivered` a Gmail el 30 de octubre. Las seis muestras QA actuales
+  llegaron a Inbox y se revisaron en Gmail web el 2 de noviembre; otros clientes siguen pendientes.
 - Restauración 0099 del respaldo real del 1 de noviembre, con autenticación por cookies,
   exportación por API, RLS/integridad y limpieza en entorno aislado. [Evidencia](audits/KOVA-R2-RESTORE-2026-11-02.json)
   y [run](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936).
@@ -82,8 +83,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    publicado llegó a `delivered` el 29 de octubre CDMX y se repitió con el diseño nuevo sobre
    `4b14f2ca6659` el 30 de octubre (diseño editorial actual). Resend lo mantiene como `delivered`
    en la consulta del 2 de noviembre y el dominio sigue verificado. Seis muestras QA del diseño
-   editorial enviadas ese día con el conector Resend también llegaron a `delivered`; no prueban
-   los disparadores del backend. Faltan Inbox, enlaces, otros clientes y
+   editorial enviadas ese día con el conector Resend también llegaron a Inbox, con revisión
+   visual en Gmail web y SPF/DKIM/DMARC PASS observados en la muestra de reset. No prueban
+   los disparadores del backend. Faltan enlaces reales, clientes móviles/oscuro, Outlook/Hotmail y
    disparadores actuales de las otras plantillas. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
 5. **Dispositivos físicos.** El dueño dispone de tablets, laptop Windows y Mac; faltan modelos/OS

@@ -37,8 +37,9 @@ cubre 320/390/800 px y ausencia de estilos adaptables, sin equivaler a render en
 
 La consulta de sólo lectura del 2 de noviembre confirma el dominio verificado, envío habilitado y
 el reset del 30 de octubre a las 18:32:33 UTC (`4b14f2ca6659`, diseño editorial) como `delivered`.
-Esa consulta no envió correo ni leyó el token. El Gmail QA designado no está conectado a las
-herramientas de lectura y no hay otro buzón Outlook/Hotmail identificado para la matriz actual.
+Esa consulta no envió correo ni leyó el token. Al iniciar no estaba conectado el Gmail QA;
+posteriormente el dueño abrió su sesión y autorizó la revisión por navegador. No hay otro buzón
+Outlook/Hotmail identificado para la matriz actual.
 
 Posteriormente, a las 16:14 UTC (10:14 CDMX), se envió un lote limitado de seis muestras del diseño
 editorial al buzón QA designado. Resend confirmó `delivered` en las seis: verificación, bienvenida,
@@ -46,7 +47,15 @@ recibo, fin de prueba, invitación y reset. Se renderizaron con las funciones de
 revisión y se enviaron mediante el conector de Resend, con prefijo QA, aviso visible, datos
 ficticios y tokens deliberadamente inválidos. No se crearon cuentas, suscripciones ni cargos;
 el recibo omitió el enlace opcional de Stripe. Esto acredita las plantillas y aceptación del
-receptor, no los disparadores del backend publicado, Inbox, enlaces reales ni Outlook/Hotmail.
+receptor, no los disparadores del backend publicado, enlaces reales ni Outlook/Hotmail.
+
+Con la sesión abierta por el dueño se comprobó después que las seis muestras están en **Inbox de
+Gmail web**. Se abrieron e inspeccionaron las seis: logo, encabezados, copy, importe del recibo QA
+y acciones legibles en escritorio; el pie de bienvenida y su enlace de soporte también se revisaron.
+«Mostrar original» de la muestra de reset confirma SPF PASS, DKIM PASS para `mail.kovasuite.com`
+y DMARC PASS. Sólo se consultaron mensajes QA con tokens inválidos; no se cambiaron contraseñas.
+Las capturas permanecen fuera de git. Esta aceptación es de Gmail web, no de Gmail móvil, modo
+oscuro, Outlook/Hotmail, del enlace opcional de recibo Stripe ni de los disparadores reales restantes.
 
 ## 1. Configuración de producción
 

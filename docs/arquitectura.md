@@ -68,7 +68,7 @@ Vercel sigue existiendo como candidato de publicación y respaldo (ver [desplieg
 
 - El Container corre un solo proceso (`maxInstances: 1`, `instanceType: basic`) que se mantiene vivo
   en inactividad. Mantenimiento o un release pueden reiniciarlo.
-- La imagen nativa solo incluye el motor de datos PostgreSQL. Omite `sqlite3`, `_sqlite3` y su
+- La API nativa usa PostgreSQL. Su imagen omite `sqlite3`, `_sqlite3` y su
   biblioteca nativa; el probe del runtime exige su ausencia y conserva la revisión completa de
   dependencias ELF, criptografía y renderizadores. Esto no modifica el almacenamiento SQLite
   administrado por Cloudflare en sus Durable Objects.

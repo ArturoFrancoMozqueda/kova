@@ -32,10 +32,13 @@ dominio de correo verificado y reset editorial del 30 de octubre confirmado `del
 exportación, logout, runtime RLS, integridad y limpieza. Estos resultados reemplazan el corte
 anterior de compatibilidad de esquema, no la aceptación Inbox ni la recuperación regional.
 El lote posterior de seis muestras QA del diseño editorial también llegó a `delivered` a las
-16:14 UTC. [Método, datos ficticios y límites](../email-deliverability.md).
+16:14 UTC. El dueño abrió el buzón y se verificó Inbox y presentación en Gmail web de las seis,
+con SPF/DKIM/DMARC PASS en la muestra QA de reset. [Método y límites](../email-deliverability.md).
 
 - [ ] Las seis plantillas actuales llegaron a Inbox en buzones QA autorizados de Gmail, Outlook y
       Hotmail: verificación, bienvenida, recibo de pago, fin de prueba, invitación y contraseña.
+- [x] Muestras actuales de las seis en Inbox de Gmail web, con revisión de escritorio el
+      2 de noviembre. Autenticación PASS observada en el reset QA; otros clientes siguen abiertos.
 - [ ] SPF, DKIM y DMARC pasan; enlaces, español, móvil, modo oscuro, spam y rebotes fueron revisados.
 - [ ] La evidencia sólo contiene fecha, proveedor, plantilla y resultado; no direcciones ni tokens.
 - [x] Gmail es el canal oficial aceptado para la beta controlada: decisión SELL-06 en

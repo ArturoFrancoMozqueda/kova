@@ -13,7 +13,7 @@ HIGH_SEVERITY_SUITES = {
 EXPECTED_SUITES = HIGH_SEVERITY_SUITES | {
     "weightmatrix_deserialize_test", "weightmatrix_scales_test", "weightmatrix_intdim_test",
     "lstm_recoder_test", "recoder_test", "matrix_deserializesize_test", "adaptive_test",
-    "adaptive_templates_test", "plumbing_test",
+    "adaptive_templates_test", "plumbing_test", "pageres_test",
 }
 
 
@@ -29,6 +29,11 @@ def verify(directory: Path) -> dict:
                                 for case in root.iter("testcase"))
         if counts["tests"] == 0 or counts["failures"] or counts["errors"]:
             raise ValueError(f"Upstream security regression did not pass: {name}")
+        if name == "pageres_test" and not {
+            "ReplaceCurrentWordCopiesSharedInputWord",
+            "ReplaceCurrentWordCopiesSharedCombinationWord",
+        }.issubset({case.get("name") for case in root.iter("testcase")}):
+            raise ValueError("Both shared-word ownership regressions must execute: pageres_test")
         if name in HIGH_SEVERITY_SUITES and counts["skipped"]:
             raise ValueError(f"High-severity security regression was skipped: {name}")
         for key, value in counts.items():
