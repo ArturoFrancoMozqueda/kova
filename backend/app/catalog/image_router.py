@@ -349,7 +349,9 @@ def _resize_rgba_in_stripes(source, size):
 
     Integer reduction uses the same premultiplied RGBa samples as Pillow.
     Aligned stripes retain partial edge blocks and the fractional final box;
-    only the temporary working set changes, not the resampling or quality.
+    transparent pixels premultiply to zero, so only the alpha bounding box's
+    complete reduction blocks need processing on the zero-filled canvas.
+    Neither resampling nor quality changes, and stripes remain at most 1 MP.
     Other modes, small reductions and unbounded stripe geometries retain the
     original Pillow path and its existing allocation behavior.
     """
@@ -358,18 +360,24 @@ def _resize_rgba_in_stripes(source, size):
     if (source.mode != "RGBA" or factor_x == factor_y == 1
             or source.width * factor_y > _THUMBNAIL_STRIPE_PIXELS):
         return source.resize(size, Image.Resampling.LANCZOS, reducing_gap=2.0)
-    stripe_height = (_THUMBNAIL_STRIPE_PIXELS // source.width // factor_y) * factor_y
+    bounds = source.getbbox(alpha_only=True)
     reduced_size = ((source.width + factor_x - 1) // factor_x,
                     (source.height + factor_y - 1) // factor_y)
     # Pillow's Image context manager does not destroy its pixel buffer.
     # closing() is deliberate: release every stripe before allocating another.
     with closing(Image.new("RGBa", reduced_size)) as reduced:
-        for top in range(0, source.height, stripe_height):
-            box = (0, top, source.width, min(source.height, top + stripe_height))
-            with (closing(source.crop(box)) as tile,
-                  closing(tile.convert("RGBa")) as premultiplied,
-                  closing(premultiplied.reduce((factor_x, factor_y))) as small):
-                reduced.paste(small, (0, top // factor_y))
+        if bounds is not None:
+            left, top, right, bottom = bounds
+            left, top = left // factor_x * factor_x, top // factor_y * factor_y
+            right = min(source.width, (right + factor_x - 1) // factor_x * factor_x)
+            bottom = min(source.height, (bottom + factor_y - 1) // factor_y * factor_y)
+            stripe_height = (_THUMBNAIL_STRIPE_PIXELS // (right - left) // factor_y) * factor_y
+            for stripe_top in range(top, bottom, stripe_height):
+                box = (left, stripe_top, right, min(bottom, stripe_top + stripe_height))
+                with (closing(source.crop(box)) as tile,
+                      closing(tile.convert("RGBa")) as premultiplied,
+                      closing(premultiplied.reduce((factor_x, factor_y))) as small):
+                    reduced.paste(small, (left // factor_x, stripe_top // factor_y))
         box = (0, 0, source.width / factor_x, source.height / factor_y)
         with closing(reduced.resize(size, Image.Resampling.LANCZOS, box=box)) as final:
             return final.convert("RGBA")
