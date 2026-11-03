@@ -1,17 +1,21 @@
 # Estado actual
 
-Última actualización: 2026-11-02.
+Última actualización: 2026-11-03.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
 
 ## En producción
 
-Producción verificada el 2 de noviembre corre `4e3a58060f81` (PR #300): frontend `kovasuite.com` y API `api.kovasuite.com`
-reportan el mismo SHA. Todo lo fusionado hasta ese PR está publicado. `main` ya exige `CI required`,
+Producción verificada el 3 de noviembre corre `14ac9615c904` (PR #304): frontend `kovasuite.com`, API `api.kovasuite.com`
+y proxy reportan el mismo SHA, con la base disponible. Los cambios de código hasta ese PR están publicados.
+Los merges posteriores solo de documentación no cambian el SHA desplegado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
+- Fundación de planes comerciales y Checkout durable (#302), validación de Portal con productos
+  expandidos y sin cantidades ajustables (#303), y simulacro aislado seleccionable por plan (#304).
+  Esencial/Gestión y Portal siguen apagados en producción; Standard conserva $299 MXN mensuales.
 - Recordatorios que excluyen cortesía permanente, recuperan envíos pendientes antes de vencer y
   reportan fallas al scheduler; importes de correo en Decimal (#300).
 - Dependencias PDF corregidas, motor OCR con fix oficial de propiedad de palabras y sus dos
@@ -66,15 +70,18 @@ El [CI completo del PR](https://github.com/ArturoFrancoMozqueda/kova/actions/run
 La verificación pública posterior confirmó sitio HTTP 200, frontend/API/proxy con el mismo SHA y
 base accesible por API directa y proxy. No se hicieron escrituras de negocio en producción.
 
-## Diseño comercial aprobado, sin publicar
+## Planes comerciales preparados, oferta apagada
 
 El dueño aprobó avanzar con Esencial $399/Gestión $699 MXN mensuales, conservar acuerdos actuales y
 medir atención/consumo antes de cerrar la rentabilidad. [ADR-019](adr/ADR-019-commercial-plan-design.md)
-registra el diseño; [ADR-020](adr/ADR-020-commercial-plan-foundation.md) documenta la implementación
-local de cohortes/capacidades, con pruebas de backend/migración aprobadas y oferta apagada por
-defecto. El contrato está en
+registra el diseño; [ADR-020](adr/ADR-020-commercial-plan-foundation.md) documenta la fundación
+de cohortes/capacidades, ya publicada detrás de banderas apagadas. El contrato está en
 [planes comerciales](../specs/billing/commercial_plans.md) y la
-[aceptación/medición](runbooks/commercial-plan-acceptance.md) sigue pendiente de evidencia.
+[aceptación/medición](runbooks/commercial-plan-acceptance.md) distingue los recorridos aprobados y
+los gates abiertos. El sandbox aprobó Checkout y ciclo de suscripción con Kova/PostgreSQL efímeros
+para Esencial $399, Gestión $699 y la regresión Standard $299 sobre `1a181853162b`.
+Faltan las transiciones mediante el Portal de Kova, la aplicación efectiva al vencer y la
+validación fiscal antes de autorizar la oferta productiva.
 Standard $299 sigue vigente en producción; no se han cambiado precios, suscripciones ni planes de
 proveedores.
 
@@ -85,9 +92,12 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 1. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
    confirma renovación pagada y pago fallido recientes, procesados por Kova. Falta la aceptación
    controlada de checkout y cancelación sobre la versión vigente antes del acceso pagado general.
-   Preflight repetido el 2 de noviembre: sigue faltando `KOV005_STRIPE_SECRET_KEY` en el environment
-   `stripe-sandbox`; la conexión disponible sólo tiene acceso live. Webhook live habilitado hacia
-   la API vigente; esta lectura no prueba un checkout nuevo. [Simulacro sandbox](runbooks/stripe-sandbox-drill.md).
+   El simulacro sandbox del 3 de noviembre aprobó los tres planes contra Kova/PostgreSQL efímeros:
+   Checkout, renovación simulada, falla/gracia/recuperación, cancelación y eventos duplicados o fuera
+   de orden. No prueba un cobro live ni adelanta el reloj de Kova. La clave de prueba se instaló
+   temporalmente en el Secret store para ejecutar esos recorridos y ya fue retirada tras conservar
+   la evidencia. Webhook live habilitado hacia la API vigente.
+   [Simulacro y evidencia por plan](runbooks/stripe-sandbox-drill.md).
 2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
    octubre pasó con revisión 0095; el del 2 de noviembre restauró la revisión actual 0099 con RLS
    e integridad aprobadas. La repetición sobre `4e3a58060f81` aprobó login, exportación por API

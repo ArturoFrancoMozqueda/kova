@@ -165,10 +165,28 @@ crearon registros fiscales. El comportamiento inclusivo del precio no sustituye 
 
 La oferta productiva sigue apagada y Standard conserva MXN 299.00. El runner ya admite seleccionar
 Standard, Esencial o Gestión y comprueba los importes, funciones y acceso de Kova, según el
-[runbook del simulacro](stripe-sandbox-drill.md). Sus 64 pruebas aisladas pasaron; su ejecución con
-el proveedor para los planes nuevos sigue pendiente de instalar la clave del sandbox directamente
-en el Secret store, nunca en chat ni archivos. Las referencias a ambos precios nuevos ya están
-configuradas únicamente en el entorno `stripe-sandbox` de GitHub.
+[runbook del simulacro](stripe-sandbox-drill.md). Sus 64 pruebas aisladas pasaron. Las referencias a
+ambos precios nuevos están configuradas únicamente en el entorno `stripe-sandbox` de GitHub.
+
+La aceptación integrada del 3 de noviembre sobre `1a181853162b92f5d9a0c4d6432416c3dd157ed6` aprobó
+Esencial y Gestión, con Kova y PostgreSQL efímeros en el runner. Stripe confirmó `complete/paid` y
+Kova devolvió el plan, importe, funciones y acceso correctos. Se aprobaron renovación con Test Clock,
+falla de pago con gracia, recuperación, cancelación, ambos órdenes de eventos y duplicados, con
+limpieza de tres relojes y un cliente de Checkout por ejecución. Evidencia revisada:
+
+- [Esencial: MXN 399.00 y cuatro funciones](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-esencial.md)
+  ([ejecución](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41683047004)).
+- [Gestión: MXN 699.00 y nueve funciones](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-gestion.md)
+  ([ejecución](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41683860187)).
+- [Regresión Standard: MXN 299.00 y nueve funciones](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-standard.md)
+  ([ejecución](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41684612699)).
+
+La clave se transfirió directamente desde el sandbox al Secret store, sin publicarla ni guardarla
+en archivos. La clave restringida existente no permitía consultar la cuenta; se usó temporalmente
+la clave estándar de prueba ya existente, validando el identificador del sandbox antes de instalarla.
+No se crearon claves ni se ampliaron permisos. La copia del Secret store debe retirarse al terminar
+las ejecuciones y conservar su evidencia, según el runbook. Esa copia ya fue retirada después de
+comitear las tres evidencias; la clave original de Stripe y sus permisos permanecieron intactos.
 
 Se eliminaron los dos clientes sintéticos de los recorridos alojados, cancelando sus suscripciones
 de prueba; se conservaron el catálogo y las configuraciones del Portal para la aceptación posterior.
@@ -176,9 +194,9 @@ El perfil heredado del sandbox todavía reporta requisitos de dirección vencido
 inactivas, aunque permitió completar pagos simulados. Esto no acredita habilitación de cobros ni
 depósitos en ese sandbox; la revisión de habilitación live descrita arriba corresponde a otra cuenta.
 
-Permanecen pendientes la aceptación integrada de ambos planes, las transiciones mediante el Portal
-de Kova, su aplicación efectiva al vencer, la validación fiscal y la autorización para publicar
-la oferta. La evidencia del proveedor y las pruebas locales no cierran esos gates por sí solas.
+Permanecen pendientes las transiciones mediante el Portal de Kova, su aplicación efectiva al vencer,
+la validación fiscal y la autorización para publicar la oferta. Los recorridos alojados del Portal
+y las pruebas locales no cierran esos gates por sí solos; Test Clocks no adelanta el reloj de Kova.
 
 ## Registro de trabajo y consumo
 

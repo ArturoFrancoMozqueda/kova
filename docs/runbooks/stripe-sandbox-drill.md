@@ -39,6 +39,28 @@ de la versión actual. Reinstalar una clave test directamente en el Secret store
 no pegarla en chat, logs o archivos, ni sustituirla por una clave live. La aceptación controlada de
 checkout/cancelación live continúa como gate separado en [estado actual](../current-sprint.md).
 
+Aceptación del 3 de noviembre de 2026, sobre `1a181853162b92f5d9a0c4d6432416c3dd157ed6`:
+
+| Plan | Ejecución aprobada | Evidencia revisada |
+|---|---|---|
+| Esencial, MXN 399.00 | [41683047004](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41683047004) | [Checkout, Kova y ciclo](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-esencial.md) |
+| Gestión, MXN 699.00 | [41683860187](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41683860187) | [Checkout, Kova y ciclo](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-gestion.md) |
+| Standard, MXN 299.00 | [41684612699](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41684612699) | [Regresión del acuerdo anterior](../audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-11-03-standard.md) |
+
+Las tres ejecuciones confirmaron `complete/paid`, Kova activo con plan/importe/funciones exactos y
+acceso permitido, además del ciclo de renovación simulada, falla/gracia/recuperación, cancelación,
+orden de eventos y duplicados. Cada una eliminó tres Test Clocks y un cliente de Checkout; el
+listener y el backend locales se detuvieron. No se usaron tenants, base ni API productivos.
+
+La clave restringida existente no permitía consultar la cuenta. Se validó la clave estándar de
+prueba ya existente contra el identificador del sandbox y se transfirió directamente al Secret
+store, sin valores en archivos ni logs. La copia `KOV005_STRIPE_SECRET_KEY` ya se retiró después
+de comitear la evidencia. No se crearon claves ni se cambiaron permisos en Stripe. Para repetir,
+instalar otra vez la clave únicamente en el mismo entorno aislado; nunca usar una clave live.
+
+Estas ejecuciones no cierran Portal, upgrades, aplicación efectiva de downgrades, vencimiento de
+gracia según el reloj real de Kova ni aceptación fiscal/live. La oferta nueva permanece apagada.
+
 1. Merge the runner into `main` and select **Actions → KOV-005 Stripe sandbox drill**.
 2. Choose `main`, select `plan_code` (`standard` by default, `esencial`, or `gestion`), and enter
    the acknowledgement exactly as `KOV-005-STRIPE-SANDBOX-ONLY`. Run Esencial and Gestión separately
