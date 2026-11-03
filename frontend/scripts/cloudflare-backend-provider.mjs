@@ -64,9 +64,9 @@ export function cloudflareBackendProvider({ run, env }) {
   if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID) {
     throw new Error("Cloudflare backend requires deployment credentials");
   }
-  const cf = (args, capture = false) => run(process.execPath,
+  const cf = (args, capture = false, commandEnv = env) => run(process.execPath,
     [path.join(directory, "node_modules/cf/bin/cf"), ...args],
-    { cwd: directory, env, capture, label: "Cloudflare backend" });
+    { cwd: directory, env: commandEnv, capture, label: "Cloudflare backend" });
   const native = env.KOVA_NATIVE_BACKEND === "1";
   const containers = native ? cloudflareContainerProvider({ run, env }) : undefined;
   const nativeCf = (args, capture = false, commandEnv = env) => run(process.execPath,
@@ -101,8 +101,13 @@ export function cloudflareBackendProvider({ run, env }) {
       return validateBackendVersions(captured);
     },
     async publish(sha, previousSha) {
+      // Recovery/capture also import this module in a disposable standalone bundle.
+      // Only publication needs repository-owned commercial configuration.
+      const { stripeRuntimeIds } = await import("../../deploy/stripe-runtime-ids.mjs");
+      const publicIds = stripeRuntimeIds(env);
+      const hasPublicIds = Object.keys(publicIds).length !== 0;
       if (!/^[a-f0-9]{40}$/i.test(sha)) throw new Error("Full backend release SHA is required");
-      if (native && !/^[a-f0-9]{40}$/i.test(previousSha ?? "")) {
+      if ((native || hasPublicIds) && !/^[a-f0-9]{40}$/i.test(previousSha ?? "")) {
         throw new Error("Native publication requires the captured previous release SHA");
       }
       const publicationEnv = { ...env, KOVA_NATIVE_DEPLOY_SHA: sha,
@@ -111,13 +116,23 @@ export function cloudflareBackendProvider({ run, env }) {
         throw new Error("Backend build requires both Hyperdrive IDs and locked Python packages");
       }
       if (!env.SUPABASE_DB_URL) throw new Error("Backend migrations require the existing owner connection");
-      if (native) {
+      if (native || hasPublicIds) {
         // Inspect names only. Sealed credentials stay inside Cloudflare/CI;
-        // never substitute the migration owner for the tenant runtime role.
-        const secrets = JSON.parse(await cf(["workers", "secrets", "list", "--script-name", "kova-backend"], true));
-        for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL"]) {
-          if (!Array.isArray(secrets) || !secrets.some(secret => secret.name === name)) {
-            throw new Error(`Resident backend requires provisioned ${name}`);
+        // public IDs must never replace a sealed binding with the same name.
+        for (const worker of hasPublicIds ? ["kova-backend", "kova-backend-jobs"] : ["kova-backend"]) {
+          const secrets = JSON.parse(await cf(["workers", "secrets", "list", "--script-name", worker], true));
+          if (!Array.isArray(secrets) || secrets.some(secret => typeof secret?.name !== "string")) {
+            throw new Error("Cannot verify sealed runtime binding inventory");
+          }
+          if (native && worker === "kova-backend") {
+            for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL"]) {
+              if (!secrets.some(secret => secret.name === name)) {
+                throw new Error(`Resident backend requires provisioned ${name}`);
+              }
+            }
+          }
+          if (secrets.some(secret => Object.hasOwn(publicIds, secret.name))) {
+            throw new Error("A public Stripe identifier conflicts with an existing sealed binding");
           }
         }
       }
@@ -137,13 +152,15 @@ export function cloudflareBackendProvider({ run, env }) {
         await nativeCf(["deploy", "--prebuilt", "--worker", "kova-backend", "--dry-run"], false, publicationEnv);
       }
       const pythonWorkers = backendWorkers.filter(name => !native || name !== "kova-backend");
-      for (const name of pythonWorkers) await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"]);
+      for (const name of pythonWorkers) {
+        await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"], false, publicationEnv);
+      }
       // Build identity is a versioned text binding, not a rotated secret.
       // Keep existing credential bindings sealed and preserve rollback checks.
       for (const name of backendWorkers) {
         const args = ["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)];
         if (native && name === "kova-backend") await nativeCf(args, false, publicationEnv);
-        else await cf(args);
+        else await cf(args, false, publicationEnv);
       }
     },
     async restore(input, nativeSnapshot) {

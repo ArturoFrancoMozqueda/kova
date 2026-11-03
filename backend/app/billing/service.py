@@ -678,8 +678,15 @@ def _validate_portal_configuration(
     allowed_prices = {settings.stripe_esencial_price_id, settings.stripe_gestion_price_id}
     products = update.get("products") or []
     listed_prices = {price for product in products for price in product.get("prices") or []}
+    # Stripe Portal schedules period-end downgrades only within one Product.
+    # Listing valid Prices on separate Products does not make that flow supported.
+    product_ids = {p["product"] for p in products if isinstance(p.get("product"), str)}
+    one_product = len(product_ids) == 1 and all(
+        isinstance(p.get("product"), str) and p["product"] for p in products
+    )
     conditions = ((update.get("schedule_at_period_end") or {}).get("conditions") or [])
-    if (None in allowed_prices or len(allowed_prices) != 2 or listed_prices != allowed_prices
+    if (not one_product or None in allowed_prices or len(allowed_prices) != 2
+            or listed_prices != allowed_prices
             or set(update.get("default_allowed_updates") or []) != {"price"}
             or any((p.get("adjustable_quantity") or {}).get("enabled") is True for p in products)
             or update.get("proration_behavior") != "always_invoice"

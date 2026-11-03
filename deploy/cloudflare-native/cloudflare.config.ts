@@ -1,4 +1,5 @@
 import { bindings, defineConfig, defineContainer, exports } from "cf/config";
+import { stripeRuntimeIds } from "../stripe-runtime-ids.mjs";
 
 const release = process.env.KOVA_BUILD_SHA;
 if (!release || !/^[a-f0-9]{40}$/i.test(release)) {
@@ -34,6 +35,8 @@ export default defineConfig({
     },
     env: {
       KOVA_BUILD_SHA: bindings.text(release),
+      ...Object.fromEntries(Object.entries(stripeRuntimeIds(process.env))
+        .map(([name, value]) => [name, bindings.text(value)])),
       ...(process.env.KOVA_HYPERDRIVE_APP_ID ? {
         DB_APP: bindings.hyperdrive({ id: process.env.KOVA_HYPERDRIVE_APP_ID }),
       } : {}),

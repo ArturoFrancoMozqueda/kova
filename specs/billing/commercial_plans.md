@@ -34,6 +34,15 @@ acredita publicación, aceptación de Stripe, dispositivos ni rentabilidad. Deci
   existen dos Price IDs nuevos distintos entre sí y del anterior, y configuración de Checkout.
 - La cohorte nueva evalúa Gestión durante la prueba finita ya existente, sin extenderla. El
   snapshot de funciones no sustituye `commercial_access.allowed` ni su fecha de vencimiento.
+- `GET /billing/plans` devuelve además `offer_revision`, determinista para el catálogo público y
+  la cohorte actuales, tanto con la oferta Standard como con Esencial/Gestión. Incluye los nombres,
+  importes, impuestos, funciones y límites presentados; no depende de IDs o secretos de Stripe.
+  Registro envía esa revisión en `billing_offer_revision`. Con la oferta nueva activa, ausente u
+  obsoleta devuelve 409 antes de crear o recuperar una cuenta o enviar correo. Si se suministra
+  una revisión obsoleta durante una desactivación, también devuelve 409. Con la oferta nueva
+  apagada, Standard conserva compatibilidad con clientes anteriores que omiten el campo.
+  Revisar la oferta y reintentar no migra acuerdos existentes ni confirma pago. El detalle del
+  registro está en [Auth & Sessions](../auth/sessions.md).
 
 ### Matriz de capacidades
 
@@ -117,6 +126,12 @@ WhatsApp, inferencia externa ni un modelo de impresora.
   de operaciones admitidas conservan idempotencia, versiones, locks y transacciones existentes.
 - Los webhooks conservan firma, modo y evaluación temporal. Un Price desconocido o no verificable
   nunca habilita Gestión por defecto. No confiar en `plan_code`, nombre, precio o pago del navegador.
+- El Portal conserva configuraciones explícitas por cohorte. Si permite cambiar plan y depende de
+  programar reducciones al cierre del período, los dos Prices autorizados deben pertenecer a un
+  solo Product: Stripe no admite ese downgrade entre Products distintos. Una configuración con
+  cambios de plan habilitados y múltiples Products falla cerrada antes de crear la sesión. El
+  catálogo con Products distintos sigue admitiendo Portal con cambios de plan deshabilitados
+  para recuperación de pago, historial y cancelación; esto no activa ningún flag.
 - Dos pestañas, distintos administradores o claves de reintento no pueden abrir contrataciones
   cobrables independientes para el mismo negocio. El intento y su payload se guardan antes de
   llamar a Stripe, con una clave de idempotencia compartida e inmutable. Un fallo de red conserva
@@ -180,6 +195,15 @@ Scenario: Prueba de la nueva cohorte
   When se consulta su sesión durante la prueba vigente
   Then puede evaluar Gestión sin modificar la duración de prueba
   And al vencer sigue la política comercial normal
+
+Scenario: Activación entre ver precios y registrar el negocio
+  Given una persona consultó la oferta Standard y conservó su revisión
+  And la oferta Esencial y Gestión se activó antes de enviar el registro
+  When envía la revisión anterior en billing_offer_revision
+  Then recibe 409 con una indicación para revisar los precios actuales
+  And no se crea una cuenta ni se envía correo de verificación
+  When revisa la oferta actual y vuelve a enviar su registro
+  Then el servidor crea la cohorte correspondiente a esa misma oferta
 
 Scenario: Una capacidad no sustituye al permiso del rol
   Given un negocio Gestión con acceso comercial vigente

@@ -82,8 +82,24 @@ los gates abiertos. El sandbox aprobó Checkout y ciclo de suscripción con Kova
 para Esencial $399, Gestión $699 y la regresión Standard $299 sobre `1a181853162b`.
 Faltan las transiciones mediante el Portal de Kova, la aplicación efectiva al vencer y la
 validación fiscal antes de autorizar la oferta productiva.
-Standard $299 sigue vigente en producción; no se han cambiado precios, suscripciones ni planes de
-proveedores.
+Standard $299 sigue vigente en la app productiva. El dueño autorizó después alinear producción:
+se crearon en Stripe live productos separados de Esencial $399 y Gestión $699 MXN mensuales,
+con precios inclusivos, sin modificar suscripciones ni los precios de $299 anteriores. Un precio
+preliminar no utilizado quedó archivado, sin suscripciones. Se preparó un Portal privado para
+historial, método de pago y cancelación al cierre del período, sin acceso público ni cambios de
+plan. Las cuatro referencias no secretas están en el entorno `production` de GitHub; aún falta
+publicar su transporte a API/jobs y aceptar el recorrido antes de activar la oferta de Kova.
+
+La revisión detectó que Stripe sólo programa reducciones entre Prices del mismo Product; agrupar
+ambos planes eliminaría su identidad en Checkout/comprobantes. Se conserva un Product por plan y
+no se habilitan cambios autónomos entre planes. El resultado anterior de UI alojada no basta para
+aceptar esa transición en el catálogo definitivo. Los cambios de plan y su aplicación al vencer
+siguen pendientes, separados del Portal básico. Identidad pública, enlaces legales, recuperación
+automática y aceptación fiscal se revisan sin inventar datos del titular.
+La revisión detallada de recuperación confirmó Smart Retries ya habilitado, con hasta ocho
+intentos en dos semanas; no se cambió esa política. Los avisos de tarjeta por vencer, pago
+fallido y autenticación requerida están apagados. Los enlaces legales y el nombre comercial
+público requieren guardar la corrección preparada; no se consideran resueltos por crear el Portal.
 
 ## Gates abiertos
 

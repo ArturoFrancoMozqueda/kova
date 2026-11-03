@@ -10,21 +10,40 @@ every downstream request carries both identity and tenant scope.
 
 ### Signup
 
-1. Client posts `email`, `password`, `tenant_name`, and explicit `accepted_terms`.
-2. Every accepted attempt pays one bcrypt hash before looking up the normalized email.
-3. A new address creates `tenant`, `user`, and `membership(role=owner)` and sends a verification link.
+1. Client reads `GET /billing/plans` and reviews the offer. It posts `email`, `password`,
+   `tenant_name`, explicit `accepted_terms`, and the viewed `offer_revision` as
+   `billing_offer_revision`.
+2. When tiered enrollment is active, a missing or stale revision returns **409** with a Spanish
+   instruction to review current prices and submit again. The same check applies to a supplied
+   stale revision when enrollment is off; older Standard clients may omit the field while off.
+   This happens before hashing, account lookup, inserts, audit conversion or verification email,
+   so all addresses receive the same conflict and no account is created or recovered.
+   One server offer decision controls both validation and the new tenant's persisted cohort.
+3. Every attempt that passes this offer/terms check pays one bcrypt hash before looking up the
+   normalized email.
+4. A new address creates `tenant`, `user`, and `membership(role=owner)` and sends a verification link.
    A pending address receives a fresh verification link, invalidating older links without changing its password.
    A verified address leaves its credentials and identity unchanged.
-4. All three outcomes return **201** with the same Spanish message and `reason: "signup_received"`.
+5. All three account outcomes return **201** with the same Spanish message and `reason: "signup_received"`.
    Hosted environments always return `user_id`, `tenant_id`, and `dev_verification_token` as `null`.
    Only `APP_ENV=local` retains identity/token diagnostics for local development and tests.
-5. Public responses never report whether an address exists or has been verified. Internal audit and
+6. Public responses never report whether an address exists or has been verified. Internal audit and
    server-authored conversion events retain the actual result; duplicates never record a new conversion.
-6. The browser can try normal password login after any acknowledged signup. A failed login shows
+7. The browser can try normal password login after any acknowledged signup. A failed login shows
    a neutral acknowledgement with sign-in, password-recovery, and resend actions. An unverified
    user may log in and operate; email verification remains mandatory at the paid boundary.
-7. Per-IP and per-account rate limits remain in force. Uniform responses and bcrypt work do not
+8. Per-IP and per-account rate limits remain in force. Uniform responses and bcrypt work do not
    promise identical network/provider timing; verification email delivery is a separate side effect.
+
+The revision is a public, deterministic identifier of the displayed catalog and cohort. It is not
+a credential, proof of payment or permission to choose a tenant's plan. Auth does not call Stripe
+to validate it. Recovering an existing Standard account after reviewing a new offer preserves its
+existing cohort and agreement. The guard introduces no schema migration or subscription change.
+
+Signup acceptance includes PostgreSQL regressions for activation or catalog change between view
+and submit (409, unchanged user/tenant/token/audit counts, no email), rollback with a supplied stale
+revision, legacy signup without the field while off, successful signup with the current revision,
+and existing verified/unverified accounts without enumeration or unexpected email delivery.
 
 ### Email Verification
 

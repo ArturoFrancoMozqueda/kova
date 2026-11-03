@@ -214,11 +214,11 @@ export default function BillingView() {
   const reconcileStartedRef = useRef(false);
   const { toast } = useToast();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     if (!canViewBilling) { setLoadState({ status: "error" }); return; }
     setLoadState({ status: "loading" });
     try {
-      const billing = await getBillingSubscription();
+      const billing = await getBillingSubscription(force ? { force: true } : undefined);
       setLoadState({ status: "loaded", billing });
       return billing;
     } catch {
@@ -227,6 +227,19 @@ export default function BillingView() {
   }, [canViewBilling]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let refreshing = false;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || refreshing || actionState === "checkout" || actionState === "portal" || actionState === "cancel" || cancelDialogOpen
+        || (checkoutReturnState === "success" && checkoutConfirmationState === "confirming")) return;
+      refreshing = true;
+      void load(true).finally(() => { refreshing = false; });
+    };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { window.removeEventListener("focus", onVisible); document.removeEventListener("visibilitychange", onVisible); };
+  }, [load, actionState, cancelDialogOpen, checkoutReturnState, checkoutConfirmationState]);
+
   useEffect(() => {
     if (checkoutReturnState === "success") toast(copy.billingView.checkoutConfirmingTitle, "info");
     if (checkoutReturnState === "cancel") toast(copy.billingView.checkoutCanceled, "warning");

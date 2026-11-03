@@ -161,11 +161,14 @@ test("real cf strict comparator accepts equivalent unset DO environment and R2 j
 test("pinned cf workaround refuses version, missing marker and duplicate drift before writing", () => {
   const scratch = mkdtempSync(join(tmpdir(), "kova-cf-patch-guard-"));
   try {
-    const dist = join(scratch, "node_modules/cf/dist");
+    const project = join(scratch, "cloudflare-native");
+    const dist = join(project, "node_modules/cf/dist");
     mkdirSync(dist, { recursive: true });
-    const patch = join(scratch, "patch-cf.mjs");
+    const patch = join(project, "patch-cf.mjs");
     writeFileSync(patch, readFileSync(new URL("../patch-cf.mjs", import.meta.url), "utf8"));
-    const packageFile = join(scratch, "node_modules/cf/package.json");
+    writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
+    writeFileSync(join(dist, "containers-BtcOgwm5.mjs"), 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);');
+    const packageFile = join(project, "node_modules/cf/package.json");
     const adapterFile = join(dist, "deploy-input-test.mjs");
     const mapperFile = join(dist, "dist-DZRTPMMA.mjs");
     const adapter = 'm.push({name:`./${o}`,filePath:l';

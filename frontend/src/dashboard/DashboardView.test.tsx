@@ -1,3 +1,4 @@
+import type { CommercialAccess } from "@/auth/types";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,8 +8,9 @@ import { copy } from "@/i18n/messages";
 import { makeStory } from "@/reports/__fixtures__/story";
 import type { BusinessStoryReport } from "@/reports/types";
 
+const commercial = vi.hoisted(() => ({ access: undefined as CommercialAccess | undefined }));
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: {
-  status: "authenticated", tenantId: "tenant-1", tenantName: "Mi negocio", user: { id: "user-1" },
+  status: "authenticated", tenantId: "tenant-1", tenantName: "Mi negocio", user: { id: "user-1" }, commercialAccess: commercial.access,
 } }) }));
 vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
 vi.mock("./api", () => ({ getDashboardOverview: vi.fn().mockResolvedValue(null) }));
@@ -38,6 +40,7 @@ import { summaryFromStory } from "./storyAdapters";
 import { getDashboardOverview, type DashboardOverview } from "./api";
 
 beforeEach(() => {
+  commercial.access = undefined;
   vi.clearAllMocks();
   vi.mocked(getDashboardOverview).mockResolvedValue(null);
   vi.mocked(getBusinessProfile).mockResolvedValue({ timezone: "America/Mexico_City" } as BusinessProfile);
@@ -189,4 +192,15 @@ describe("DashboardView period changes", () => {
     expect(screen.getByTestId("net-sales")).toHaveTextContent("222");
     expect(screen.queryByText(copy.dashboard.loadError)).not.toBeInTheDocument();
   });
+});
+
+it("does not promise Standard or its price to a Gestión trial in onboarding", async () => {
+  commercial.access = { allowed: true, reason: "signup_trial", valid_until: null, plan_code: "gestion", features: ["advanced_reports"] };
+  const story = makeStory({ summary: { ...makeStory().summary, completed_orders: 0 } });
+  vi.mocked(getDashboardOverview).mockResolvedValue({ story, hourly: [], previous_summary: summaryFromStory(story), timezone: "America/Mexico_City",
+    active_catalog_count: 0, tracked_inventory_count: 0, low_stock_items: [], active_employee_count: 0, closed_shift_count: 0, billing: null, onboarding: null } as unknown as DashboardOverview);
+  render(<MemoryRouter><DashboardView /></MemoryRouter>);
+  expect(await screen.findByText("Elige el plan para tu negocio")).toBeInTheDocument();
+  expect(screen.queryByText(copy.dashboard.onboardingStep1Label)).not.toBeInTheDocument();
+  expect(screen.queryByText(copy.dashboard.onboardingStep1Desc)).not.toBeInTheDocument();
 });

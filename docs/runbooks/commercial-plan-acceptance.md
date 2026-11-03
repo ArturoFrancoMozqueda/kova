@@ -125,6 +125,37 @@ simultáneas y hardware siguen sujetos a su aceptación específica.
 
 ## Preparación de Stripe del 3 de noviembre de 2026
 
+### Revisión posterior para alinear producción
+
+Tras la nueva autorización del dueño se preparó el catálogo **live** con un Product por plan:
+Esencial MXN 399.00 y Gestión MXN 699.00, activos, mensuales, intervalo 1 y `tax_behavior=inclusive`.
+Los acuerdos anteriores de MXN 299.00 y las suscripciones existentes no se modificaron. Un Price
+preliminar sin suscripciones quedó archivado y no debe instalarse como referencia de Gestión.
+Los IDs finales viven en configuración operativa privada y en las cuatro variables no secretas
+del entorno `production` de GitHub; crearlos no activa la oferta de Kova.
+
+Se guardó un Portal básico live, inicialmente compartido por ambas cohortes: historial y cambio
+de método de pago habilitados; cancelación `at_period_end`; cambios de plan/cantidad, pausa,
+edición de información de cliente y página pública de acceso deshabilitados. El retorno es la
+pantalla de Suscripción de Kova. Compartir esta configuración es seguro mientras no admita
+cambios de plan; Standard nunca debe recibir una configuración que los habilite.
+
+La [restricción documentada del Portal](https://docs.stripe.com/customer-management/configure-portal)
+sólo permite reducciones al cierre entre precios del mismo Product. Se conserva la identidad
+de cada plan en Checkout y comprobantes con Products separados, por lo que las transiciones
+autónomas entre planes quedan deshabilitadas. La evidencia alojada descrita abajo corresponde
+a la preparación anterior; **no acepta esa transición para el catálogo definitivo**. El backend
+rechaza una configuración que pretenda habilitarla con varios Products. La aceptación del
+Portal básico y la de cambios de plan deben registrarse por separado.
+
+El código preparatorio añade revisión pública de oferta y rechazo 409 de un registro obsoleto
+antes de crear tenant/enviar correo. La UI refresca y confirma la oferta sin perder el formulario;
+volver al foco durante conciliación de Checkout no la interrumpe. El release compara la oferta
+por API y proxy antes de promoción y después de publicación. Las banderas siguen apagadas hasta
+la entrega explícita de activación y la comprobación de su configuración completa.
+
+### Evidencia anterior del sandbox
+
 Se prepararon dos productos y precios nuevos en el sandbox privado existente: Esencial de
 MXN 399.00 y Gestión de MXN 699.00, mensuales, con `tax_behavior=inclusive`. Se conservaron los
 productos y precios anteriores. Los IDs de configuración y capturas quedan como evidencia

@@ -33,6 +33,28 @@ test("successful release verifies candidate before promotion and public site aft
   assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "promote", "acceptance"]);
 });
 
+test("commercial catalog acceptance runs before promotion and on the public proxy", async () => {
+  const fake = fixture();
+  const offers = [];
+  await release({ artifact, sha, ...fake, expectedBillingOffer: "tiered", verifyOffer: async input => {
+    offers.push(input);
+    fake.calls.push("offer");
+  } });
+  assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "offer", "promote", "acceptance", "offer"]);
+  assert.equal(offers[0].frontendUrl, "https://candidate.vercel.app");
+  assert.equal(offers[1].frontendUrl, artifact.frontendUrl);
+  assert.ok(offers.every(input => input.offer === "tiered"));
+});
+
+test("catalog mismatch recovers the old release before any frontend promotion", async () => {
+  const fake = fixture();
+  await assert.rejects(release({ artifact, sha, ...fake, expectedBillingOffer: "tiered",
+    verifyOffer: async () => { throw new Error("catalog mismatch"); },
+  }), /RELEASE_FAILED_RECOVERED/);
+  assert.equal(fake.calls.includes("promote"), false);
+  assert.deepEqual(fake.calls.slice(-2), ["restore-backend", "restored"]);
+});
+
 test("backend publication receives the validated previous artifact identity", async () => {
   const fake = fixture();
   fake.provider.deployBackend = async (target, previous) => {

@@ -74,3 +74,27 @@ def test_plan_changes_accept_only_fixed_quantity_configuration(monkeypatch, adju
         service._validate_portal_configuration(
             configuration, configuration_id="bpc_synthetic", tiered=True,
         )
+
+
+@pytest.mark.parametrize("updates_enabled", [False, True])
+def test_two_product_catalog_can_only_use_payment_and_cancellation_portal(monkeypatch, updates_enabled):
+    monkeypatch.setattr(settings, "app_env", "local")
+    monkeypatch.setattr(settings, "stripe_esencial_price_id", "price_esencial")
+    monkeypatch.setattr(settings, "stripe_gestion_price_id", "price_gestion")
+    configuration = _configuration()
+    update = configuration["features"]["subscription_update"]
+    update["enabled"] = updates_enabled
+    update["products"] = [
+        {"product": "prod_esencial", "prices": ["price_esencial"]},
+        {"product": "prod_gestion", "prices": ["price_gestion"]},
+    ]
+    if updates_enabled:
+        with pytest.raises(HTTPException) as error:
+            service._validate_portal_configuration(
+                configuration, configuration_id="bpc_synthetic", tiered=True,
+            )
+        assert error.value.status_code == 503
+    else:
+        service._validate_portal_configuration(
+            configuration, configuration_id="bpc_synthetic", tiered=True,
+        )

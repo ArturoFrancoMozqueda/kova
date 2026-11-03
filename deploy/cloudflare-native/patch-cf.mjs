@@ -2,6 +2,7 @@
 // treats that as a literal directory named ".", making vendor files invisible.
 // Keep canonical paths for Python bundles; preserve JavaScript behavior.
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { commercialComparatorPrefix } from "../stripe-runtime-ids.mjs";
 const directory = new URL("./node_modules/cf/dist/", import.meta.url);
 const packageInfo = JSON.parse(readFileSync(new URL("../package.json", directory), "utf8"));
 if (packageInfo.version !== "1.0.0-beta.18") throw new Error("Revalidate the cf Python packaging workaround before updating CLI");
@@ -19,7 +20,7 @@ function prepareFix(filename, before, after, description) {
     const patchedCount = source.split(replacement).length - 1;
     if (originalCount === 0 && patchedCount === 1) continue;
     if (originalCount !== 1 || patchedCount !== 0) throw new Error(`Unexpected cf ${description}; refusing an unverified patch`);
-    source = source.replace(original, replacement);
+    source = source.replace(original, () => replacement);
     changed = true;
   }
   return { file, source, changed };
@@ -35,11 +36,11 @@ const fixes = [
   // Dashboard uploads omit script_name for this Worker's own DO namespaces.
   // Normalize only that equivalent representation before the strict diff;
   // explicit foreign workers, classes and environments still fail closed.
-  // Permit the public build SHA transition only for the captured previous SHA
-  // and requested target passed by the protected release, never arbitrary vars.
+  // Permit the captured build transition and exactly four validated public
+  // Stripe IDs. Every other text, secret and resource binding stays strict.
   prepareFix(/^containers-BtcOgwm5\.mjs$/,
     'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);',
-    'function xE(e,t){let n=SE(t);e=structuredClone(e);for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;let i=process.env.KOVA_NATIVE_PREVIOUS_SHA,a=process.env.KOVA_NATIVE_DEPLOY_SHA;if(n.name===`kova-backend`&&/^[a-f0-9]{40}$/i.test(i??``)&&/^[a-f0-9]{40}$/i.test(a??``)&&e.vars?.KOVA_BUILD_SHA===i&&n.vars?.KOVA_BUILD_SHA===a)e.vars.KOVA_BUILD_SHA=a;let r=_E(DE(e,n),n);', "same-worker DO metadata and captured release identity"),
+    commercialComparatorPrefix({ native: true }), "same-worker DO metadata and captured public configuration"),
   // The generated registry client discards the useful HTTP status in its
   // generic error message. Preserve failure behavior and expose only numeric
   // diagnostics for the managed registry credential operation, never its body.

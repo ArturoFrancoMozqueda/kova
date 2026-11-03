@@ -15,6 +15,15 @@ const telemetry = vi.hoisted(() => ({
 
 vi.mock("@/telemetry/funnel", () => telemetry);
 
+// Account/auth stories keep a confirmed legacy offer; offer refresh/races have
+// dedicated coverage in AuthView.offer.test.tsx using the real catalog hook.
+vi.mock("@/billing/publicPlans", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/billing/publicPlans")>();
+  const catalog = { tiered_pricing_enabled: false, available_plans: [{ code: "standard" as const, name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", features: [], limits: { product_image_bytes: null }, tax_inclusive: null }] };
+  return { ...actual, usePublicPlans: () => ({ status: "ready", catalog, confirm: async () => catalog, retry: vi.fn() }) };
+});
+
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>

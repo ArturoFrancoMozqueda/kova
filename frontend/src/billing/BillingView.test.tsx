@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -21,7 +21,7 @@ vi.mock("./api", () => ({
       this.status = status;
     }
   },
-  getBillingSubscription: () => getBillingSubscription(),
+  getBillingSubscription: (...args: unknown[]) => getBillingSubscription(...args),
   reconcileCheckout: (sessionId: string) => reconcileCheckout(sessionId),
   invalidateBillingSubscription: () => invalidateBillingSubscription(),
   startCheckout: (...args: unknown[]) => startCheckout(...args),
@@ -389,4 +389,37 @@ it.each([
   expect(startCheckout).toHaveBeenCalledOnce();
   expect(reconcileCheckout).not.toHaveBeenCalled();
   expect(document.body).not.toHaveTextContent("cs_test_private_123");
+});
+
+
+it("forces a fresh billing offer after returning to the page without beginning checkout", async () => {
+  const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  try {
+    getBillingSubscription.mockResolvedValueOnce(billing(null)).mockResolvedValue({ ...billing(null), available_plans: [] });
+    renderBilling();
+    await screen.findByRole("button", { name: "Activar por $299 MXN/mes" });
+    fireEvent(window, new Event("focus"));
+    expect(await screen.findByText(/contratación de tu plan todavía no está disponible/)).toBeInTheDocument();
+    expect(getBillingSubscription).toHaveBeenLastCalledWith({ force: true });
+    expect(startCheckout).not.toHaveBeenCalled();
+  } finally { visibility.mockRestore(); }
+});
+
+
+it("keeps checkout reconciliation running when focus and visibility return during confirmation", async () => {
+  const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  try {
+    let finish!: (value: BillingSubscription) => void;
+    getBillingSubscription.mockResolvedValue(billing({ status: "incomplete" }));
+    reconcileCheckout.mockReturnValue(new Promise<BillingSubscription>((resolve) => { finish = resolve; }));
+    renderSuccess();
+    await waitFor(() => expect(reconcileCheckout).toHaveBeenCalledWith("cs_test_123"));
+    fireEvent(window, new Event("focus"));
+    fireEvent(document, new Event("visibilitychange"));
+    expect(getBillingSubscription).toHaveBeenCalledOnce();
+    expect(within(screen.getByRole("main")).getByText(copy.billingView.checkoutConfirmingTitle)).toBeInTheDocument();
+    finish(billing({ status: "active" }));
+    expect(await screen.findByText(copy.billingView.subscriptionActiveTitle)).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).queryByText(copy.billingView.checkoutConfirmingTitle)).not.toBeInTheDocument();
+  } finally { visibility.mockRestore(); }
 });

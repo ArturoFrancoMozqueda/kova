@@ -206,6 +206,7 @@ function OnboardingChecklist({
   canViewBilling,
   onboarding,
   tenantName,
+  tieredPlan,
 }: {
   hasProducts: boolean;
   orderCount: number;
@@ -214,11 +215,14 @@ function OnboardingChecklist({
   canViewBilling: boolean;
   onboarding: OnboardingState | null;
   tenantName: string;
+  tieredPlan: boolean;
 }) {
+  const billingLabel = tieredPlan ? "Elige el plan para tu negocio" : copy.dashboard.onboardingStep1Label;
+  const billingDescription = tieredPlan ? "Consulta los planes disponibles en Suscripción para continuar cuando termine tu prueba." : copy.dashboard.onboardingStep1Desc;
   const fallbackSteps = [
     {
-      label: copy.dashboard.onboardingStep1Label,
-      desc: copy.dashboard.onboardingStep1Desc,
+      label: billingLabel,
+      desc: billingDescription,
       done: hasActiveSubscription,
       action: copy.dashboard.onboardingStep1Action,
       actionTo: "/settings/billing",
@@ -262,8 +266,8 @@ function OnboardingChecklist({
           done = done || trackedInventoryCount > 0;
         }
         return {
-          label: copy.dashboard.onboardingStepLabel(step.key) ?? step.label,
-          desc: copy.dashboard.onboardingStepDesc(step.key),
+          label: tieredPlan && isBillingStep(step.action_path) ? billingLabel : copy.dashboard.onboardingStepLabel(step.key) ?? step.label,
+          desc: tieredPlan && isBillingStep(step.action_path) ? billingDescription : copy.dashboard.onboardingStepDesc(step.key),
           done,
           action: copy.dashboard.onboardingStepAction(step.key),
           actionTo: step.action_path,
@@ -707,6 +711,7 @@ function AdvancedDashboardView() {
       {loadState.status === "ready" && (
         <div className="mb-6 empty:hidden">
           <OnboardingChecklist
+            tieredPlan={state.status === "authenticated" && Boolean(state.commercialAccess?.plan_code && state.commercialAccess.plan_code !== "standard")}
             hasProducts={loadState.hasProducts}
             orderCount={loadState.summary.order_count}
             trackedInventoryCount={loadState.trackedInventoryCount}

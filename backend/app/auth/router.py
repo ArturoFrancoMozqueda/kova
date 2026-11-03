@@ -57,6 +57,7 @@ def _clear_auth_cookies(response: Response) -> None:
 @router.post(
     "/signup", response_model=SignupResponse, status_code=201,
     dependencies=[Depends(rate_limit(10, key="auth-signup", fail_closed=True))],
+    responses={409: {"description": "La oferta cambió. Revisa los planes antes de registrarte."}},
 )
 def signup(
     body: SignupRequest,
@@ -85,6 +86,7 @@ def signup(
         password=body.password,
         tenant_name=body.tenant_name,
         accepted_terms=body.accepted_terms,
+        billing_offer_revision=body.billing_offer_revision,
         ip_address=request.client.host if request.client else None,
     )
     if outcome.reason == service.SignupOutcome.ACCOUNT_CREATED:

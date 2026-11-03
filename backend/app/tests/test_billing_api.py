@@ -21,9 +21,14 @@ pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
+    # Billing scenarios follow the public signup contract, including an offer
+    # revision when the test explicitly enables tiered enrollment.
+    offer = client.get("/api/v1/billing/plans")
+    assert offer.status_code == 200, offer.text
     response = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name, "accepted_terms": True},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name,
+              "accepted_terms": True, "billing_offer_revision": offer.json()["offer_revision"]},
     )
     assert response.status_code == 201, response.text
     signup = response.json()

@@ -3,6 +3,7 @@ export type SignupRequest = {
   password: string;
   tenant_name: string;
   accepted_terms: boolean;
+  billing_offer_revision?: string;
 };
 
 export type SignupReason = "signup_received";

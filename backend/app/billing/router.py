@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.billing import repository, service
-from app.billing.plans import PLANS, tiered_pricing_enabled
+from app.billing.offers import public_offer
+from app.billing.plans import tiered_pricing_enabled
 from app.billing.schemas import (
     BillingSubscriptionResponse,
     CheckoutSessionRequest,
@@ -45,12 +46,7 @@ def _require_verified_email(user: User) -> None:
 
 @router.get("/plans", response_model=PublicPlansResponse)
 def public_plans():
-    enabled = tiered_pricing_enabled()
-    codes = ("esencial", "gestion") if enabled else ("standard",)
-    return {
-        "tiered_pricing_enabled": enabled,
-        "available_plans": [PLANS[code].public() for code in codes],
-    }
+    return public_offer(tiered=tiered_pricing_enabled())
 
 
 @router.get("/subscription", response_model=BillingSubscriptionResponse)
