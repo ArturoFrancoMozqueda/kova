@@ -12,7 +12,8 @@ for (const [field, value] of [
   ["portal_url", "http://billing.stripe.com/p/session/test_synthetic"],
   ["portal_url", "https://billing.stripe.com.evil.test/p/session/x"],
   ["portal_url", "https://user@billing.stripe.com/p/session/x"],
-  ["portal_url", "https://billing.stripe.com/other/x"],
+  ["portal_url", "https://api.stripe.com/other/x"],
+  ["portal_url", "https://billing.stripe.com:8443/other/x"],
   ["provider_livemode", true], ["action", "delete_customer"], ["current_amount", 1],
 ]) {
   test(`rejects unsafe ${field}: ${value}`, () => {
@@ -68,3 +69,11 @@ for (const [plan_code, current_plan, current_amount] of [
     assert.throws(() => validatePortalState({ ...state, current_amount: 1 }), /invalid_basic/);
   });
 }
+
+
+test("provider-owned Portal paths stay opaque on the exact trusted origin", () => {
+  for (const path of ["/p/session/test_synthetic", "/p/test_synthetic", "/session/test_synthetic"]) {
+    const state = { ...standard, portal_url: "https://billing.stripe.com" + path };
+    assert.equal(validatePortalState(state), state);
+  }
+});

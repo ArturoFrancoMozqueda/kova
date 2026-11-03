@@ -7,8 +7,9 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-Producción verificada el 3 de noviembre corre `14ac9615c904` (PR #304): frontend `kovasuite.com`, API `api.kovasuite.com`
-y proxy reportan el mismo SHA, con la base disponible. Los cambios de código hasta ese PR están publicados.
+La última verificación registrada del 3 de noviembre corresponde a `31b0693f5a74` (PR #307):
+frontend `kovasuite.com`, API `api.kovasuite.com` y proxy reportaron el mismo SHA, con la base disponible.
+Los cambios de código hasta ese PR están publicados.
 Los merges posteriores solo de documentación no cambian el SHA desplegado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
@@ -16,6 +17,10 @@ también para administradores; [protección comprobada](despliegue.md#protecció
 - Fundación de planes comerciales y Checkout durable (#302), validación de Portal con productos
   expandidos y sin cantidades ajustables (#303), y simulacro aislado seleccionable por plan (#304).
   Esencial/Gestión y Portal siguen apagados en producción; Standard conserva $299 MXN mensuales.
+- Transporte de referencias públicas de Stripe a API/jobs, protección de registro con oferta
+  obsoleta y actualización de precios al volver a la app (#307). El release verifica el catálogo
+  aprobado antes y después de promoción, sin reenviar bypass a redirecciones. Portal básico
+  preparado; falta repetir su aceptación después de alinear la validación de enlaces opacos.
 - Recordatorios que excluyen cortesía permanente, recuperan envíos pendientes antes de vencer y
   reportan fallas al scheduler; importes de correo en Decimal (#300).
 - Dependencias PDF corregidas, motor OCR con fix oficial de propiedad de palabras y sus dos
@@ -87,8 +92,8 @@ se crearon en Stripe live productos separados de Esencial $399 y Gestión $699 M
 con precios inclusivos, sin modificar suscripciones ni los precios de $299 anteriores. Un precio
 preliminar no utilizado quedó archivado, sin suscripciones. Se preparó un Portal privado para
 historial, método de pago y cancelación al cierre del período, sin acceso público ni cambios de
-plan. Las cuatro referencias no secretas están en el entorno `production` de GitHub; aún falta
-publicar su transporte a API/jobs y aceptar el recorrido antes de activar la oferta de Kova.
+plan. Las cuatro referencias no secretas ya llegaron a API/jobs mediante el release aceptado de
+#307. Falta aceptar el recorrido del Portal antes de activar la oferta de Kova.
 
 La revisión detectó que Stripe sólo programa reducciones entre Prices del mismo Product; agrupar
 ambos planes eliminaría su identidad en Checkout/comprobantes. Se conserva un Product por plan y

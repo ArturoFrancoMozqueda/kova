@@ -239,8 +239,9 @@ def test_downgrade_proves_future_schedule_and_preserves_current_gestion(tmp_path
 
 
 @pytest.mark.parametrize("outcome", ["success", "failure", "timeout", "invalid_output"])
+@pytest.mark.parametrize("portal_path", ["/p/session/test_private", "/p/test_private"])
 def test_portal_bearer_state_is_private_and_removed_on_all_helper_outcomes(
-    tmp_path, monkeypatch, outcome
+    tmp_path, monkeypatch, outcome, portal_path
 ):
     config = drill.validate_environment(_environment(tmp_path))
     paths = []
@@ -248,7 +249,7 @@ def test_portal_bearer_state_is_private_and_removed_on_all_helper_outcomes(
     class Client:
         def request(self, method, path):
             assert (method, path) == ("POST", "/api/v1/billing/portal")
-            return {"portal_url": "https://billing.stripe.com/p/session/test_private"}
+            return {"portal_url": "https://billing.stripe.com" + portal_path}
 
     def run(*args, **kwargs):
         filename = Path(kwargs["env"]["KOV005_PORTAL_STATE_FILE"])
@@ -633,3 +634,26 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
     assert result[2]["provider_subscription"]["cancel_at_period_end"] is True
     assert result[2]["kova_access"]["allowed"] is True
     assert result[2]["limits"] == {"effective_cancellation": False, "tier_changes": "blocked"}
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://billing.stripe.com/p/test_private",
+        "https://billing.stripe.com.evil.test/p/test_private",
+        "https://user@billing.stripe.com/p/test_private",
+        "https://api.stripe.com/p/test_private",
+        "https://billing.stripe.com:8443/p/test_private",
+        None,
+    ],
+)
+def test_portal_opaque_path_does_not_expand_the_trusted_origin(tmp_path, monkeypatch, url):
+    config = drill.validate_environment(_basic_environment(tmp_path))
+    context = {"client": SimpleNamespace(request=lambda *args: {"portal_url": url})}
+
+    def unexpected_browser(*args, **kwargs):
+        raise AssertionError("Untrusted Portal origin must never reach the browser")
+
+    monkeypatch.setattr(drill.subprocess, "run", unexpected_browser)
+    with pytest.raises(drill.DrillError, match="accepted hosted Portal URL"):
+        drill._submit_portal_action(config, context, "inspect")

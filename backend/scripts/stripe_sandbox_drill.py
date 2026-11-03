@@ -1443,8 +1443,9 @@ def _submit_portal_action(
     portal = context["client"].request("POST", "/api/v1/billing/portal")
     url = portal.get("portal_url")
     parsed = urlparse(url) if isinstance(url, str) else None
+    # Portal session URLs are opaque; Kova already verifies the provider customer/configuration.
     if (parsed is None or parsed.scheme != "https" or parsed.netloc != "billing.stripe.com"
-            or not parsed.path.startswith("/p/session/")):
+            or parsed.username or parsed.password):
         raise DrillError("Kova did not emit an accepted hosted Portal URL")
     fd, name = tempfile.mkstemp(prefix="kov005-portal-", suffix=".json")
     os.close(fd)
