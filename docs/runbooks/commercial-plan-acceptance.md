@@ -163,10 +163,22 @@ La cuenta real reportó cobros y depósitos habilitados, sin requisitos vencidos
 encontraron registros fiscales activos en Stripe Tax. No se activó cálculo automático ni se
 crearon registros fiscales. El comportamiento inclusivo del precio no sustituye esa validación.
 
-La oferta productiva sigue apagada y Standard conserva MXN 299.00. Permanecen pendientes la
-aceptación integrada con Kova y los nuevos planes (el drill actual cubre Standard), la aplicación
-efectiva de las transiciones, la validación fiscal y la autorización para publicar la oferta.
-Una clave del sandbox debe instalarse directamente en el Secret store, nunca en chat ni archivos.
+La oferta productiva sigue apagada y Standard conserva MXN 299.00. El runner ya admite seleccionar
+Standard, Esencial o Gestión y comprueba los importes, funciones y acceso de Kova, según el
+[runbook del simulacro](stripe-sandbox-drill.md). Sus 64 pruebas aisladas pasaron; su ejecución con
+el proveedor para los planes nuevos sigue pendiente de instalar la clave del sandbox directamente
+en el Secret store, nunca en chat ni archivos. Las referencias a ambos precios nuevos ya están
+configuradas únicamente en el entorno `stripe-sandbox` de GitHub.
+
+Se eliminaron los dos clientes sintéticos de los recorridos alojados, cancelando sus suscripciones
+de prueba; se conservaron el catálogo y las configuraciones del Portal para la aceptación posterior.
+El perfil heredado del sandbox todavía reporta requisitos de dirección vencidos y capacidades
+inactivas, aunque permitió completar pagos simulados. Esto no acredita habilitación de cobros ni
+depósitos en ese sandbox; la revisión de habilitación live descrita arriba corresponde a otra cuenta.
+
+Permanecen pendientes la aceptación integrada de ambos planes, las transiciones mediante el Portal
+de Kova, su aplicación efectiva al vencer, la validación fiscal y la autorización para publicar
+la oferta. La evidencia del proveedor y las pruebas locales no cierran esos gates por sí solas.
 
 ## Registro de trabajo y consumo
 
