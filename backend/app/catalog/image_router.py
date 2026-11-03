@@ -2,10 +2,11 @@ import base64
 import binascii
 import hashlib
 import io
+import json
 import logging
 import sys
 from collections import OrderedDict
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import BoundedSemaphore, Lock
@@ -21,6 +22,8 @@ from sqlalchemy.types import Text
 from starlette.concurrency import run_in_threadpool
 
 if sys.platform != "emscripten":
+    from time import thread_time
+
     from PIL import (
         Image,
         ImageOps,
@@ -30,6 +33,7 @@ if sys.platform != "emscripten":
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
 from app.catalog.models import Product, ProductImageFile
+from app.config import settings
 from app.db import (
     SessionLocal,
     get_db,
@@ -65,6 +69,48 @@ _image_load_slots = BoundedSemaphore(4)
 _thumbnail_write_slots = BoundedSemaphore(1)
 _MAX_PERSISTED_THUMBNAIL_BYTES = 128 * 1024
 logger = logging.getLogger(__name__)
+_NATIVE_PHOTO_PHASES = frozenset({
+    "load", "db_prepare", "db_metadata", "cache", "db_blob", "db_close",
+    "resize_lock", "open", "decode_metadata", "decode_orientation", "reduce", "encode",
+    "persist",
+})
+
+
+@contextmanager
+def _native_photo_phase(phase):
+    """CI-only progress survives a timed-out HTTP request; no request context/data.
+
+    PNG getexif() may decode the bitmap; JPEG defers decoding until EXIF
+    transpose after draft(). Keep these boundaries explicit in the evidence.
+    Thread CPU excludes a preceding thumbnail's concurrent background writer.
+    """
+    if (sys.platform == "emscripten" or settings.app_env != "ci"
+            or phase not in _NATIVE_PHOTO_PHASES):
+        yield
+        return
+    wall, cpu = perf_counter(), thread_time()
+
+    def emit(event):
+        payload = {
+            "message": "native_photo_phase", "phase": phase, "event": event,
+            "wall_ms": round(max(0, perf_counter() - wall) * 1000, 3),
+            "thread_cpu_ms": round(max(0, thread_time() - cpu) * 1000, 3),
+        }
+        # The ordinary formatter attaches request/tenant/user identifiers.
+        # A single bounded JSON write deliberately excludes that context.
+        try:
+            sys.stderr.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            sys.stderr.flush()
+        except (OSError, ValueError):
+            pass  # Diagnostics must never change image availability.
+
+    emit("begin")
+    finished = False
+    try:
+        yield
+        finished = True
+    finally:
+        emit("end" if finished else "error")
 
 
 def _cached_thumbnail(key: tuple[bytes, str, int]) -> tuple[bytes, str] | None:
@@ -120,6 +166,7 @@ def _persisted_thumbnail(entry, fingerprint: bytes, source_content_type: str, wi
     return body, "image/webp"
 
 
+@_native_photo_phase("persist")
 def _persist_thumbnail(image_id: UUID, tenant_id: UUID, product_id: UUID,
                        width: int, entry: dict, *, session_factory=None) -> bool:
     """Optional derived cache write; own RLS session, no request connection.
@@ -250,7 +297,9 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
         return cached
     # Bound decoder memory and coalesce concurrent misses. Cache hits do not
     # wait behind an unrelated decode on the small resident instance.
-    with _image_resize_lock:
+    with _native_photo_phase("resize_lock"):
+        _image_resize_lock.acquire()
+    try:
         with _image_cache_lock:
             cached = _resized_images.get(key)
             if cached is not None:
@@ -261,6 +310,8 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
             return result
         _remember_thumbnail(key, result)
         return result
+    finally:
+        _image_resize_lock.release()
 
 
 def _webp_canvas_size(data: bytes) -> tuple[int, int] | None:
@@ -292,6 +343,7 @@ def _webp_canvas_size(data: bytes) -> tuple[int, int] | None:
     return None
 
 
+@_native_photo_phase("reduce")
 def _resize_rgba_in_stripes(source, size):
     """Match Pillow's gap=2 RGBA resize without a full premultiplied canvas.
 
@@ -336,12 +388,15 @@ def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tupl
             # animation instead of exceeding the resident memory budget.
             if data[12:16] == b"VP8X" and data[20] & 0x02:
                 return data, content_type
-        with Image.open(io.BytesIO(data)) as img:
+        with _native_photo_phase("open"):
+            opened = Image.open(io.BytesIO(data))
+        with opened as img:
             # PNG.getexif() can load the full bitmap. Check first, except JPEG
             # which can reduce its decode dimensions with draft() below.
             if img.format != "JPEG" and img.width * img.height > _MAX_DECODED_PIXELS:
                 return data, content_type
-            rotated = img.getexif().get(274, 1) in {5, 6, 7, 8}
+            with _native_photo_phase("decode_metadata"):
+                rotated = img.getexif().get(274, 1) in {5, 6, 7, 8}
             visual_width, visual_height = (img.height, img.width) if rotated else img.size
             if visual_width <= target_width:
                 return data, content_type
@@ -363,11 +418,13 @@ def _render_thumbnail(data: bytes, content_type: str, target_width: int) -> tupl
                 return data, content_type
             # Phone orientation must survive stripping metadata into WebP.
             # Transpose after draft so a JPEG rotates the reduced bitmap.
-            ImageOps.exif_transpose(img, in_place=True)
+            with _native_photo_phase("decode_orientation"):
+                ImageOps.exif_transpose(img, in_place=True)
             source = img if img.mode == mode else img.convert(mode)
             with closing(_resize_rgba_in_stripes(source, (target_width, target_height))) as resized:
                 buf = io.BytesIO()
-                resized.save(buf, format="WEBP", quality=82, method=4)
+                with _native_photo_phase("encode"):
+                    resized.save(buf, format="WEBP", quality=82, method=4)
             return buf.getvalue(), "image/webp"
     except Exception:
         return data, content_type
@@ -566,6 +623,7 @@ def delete_product_image(
     "/products/{product_id}/image",
     dependencies=[Depends(rate_limit(120, key="product-image-get"))],
 )
+@_native_photo_phase("load")
 def get_product_image(
     product_id: UUID,
     # Public, unauthenticated read served cross-tenant by product id (no tenant
@@ -584,7 +642,8 @@ def get_product_image(
 def _load_product_image(product_id: UUID, db: Session, w: int | None,
                         background_tasks: BackgroundTasks | None = None):
     started = perf_counter()
-    prepare_public_asset_read(db)
+    with _native_photo_phase("db_prepare"):
+        prepare_public_asset_read(db)
     # Include checkout/pre-ping here too: changing transaction transport must
     # not make the database timer appear faster by moving work outside it.
     db_ms = (perf_counter() - started) * 1000
@@ -608,25 +667,28 @@ def _load_product_image(product_id: UUID, db: Session, w: int | None,
                   and db.get_bind().dialect.name == "postgresql")
     if persistent:
         started = perf_counter()
-        fingerprint_row = db.execute(visible_image.with_only_columns(
-            func.pg_catalog.sha256(ProductImageFile.bytes_data, type_=LargeBinary),
-            ProductImageFile.content_type, ProductImageFile.thumbnail_variants[str(w)],
-            ProductImageFile.id, ProductImageFile.tenant_id,
-        )).one_or_none()
+        with _native_photo_phase("db_metadata"):
+            fingerprint_row = db.execute(visible_image.with_only_columns(
+                func.pg_catalog.sha256(ProductImageFile.bytes_data, type_=LargeBinary),
+                ProductImageFile.content_type, ProductImageFile.thumbnail_variants[str(w)],
+                ProductImageFile.id, ProductImageFile.tenant_id,
+            )).one_or_none()
         db_ms += (perf_counter() - started) * 1000
         if fingerprint_row is None:
             raise not_found("Product image not found")
         fingerprint, content_type, persisted, image_id, tenant_id = fingerprint_row
         started = perf_counter()
         key = (bytes(fingerprint), content_type, w)
-        cached = _cached_thumbnail(key)
-        if cached is None:
-            cached = _persisted_thumbnail(persisted, bytes(fingerprint), content_type, w)
-            if cached is not None:
-                _remember_thumbnail(key, cached)
+        with _native_photo_phase("cache"):
+            cached = _cached_thumbnail(key)
+            if cached is None:
+                cached = _persisted_thumbnail(persisted, bytes(fingerprint), content_type, w)
+                if cached is not None:
+                    _remember_thumbnail(key, cached)
         cache_ms += (perf_counter() - started) * 1000
         if cached is not None:
-            db.close()
+            with _native_photo_phase("db_close"):
+                db.close()
             # A previous optional writer may have been busy. Retry missing
             # persistence from a verified memory hit without reloading a blob.
             if not _persisted_metadata_matches(persisted, bytes(fingerprint), content_type):
@@ -637,7 +699,8 @@ def _load_product_image(product_id: UUID, db: Session, w: int | None,
     started = perf_counter()
     blob_query = (visible_image.add_columns(ProductImageFile.id, ProductImageFile.tenant_id)
                   if persistent else visible_image)
-    image_row = db.execute(blob_query).one_or_none()
+    with _native_photo_phase("db_blob"):
+        image_row = db.execute(blob_query).one_or_none()
     db_ms += (perf_counter() - started) * 1000
     if image_row is None:
         raise not_found("Product image not found")
@@ -646,7 +709,8 @@ def _load_product_image(product_id: UUID, db: Session, w: int | None,
         body, media_type, image_id, tenant_id = image_row
     else:
         body, media_type = image_row
-    db.close()
+    with _native_photo_phase("db_close"):
+        db.close()
     original, source_content_type = body, media_type
     if w is not None and w in ALLOWED_RESIZE_WIDTHS:
         started = perf_counter()

@@ -27,6 +27,22 @@ Todos los PR con código ejecutan **las suites completas**. No hay selección de
 Las duraciones de JUnit incluyen trabajo por caso; el tiempo de runner se mide con timestamps de GitHub e incluye preparación. No se comparan estos números como si fueran la misma métrica.
 Los conteos vigentes se obtienen del resultado de cada ejecución, no de cifras históricas en esta tabla.
 
+### Diagnóstico de fotos en el residente
+
+La aceptación conserva cada solicitud por debajo de 3000 ms, con CPU 0.0625 y memoria 256 MiB,
+incluido el PNG RGBA de 8 MP sin miniaturas previas. En dos runners de PR310 ese mismo caso frío
+de 400 px agotó el tiempo sin respuesta; su implementación de imágenes era idéntica a la versión
+anterior. El perfil local ARM sirve para distribuir costos, no para probar el presupuesto Linux.
+
+Solo con `APP_ENV=ci`, `native_photo_phase` emite progreso `begin`/`end`/`error`, una fase de un
+conjunto cerrado y números `wall_ms`/`thread_cpu_ms`. No incluye contexto de petición, identificadores,
+URLs, imágenes ni errores crudos. `decode_metadata` incluye la decodificación que puede hacer
+`PNG.getexif()`; `decode_orientation` incluye la decodificación JPEG posterior a `draft()`. Las fases
+de base de datos, caché, espera del lock, reducción, codificación y persistencia permiten distinguir
+CPU propia del hilo frente a espera o competencia con el escritor previo en background. El artifact
+conserva las últimas 100 líneas del contenedor, incluso si el cliente agota el tiempo antes de recibir
+`Server-Timing`. Esta instrumentación no cambia el algoritmo, la calidad ni los límites de aceptación.
+
 ## Política de vulnerabilidades
 
 `scripts/audit_dependencies.py inventory` verifica que todos los lockfiles versionados estén
