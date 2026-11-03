@@ -130,10 +130,17 @@ separate. Only the ephemeral backend receives the selected configuration and Por
 
 The verified owner requests `POST /api/v1/billing/portal`; the test never sends a customer or return
 URL. The API independently reads and validates that configuration. The Node helper accepts only a
-hosted `https://billing.stripe.com/p/session/…` URL emitted by Kova, together with explicit test-mode
-provenance. Bearer URLs live only in private temporary files, removed in `finally`, never logs or
+hosted URL on the exact `https://billing.stripe.com` origin emitted by Kova, together with explicit
+test-mode provenance. The provider session path is opaque; do not infer an ID, mode or a fixed
+`/p/session/` prefix from it. Bearer URLs live only in private temporary files, removed in `finally`, never logs or
 evidence. The helper receives no provider keys or database configuration. An always-run workflow
 step also removes transient state files after cancellation.
+
+The first Basic Standard attempt on `31b0693f5a74`
+([41696841814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41696841814)) stopped before
+the hosted UI because the runner required a non-contractual `/p/session/` prefix. The independent
+cleanup step passed. This is a failed acceptance, not evidence that the Portal flow works; repeat
+after aligning the helper with the backend's exact HTTPS origin and opaque provider URL contract.
 
 ### Basic acceptance
 

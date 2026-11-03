@@ -10,8 +10,9 @@ const confirmNames = /^(?:confirmar|confirm|confirmar cambio|confirm change|actu
 export function validatePortalState(state) {
   let url;
   try { url = new URL(state.portal_url); } catch { throw new Error("invalid_portal_url"); }
+  // The provider owns the opaque path; only its exact HTTPS origin is part of this contract.
   if (url.protocol !== "https:" || url.host !== "billing.stripe.com" || url.username || url.password
-      || !url.pathname.startsWith("/p/session/") || state.provider_livemode !== false) {
+      || state.provider_livemode !== false) {
     throw new Error("invalid_portal_scope");
   }
   if (!actions.has(state.action)) throw new Error("invalid_portal_action");
