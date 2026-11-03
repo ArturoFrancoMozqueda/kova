@@ -1475,7 +1475,8 @@ def _submit_portal_action(
             match = re.search(r"KOV005_PORTAL_FAILURE_STAGE=([a-z_]+)", result.stderr)
             stage = match.group(1) if match else "unknown"
             reasons = ("control_not_found|control_not_visible|control_disabled|click_timeout|"
-                       "click_failed|outside_provider|stage_timeout|unknown")
+                       "click_failed|outside_provider|stage_timeout|unknown|field_missing|"
+                       "billing_country_missing|billing_postal_missing")
             reason_match = re.search(r"^KOV005_PORTAL_FAILURE_REASON=(" + reasons + r")$",
                                      result.stderr, re.MULTILINE)
             reason = reason_match.group(1) if reason_match else "unknown"

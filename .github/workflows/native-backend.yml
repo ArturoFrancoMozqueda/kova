@@ -134,7 +134,7 @@ jobs:
         if: always()
         run: |
           mkdir -p reports/security
-          docker logs --tail 20 kova-native-acceptance > reports/security/native-container.log 2>&1 || true
+          docker logs --tail 100 kova-native-acceptance > reports/security/native-container.log 2>&1 || true
           docker exec kova-native-acceptance /app/.venv/bin/python -c 'import json; from pathlib import Path; print(json.dumps({name:Path("/sys/fs/cgroup",name).read_text() for name in ("memory.peak","cpu.stat")}))' > reports/security/native-resource-counters.json || true
           docker inspect --format '{"image":{{json .Image}},"state":{{json .State}},"memory":{{.HostConfig.Memory}},"memory_swap":{{.HostConfig.MemorySwap}},"nano_cpus":{{.HostConfig.NanoCpus}},"read_only":{{json .HostConfig.ReadonlyRootfs}},"pids_limit":{{.HostConfig.PidsLimit}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' kova-native-acceptance > reports/security/native-container.json || true
           docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance || true

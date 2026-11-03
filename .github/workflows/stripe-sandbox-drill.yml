@@ -120,6 +120,8 @@ jobs:
           npx --prefix frontend playwright install --with-deps chromium
 
       - name: Verify hosted Portal helper safety
+        env:
+          KOV005_PORTAL_LOCAL_BROWSER_TEST: "true"
         run: node --test frontend/scripts/complete-stripe-test-portal.test.mjs
 
       - name: Install pinned Stripe CLI

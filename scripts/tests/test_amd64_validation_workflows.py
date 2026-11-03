@@ -139,7 +139,10 @@ class Amd64ValidationWorkflowTests(unittest.TestCase):
                               ("--cpus", "0.0625"), ("--cap-drop", "ALL"),
                               ("--security-opt", "no-new-privileges"), ("--pids-limit", "64")):
             self.assertEqual(arguments[arguments.index(option) + 1], value)
-        cleanup = workflow_step("native-backend.yml", "docker logs --tail 20 kova-native-acceptance")
+        cleanup = workflow_step("native-backend.yml", "docker logs --tail")
+        # Keep bounded phase history: twenty lines discarded decode progress
+        # when a synthetic request timed out before emitting response headers.
+        self.assertIn("docker logs --tail 100 kova-native-acceptance", run_command(cleanup))
         self.assertRegex(cleanup, r"(?m)^        if: always\(\)$")
         for report in ("native-container.log", "native-container.json"):
             self.assertIn("reports/security/" + report, cleanup)
