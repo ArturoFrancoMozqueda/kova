@@ -137,6 +137,13 @@ test-mode provenance. The provider session path is opaque; do not infer an ID, m
 evidence. The helper receives no provider keys or database configuration. An always-run workflow
 step also removes transient state files after cancellation.
 
+After a hosted UI failure only, `KOV005_PORTAL_FIELD_STATE` reports at most 64 visible form fields
+across at most 12 frames. It contains fixed field-kind enums and booleans for filled/required/native
+validity/ARIA invalid/checked, preserving distinct fields of the same kind. Hidden inputs, transparent
+controls and hidden frames are excluded. Names, values, lengths, URLs, IDs, raw errors and HTML never
+enter this diagnostic. The runner rejects any additional keys, invalid types or oversized/ambiguous
+payload before forwarding it. Native HTML validity alone does not prove Stripe accepted a method.
+
 The first Basic Standard attempt on `31b0693f5a74`
 ([41696841814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41696841814)) stopped before
 the hosted UI because the runner required a non-contractual `/p/session/` prefix. The independent
@@ -218,7 +225,6 @@ Cualquier texto de botón no reconocido se convierte en `other`; no se registran
 crudos, valores de campos, datos de tarjeta ni contenido del cliente. Estas observaciones indican
 el estado del control al fallar, no confirman por sí solas una causa de validación o de transición.
 
-
 El fixture de pago usa US y el código postal de QA 10001 explícitamente. El helper pulsa Tab tras
 CVC y tras el postal requerido, para que PaymentElement confirme los campos al perder foco. No
 rellena el nombre opcional de Link y desmarca únicamente opt-ins identificados como Link. Ausencia
@@ -228,3 +234,62 @@ deshabilitado hasta completar país, postal y blur; corre obligatoriamente en el
 `KOV005_PORTAL_LOCAL_BROWSER_TEST=true` después de instalar Chromium. El CI normal conserva los
 puros y puede omitir sólo ese fixture de navegador. Esta elección determinista de país no prueba
 que el país fuese la causa del fallo del proveedor; la aceptación real sigue siendo independiente.
+
+## Optional risk-event acceptance
+
+`include_risk` is **false by default**. Opt in on the same reviewed `main` SHA that contains the
+risk handler and its threadpool fix, with the existing acknowledgement and dedicated sandbox
+account/key. This does not change a live event destination or any production flag. A baseline run
+without this option does not accept risk events. The artifact name adds `-risk` before any Portal
+suffix, and the Markdown must contain three successful risk records.
+
+The sandbox key additionally needs Charges read, InvoicePayments read, PaymentIntents read/write
+and Refunds read/write. Existing Account, Checkout, Customer, Subscription, Invoice and Event
+permissions remain necessary. The risk-only HTTP client pins `2026-09-30.endive`; other drill
+requests keep their existing version. Install credentials only in the GitHub `stripe-sandbox`
+secret store. Do not emulate Actions locally, expose a key, or replace it with a live credential.
+
+The risk sequence runs immediately after a settled paid Checkout and **before** Portal changes,
+while the real Stripe CLI listener and isolated Kova receiver are running:
+
+1. Prove that the test Checkout, its Customer, local/remote Subscription, paid Invoice,
+   InvoicePayments, successful PaymentIntent and Charge belong together. Reject live objects,
+   contradictory ownership, prior refunds and payments shared with another invoice before making
+   a refund. Request a partial refund of **one MXN minor unit** on that Charge. The resulting
+   `charge.refunded` must arrive through the signed listener and persist as processed/matched,
+   associated with the proven local tenant, with exactly one risk audit and processing attempt.
+2. Create separate, tagged QA Customers and durably register their cleanup **before** creating
+   payments. Confirm test PaymentIntents using Stripe's documented `pm_card_createDispute` and
+   `pm_card_createIssuerFraudRecord` fixtures. Their real dispute/early-warning events have no
+   invoice or subscription: each must persist as processed/global `no_subscription`, never failed
+   or assigned to the Checkout tenant. No subscription default payment method changes.
+3. For every type, compare the full local Subscription (including both watermark streams), Kova
+   Payment/refund rows and commercial access before/after. Replay the actual provider event once with
+   the ephemeral signing secret; require one audit and attempt again. Verify the critical incident
+   through Ops queries and persisted acknowledgement/resolution, including pending-health counts.
+   This exercises **services/repositories in the disposable database**, not founder MFA, the Ops
+   authenticated API or its UI. It does not authorize an operator action on a production case.
+
+The official CLI version has a dispute fixture but no early-fraud-warning trigger. This option
+uses documented test PaymentMethods through Stripe HTTP instead of inventing an event or card:
+[Stripe dispute and early-warning fixtures](https://docs.stripe.com/testing#disputes),
+[PaymentIntent creation](https://docs.stripe.com/api/payment_intents/create),
+[partial refund API](https://docs.stripe.com/api/refunds/create).
+Radar rules can block the fixture. A missing provider event times out and fails the run; do not
+change Radar settings, inject a synthetic successful event, or accept a partial artifact to get a
+passing result. Unmapped lookup errors also fail acceptance rather than passing as no_subscription.
+
+Every newly created Customer uses the existing durable cleanup manifest and the always-run retry.
+Checkout/fixture Customers and baseline Test Clocks must be deleted before evidence is accepted.
+Successful test PaymentIntents, Charges, refunds and dispute/fraud history remain provider records;
+Stripe does not provide deletion of paid Charges. No real customer data is submitted. The artifact
+contains only fixed risk result fields and counts, never IDs, metadata, raw payloads, client secrets
+or provider error bodies. API failures in this option also omit object IDs from diagnostics.
+
+Three sandbox records accept only this selected plan/SHA and these cases: **matched partial
+refund, global dispute, global early warning**. They do not establish a subscription-linked
+fraud/dispute workflow, a multi-invoice provider scenario, Ops MFA UI, live delivery, or an automatic
+risk decision. Local tests use doubles; provider acceptance begins only when the guarded workflow
+actually runs successfully. Publish the reviewed code with commercial flags off, inspect the
+same-SHA sandbox evidence, and complete the separate Portal/plan gates before enabling the
+commercial offer. Subscribe live risk events only after the handler release and provider acceptance.

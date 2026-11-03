@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clickControl, exercisePortal, portalFailureDiagnostics, validatePortalState } from "./complete-stripe-test-portal.mjs";
+import { clickControl, exercisePortal, portalFailureDiagnostics, portalFieldStateDiagnostics,
+  validatePortalState, visiblePortalFieldState } from "./complete-stripe-test-portal.mjs";
 
 const standard = {
   portal_url: "https://billing.stripe.com/p/session/test_synthetic",
@@ -151,6 +152,80 @@ test("diagnostics expose only fixed public label enums, never arbitrary button/c
   assert.doesNotMatch(JSON.stringify(diagnostic), /private|bearer|stripe|raw secret|example/);
 });
 
+function diagnosticField({ name = "", autocomplete = "", type = "text", value = "", required = false,
+  valid = true, ariaInvalid = null, checked = false, visible = true } = {}) {
+  return { type, value, required, validity: { valid }, checked,
+    ownerDocument: { defaultView: { getComputedStyle: () => ({
+      display: "block", visibility: "visible", opacity: "1",
+    }) } },
+    getClientRects: () => visible ? [{}] : [],
+    getBoundingClientRect: () => ({ width: 100, height: 20 }),
+    getAttribute: attribute => ({ name, autocomplete, "aria-invalid": ariaInvalid })[attribute] ?? null,
+  };
+}
+
+test("field diagnostics emit fixed enums and booleans without names, values or lengths", () => {
+  const entries = [
+    ["number", "cc-number", "card_number"], ["expiry", "cc-exp", "card_expiry"],
+    ["cvc", "cc-csc", "card_cvc"], ["country", "billing country", "billing_country"],
+    ["postalCode", "billing postal-code", "billing_postal"], ["billingName", "billing name", "billing_name"],
+    ["search-linkEmail", "billing email", "link_email"], ["linkMobilePhone", "billing tel", "link_phone"],
+    ["linkLegalName", "billing name", "link_name"], ["enableStripePass", "", "link_opt_in"],
+    ["private_customer_https://secret.invalid/bearer", "private-secret", "other"],
+  ];
+  const snapshot = visiblePortalFieldState(entries.map(([name, autocomplete]) => diagnosticField({
+    name, autocomplete, value: "private.card.customer@example.com https://secret.invalid/bearer",
+    required: true, valid: false, ariaInvalid: "true",
+  })));
+  assert.deepEqual(snapshot.map(field => field.kind), entries.map(entry => entry[2]));
+  for (const field of snapshot) assert.deepEqual(field, {
+    kind: field.kind, filled: true, required: true, html_valid: false, aria_invalid: true, checked: false,
+  });
+  assert.doesNotMatch(JSON.stringify(snapshot), /private|secret|example|https|bearer|length|autocomplete/);
+  const checkbox = visiblePortalFieldState([diagnosticField({
+    name: "enableStripePass", type: "checkbox", checked: true, value: "on",
+  })]);
+  assert.equal(checkbox[0].checked, true);
+  assert.equal(checkbox[0].filled, true);
+});
+
+test("field diagnostics never read hidden values and enforce element/field bounds", () => {
+  const hidden = diagnosticField({ type: "hidden" });
+  const invisible = diagnosticField({ visible: false });
+  const transparent = diagnosticField();
+  transparent.ownerDocument.defaultView.getComputedStyle = () => ({
+    display: "block", visibility: "visible", opacity: "0",
+  });
+  for (const element of [hidden, invisible, transparent]) Object.defineProperty(element, "value", {
+    get() { throw new Error("Hidden state must never be inspected"); },
+  });
+  assert.deepEqual(visiblePortalFieldState([hidden, invisible, transparent]), []);
+  assert.equal(visiblePortalFieldState(Array.from({ length: 200 }, () => diagnosticField())).length, 64);
+  assert.deepEqual(visiblePortalFieldState([
+    ...Array.from({ length: 128 }, () => invisible), diagnosticField(),
+  ]), []);
+});
+
+test("field snapshot excludes hidden frames, bounds traversal and refuses another top origin", async () => {
+  let readFrames = 0;
+  const main = { parentFrame: () => null,
+    locator: () => ({ evaluateAll: async callback => {
+      readFrames++; return callback([diagnosticField({ name: "number", value: "synthetic" })]);
+    } }),
+  };
+  const hidden = { parentFrame: () => main,
+    frameElement: async () => ({ evaluate: async () => false, dispose: async () => {} }),
+    locator() { throw new Error("Hidden frame must not be inspected"); },
+  };
+  const page = { url: () => standard.portal_url, frames: () => [hidden, ...Array(30).fill(main)] };
+  const fields = await portalFieldStateDiagnostics(page);
+  assert.equal(fields.length, 11);
+  assert.equal(readFrames, 11);
+  page.url = () => "https://private.invalid";
+  assert.deepEqual(await portalFieldStateDiagnostics(page), []);
+  assert.equal(readFrames, 11);
+});
+
 test("local PaymentElement iframe commits CVC and required US postal by blur without opting into Link", {
   skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
 }, async () => {
@@ -196,18 +271,33 @@ test("local PaymentElement iframe commits CVC and required US postal by blur wit
         zip.addEventListener('blur', () => { postalCommitted = /^\\d{5}$/.test(zip.value); update(); });
         link.addEventListener('change', update);
       </script></form></body></html>`;
-    await page.setContent(`<iframe id="payment"></iframe>`);
-    await page.locator("iframe").evaluate((iframe, html) => { iframe.srcdoc = html; }, form);
+    await page.setContent(`<iframe id="proxy" style="opacity:0"></iframe><iframe id="payment"></iframe>`);
+    for (const id of ["proxy", "payment"]) {
+      await page.locator(`#${id}`).evaluate((iframe, html) => { iframe.srcdoc = html; }, form);
+    }
     const frame = page.frameLocator("#payment");
     await frame.locator("[name=country]").waitFor();
     assert.equal(await frame.locator("#add").isEnabled(), false);
     await completeTestPaymentFields(page);
+    assert.equal(await page.frameLocator("#proxy").locator("[name=number]").inputValue(), "");
     assert.equal(await frame.locator("[name=country]").inputValue(), "US");
     assert.equal(await frame.locator("#add").getAttribute("data-card-committed-before-country"), "true");
     assert.equal(await frame.locator("[name=postalCode]").isVisible(), true);
     assert.equal(await frame.locator("[name=enableStripePass]").isChecked(), false);
     assert.equal(await frame.locator("[name=billingName]").inputValue(), "");
     assert.equal(await frame.locator("#add").isEnabled(), true);
+    // Diagnose a visible duplicate separately from an opacity-zero autofill proxy.
+    await frame.locator("form").evaluate(form => {
+      form.insertAdjacentHTML("beforeend", `<input name="cardNumber" style="opacity:0" value="hidden-proxy">
+        <input name="number" required aria-invalid="true">
+        <div style="opacity:0"><input name="linkLegalName" value="invisible-ancestor"></div>`);
+    });
+    const fieldState = await frame.locator("input,select,textarea").evaluateAll(visiblePortalFieldState);
+    assert.deepEqual(fieldState.filter(field => field.kind === "card_number").map(field => field.filled), [true, false]);
+    assert.equal(fieldState.filter(field => field.kind === "link_name").length, 0);
+    assert.doesNotMatch(JSON.stringify(fieldState), /hidden-proxy|invisible-ancestor|424242|10001/);
+    const snapshot = await portalFieldStateDiagnostics({ url: () => standard.portal_url, frames: () => page.frames() });
+    assert.deepEqual(snapshot.filter(field => field.kind === "card_number").map(field => field.filled), [true, false]);
     assert.equal(externalRequest, false);
   } finally {
     await browser.close();

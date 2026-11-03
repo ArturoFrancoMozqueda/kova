@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.audit.models import AuditLog
 from app.auth.models import Membership, User, UserSession
 from app.billing.models import Subscription, WebhookEvent
+from app.billing.risk import RISK_EVENTS
 from app.onboarding.models import TenantOnboardingState
 from app.ops.models import OpsIncidentState, OpsNote
 from app.orders.models import Order
@@ -161,6 +162,28 @@ def problem_webhooks(
         .limit(limit)
         .all()
     )
+
+
+def risk_webhooks(db: Session, *, limit: int = 100) -> list[WebhookEvent]:
+    """Keep unresolved review ahead of archived triage; this is not a delivery failure."""
+    terminal = exists(select(OpsIncidentState.id).where(
+        OpsIncidentState.source == "stripe_webhook",
+        OpsIncidentState.external_id == WebhookEvent.stripe_event_id,
+        OpsIncidentState.triage_status.in_(("resolved", "ignored")),
+    ))
+    return (db.query(WebhookEvent).filter(WebhookEvent.event_type.in_(RISK_EVENTS),
+            WebhookEvent.processing_status.in_(("processed", "ignored")))
+            .order_by(terminal.asc(), WebhookEvent.created_at.desc()).limit(limit).all())
+
+
+def unresolved_risk_count(db: Session) -> int:
+    terminal = exists(select(OpsIncidentState.id).where(
+        OpsIncidentState.source == "stripe_webhook",
+        OpsIncidentState.external_id == WebhookEvent.stripe_event_id,
+        OpsIncidentState.triage_status.in_(("resolved", "ignored")),
+    ))
+    return (db.query(func.count(WebhookEvent.id))
+            .filter(WebhookEvent.event_type.in_(RISK_EVENTS), ~terminal).scalar() or 0)
 
 
 def get_webhook_by_event_id(db: Session, stripe_event_id: str) -> WebhookEvent | None:

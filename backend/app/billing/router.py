@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.auth.models import Membership, User, UserSession
 from app.billing import repository, service
@@ -150,8 +151,8 @@ async def stripe_webhook(
     stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
 ):
     payload = await request.body()
-    return service.process_stripe_webhook(
-        db,
+    return await run_in_threadpool(
+        service.process_stripe_webhook, db,
         payload=payload,
         signature_header=stripe_signature,
     )

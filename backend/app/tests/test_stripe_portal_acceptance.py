@@ -704,3 +704,64 @@ def test_helper_failure_diagnostic_forwards_only_safe_enums(tmp_path, monkeypatc
     assert "save_changes:disabled,add_card:enabled" in message
     assert "private" not in message and "bearer" not in message and "example.com" not in message
     assert "unsafe_reason" not in message
+
+
+def _field_state(**overrides):
+    return {"kind": "card_number", "filled": False, "required": True, "html_valid": False,
+            "aria_invalid": True, "checked": False, **overrides}
+
+
+def test_field_state_parser_preserves_only_closed_enums_and_booleans():
+    fields = [_field_state(), _field_state(filled=True), _field_state(kind="link_name")]
+    assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps(fields)) == fields
+    assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=[]") == []
+    assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps(
+        [_field_state() for _ in range(64)],
+    )) is not None
+
+
+@pytest.mark.parametrize("payload", [
+    {"fields": []}, [None], ["private-secret"], [_field_state(kind="private-secret")],
+    [_field_state(kind={"token": "private-secret"})], [_field_state(filled="true")],
+    [_field_state(filled=1)], [_field_state(checked=None)],
+    [_field_state(aria_invalid={"token": "private-secret"})],
+    [_field_state(value="private.card@example.com https://secret.invalid/bearer")],
+    [_field_state(), _field_state(value="private-secret")],
+    [_field_state() for _ in range(65)],
+])
+def test_field_state_parser_rejects_unknown_nested_keys_types_and_excess_fields(payload):
+    assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps(payload)) is None
+
+
+@pytest.mark.parametrize("raw", [
+    "KOV005_PORTAL_FIELD_STATE=not-json",
+    "KOV005_PORTAL_FIELD_STATE=[]\nKOV005_PORTAL_FIELD_STATE=[]",
+    "KOV005_PORTAL_FIELD_STATE=" + json.dumps([_field_state()]).replace(
+        '"kind": "card_number"', '"kind": "private-secret", "kind": "card_number"',
+    ),
+    "KOV005_PORTAL_FIELD_STATE=[]" + " " * 16_384,
+])
+def test_field_state_parser_rejects_ambiguous_or_unbounded_envelopes(raw):
+    assert drill._parse_portal_field_state(raw) is None
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_helper_error_forwards_only_validated_field_state(tmp_path, monkeypatch, valid):
+    config = drill.validate_environment(_basic_environment(tmp_path))
+    context = {"client": SimpleNamespace(request=lambda *args: {
+        "portal_url": "https://billing.stripe.com/p/test_synthetic",
+    })}
+    field = _field_state() if valid else _field_state(value="private.customer@secret.invalid/bearer")
+    raw = ("KOV005_PORTAL_FAILURE_STAGE=save_payment_method\n"
+           "KOV005_PORTAL_FAILURE_REASON=control_disabled\n"
+           "KOV005_PORTAL_FIELD_STATE=" + json.dumps([field]) + "\nraw private error")
+    monkeypatch.setattr(drill.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        returncode=1, stdout="", stderr=raw,
+    ))
+    with pytest.raises(drill.DrillError) as error:
+        drill._submit_portal_action(config, context, "payment_update")
+    message = str(error.value)
+    assert "reason=control_disabled" in message
+    assert ('"kind":"card_number"' in message) is valid
+    assert ("field_state=unavailable" in message) is not valid
+    assert "private" not in message and "secret" not in message and "bearer" not in message

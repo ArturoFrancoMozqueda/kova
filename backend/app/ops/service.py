@@ -201,10 +201,16 @@ def build_overview(db: Session) -> OverviewResponse:
     failed_7d = repository.failed_webhooks_count(db, since=now - timedelta(days=7))
     stuck = repository.stuck_received_count(db, older_than=now - timedelta(hours=1))
     connectors = fetch_all_connectors()
+    risks = repository.unresolved_risk_count(db)
     sources: dict[str, SourceHealth] = {
         "db": db_health(db),
         "stripe_webhooks": SourceHealth(
-            status=_stripe_webhook_status(failed_7d, stuck), checked_at=now
+            status=_stripe_webhook_status(failed_7d, stuck),
+            checked_at=now
+        ),
+        "stripe_risks": SourceHealth(
+            status="critical" if risks else "ok",
+            detail=f"{risks} casos de riesgo pendientes de revisión", checked_at=now,
         ),
         "sentry": _connector_to_source_health(connectors["sentry"]),
         "fly": _connector_to_source_health(connectors["fly"]),
@@ -501,6 +507,9 @@ def _collect_incidents(db: Session, *, now: datetime) -> tuple[list[ComputedInci
 
     stuck_cutoff = now - timedelta(hours=1)
     for event in repository.problem_webhooks(db, stuck_older_than=stuck_cutoff):
+        computed.append(incidents_mod._webhook_incident(event, now=now))
+
+    for event in repository.risk_webhooks(db):
         computed.append(incidents_mod._webhook_incident(event, now=now))
 
     for sub, tenant_name in repository.list_subscriptions_by_status(db, status="past_due"):

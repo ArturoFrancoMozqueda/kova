@@ -7,6 +7,8 @@ didn't think of can never leak this way.
 """
 from typing import Any
 
+from app.billing.risk import RISK_EVENTS, project_event, safe_review
+
 # Top-level Stripe event fields safe to surface.
 _EVENT_ALLOWED = ("id", "type", "created", "livemode")
 
@@ -37,6 +39,14 @@ def sanitize_webhook_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
     """Reduce a raw Stripe event payload to a safe allowlisted subset."""
     if not isinstance(payload, dict):
         return {}
+    if payload.get("type") in RISK_EVENTS:
+        clean = project_event(payload)
+        result = {key: clean[key] for key in _EVENT_ALLOWED if key in clean}
+        result["object"] = clean["data"]["object"]
+        review = safe_review(payload)
+        if review:
+            result["risk_review"] = review
+        return result
     result: dict[str, Any] = {
         key: payload[key] for key in _EVENT_ALLOWED if key in payload
     }

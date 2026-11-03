@@ -61,4 +61,25 @@ describe("OverviewPage", () => {
     expect(screen.getByText("Negocios pagando")).toBeInTheDocument();
     expect(screen.getByText("Pago live procesado y suscripción activa")).toBeInTheDocument();
   });
+  it("keeps Stripe risk review separate and links directly to incident triage", () => {
+    useOverview.mockReturnValue({
+      isPending: false, isError: false,
+      data: {
+        ...overview,
+        health: {
+          overall: "critical",
+          sources: {
+            stripe_webhooks: { status: "ok" },
+            stripe_risks: { status: "critical", detail: "1 caso pendiente" },
+          },
+        },
+      },
+    });
+    render(<MemoryRouter><OverviewPage /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: /Riesgos de Stripe/ }))
+      .toHaveAttribute("href", "/internal/ops/incidents");
+    expect(screen.getByRole("link", { name: /Webhooks Stripe/ }))
+      .toHaveAttribute("href", "/internal/ops/technical");
+    expect(screen.queryByText("stripe_risks")).not.toBeInTheDocument();
+  });
 });

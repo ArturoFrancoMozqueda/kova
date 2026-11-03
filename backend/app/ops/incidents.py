@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from app.billing.models import Subscription, WebhookEvent
+from app.billing.risk import RISK_EVENTS, safe_review
 from app.ops import deep_links
 from app.ops.schemas import IncidentSeverity
 
@@ -40,6 +41,8 @@ def _now() -> datetime:
 
 
 def webhook_severity(event: WebhookEvent, *, now: datetime) -> IncidentSeverity:
+    if event.event_type in RISK_EVENTS:
+        return "critical"
     if event.processing_status == "received":
         return "warning"  # stuck, unprocessed
     # failed:
@@ -72,15 +75,22 @@ def _aware(dt: datetime) -> datetime:
 
 
 def _webhook_incident(event: WebhookEvent, *, now: datetime) -> ComputedIncident:
+    is_risk = event.event_type in RISK_EVENTS
+    titles = {"charge.refunded": "Reembolso de Stripe: revisar suscripción",
+              "charge.dispute.created": "Disputa de Stripe: revisar evidencia y plazo",
+              "radar.early_fraud_warning.created": "Alerta de fraude de Stripe: revisión requerida"}
+    review = safe_review(event.payload) if is_risk else None
+    tenant = event.tenant_id if not is_risk or (review and review["mapping"] == "matched") else None
     return ComputedIncident(
         source="stripe_webhook",
         external_id=event.stripe_event_id,
         severity=webhook_severity(event, now=now),
-        title=f"Webhook {event.event_type} {event.processing_status}",
+        title=titles[event.event_type] if is_risk else (
+            f"Webhook {event.event_type} {event.processing_status}"),
         detected_at=_aware(event.created_at),
         last_seen_at=_aware(event.processed_at) if event.processed_at else None,
         correlation={
-            "tenant_id": event.tenant_id,
+            "tenant_id": tenant,
             "stripe_event_id": event.stripe_event_id,
         },
         deep_links=[("Stripe event", deep_links.stripe_event(event.stripe_event_id))],

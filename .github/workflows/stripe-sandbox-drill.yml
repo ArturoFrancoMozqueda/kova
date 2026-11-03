@@ -12,6 +12,11 @@ on:
           - standard
           - esencial
           - gestion
+      include_risk:
+        description: Also accept refund, dispute and fraud events in isolated sandbox
+        required: true
+        type: boolean
+        default: false
       include_portal:
         description: Also accept hosted Portal in isolated sandbox
         required: true
@@ -68,6 +73,7 @@ jobs:
       KOV005_EXECUTION_ENVIRONMENT: stripe-sandbox
       KOV005_CONFIRM: ${{ inputs.acknowledgement }}
       KOV005_PLAN_CODE: ${{ inputs.plan_code }}
+      KOV005_INCLUDE_RISK: ${{ inputs.include_risk }}
       KOV005_INCLUDE_PORTAL: ${{ inputs.include_portal }}
       KOV005_PORTAL_MODE: ${{ inputs.portal_mode }}
       KOV005_STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: ${{ vars.KOV005_STRIPE_STANDARD_PORTAL_CONFIGURATION_ID }}
@@ -156,7 +162,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: kov-005-stripe-sandbox-${{ inputs.plan_code }}${{ inputs.include_portal && format('-portal-{0}', inputs.portal_mode) || '' }}-${{ github.sha }}
+          name: kov-005-stripe-sandbox-${{ inputs.plan_code }}${{ inputs.include_risk && '-risk' || '' }}${{ inputs.include_portal && format('-portal-{0}', inputs.portal_mode) || '' }}-${{ github.sha }}
           path: ${{ env.KOV005_EVIDENCE_PATH }}
           if-no-files-found: error
           retention-days: 30

@@ -259,3 +259,52 @@ class StripeSubscriptionClient:
         if not isinstance(parsed, dict):
             raise StripeSubscriptionError("Unexpected Stripe response")
         return parsed
+
+
+class StripeRiskError(Exception):
+    """A read-only risk lookup failed; never retain Stripe response bodies."""
+
+
+class StripeRiskClient:
+    # Isolated read contract (InvoicePayments object graph, Basil and later).
+    API_VERSION = "2026-09-30.endive"
+
+    def retrieve(self, *, secret_key: str, resource: str, object_id: str) -> dict[str, Any]:
+        if resource not in {"charges", "invoices", "subscriptions"}:
+            raise StripeRiskError("Unsupported risk resource")
+        return self._get(secret_key, f"/{resource}/{quote(object_id, safe='')}")
+
+    def invoice_payments(self, *, secret_key: str, payment_intent: str,
+                         starting_after: str | None = None) -> dict[str, Any]:
+        params = {"payment[type]": "payment_intent", "payment[payment_intent]": payment_intent,
+                  "status": "paid", "limit": "100"}
+        if starting_after:
+            params["starting_after"] = starting_after
+        return self._get(secret_key, "/invoice_payments?" + urlencode(params))
+
+    @staticmethod
+    def _get(secret_key: str, path: str) -> dict[str, Any]:
+        for attempt in range(STRIPE_READ_MAX_ATTEMPTS):
+            request = Request("https://api.stripe.com/v1" + path, method="GET", headers={
+                "Authorization": f"Bearer {secret_key}",
+                "Stripe-Version": StripeRiskClient.API_VERSION,
+            })
+            try:
+                with urlopen(request, timeout=STRIPE_READ_TIMEOUT_SECONDS) as response:
+                    body = response.read(1_048_577)
+                if len(body) > 1_048_576:
+                    raise StripeRiskError("Risk response exceeds limit")
+                parsed = json.loads(body)
+                if not isinstance(parsed, dict):
+                    raise StripeRiskError("Unexpected risk response")
+                return parsed
+            except HTTPError as exc:
+                if not _retryable_http_error(exc) or attempt == STRIPE_READ_MAX_ATTEMPTS - 1:
+                    raise StripeRiskError("Risk lookup unavailable") from None
+            except (URLError, TimeoutError):
+                if attempt == STRIPE_READ_MAX_ATTEMPTS - 1:
+                    raise StripeRiskError("Risk lookup unavailable") from None
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                raise StripeRiskError("Invalid risk response") from None
+            time.sleep(0.1 * (attempt + 1))
+        raise StripeRiskError("Risk lookup unavailable")
