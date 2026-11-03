@@ -15,6 +15,81 @@ const env = { KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf"
 const artifact = { releaseSha: sha, cloudflareBackendVersions: versions,
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com" };
+const publicStripeIds = {
+  STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
+  STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
+  STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
+};
+
+test("public Stripe transport rejects partial, malformed or uncaptured configuration before commands", async () => {
+  const partial = { ...publicStripeIds }; delete partial.STRIPE_GESTION_PRICE_ID;
+  for (const ids of [partial, { ...publicStripeIds, STRIPE_GESTION_PRICE_ID: "sk_" + "live_syntheticForbidden" },
+    { ...publicStripeIds, STRIPE_GESTION_PRICE_ID: publicStripeIds.STRIPE_ESENCIAL_PRICE_ID }]) {
+    const provider = cloudflareBackendProvider({ env: { ...env, ...ids }, run: assert.fail });
+    await assert.rejects(provider.publish(sha, "b".repeat(40)));
+  }
+  const provider = cloudflareBackendProvider({ env: { ...env, ...publicStripeIds }, run: assert.fail });
+  await assert.rejects(provider.publish(sha), /captured previous release SHA/);
+});
+
+test("public IDs reach API and job artifacts only through the normal captured release", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, ...publicStripeIds, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    run: async (command, args, options) => {
+      calls.push({ command, args, options });
+      if (args.includes("secrets")) return JSON.stringify([
+        { name: "APP_DATABASE_URL" }, { name: "MIGRATION_DATABASE_URL" },
+        { name: "STRIPE_SECRET_KEY" }, { name: "STRIPE_WEBHOOK_SECRET" },
+      ]);
+      if (args.some(argument => argument.endsWith("/build.mjs"))) {
+        for (const [name, value] of Object.entries(publicStripeIds)) assert.equal(options.env[name], value);
+        assert.equal(options.env.SUPABASE_DB_URL, undefined);
+      }
+      if (args.includes("deploy")) {
+        assert.equal(options.env.KOVA_NATIVE_PREVIOUS_SHA, "b".repeat(40));
+        assert.equal(options.env.KOVA_NATIVE_DEPLOY_SHA, sha);
+        assert.equal(args.includes("--secrets-file"), false);
+      }
+    } });
+  await provider.publish(sha, "b".repeat(40));
+  const inventories = calls.filter(call => call.args.includes("secrets"));
+  assert.deepEqual(inventories.map(call => call.args.at(-1)), ["kova-backend", "kova-backend-jobs"]);
+  assert.equal(calls.some(call => call.args.includes("put") || call.args.includes("delete")), false);
+  assert.equal(calls.filter(call => call.args.some(argument => argument.endsWith("/build.mjs"))).length, 2);
+  const deploys = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
+  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]), backendWorkers);
+});
+
+for (const worker of ["kova-backend", "kova-backend-jobs"]) {
+  test(`public text cannot shadow a sealed identifier in ${worker}`, async () => {
+    const calls = [];
+    const provider = cloudflareBackendProvider({ env: { ...env, ...publicStripeIds, KOVA_NATIVE_BACKEND: "1",
+      CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+      run: async (_command, args) => {
+        calls.push(args);
+        assert.ok(args.includes("secrets") && args.includes("list"));
+        return JSON.stringify([{ name: "APP_DATABASE_URL" }, { name: "MIGRATION_DATABASE_URL" },
+          ...(args.at(-1) === worker ? [{ name: "STRIPE_ESENCIAL_PRICE_ID" }] : [])]);
+      } });
+    await assert.rejects(provider.publish(sha, "b".repeat(40)), /conflicts with an existing sealed binding/);
+    assert.equal(calls.length, worker === "kova-backend" ? 1 : 2);
+  });
+}
+
+test("rollback restores captured versions even when the current public IDs differ", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, ...publicStripeIds },
+    run: async (_command, args) => calls.push(args) });
+  await provider.restore(versions);
+  assert.equal(calls.length, 3);
+  for (const args of calls) {
+    assert.ok(args.includes("deployments") && args.includes("create"));
+    assert.deepEqual(JSON.parse(args.at(-1)), [{ version_id: version, percentage: 100 }]);
+    assert.equal(args.includes("deploy"), false);
+    assert.equal(args.includes("--bypass-deployment-checks"), false);
+  }
+});
 
 test("backend readiness waits only for the known previous version before strict verification", async () => {
   let calls = 0;

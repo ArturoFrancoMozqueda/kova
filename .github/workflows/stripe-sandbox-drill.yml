@@ -12,6 +12,19 @@ on:
           - standard
           - esencial
           - gestion
+      include_portal:
+        description: Also accept hosted Portal in isolated sandbox
+        required: true
+        type: boolean
+        default: false
+      portal_mode:
+        description: Basic payment/cancel only; transitions remains gated by compatible catalog
+        required: true
+        type: choice
+        default: basic
+        options:
+          - basic
+          - transitions
       acknowledgement:
         description: Type KOV-005-STRIPE-SANDBOX-ONLY
         required: true
@@ -55,6 +68,10 @@ jobs:
       KOV005_EXECUTION_ENVIRONMENT: stripe-sandbox
       KOV005_CONFIRM: ${{ inputs.acknowledgement }}
       KOV005_PLAN_CODE: ${{ inputs.plan_code }}
+      KOV005_INCLUDE_PORTAL: ${{ inputs.include_portal }}
+      KOV005_PORTAL_MODE: ${{ inputs.portal_mode }}
+      KOV005_STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: ${{ vars.KOV005_STRIPE_STANDARD_PORTAL_CONFIGURATION_ID }}
+      KOV005_STRIPE_TIERED_PORTAL_CONFIGURATION_ID: ${{ vars.KOV005_STRIPE_TIERED_PORTAL_CONFIGURATION_ID }}
       KOV005_STRIPE_SECRET_KEY: ${{ secrets.KOV005_STRIPE_SECRET_KEY }}
       KOV005_STRIPE_STANDARD_PRICE_ID: ${{ secrets.KOV005_STRIPE_STANDARD_PRICE_ID }}
       KOV005_STRIPE_ESENCIAL_PRICE_ID: ${{ vars.KOV005_STRIPE_ESENCIAL_PRICE_ID }}
@@ -102,6 +119,9 @@ jobs:
           npm ci --prefix frontend
           npx --prefix frontend playwright install --with-deps chromium
 
+      - name: Verify hosted Portal helper safety
+        run: node --test frontend/scripts/complete-stripe-test-portal.test.mjs
+
       - name: Install pinned Stripe CLI
         shell: bash
         env:
@@ -134,7 +154,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: kov-005-stripe-sandbox-${{ inputs.plan_code }}-${{ github.sha }}
+          name: kov-005-stripe-sandbox-${{ inputs.plan_code }}${{ inputs.include_portal && format('-portal-{0}', inputs.portal_mode) || '' }}-${{ github.sha }}
           path: ${{ env.KOV005_EVIDENCE_PATH }}
           if-no-files-found: error
           retention-days: 30
@@ -159,5 +179,6 @@ jobs:
           rm -f "$RUNNER_TEMP"/stripe "$RUNNER_TEMP"/bin/stripe
           rm -f "$RUNNER_TEMP"/stripe_*.tar.gz "$RUNNER_TEMP"/checksums.txt
           rm -f "$RUNNER_TEMP"/kov005-checkout-*.json
+          rm -f /tmp/kov005-portal-*.json /tmp/kov005-checkout-*.json
           rm -f "$KOV005_CHECKOUT_DIAGNOSTIC_PATH"
           rm -f "$KOV005_CLEANUP_PATH"

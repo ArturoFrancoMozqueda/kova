@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveAndParseConfig } from "@cloudflare/config";
+import { stripeRuntimeIds } from "../../stripe-runtime-ids.mjs";
 
 test("candidate retains existing namespace contracts and permits exactly one basic process", async () => {
   process.env.KOVA_BUILD_SHA = "a".repeat(40);
@@ -24,4 +25,30 @@ test("candidate retains existing namespace contracts and permits exactly one bas
   assert.equal(containers[0].instanceType, "basic");
   assert.equal(containers[0].ssh.enabled, false);
   assert.equal(containers[0].image.buildVars.KOVA_RELEASE_SHA, process.env.KOVA_BUILD_SHA);
+});
+
+test("public Stripe IDs are text bindings only on API and jobs with no rollout flags", async () => {
+  const ids = {
+    STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
+    STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
+    STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
+  };
+  const saved = Object.fromEntries(Object.keys(ids).map(name => [name, process.env[name]]));
+  try {
+    Object.assign(process.env, ids, { KOVA_BUILD_SHA: "a".repeat(40) });
+    const { default: native } = await import("../cloudflare.config.ts?public-identifiers");
+    const { default: python, jobs, gateway } = await import("../../cloudflare-backend/cloudflare.config.ts?public-identifiers");
+    for (const config of [native, python, jobs]) {
+      for (const [name, value] of Object.entries(stripeRuntimeIds(ids))) {
+        assert.deepEqual(config.worker.env[name], { type: "text", value });
+      }
+      assert.equal(config.worker.env.BILLING_TIERED_PLANS_ENABLED, undefined);
+      assert.equal(config.worker.env.BILLING_PORTAL_ENABLED, undefined);
+    }
+    for (const name of Object.keys(ids)) assert.equal(gateway.worker.env[name], undefined);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 });

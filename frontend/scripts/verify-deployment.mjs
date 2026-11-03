@@ -27,7 +27,7 @@ async function getJson(url, extraHeaders = {}, deadline, now) {
   const response = await globalThis.fetch(url, {
     signal: requestSignal(deadline, now),
     headers: { "cache-control": "no-cache", ...extraHeaders },
-    redirect: "follow",
+    redirect: "error",
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url}`);
   return { body: await response.json(), headers: response.headers };
@@ -37,7 +37,7 @@ async function getText(url, extraHeaders = {}, deadline, now) {
   const response = await globalThis.fetch(url, {
     signal: requestSignal(deadline, now),
     headers: { "cache-control": "no-cache", ...extraHeaders },
-    redirect: "follow",
+    redirect: "error",
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url}`);
   return { body: await response.text(), headers: response.headers };

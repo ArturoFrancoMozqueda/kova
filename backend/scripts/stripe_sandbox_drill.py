@@ -78,6 +78,10 @@ class DrillConfig:
     release_sha: str
     plan_code: str
     price_ids: dict[str, str]
+    include_portal: bool = False
+    portal_mode: str = "basic"
+    portal_configuration_id: str | None = None
+    portal_helper: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -97,6 +101,7 @@ class SubscriptionSnapshot:
     payment_watermark_at: str | None
     payment_event_type: str | None
     payment_event_id: str | None
+    plan_effective_until: str | None = None
 
 
 def _utc_iso(value: datetime | None) -> str | None:
@@ -133,6 +138,17 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
     plan_code = environ.get("KOV005_PLAN_CODE", "standard")
     if plan_code not in PLANS:
         raise DrillError("KOV005_PLAN_CODE must be standard, esencial or gestion")
+    include_portal_value = environ.get("KOV005_INCLUDE_PORTAL", "false")
+    if include_portal_value not in {"false", "true"}:
+        raise DrillError("KOV005_INCLUDE_PORTAL must be false or true")
+    include_portal = include_portal_value == "true"
+    portal_mode = environ.get("KOV005_PORTAL_MODE", "basic")
+    if portal_mode not in {"basic", "transitions"}:
+        raise DrillError("KOV005_PORTAL_MODE must be basic or transitions")
+    if include_portal and portal_mode == "transitions" and plan_code == "gestion":
+        raise DrillError("Portal transition acceptance must start from standard or esencial")
+    portal_cohort = "STANDARD" if plan_code == "standard" else "TIERED"
+    portal_name = f"KOV005_STRIPE_{portal_cohort}_PORTAL_CONFIGURATION_ID"
     codes = ("standard",) if plan_code == "standard" else ("standard", "esencial", "gestion")
     required = {
         "KOV005_STRIPE_SECRET_KEY",
@@ -143,6 +159,8 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
         "KOV005_CLEANUP_PATH",
     }
     required.update(f"KOV005_STRIPE_{code.upper()}_PRICE_ID" for code in codes)
+    if include_portal:
+        required.add(portal_name)
     missing = sorted(name for name in required if not environ.get(name))
     if missing:
         raise DrillError(f"Missing required configuration names: {', '.join(missing)}")
@@ -170,6 +188,10 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
     if not environ["KOV005_STRIPE_ACCOUNT_ID"].startswith("acct_"):
         raise DrillError("KOV005_STRIPE_ACCOUNT_ID must be a Stripe account id")
 
+    portal_id = environ.get(portal_name) if include_portal else None
+    if portal_id and re.fullmatch(r"bpc_[A-Za-z0-9]+", portal_id) is None:
+        raise DrillError("Sandbox Portal configuration must be a configuration id")
+
     database = make_url(sqlalchemy_database_url(environ["DATABASE_URL"]))
     if database.get_backend_name() != "postgresql" or database.host not in {
         "127.0.0.1",
@@ -187,6 +209,10 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
         price_id=price_ids[plan_code],
         plan_code=plan_code,
         price_ids=price_ids,
+        include_portal=include_portal,
+        portal_mode=portal_mode,
+        portal_configuration_id=portal_id,
+        portal_helper=REPOSITORY_ROOT / "frontend/scripts/complete-stripe-test-portal.mjs",
         expected_account_id=environ["KOV005_STRIPE_ACCOUNT_ID"],
         database_url=sqlalchemy_database_url(environ["DATABASE_URL"]),
         app_base_url=app_base_url.rstrip("/"),
@@ -272,8 +298,10 @@ def validate_stripe_preflight(
             or (plan.tax_inclusive and price.get("tax_behavior") != "inclusive")
         ):
             raise DrillError(f"Sandbox price does not match the server catalog for {code}")
+    portal_config = _portal_preflight(stripe, config) if config.include_portal else None
     plan = PLANS[config.plan_code]
     return {
+        "portal_configuration": portal_config,
         "account_id": redact_identifier(str(account.get("id") or "")),
         "price_id": redact_identifier(config.price_id),
         "plan_code": config.plan_code,
@@ -327,16 +355,13 @@ class KovaClient:
     def create_verified_owner(self, suffix: str) -> str:
         email = f"kov005-{suffix}@example.com"
         password = f"Kov005-{suffix}-71"
-        signup = self.request(
-            "POST",
-            "/api/v1/auth/signup",
-            {
-                "email": email,
-                "password": password,
-                "tenant_name": f"KOV-005 Stripe Sandbox {suffix}",
-                "accepted_terms": True,
-            },
-        )
+        offer = self.request("GET", "/api/v1/billing/plans")
+        payload = {"email": email, "password": password,
+                   "tenant_name": f"KOV-005 Stripe Sandbox {suffix}", "accepted_terms": True}
+        revision = offer.get("offer_revision")
+        if isinstance(revision, str) and revision:
+            payload["billing_offer_revision"] = revision
+        signup = self.request("POST", "/api/v1/auth/signup", payload)
         tenant_id = str(signup.get("tenant_id") or "")
         token = str(signup.get("dev_verification_token") or "")
         if not tenant_id or not token:
@@ -415,9 +440,13 @@ def _backend_environment(config: DrillConfig, webhook_secret: str) -> dict[str, 
             "STRIPE_ESENCIAL_PRICE_ID": config.price_ids.get("esencial", ""),
             "STRIPE_GESTION_PRICE_ID": config.price_ids.get("gestion", ""),
             "BILLING_TIERED_PLANS_ENABLED": str(config.plan_code != "standard").lower(),
-            "BILLING_PORTAL_ENABLED": "false",
-            "STRIPE_STANDARD_PORTAL_CONFIGURATION_ID": "",
-            "STRIPE_TIERED_PORTAL_CONFIGURATION_ID": "",
+            "BILLING_PORTAL_ENABLED": str(config.include_portal).lower(),
+            "STRIPE_STANDARD_PORTAL_CONFIGURATION_ID": (
+                config.portal_configuration_id if config.plan_code == "standard" else ""
+            ) or "",
+            "STRIPE_TIERED_PORTAL_CONFIGURATION_ID": (
+                config.portal_configuration_id if config.plan_code != "standard" else ""
+            ) or "",
             "STRIPE_CHECKOUT_SUCCESS_URL": f"{config.app_base_url}/health",
             "STRIPE_CHECKOUT_CANCEL_URL": f"{config.app_base_url}/health",
             "STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION": "false",
@@ -651,6 +680,7 @@ def _snapshot(engine: Any, tenant_id: str) -> SubscriptionSnapshot:
             payment_watermark_at=_utc_iso(subscription.stripe_payment_watermark_at),
             payment_event_type=subscription.stripe_payment_event_type,
             payment_event_id=redact_identifier(subscription.stripe_payment_event_id),
+            plan_effective_until=_utc_iso(subscription.plan_effective_until),
         )
 
 
@@ -794,8 +824,11 @@ def _wait_for_subscription_status(
     raise DrillError(f"Kova did not converge to one of: {', '.join(sorted(expected))}")
 
 
-def _assert_selected_plan(config: DrillConfig, result: dict[str, Any]) -> None:
-    plan = PLANS[config.plan_code]
+def _assert_selected_plan(
+    config: DrillConfig, result: dict[str, Any], *, expected_code: str | None = None,
+    require_access: bool = True,
+) -> None:
+    plan = PLANS[expected_code or config.plan_code]
     subscription = result.get("subscription") or {}
     access = result.get("access") or {}
     if (subscription.get("plan_code") != plan.code
@@ -803,7 +836,7 @@ def _assert_selected_plan(config: DrillConfig, result: dict[str, Any]) -> None:
             or subscription.get("currency") != "MXN"
             or access.get("plan_code") != plan.code
             or set(access.get("features") or []) != set(plan.features)
-            or access.get("allowed") is not True):
+            or (require_access and access.get("allowed") is not True)):
         raise DrillError("Kova did not grant the paid plan, amount and exact catalog features")
 
 
@@ -1089,9 +1122,10 @@ def _run_checkout(
     engine: Any,
     cleanup_clocks: list[str],
     cleanup_customers: list[str],
+    *, label: str = "checkout", context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     client = KovaClient(config.app_base_url, config.frontend_origin)
-    tenant_id = client.create_verified_owner("checkout")
+    tenant_id = client.create_verified_owner(label)
     checkout = client.request(
         "POST",
         "/api/v1/billing/checkout",
@@ -1132,6 +1166,8 @@ def _run_checkout(
     local = _snapshot(engine, tenant_id)
     if local.status not in {"active", "trialing"} or local.lifecycle_watermark_at is None:
         raise DrillError("Hosted Checkout did not establish a lifecycle watermark")
+    if context is not None:
+        context.update(client=client, tenant_id=tenant_id, stripe_session=stripe_session)
     return {
         "checkout_session_id": redact_identifier(checkout_id),
         "provider_status": stripe_session.get("status"),
@@ -1155,6 +1191,7 @@ def render_evidence(
     checkout: dict[str, Any],
     records: list[dict[str, Any]],
     cleanup: dict[str, Any],
+    portal_records: list[dict[str, Any]] | None = None,
 ) -> str:
     lines = [
         "# KOV-005 — Stripe test-mode temporal convergence drill",
@@ -1215,7 +1252,11 @@ def render_evidence(
             "confirmed the selected paid plan, amount, exact features and commercial access.",
             "- Provider Test Clocks advance Stripe only. Kova uses its actual UTC clock; "
             "recorded event/period dates do not prove that application time elapsed.",
-            "- Portal, upgrades and effective downgrades are NOT accepted by this drill.",
+            ("- Portal mode " + config.portal_mode + " results are recorded below; "
+             "upgrades/downgrades remain blocked in basic mode. Effective downgrade, "
+             "Kova frontend return, fiscal and live acceptance remain open."
+             if config.include_portal
+             else "- Portal, upgrades and effective downgrades are NOT accepted by this drill."),
             "- A test-clock renewal remained active and advanced the payment watermark.",
             "- A failed renewal entered `past_due` with `past_due_grace`; payment "
             "recovery returned to `active`.",
@@ -1237,6 +1278,16 @@ def render_evidence(
             "",
         ]
     )
+    if config.include_portal:
+        if not portal_records:
+            raise DrillError("Portal opt-in did not produce acceptance records")
+        lines.extend(["## Portal acceptance (sandbox only)", "",
+                      "Emitted by Kova API for a verified owner; "
+                      "hosted Stripe UI submitted changes.",
+                      "No Kova frontend return or effective downgrade is claimed.", ""])
+        for record in portal_records:
+            lines.append("- `" + json.dumps(record, sort_keys=True) + "`")
+        lines.append("")
     output = "\n".join(lines)
     if SECRET_RE.search(output):
         raise DrillError("Evidence renderer detected a credential-shaped value")
@@ -1290,6 +1341,388 @@ def cleanup_provider_objects(config: DrillConfig, stripe: StripeTestClient) -> d
     return result
 
 
+def _portal_preflight(stripe: StripeTestClient, config: DrillConfig) -> dict[str, Any]:
+    configuration = stripe.get(
+        f"/v1/billing_portal/configurations/{config.portal_configuration_id}",
+        query=[("expand[]", "features.subscription_update.products")],
+    )
+    _assert_test_object(configuration, object_name="Portal configuration")
+    if (configuration.get("id") != config.portal_configuration_id
+            or configuration.get("active") is not True):
+        raise DrillError("Sandbox Portal configuration is not active or does not match")
+    update = (configuration.get("features") or {}).get("subscription_update") or {}
+    if config.portal_mode == "basic":
+        features = configuration.get("features") or {}
+        cancel = features.get("subscription_cancel") or {}
+        if (update.get("enabled") is not False
+                or (features.get("payment_method_update") or {}).get("enabled") is not True
+                or (features.get("invoice_history") or {}).get("enabled") is not True
+                or cancel.get("enabled") is not True or cancel.get("mode") != "at_period_end"):
+            raise DrillError("Basic Portal must allow payment/history/deferred cancellation only")
+    elif config.plan_code == "standard":
+        if update.get("enabled") is not False:
+            raise DrillError("Standard Portal must disable subscription changes")
+    else:
+        products = update.get("products") or []
+        prices = {p for product in products for p in product.get("prices") or []}
+        if len(products) != 1 or not isinstance(products[0].get("product"), str):
+            raise DrillError("Scheduled Portal downgrades require both Prices on the same Product")
+        conditions = (update.get("schedule_at_period_end") or {}).get("conditions") or []
+        if (update.get("enabled") is not True
+                or prices != {config.price_ids["esencial"], config.price_ids["gestion"]}
+                or set(update.get("default_allowed_updates") or []) != {"price"}
+                or update.get("proration_behavior") != "always_invoice"
+                or any((p.get("adjustable_quantity") or {}).get("enabled") is True
+                       for p in products)
+                or not any(c.get("type") == "decreasing_item_amount" for c in conditions)):
+            raise DrillError("Tiered Portal must restrict prices, quantities and downgrades")
+    return {"configuration_id": redact_identifier(config.portal_configuration_id),
+            "livemode": False, "subscription_update_enabled": update.get("enabled"),
+            "proration_behavior": update.get("proration_behavior")}
+
+
+def _portal_subscription(
+    stripe: StripeTestClient, context: dict[str, Any],
+) -> dict[str, Any]:
+    session = context["stripe_session"]
+    subscription_id = session.get("subscription")
+    if (not isinstance(subscription_id, str)
+            or not re.fullmatch(r"sub_[A-Za-z0-9]+", subscription_id)):
+        raise DrillError("Checkout did not identify a subscription for Portal acceptance")
+    subscription = stripe.get(
+        f"/v1/subscriptions/{subscription_id}", query=[("expand[]", "latest_invoice")],
+    )
+    _assert_test_object(subscription, object_name="Portal subscription")
+    if (subscription.get("id") != subscription_id
+            or subscription.get("customer") != session["customer"]):
+        raise DrillError("Portal subscription does not match the owned Checkout customer")
+    return subscription
+
+
+def _portal_price_id(subscription: dict[str, Any]) -> str | None:
+    items = (subscription.get("items") or {}).get("data") or []
+    if (len(items) != 1 or (subscription.get("items") or {}).get("has_more")
+            or items[0].get("quantity") != 1):
+        raise DrillError("Portal subscription must contain exactly one fixed-quantity item")
+    price = items[0].get("price") or {}
+    return price.get("id") if isinstance(price, dict) else price
+
+
+def _portal_paid_invoice(
+    subscription: dict[str, Any], price_id: str,
+) -> dict[str, Any]:
+    invoice = subscription.get("latest_invoice")
+    if (not isinstance(invoice, dict) or invoice.get("status") != "paid"
+            or invoice.get("amount_remaining") != 0 or subscription.get("pending_update")):
+        raise DrillError("Portal plan is not backed by a settled current invoice")
+    _assert_test_object(invoice, object_name="Portal paid invoice")
+    if (not isinstance(invoice.get("id"), str)
+            or not re.fullmatch(r"in_[A-Za-z0-9]+", invoice["id"])):
+        raise DrillError("Portal paid invoice has no valid identity")
+    related = invoice.get("subscription") or (
+        (invoice.get("parent") or {}).get("subscription_details") or {}
+    ).get("subscription")
+    if related != subscription.get("id") or invoice.get("customer") != subscription.get("customer"):
+        raise DrillError("Portal invoice does not belong to the subscription and customer")
+    end = _subscription_period_end(subscription)
+    for line in (invoice.get("lines") or {}).get("data") or []:
+        price = line.get("price") or {}
+        actual = price.get("id") if isinstance(price, dict) else price
+        actual = actual or ((line.get("pricing") or {}).get("price_details") or {}).get("price")
+        period = line.get("period") or {}
+        if (actual == price_id and type(line.get("amount")) is int and line["amount"] > 0
+                and type(period.get("end")) is int and period["end"] >= end
+                and type(period.get("start")) is int and period["start"] <= int(time.time())):
+            return invoice
+    raise DrillError("Portal paid invoice lacks a positive current-price line covering the period")
+
+
+def _submit_portal_action(
+    config: DrillConfig, context: dict[str, Any], action: str,
+) -> None:
+    portal = context["client"].request("POST", "/api/v1/billing/portal")
+    url = portal.get("portal_url")
+    parsed = urlparse(url) if isinstance(url, str) else None
+    if (parsed is None or parsed.scheme != "https" or parsed.netloc != "billing.stripe.com"
+            or not parsed.path.startswith("/p/session/")):
+        raise DrillError("Kova did not emit an accepted hosted Portal URL")
+    fd, name = tempfile.mkstemp(prefix="kov005-portal-", suffix=".json")
+    os.close(fd)
+    path = Path(name)
+    try:
+        basic = action in {"inspect", "payment_update", "cancel"}
+        current_code = config.plan_code if basic else (
+            "standard" if action == "standard"
+            else ("gestion" if action == "downgrade" else "esencial")
+        )
+        path.write_text(json.dumps({
+            "portal_url": url, "plan_code": current_code,
+            "provider_livemode": False, "action": action,
+            "current_plan": "Standard" if current_code == "standard" else PLANS[current_code].name,
+            "target_plan": "Esencial" if action == "downgrade" else "Gestión",
+            "target_amount": 399 if action == "downgrade" else 699,
+            "current_amount": PLANS[current_code].amount_minor_units // 100,
+        }), encoding="utf-8")
+        safe_names = {"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "PLAYWRIGHT_BROWSERS_PATH"}
+        child_env = {key: value for key, value in os.environ.items() if key in safe_names}
+        child_env["KOV005_PORTAL_STATE_FILE"] = str(path)
+        result = subprocess.run(
+            ["node", str(config.portal_helper)], cwd=REPOSITORY_ROOT, env=child_env,
+            capture_output=True, text=True, timeout=120, check=False,
+        )
+        if result.returncode != 0:
+            match = re.search(r"KOV005_PORTAL_FAILURE_STAGE=([a-z_]+)", result.stderr)
+            stage = match.group(1) if match else "unknown"
+            raise DrillError("Stripe Portal UI failed at " + stage)
+        try:
+            outcome = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise DrillError("Portal helper did not produce a structured outcome") from exc
+        if outcome != {"action": action, "submitted": action not in {"standard", "inspect"},
+                       "inspected": True}:
+            raise DrillError("Portal helper did not complete the requested action")
+    except subprocess.TimeoutExpired as exc:
+        raise DrillError("Stripe Portal UI exceeded its bounded execution time") from exc
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def _portal_record(
+    engine: Any, context: dict[str, Any], subscription: dict[str, Any],
+    *, step: str, invoice: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    kova = context["client"].request("GET", "/api/v1/billing/subscription")
+    snapshot = _snapshot(engine, context["tenant_id"])
+    return {
+        "step": step, "observed_at": datetime.now(UTC).isoformat(),
+        "provider_subscription": {"id": redact_identifier(subscription["id"]),
+                                  "status": subscription.get("status"),
+                                  "price_id": redact_identifier(_portal_price_id(subscription)),
+                                  "pending_update": bool(subscription.get("pending_update")),
+                                  "cancel_at_period_end": bool(
+                                      subscription.get("cancel_at_period_end")),
+                                  "period_end": _epoch_iso(_subscription_period_end(subscription))},
+        "provider_invoice": ({"id": redact_identifier(invoice.get("id")),
+                              "status": invoice.get("status"),
+                              "amount_remaining": invoice.get("amount_remaining")}
+                             if invoice is not None else None),
+        "kova": asdict(snapshot),
+        "kova_access": {key: (kova.get("access") or {}).get(key)
+                        for key in ("allowed", "reason", "valid_until", "plan_code", "features")},
+    }
+
+
+def _wait_for_portal_paid_plan(
+    stripe: StripeTestClient, config: DrillConfig, context: dict[str, Any], code: str,
+    *, previous_invoice_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        subscription = _portal_subscription(stripe, context)
+        try:
+            if _portal_price_id(subscription) != config.price_ids[code]:
+                raise DrillError("Provider price has not converged")
+            invoice = _portal_paid_invoice(subscription, config.price_ids[code])
+            if invoice.get("id") == previous_invoice_id:
+                raise DrillError("Provider has not issued a new plan-change invoice")
+            _assert_selected_plan(config, context["client"].request(
+                "GET", "/api/v1/billing/subscription",
+            ), expected_code=code)
+            return subscription, invoice
+        except DrillError:
+            time.sleep(1)
+    raise DrillError("Paid Portal change did not converge to the exact plan in Stripe and Kova")
+
+
+def _assert_portal_schedule(
+    schedule: dict[str, Any], subscription: dict[str, Any], config: DrillConfig,
+) -> int:
+    _assert_test_object(schedule, object_name="Portal subscription schedule")
+    if (schedule.get("subscription") != subscription["id"]
+            or schedule.get("status") != "active"):
+        raise DrillError("Portal schedule does not belong to the subscription")
+    end = _subscription_period_end(subscription)
+    if end <= int(time.time()) or _portal_price_id(subscription) != config.price_ids["gestion"]:
+        raise DrillError("Scheduled downgrade changed the current paid Gestion plan")
+    for phase in schedule.get("phases") or []:
+        items = phase.get("items") or []
+        price = (items[0].get("price") or {}) if len(items) == 1 else {}
+        price_id = price.get("id") if isinstance(price, dict) else price
+        if (phase.get("start_date") == end and price_id == config.price_ids["esencial"]
+                and items[0].get("quantity") == 1):
+            return end
+    raise DrillError("Portal did not schedule Esencial at the current paid period end")
+
+
+def _portal_customer(stripe: StripeTestClient, context: dict[str, Any]) -> dict[str, Any]:
+    customer_id = context["stripe_session"]["customer"]
+    customer = stripe.get(f"/v1/customers/{customer_id}")
+    _assert_test_object(customer, object_name="Portal customer")
+    if customer.get("id") != customer_id or customer.get("deleted"):
+        raise DrillError("Portal customer mapping was not preserved")
+    return customer
+
+
+def _effective_portal_method(subscription: dict[str, Any], customer: dict[str, Any]) -> str | None:
+    method = subscription.get("default_payment_method") or (
+        customer.get("invoice_settings") or {}
+    ).get("default_payment_method")
+    return method.get("id") if isinstance(method, dict) else method
+
+
+def _assert_basic_portal_plan(
+    config: DrillConfig, context: dict[str, Any], subscription: dict[str, Any], period_end: int,
+) -> dict[str, Any]:
+    if (_portal_price_id(subscription) != config.price_id
+            or _subscription_period_end(subscription) != period_end):
+        raise DrillError("Basic Portal changed the preserved Price, quantity or paid period")
+    kova = context["client"].request("GET", "/api/v1/billing/subscription")
+    _assert_selected_plan(config, kova)
+    return kova
+
+
+def _run_basic_portal(
+    stripe: StripeTestClient, config: DrillConfig, engine: Any, context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    original = _portal_subscription(stripe, context)
+    period_end = _subscription_period_end(original)
+    if period_end <= int(time.time()):
+        raise DrillError("Basic Portal requires a current paid period, not simulated elapsed time")
+    entitlement_end = _snapshot(engine, context["tenant_id"]).plan_effective_until
+    customer = _portal_customer(stripe, context)
+    previous_method = _effective_portal_method(original, customer)
+    _assert_basic_portal_plan(config, context, original, period_end)
+    _submit_portal_action(config, context, "inspect")
+    inspected = _portal_subscription(stripe, context)
+    _assert_basic_portal_plan(config, context, inspected, period_end)
+    records = [_portal_record(engine, context, inspected, step="basic_overview_no_tier_changes")]
+
+    _submit_portal_action(config, context, "payment_update")
+    deadline = time.monotonic() + 60
+    method_id = None
+    while time.monotonic() < deadline:
+        current = _portal_subscription(stripe, context)
+        customer = _portal_customer(stripe, context)
+        method_id = _effective_portal_method(current, customer)
+        if (isinstance(method_id, str) and re.fullmatch(r"pm_[A-Za-z0-9]+", method_id)
+                and method_id != previous_method):
+            method = stripe.get(f"/v1/payment_methods/{method_id}")
+            _assert_test_object(method, object_name="Portal payment method")
+            if (method.get("id") != method_id or method.get("customer") != original["customer"]
+                    or method.get("type") != "card"):
+                raise DrillError("Updated Portal payment method does not belong to the customer")
+            _assert_basic_portal_plan(config, context, current, period_end)
+            record = _portal_record(engine, context, current, step="basic_payment_method_updated")
+            record["provider_payment_method"] = {"before": redact_identifier(previous_method),
+                                                  "after": redact_identifier(method_id),
+                                                  "changed": True, "livemode": False}
+            if record["kova"]["plan_effective_until"] != entitlement_end:
+                raise DrillError("Payment update changed the preserved paid entitlement boundary")
+            records.append(record)
+            break
+        time.sleep(1)
+    else:
+        raise DrillError("Portal did not change the effective default payment method")
+
+    _submit_portal_action(config, context, "cancel")
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        current = _portal_subscription(stripe, context)
+        kova = _assert_basic_portal_plan(config, context, current, period_end)
+        if (current.get("cancel_at_period_end") is True
+                and (kova.get("subscription") or {}).get("cancel_at_period_end") is True):
+            record = _portal_record(engine, context, current, step="basic_cancellation_scheduled")
+            if record["kova"]["plan_effective_until"] != entitlement_end:
+                raise DrillError("Scheduled cancellation changed the paid entitlement boundary")
+            record["limits"] = {"effective_cancellation": False, "tier_changes": "blocked"}
+            records.append(record)
+            return records
+        time.sleep(1)
+    raise DrillError("Portal cancellation did not converge to period-end cancellation in Kova")
+
+
+def _run_portal_acceptance(
+    stripe: StripeTestClient, config: DrillConfig, engine: Any, initial: dict[str, Any],
+    clocks: list[str], customers: list[str],
+) -> list[dict[str, Any]]:
+    if not config.include_portal:
+        raise DrillError("Portal acceptance requires explicit isolated opt-in")
+    if config.portal_mode == "basic":
+        return _run_basic_portal(stripe, config, engine, initial)
+    original = _portal_subscription(stripe, initial)
+    if _portal_price_id(original) != config.price_id:
+        raise DrillError("Initial owned subscription did not match the paid catalog price")
+    if config.plan_code == "standard":
+        _submit_portal_action(config, initial, "standard")
+        after = _portal_subscription(stripe, initial)
+        if (_portal_price_id(after) != config.price_id
+                or after.get("cancel_at_period_end") != original.get("cancel_at_period_end")
+                or _subscription_period_end(after) != _subscription_period_end(original)):
+            raise DrillError("Standard Portal changed the preserved plan")
+        _assert_selected_plan(config, initial["client"].request(
+            "GET", "/api/v1/billing/subscription",
+        ))
+        return [_portal_record(engine, initial, after, step="standard_plan_change_disabled")]
+
+    # A separate customer owns the rejected attempt: no API repair is presented as Portal recovery.
+    failing = _create_payment_method(stripe, "tok_chargeCustomerFail")
+    stripe.post(f"/v1/payment_methods/{failing['id']}/attach", {"customer": original["customer"]})
+    stripe.post(f"/v1/subscriptions/{original['id']}", {"default_payment_method": failing["id"]})
+    known = _matching_event_ids(stripe, original["id"], {"invoice.payment_failed"})
+    _submit_portal_action(config, initial, "upgrade_decline")
+    failed = _wait_for_event(stripe, original["id"], {"invoice.payment_failed"}, exclude_ids=known)
+    failed_id = str((failed.get("data", {}).get("object") or {}).get("id") or "")
+    if not re.fullmatch(r"in_[A-Za-z0-9]+", failed_id):
+        raise DrillError("Portal rejection did not identify an invoice")
+    invoice = stripe.get(f"/v1/invoices/{failed_id}")
+    _assert_test_object(invoice, object_name="Portal rejected invoice")
+    related = _related_subscription({"type": "invoice.payment_failed", "data": {"object": invoice}})
+    if (invoice.get("id") != failed_id or related != original["id"]
+            or invoice.get("customer") != original["customer"]
+            or invoice.get("status") not in {"open", "void", "uncollectible"}
+            or (invoice.get("status") == "open" and (invoice.get("amount_remaining") or 0) <= 0)):
+        raise DrillError("Portal rejection did not leave a failed, unpaid or void invoice")
+    _assert_selected_plan(config, initial["client"].request(
+        "GET", "/api/v1/billing/subscription",
+    ), expected_code="esencial", require_access=False)
+    records = [_portal_record(engine, initial, _portal_subscription(stripe, initial),
+                              step="upgrade_rejected_keeps_esencial", invoice=invoice)]
+    success: dict[str, Any] = {}
+    _run_checkout(
+        stripe, config, engine, clocks, customers, label="portal-success", context=success,
+    )
+    before = _portal_subscription(stripe, success)
+    previous_invoice_id = _portal_paid_invoice(before, config.price_ids["esencial"])["id"]
+    _submit_portal_action(config, success, "upgrade_success")
+    upgraded, paid = _wait_for_portal_paid_plan(
+        stripe, config, success, "gestion", previous_invoice_id=previous_invoice_id,
+    )
+    records.append(_portal_record(
+        engine, success, upgraded, step="upgrade_paid_grants_gestion", invoice=paid,
+    ))
+    _submit_portal_action(config, success, "downgrade")
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        current = _portal_subscription(stripe, success)
+        schedule_id = current.get("schedule")
+        if isinstance(schedule_id, str) and re.fullmatch(r"sub_sched_[A-Za-z0-9]+", schedule_id):
+            schedule = stripe.get(f"/v1/subscription_schedules/{schedule_id}")
+            end = _assert_portal_schedule(schedule, current, config)
+            _assert_selected_plan(config, success["client"].request(
+                "GET", "/api/v1/billing/subscription",
+            ), expected_code="gestion")
+            record = _portal_record(engine, success, current,
+                                    step="downgrade_scheduled_keeps_gestion", invoice=paid)
+            if record["kova"]["plan_effective_until"] != _epoch_iso(end):
+                raise DrillError("Scheduled downgrade changed Kova paid entitlement period")
+            record["provider_schedule"] = {"id": redact_identifier(schedule_id),
+                                            "target_plan": "esencial", "starts_at": _epoch_iso(end)}
+            records.append(record)
+            return records
+        time.sleep(1)
+    raise DrillError("Portal downgrade did not produce a verified future schedule")
+
+
 def run(config: DrillConfig) -> None:
     stripe = StripeTestClient(config.stripe_key)
     preflight = validate_stripe_preflight(stripe, config)
@@ -1299,6 +1732,7 @@ def run(config: DrillConfig) -> None:
     cleanup_customers: list[str] = []
     records: list[dict[str, Any]] = []
     checkout: dict[str, Any] | None = None
+    portal_records: list[dict[str, Any]] = []
     cleanup = {"clocks_deleted": 0, "customers_deleted": 0}
     _persist_cleanup(config, cleanup_clocks, cleanup_customers)
     try:
@@ -1307,9 +1741,15 @@ def run(config: DrillConfig) -> None:
         _wait_for_health(config, backend)
         engine = create_engine(config.database_url, pool_pre_ping=True)
 
+        portal_context: dict[str, Any] = {}
         checkout = _run_checkout(
-            stripe, config, engine, cleanup_clocks, cleanup_customers
+            stripe, config, engine, cleanup_clocks, cleanup_customers,
+            context=portal_context,
         )
+        if config.include_portal:
+            portal_records = _run_portal_acceptance(
+                stripe, config, engine, portal_context, cleanup_clocks, cleanup_customers,
+            )
         _stop_process(listener)
         listener = None
 
@@ -1366,6 +1806,7 @@ def run(config: DrillConfig) -> None:
         checkout=checkout,
         records=records,
         cleanup=cleanup,
+        portal_records=portal_records,
     )
     config.evidence_path.parent.mkdir(parents=True, exist_ok=True)
     config.evidence_path.write_text(evidence, encoding="utf-8")

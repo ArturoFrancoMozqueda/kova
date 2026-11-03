@@ -7,11 +7,17 @@ import { verifyDeployment } from "./verify-deployment.mjs";
 const sha = "0123456789abcdef0123456789abcdef01234567";
 let origin;
 let server;
+let frontendRedirect;
 const frontendBypassHeaders = [];
 
 before(async () => {
   server = createServer((request, response) => {
     if (request.url === "/") {
+      if (frontendRedirect) {
+        response.writeHead(302, { location: frontendRedirect });
+        response.end();
+        return;
+      }
       response.setHeader("content-type", "text/html; charset=utf-8");
       frontendBypassHeaders.push(request.headers["x-vercel-protection-bypass"]);
       response.end("<!doctype html><html><title>Kova</title></html>");
@@ -66,6 +72,21 @@ test("rejects a deployment from a different commit", async () => {
     verifyDeployment({ frontendUrl: origin, backendUrl: origin, sha: `f${sha.slice(1)}` }),
     /commit mismatch/,
   );
+});
+
+test("refuses redirects before a candidate bypass header can leave its intended origin", async () => {
+  let foreignRequests = 0;
+  const foreign = createServer((_request, response) => { foreignRequests++; response.end("Kova"); });
+  await new Promise(resolve => foreign.listen(0, "127.0.0.1", resolve));
+  try {
+    frontendRedirect = `http://127.0.0.1:${foreign.address().port}/`;
+    await assert.rejects(verifyDeployment({ frontendUrl: origin, backendUrl: origin, sha,
+      frontendBypassSecret: "synthetic-bypass-must-stay-local" }));
+    assert.equal(foreignRequests, 0);
+  } finally {
+    frontendRedirect = undefined;
+    await new Promise((resolve, reject) => foreign.close(error => error ? reject(error) : resolve()));
+  }
 });
 
 test("rejects a frontend whose API proxy does not reach the release", async () => {

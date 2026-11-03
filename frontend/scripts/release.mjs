@@ -9,6 +9,7 @@ import {
 import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider } from "./cloudflare-backend-provider.mjs";
+import { RELEASE_BILLING_OFFER, verifyPublicBillingOffer } from "./release-billing-offer.mjs";
 
 export function candidateUrl(value) {
   const url = new URL(value);
@@ -21,7 +22,8 @@ export function candidateUrl(value) {
 
 /** Phase is set BEFORE a provider may partially change production. */
 export async function release({ artifact: rawArtifact, sha, provider,
-  verify = verifyDeployment, recover = recoverRelease }) {
+  verify = verifyDeployment, recover = recoverRelease,
+  expectedBillingOffer, verifyOffer = verifyPublicBillingOffer }) {
   const artifact = validateRollbackArtifact(rawArtifact);
   if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
     throw new Error("Resident release requires the captured Container image or explicit absence");
@@ -51,6 +53,9 @@ export async function release({ artifact: rawArtifact, sha, provider,
     }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    if (expectedBillingOffer !== undefined) await verifyOffer({ frontendUrl: url,
+      backendUrl: artifact.backendUrl, offer: expectedBillingOffer,
+      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     phase = "promotion";
     await provider.promote(url, artifact.frontendUrl);
     phase = "acceptance";
@@ -68,6 +73,8 @@ export async function release({ artifact: rawArtifact, sha, provider,
     } else {
       await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha });
     }
+    if (expectedBillingOffer !== undefined) await verifyOffer({ frontendUrl: artifact.frontendUrl,
+      backendUrl: artifact.backendUrl, offer: expectedBillingOffer });
     return { sha, url, phase, accepted: true };
   } catch (error) {
     if (phase) {
@@ -132,6 +139,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const result = await release({
       artifact: JSON.parse(fs.readFileSync(artifactPath, "utf8")), sha,
       provider: releaseProvider(globalConfig),
+      expectedBillingOffer: RELEASE_BILLING_OFFER,
     });
     console.log(JSON.stringify(result));
   } finally {

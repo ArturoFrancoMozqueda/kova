@@ -29,6 +29,7 @@ class SignupRequest(StrictModel):
     password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
     tenant_name: str = Field(min_length=1, max_length=120)
     accepted_terms: bool = False
+    billing_offer_revision: str | None = Field(default=None, max_length=96)
 
     @field_validator("email")
     @classmethod

@@ -1,4 +1,5 @@
 import { bindings, defineConfig, exports, triggers } from "cf/config";
+import { stripeRuntimeIds } from "../stripe-runtime-ids.mjs";
 
 const database = process.env.KOVA_HYPERDRIVE_APP_ID;
 const privileged = process.env.KOVA_HYPERDRIVE_PRIVILEGED_ID;
@@ -6,6 +7,8 @@ const release = process.env.KOVA_BUILD_SHA;
 if (release && !/^[a-f0-9]{40}$/i.test(release)) throw new Error("Full Workers build SHA is required");
 const metadata = release ? { KOVA_BUILD_SHA: bindings.text(release) } : {};
 const databaseBindings = database ? { DB_APP: bindings.hyperdrive({ id: database }) } : {};
+const commercialBindings = Object.fromEntries(Object.entries(stripeRuntimeIds(process.env))
+  .map(([name, value]) => [name, bindings.text(value)]));
 export const observability = {
   enabled: true, redactQueryString: true,
   logs: { enabled: true, invocationLogs: false },
@@ -21,6 +24,7 @@ export const jobs = defineConfig({ worker: {
   exports: { KovaJobs: exports.durableObject({ storage: "sqlite" }) },
   env: {
     ...metadata,
+    ...commercialBindings,
     ...databaseBindings,
     ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
     JOBS: bindings.durableObject({ worker: "kova-backend-jobs", exportName: "KovaJobs" }),
@@ -61,6 +65,7 @@ export default defineConfig({
     },
     env: {
       ...metadata,
+      ...commercialBindings,
       ...databaseBindings,
       ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
       ...(privileged ? { DB_PRIVILEGED: bindings.hyperdrive({ id: privileged }) } : {}),

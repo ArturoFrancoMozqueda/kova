@@ -12,9 +12,11 @@ from app.audit import service as audit_service
 from app.auth import repository as repo
 from app.auth.models import Membership, User, UserSession
 from app.auth.schemas import MeResponse, UserResponse
+from app.billing.offers import public_offer
+from app.billing.plans import tiered_pricing_enabled
 from app.config import settings
 from app.email import service as email_service
-from app.shared.exceptions import bad_request, forbidden, unauthorized
+from app.shared.exceptions import bad_request, conflict, forbidden, unauthorized
 from app.shared.validation import validate_password_byte_length
 from app.tenants import repository as tenant_repo
 from app.tenants.feature_flags import resolve_feature_flags
@@ -127,6 +129,7 @@ def signup(
     password: str,
     tenant_name: str,
     accepted_terms: bool,
+    billing_offer_revision: str | None = None,
     ip_address: str | None = None,
 ) -> SignupOutcome:
     """Create a tenant or recover an in-progress signup.
@@ -138,6 +141,16 @@ def signup(
     """
     if not accepted_terms:
         raise bad_request("Terms and privacy notice must be accepted")
+    # Decide the offer once for this request and preserve it through cohort creation.
+    # Check before any account lookup so a stale form never reveals email existence
+    # or sends a verification message while the customer is reviewing changed prices.
+    tiered = tiered_pricing_enabled()
+    if ((tiered or billing_offer_revision is not None)
+            and billing_offer_revision != public_offer(tiered=tiered)["offer_revision"]):
+        raise conflict(
+            "Los planes de Kova cambiaron. Revisa los precios actualizados "
+            "y vuelve a enviar tu registro."
+        )
     # Every accepted attempt pays the same bcrypt cost, including duplicates.
     # Never replace an existing account's password with this candidate hash.
     hashed = hash_password(password)
@@ -196,9 +209,7 @@ def signup(
 
     slug = _unique_slug(db, _slugify(tenant_name))
     tenant = tenant_repo.create(db, name=tenant_name, slug=slug)
-    from app.billing.plans import tiered_pricing_enabled
-
-    tenant.billing_cohort = "tiered" if tiered_pricing_enabled() else "standard"
+    tenant.billing_cohort = "tiered" if tiered else "standard"
     repo.create_membership(db, tenant_id=tenant.id, user_id=user.id, role="owner")
 
     plain_token = _generate_token()

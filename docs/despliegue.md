@@ -38,7 +38,12 @@ Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idén
    3. Publica en orden: `kova-backend-jobs` → `kova-backend` (Container) → `kova-backend-gateway`.
    4. Espera a que el proceso nativo reporte el nuevo SHA (hasta 30 min por el drenado de
       Containers).
-4. **Verificar el candidato** contra el backend nuevo.
+4. **Verificar el candidato** contra el backend nuevo. El ejecutable de release también compara
+   `/api/v1/billing/plans` por API directa y proxy del candidato con la oferta revisada en
+   `frontend/scripts/release-billing-offer.mjs`: revisión coincidente, planes exactos, importe,
+   MXN, mensualidad, capacidades, límites y tratamiento inclusivo de los precios nuevos.
+   La revisión se ancla al catálogo del backend aprobado. Se vuelve a comprobar después
+   de la aceptación pública. Un sitio sano con una oferta incorrecta no se promueve.
 5. **Promoción** (fase `promotion`): publica los mismos archivos estáticos al Worker
    `kova-frontend` y promueve Vercel.
 6. **Aceptación** (fase `acceptance`): espera que `kovasuite.com` y `api.kovasuite.com` sirvan el
@@ -60,6 +65,10 @@ Después vuelve a verificar todo contra el SHA anterior. Reglas:
 
 - **La base de datos nunca se revierte.** Por eso cada migración debe funcionar también con la
   versión anterior de la app.
+- La recuperación verifica el artefacto anterior sin exigirle la oferta comercial nueva. Apagar
+  nuevas ofertas no elimina las referencias de los Prices que necesitan las suscripciones existentes.
+- Las verificaciones rechazan redirecciones HTTP; un header de bypass del candidato no se
+  reenvía a otro origen. La aceptación pública no utiliza bypass.
 - Un release recuperado deja CI en rojo (`RELEASE_FAILED_RECOVERED`).
 - `RECOVERY_BLOCKED` es un incidente: no reintentes a ciegas. Revisa el estado en Cloudflare
   (incluido un rollout de Container en curso) y usa el artefacto `release-rollback-<sha>` exacto de
@@ -75,6 +84,10 @@ Variables (`vars`):
 | `KOVA_CLOUDFLARE_BACKEND` | `1` | Dominio `api.kovasuite.com` en el gateway; el release falla si falta |
 | `KOVA_NATIVE_BACKEND` | `1` | Backend en Container nativo en lugar de Python Workers |
 | `KOVA_HYPERDRIVE_APP_ID`, `KOVA_HYPERDRIVE_PRIVILEGED_ID` | IDs | Bindings de Hyperdrive |
+| `STRIPE_ESENCIAL_PRICE_ID` | `price_…` | Precio público de Esencial, enviado a API y jobs |
+| `STRIPE_GESTION_PRICE_ID` | `price_…` distinto del anterior | Precio público de Gestión, enviado a API y jobs |
+| `STRIPE_STANDARD_PORTAL_CONFIGURATION_ID` | `bpc_…` | Configuración de Portal para acuerdos Standard |
+| `STRIPE_TIERED_PORTAL_CONFIGURATION_ID` | `bpc_…` | Configuración de Portal para la nueva cohorte |
 
 Secretos (solo nombres, nunca valores): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
 `SUPABASE_DB_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_URL`,
@@ -82,6 +95,41 @@ Secretos (solo nombres, nunca valores): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCO
 
 Los secretos de runtime de la app (Stripe, Resend, sesión, URLs de base) viven sellados en
 Cloudflare, no en GitHub. Las publicaciones no los rotan ni los leen.
+
+### Preparación de los identificadores comerciales
+
+Los cuatro IDs anteriores son configuración pública, no credenciales. El job de release los toma
+del environment `production` y los declara como bindings TEXT versionados en `kova-backend` y
+`kova-backend-jobs`; el gateway y el frontend no los reciben. No se incluyen en argumentos de
+Docker ni se copian claves o URLs de base. `STRIPE_STANDARD_PRICE_ID` conserva su binding anterior
+y no pertenece a esta allowlist.
+
+La configuración es todo o nada: cuatro IDs con formato válido y dos precios distintos. La
+ausencia total sigue admitida para CI/local y despliegues previos; una configuración parcial o
+malformada falla antes de migrar o publicar. Los dos campos de Portal pueden compartir un ID
+básico si los cambios de suscripción están deshabilitados. Para habilitar cambios por cohorte se
+requiere su configuración aceptada, preservando la prohibición de cambios de plan para Standard.
+Validar el formato de un ID no acredita su cuenta, modo, importe ni tratamiento fiscal en Stripe.
+
+El release revisa solo nombres de bindings sellados de ambos Workers. Si alguno de los cuatro
+IDs ya existe como secreto, se detiene antes de modificar servicios: no convierte tipos, no lee
+su valor y no lo elimina automáticamente. Cualquier migración de ese binding debe revisarse
+expresamente. No se usa `provision_once` para instalar precios.
+
+El comparador fijado de `cf` admite únicamente esos cuatro IDs y la transición de SHA capturada
+para API/jobs. Exige que los valores del artefacto coincidan con los inputs públicos del release;
+el resto de variables, flags, referencias a secretos y recursos conserva la comparación estricta.
+La recuperación restaura las versiones exactas capturadas, sin reconstruir con los IDs actuales
+ni usar `--bypass-deployment-checks`.
+
+Esta preparación conserva `BILLING_TIERED_PLANS_ENABLED=false` y
+`BILLING_PORTAL_ENABLED=false` en el controlador nativo. No activa altas, Portal ni cambios de
+suscripción. El primer release preparatorio todavía captura como rollback una versión anterior
+sin esos IDs: es seguro mientras la oferta siga apagada. Antes de activar, debe haber terminado
+ese release y la siguiente publicación debe capturar como base aceptada versiones que ya
+contengan los cuatro bindings en API y jobs. No usar el artefacto anterior al transporte como
+base de una activación. Tampoco retirar los IDs al apagar ofertas: siguen siendo necesarios para
+resolver acuerdos tiered ya asignados.
 
 Peligro: **no** hagas un deploy de preview del Worker del frontend sin
 `KOVA_CLOUDFLARE_FRONTEND=1`, porque quita las rutas de producción. Usa siempre el workflow.

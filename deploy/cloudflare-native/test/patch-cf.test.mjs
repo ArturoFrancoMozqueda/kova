@@ -77,9 +77,11 @@ test("registry failure diagnostics expose only validated numbers for the exact m
 test("all pinned patches validate before writing and registry diagnostics are idempotent", () => {
   const scratch = mkdtempSync(join(tmpdir(), "kova-cf-registry-patch-"));
   try {
-    const target = join(scratch, "node_modules/cf/dist");
+    const project = join(scratch, "cloudflare-native");
+    const target = join(project, "node_modules/cf/dist");
     mkdirSync(target, { recursive: true });
-    writeFileSync(join(scratch, "patch-cf.mjs"), readFileSync(patch));
+    writeFileSync(join(project, "patch-cf.mjs"), readFileSync(patch));
+    writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
     const originalContext = readFileSync(new URL(moduleName, dist), "utf8");
     const patchedStart = originalContext.indexOf('if(!t.ok){let n=e.method');
     const patchedEnd = originalContext.indexOf('},`catchErrorCodes`)', patchedStart);
@@ -95,8 +97,8 @@ test("all pinned patches validate before writing and registry diagnostics are id
       ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1` bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`'],
       [moduleName, baseline],
     ];
-    const script = join(scratch, "patch-cf.mjs");
-    const packagePath = join(scratch, "node_modules/cf/package.json");
+    const script = join(project, "patch-cf.mjs");
+    const packagePath = join(project, "node_modules/cf/package.json");
     const reset = () => { for (const [name, source] of inputs) writeFileSync(join(target, name), source); };
     writeFileSync(packagePath, JSON.stringify({ version: "1.0.0-beta.18" }));
     reset();

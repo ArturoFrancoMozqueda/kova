@@ -2,6 +2,7 @@
 // treats that as a literal directory named ".", making vendor files invisible.
 // Keep canonical paths for Python bundles; preserve JavaScript behavior.
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { commercialComparatorPrefix } from "../stripe-runtime-ids.mjs";
 const directory = new URL("./node_modules/cf/dist/", import.meta.url);
 const packageInfo = JSON.parse(readFileSync(new URL("../package.json", directory), "utf8"));
 if (packageInfo.version !== "1.0.0-beta.18") throw new Error("Revalidate the cf Python packaging workaround before updating CLI");
@@ -14,7 +15,7 @@ function prepareFix(filename, before, after, description) {
   const patchedCount = source.split(after).length - 1;
   if (originalCount === 0 && patchedCount === 1) return { file, source, changed: false };
   if (originalCount !== 1 || patchedCount !== 0) throw new Error(`Unexpected cf ${description}; refusing an unverified patch`);
-  return { file, source: source.replace(before, after), changed: true };
+  return { file, source: source.replace(before, () => after), changed: true };
 }
 
 // Dashboard metadata omits an unset DO environment. The remote converter adds
@@ -22,6 +23,9 @@ function prepareFix(filename, before, after, description) {
 // binding change against the otherwise identical local descriptor. Omit only
 // that undefined field; explicit environments and every strict check remain.
 const fixes = [
+  prepareFix(/^containers-BtcOgwm5\.mjs$/,
+    'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);',
+    commercialComparatorPrefix(), "captured public Stripe configuration"),
   prepareFix(/^deploy-input-.*\.mjs$/,
     'm.push({name:`./${o}`,filePath:l',
     'm.push({name:p===`python`?o:`./${o}`,filePath:l', "Python module naming"),

@@ -10,10 +10,12 @@ Create a GitHub environment named exactly `stripe-sandbox` and add only these va
 
 | Kind | Name | Requirement |
 |---|---|---|
-| Secret | `KOV005_STRIPE_SECRET_KEY` | `sk_test_…` or `rk_test_…`. A restricted key needs read/write access to Checkout Sessions, Customers, Payment Methods, Subscriptions, Invoices, Events and Test Clocks, plus read access to Account and Prices. |
+| Secret | `KOV005_STRIPE_SECRET_KEY` | `sk_test_…` or `rk_test_…`. A restricted key needs read/write access to Checkout Sessions, Customers, Payment Methods, Subscriptions, Invoices, Events and Test Clocks, plus read access to Account and Prices. Basic Portal opt-in additionally needs configuration read and Portal Sessions write. The blocked transition option also needs Subscription Schedules read. |
 | Secret | `KOV005_STRIPE_STANDARD_PRICE_ID` | Active test-mode recurring Price for exactly MXN 299.00 monthly. |
 | Variable | `KOV005_STRIPE_ESENCIAL_PRICE_ID` | Required for either new plan: distinct active test-mode MXN 399.00 monthly Price, interval count 1, `tax_behavior=inclusive`. |
 | Variable | `KOV005_STRIPE_GESTION_PRICE_ID` | Required for either new plan: distinct active test-mode MXN 699.00 monthly Price, interval count 1, `tax_behavior=inclusive`. |
+| Variable | `KOV005_STRIPE_STANDARD_PORTAL_CONFIGURATION_ID` | For basic Portal opt-in with Standard: active dedicated test configuration, subscription changes disabled, payment/history enabled and cancellation at period end. |
+| Variable | `KOV005_STRIPE_TIERED_PORTAL_CONFIGURATION_ID` | For basic Portal opt-in with either new plan: active dedicated test configuration, subscription changes disabled, payment/history enabled and cancellation at period end. The transition gate remains blocked for the separate-Product catalog. |
 | Variable | `KOV005_STRIPE_ACCOUNT_ID` | Exact `acct_…` identifier of the dedicated Sandbox. It is compared with `/v1/account` before mutations. |
 
 Do not copy production Stripe secrets into this environment. No database, webhook, application,
@@ -68,7 +70,8 @@ gracia según el reloj real de Kova ni aceptación fiscal/live. La oferta nueva 
    without the two new Price variables for regression acceptance.
 3. Before dispatch, check that the key and account belong to the dedicated Sandbox. If environment
    reviewers are configured, approve the deployment after that check.
-4. Download `kov-005-stripe-sandbox-<plan_code>-<sha>` only after the workflow succeeds.
+4. Download `kov-005-stripe-sandbox-<plan_code>-<sha>` only after the workflow succeeds. Portal
+   opt-in artifacts include `-portal-<portal_mode>` between the plan code and SHA.
 5. Review the Markdown artifact. Commit it under
    `docs/audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-<plan_code>-YYYY-MM-DD.md` without adding screenshots,
    raw exports or secrets.
@@ -85,7 +88,9 @@ Only the ephemeral backend process receives the two new Price IDs and
 `BILLING_TIERED_PLANS_ENABLED=true` for a new-plan run. Standard forces that flag off. Signup chooses
 the server cohort normally; Checkout sends explicit `plan_code`. The runner never writes plan
 entitlements into a tenant to manufacture acceptance. `BILLING_PORTAL_ENABLED=false` and both
-Portal configuration IDs are cleared for every run, regardless of inherited settings.
+Portal configuration IDs are cleared for every baseline run, regardless of inherited settings.
+The explicit Portal opt-in described below enables only its selected configuration in that child
+process; it does not change any deployment, account configuration or production feature flag.
 
 The drill checks hosted Checkout, renewal, payment failure and grace, payment recovery, scheduled
 cancellation, period-end cancellation, both cross-family arrival orders and duplicate delivery. The
@@ -104,6 +109,77 @@ in Kova, grace expiry, or an effective plan downgrade.
 not open the Portal or change subscription tiers. A passing new-plan artifact must not be used to
 claim those gates complete. Never emulate `GITHUB_ACTIONS=true` locally to run against Stripe;
 local verification uses stubbed unit tests only.
+
+## Optional integrated hosted Portal acceptance
+
+`include_portal` is **false by default**. With explicit opt-in, `portal_mode=basic` is the default
+and supports Standard, Esencial and Gestión separately. Each artifact accepts only its selected
+plan. `portal_mode=transitions` is a separate opt-in gate; it remains blocked for the correct
+catalog with one distinct Product per commercial plan. Do not combine Products to force this gate
+through: Stripe's billing integration guidance requires distinct Product identities for distinct
+tiers, and a price nickname is not a replacement for customer-facing Checkout/invoice names.
+
+All existing guards remain required: Actions on main, loopback application/database, exact Sandbox
+account, test key, acknowledgement, Price preflight, signed listener and successful cleanup.
+Preflight reads the selected Portal configuration with
+`expand[]=features.subscription_update.products` and rejects live/inactive/mismatched settings.
+Basic mode requires subscription updates **disabled**, payment method update/history enabled,
+and cancellation enabled only with `mode=at_period_end`. Configurations enabling tier changes fail
+this preflight before any customer is created. Standard and tiered configuration IDs remain
+separate. Only the ephemeral backend receives the selected configuration and Portal flag.
+
+The verified owner requests `POST /api/v1/billing/portal`; the test never sends a customer or return
+URL. The API independently reads and validates that configuration. The Node helper accepts only a
+hosted `https://billing.stripe.com/p/session/…` URL emitted by Kova, together with explicit test-mode
+provenance. Bearer URLs live only in private temporary files, removed in `finally`, never logs or
+evidence. The helper receives no provider keys or database configuration. An always-run workflow
+step also removes transient state files after cancellation.
+
+### Basic acceptance
+
+1. A real paid Checkout establishes the selected plan in Kova. The hosted Portal overview must be
+   healthy, show the current price and billing/history information, and expose no plan-change
+   control. Neither a blank page nor a provider configuration alone proves this UI result.
+2. The hosted UI adds/updates a Stripe test card. The effective default payment method used by the
+   subscription must change to a new test PaymentMethod owned by the same customer. A newly
+   attached card that does not become the effective default does not pass. Provider Price, quantity,
+   period and Kova plan/amount/features/access must remain unchanged. No API payment-method update
+   is substituted for this UI action.
+3. The hosted UI requests cancellation. Stripe and Kova must both confirm `cancel_at_period_end`,
+   preserve the existing paid period, exact plan/features/amount and current commercial access.
+   This proves the cancellation request, **not** that real time elapsed or cancellation took effect.
+
+Basic mode never attempts a tier change. It uses the already paid Checkout customer, already
+registered in the durable cleanup manifest. Every created customer, including any additional
+transition fixture, remains subject to the existing all-object cleanup on success or failure.
+No artifact is accepted if cleanup fails. No shared configuration, Product or Price is changed.
+The signed Stripe listener remains active throughout these steps; no application clock, invoice,
+plan code or entitlement timestamp is patched. Kova frontend return navigation is not exercised:
+the scope is Kova API → hosted Stripe UI → provider/webhooks → Kova state.
+
+### Blocked transition acceptance
+
+The `transitions` option retains the proposed rejection/success/scheduled-downgrade test, but the
+preflight deliberately rejects the current two-Product tiered configuration before creating
+objects. Stripe documents that period-end Portal downgrades are supported only between Prices
+for the same Product:
+[Portal subscription management](https://docs.stripe.com/customer-management/configure-portal).
+A syntactically valid multi-Product Portal configuration does not establish this capability.
+The runtime configuration guard also rejects unsupported tier-change configurations. Payment,
+history and deferred cancellation remain compatible with separate Products and updates disabled.
+
+A future supported plan-change design needs its own Kova API/UX, authorization, settled-payment
+upgrade and scheduled-downgrade contract and evidence. This basic drill must not be used to claim
+self-service plan transitions, an effective downgrade, fiscal compliance or live operation. No
+provider API fallback manufactures a hosted transition result, and no real-time wait is replaced
+with a fake Kova clock.
+
+The artifact records separate provider subscription/payment-method/cancellation observations and
+Kova plan/amount/features/access. Baseline artifact names stay unchanged. Portal opt-in artifacts
+include `-portal-<portal_mode>` between plan and SHA. Commit reviewed evidence to
+`docs/audits/evidence/KOV-005-STRIPE-PORTAL-<portal_mode>-<plan_code>-YYYY-MM-DD.md`, preserving
+prior baseline artifacts. Failure output contains a bounded safe stage rather than URLs or page
+contents. New hosted layouts or unsupported settings fail closed and require review.
 
 ## Required evidence
 

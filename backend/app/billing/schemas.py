@@ -33,6 +33,7 @@ class CommercialPlanResponse(StandardPlanResponse):
 
 
 class PublicPlansResponse(BaseModel):
+    offer_revision: str
     tiered_pricing_enabled: bool
     available_plans: list[CommercialPlanResponse]
 

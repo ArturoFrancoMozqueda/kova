@@ -92,7 +92,7 @@ for (const width of [390, 1440]) {
   test(`public tiered plans match the server offer at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
-    await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: { tiered_pricing_enabled: true, available_plans: plans } }));
+    await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: { offer_revision: "tiered-current", tiered_pricing_enabled: true, available_plans: plans } }));
     await page.goto("/");
     const pricing = page.locator("#precio");
     await expect(pricing.getByRole("heading", { name: "Esencial" })).toBeAttached();
@@ -102,6 +102,58 @@ for (const width of [390, 1440]) {
     await expect(page.locator("body")).not.toContainText("299");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`public-tiers-${width}.png`) });
+  });
+
+  test(`signup preserves the reviewed offer and form across a rollout at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+    const legacy = { offer_revision: "standard-before-rollout", tiered_pricing_enabled: false,
+      available_plans: [{ ...plans[1], code: "standard", name: "Plan Standard", amount_minor_units: 29900 }] };
+    let catalog: unknown = legacy;
+    await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: catalog }));
+    const signups: Record<string, unknown>[] = [];
+    const login: string[] = [];
+    page.on("request", (request) => { if (request.url().includes("/auth/login")) login.push(request.url()); });
+    await page.route("**/api/v1/auth/signup", (route) => {
+      signups.push(route.request().postDataJSON());
+      return route.fulfill({ status: 409, json: { detail: "La oferta se actualizó. Revisa los planes y vuelve a continuar." } });
+    });
+    await page.goto("/signup");
+    await expect(page.getByText(/Después, \$299 MXN/)).toBeVisible();
+    await page.getByLabel(/Nombre del negocio/i).fill("Negocio conservado");
+    await page.getByLabel(/Correo/i).fill("qa@example.invalid");
+    await page.getByLabel(/Contraseña/i).fill("PassStrong123");
+    await page.getByRole("checkbox").focus(); await page.keyboard.press("Space");
+    catalog = { offer_revision: "tiered-after-rollout", tiered_pricing_enabled: true, available_plans: plans };
+    await page.getByRole("button", { name: "Crear cuenta", exact: true }).focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("alert")).toContainText("Los planes se actualizaron");
+    expect(signups).toHaveLength(0);
+    await expect(page.getByText(/Esencial por \$399 MXN/)).toBeVisible();
+    await page.getByRole("button", { name: "Crear cuenta", exact: true }).focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("alert")).toContainText("Los planes cambiaron antes de completar el registro");
+    expect(signups).toHaveLength(1);
+    expect(signups[0].billing_offer_revision).toBe("tiered-after-rollout");
+    expect(login).toEqual([]);
+    await expect(page.getByLabel(/Nombre del negocio/i)).toHaveValue("Negocio conservado");
+    await expect(page.getByLabel(/Correo/i)).toHaveValue("qa@example.invalid");
+    await expect(page.getByLabel(/Contraseña/i)).toHaveValue("PassStrong123");
+    await expect(page.getByRole("checkbox")).toBeChecked();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`signup-offer-review-${width}.png`), fullPage: true });
+  });
+
+  test(`a returning public tab refreshes its displayed offer at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+    let catalog: unknown = { offer_revision: "standard-before-rollout", tiered_pricing_enabled: false,
+      available_plans: [{ ...plans[1], code: "standard", name: "Plan Standard", amount_minor_units: 29900 }] };
+    await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: catalog }));
+    await page.goto("/");
+    await expect(page.locator(".lp-hero-pricing")).toContainText("$299 MXN/mes");
+    catalog = { offer_revision: "tiered-after-rollout", tiered_pricing_enabled: true, available_plans: plans };
+    await page.evaluate(() => { window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); });
+    await expect(page.locator(".lp-hero-pricing")).toContainText("Desde $399 MXN/mes");
+    await expect(page.locator("body")).not.toContainText("299");
   });
 
 }

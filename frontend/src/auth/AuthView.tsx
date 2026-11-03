@@ -1,4 +1,4 @@
-import { usePublicPlans, formatCommercialPrice } from "@/billing/publicPlans";
+import { usePublicPlans, formatCommercialPrice, publicOfferIdentity, type PublicPlans } from "@/billing/publicPlans";
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -253,6 +253,26 @@ function AuthForm({ mode }: { mode: AuthMode }) {
     }
   };
 
+  const confirmSignupOffer = async (): Promise<PublicPlans | null> => {
+    const shown = offer.status === "ready" ? offer.catalog : null;
+    try {
+      const confirmed = await offer.confirm();
+      if (!active.current) return null;
+      if (!shown || publicOfferIdentity(shown) !== publicOfferIdentity(confirmed)) {
+        setErrorMessage("Los planes se actualizaron. Revisa los precios que aparecen arriba y vuelve a continuar. Conservamos tus datos; todavía no creamos tu cuenta.");
+        setState("error");
+        return null;
+      }
+      return confirmed;
+    } catch {
+      if (active.current) {
+        setErrorMessage("No pudimos confirmar los planes actuales. Revisa tu conexión e intenta de nuevo; conservamos tus datos.");
+        setState("error");
+      }
+      return null;
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (state === "submitting") return;
@@ -277,11 +297,14 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;
       }
+      const confirmedOffer = await confirmSignupOffer();
+      if (!confirmedOffer) return;
       await signup({
         email,
         password,
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
+        ...(confirmedOffer.offer_revision ? { billing_offer_revision: confirmedOffer.offer_revision } : {}),
       });
       if (!active.current) return;
       // Signup intentionally gives the same answer for every account state.
@@ -293,7 +316,10 @@ function AuthForm({ mode }: { mode: AuthMode }) {
     } catch (err) {
       if (!active.current) return;
       if (err instanceof ApiError) {
-        if (err.status === 401 || err.status === 403) {
+        if (mode === "signup" && err.status === 409) {
+          offer.retry();
+          setErrorMessage("Los planes cambiaron antes de completar el registro. Revisa la oferta actual y vuelve a continuar. Conservamos tus datos; todavía no creamos tu cuenta.");
+        } else if (err.status === 401 || err.status === 403) {
           setErrorMessage(copy.auth.loginInvalidCredentials);
         } else if (err.status === 429) {
           setErrorMessage(copy.auth.loginRateLimited);
@@ -318,11 +344,14 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const resendVerification = async () => {
     if (resendCountdown > 0 || mode !== "signup") return;
     try {
+      const confirmedOffer = await confirmSignupOffer();
+      if (!confirmedOffer) return;
       await signup({
         email,
         password,
         tenant_name: tenantName,
         accepted_terms: acceptedTerms,
+        ...(confirmedOffer.offer_revision ? { billing_offer_revision: confirmedOffer.offer_revision } : {}),
       });
       if (!active.current) return;
       setState("created");
@@ -331,6 +360,12 @@ function AuthForm({ mode }: { mode: AuthMode }) {
       if (!active.current) return;
       if (err instanceof ApiError && err.status === 422) {
         applySignupValidationFailures(err);
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        offer.retry();
+        setErrorMessage("Los planes cambiaron. Revisa la oferta actual antes de volver a continuar; conservamos tus datos.");
+        setState("error");
         return;
       }
       setErrorMessage(

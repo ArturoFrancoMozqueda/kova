@@ -13942,12 +13942,17 @@
             "title": "Available Plans",
             "type": "array"
           },
+          "offer_revision": {
+            "title": "Offer Revision",
+            "type": "string"
+          },
           "tiered_pricing_enabled": {
             "title": "Tiered Pricing Enabled",
             "type": "boolean"
           }
         },
         "required": [
+          "offer_revision",
           "tiered_pricing_enabled",
           "available_plans"
         ],
@@ -16962,6 +16967,18 @@
             "default": false,
             "title": "Accepted Terms",
             "type": "boolean"
+          },
+          "billing_offer_revision": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Offer Revision"
           },
           "email": {
             "format": "email",
@@ -21246,6 +21263,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "La oferta cambi\u00f3. Revisa los planes antes de registrarte."
           },
           "422": {
             "content": {

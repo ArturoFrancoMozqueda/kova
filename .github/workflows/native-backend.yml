@@ -59,6 +59,8 @@ jobs:
         run: python scripts/check_amd64_host.py --report reports/security/native-host.json
       - name: Test controller and prepare native artifact
         run: |
+          # API/jobs configuration and strict-comparator tests exercise both pinned SDKs.
+          npm ci --prefix deploy/cloudflare-backend
           npm ci --prefix deploy/cloudflare-native
           npm test --prefix deploy/cloudflare-native
           node deploy/cloudflare-native/build.mjs
