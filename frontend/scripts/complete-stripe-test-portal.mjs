@@ -7,6 +7,58 @@ const basicActions = new Set(["inspect", "payment_update", "cancel"]);
 const updateNames = /^(?:cambiar plan|actualizar plan|actualizar suscripción|update plan|change plan|update subscription)$/i;
 const confirmNames = /^(?:confirmar|confirm|confirmar cambio|confirm change|actualizar|update|actualizar suscripción|update subscription|cambiar plan|change plan)$/i;
 
+const failureReasons = new Set([
+  "control_not_found", "control_not_visible", "control_disabled", "click_timeout",
+  "click_failed", "outside_provider", "stage_timeout", "unknown",
+]);
+const publicLabels = new Map([
+  ["guardar", "save"], ["save", "save"],
+  ["actualizar", "update"], ["update", "update"],
+  ["actualizar tarjeta", "update_card"], ["update card", "update_card"],
+  ["guardar cambios", "save_changes"], ["save changes", "save_changes"],
+  ["guardar tarjeta", "save_card"], ["save card", "save_card"],
+  ["guardar método de pago", "save_payment_method"], ["save payment method", "save_payment_method"],
+  ["agregar", "add"], ["añadir", "add"], ["add", "add"],
+  ["agregar tarjeta", "add_card"], ["añadir tarjeta", "add_card"], ["add card", "add_card"],
+  ["agregar método de pago", "add_payment_method"], ["añadir método de pago", "add_payment_method"],
+  ["add payment method", "add_payment_method"],
+  ["actualizar método de pago", "update_payment_method"], ["update payment method", "update_payment_method"],
+  ["continuar", "continue"], ["continue", "continue"], ["siguiente", "continue"], ["next", "continue"],
+  ["confirmar", "confirm"], ["confirm", "confirm"],
+  ["volver", "back"], ["back", "back"], ["cancelar", "cancel"], ["cancel", "cancel"],
+  ["cancelar suscripción", "cancel_subscription"], ["cancel subscription", "cancel_subscription"],
+]);
+
+class PortalControlError extends Error {
+  constructor(reason) { super(reason); this.reason = reason; }
+}
+
+export async function portalFailureDiagnostics(error, page) {
+  const reason = failureReasons.has(error?.reason) ? error.reason
+    : error?.name === "TimeoutError" ? "stage_timeout" : "unknown";
+  const controls = [];
+  if (!page) return { reason, controls };
+  try {
+    requirePortalOrigin(page);
+    const seen = new Set();
+    for (const role of ["button", "link"]) {
+      const candidates = await page.getByRole(role).all();
+      for (const candidate of candidates.slice(0, 50)) {
+        if (!await candidate.isVisible()) continue;
+        const text = await candidate.getAttribute("aria-label", { timeout: 250 })
+          || await candidate.innerText({ timeout: 250 });
+        const normalized = String(text).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+        // Unknown labels may contain customer names, card details or bearer URLs. Never emit them.
+        const label = publicLabels.get(normalized) || "other";
+        const enabled = await candidate.isEnabled({ timeout: 250 });
+        const key = `${label}:${enabled}`;
+        if (!seen.has(key)) { controls.push({ label, enabled }); seen.add(key); }
+      }
+    }
+  } catch { /* Closed/outside-provider pages produce no additional diagnostics. */ }
+  return { reason, controls };
+}
+
 export function validatePortalState(state) {
   let url;
   try { url = new URL(state.portal_url); } catch { throw new Error("invalid_portal_url"); }
@@ -37,7 +89,7 @@ export function validatePortalState(state) {
 function requirePortalOrigin(page) {
   const current = new URL(page.url());
   if (current.protocol !== "https:" || current.host !== "billing.stripe.com") {
-    throw new Error("portal_navigated_outside_provider");
+    throw new PortalControlError("outside_provider");
   }
 }
 
@@ -51,11 +103,37 @@ async function visibleNamedControl(page, name) {
   return null;
 }
 
-async function clickControl(page, name) {
+export async function clickControl(page, name, {
+  timeoutMs = 15_000, now = Date.now, wait = ms => page.waitForTimeout(ms),
+} = {}) {
   requirePortalOrigin(page);
-  const control = await visibleNamedControl(page, name);
-  if (!control) throw new Error("portal_control_not_found");
-  await control.click();
+  const deadline = now() + timeoutMs;
+  let matched = false;
+  while (now() < deadline) {
+    requirePortalOrigin(page);
+    for (const role of ["button", "link"]) {
+      const candidates = await page.getByRole(role, { name }).all();
+      matched ||= candidates.length > 0;
+      for (const candidate of candidates.toReversed()) {
+        if (!await candidate.isVisible()) continue;
+        try {
+          // Keep disabled controls: Playwright waits for enabled/stable/unobstructed actionability.
+          await candidate.click({ timeout: Math.max(1, deadline - now()) });
+          return;
+        } catch (error) {
+          try {
+            if (!await candidate.isVisible()) throw new PortalControlError("control_not_visible");
+            if (!await candidate.isEnabled({ timeout: 250 })) throw new PortalControlError("control_disabled");
+          } catch (stateError) {
+            if (stateError instanceof PortalControlError) throw stateError;
+          }
+          throw new PortalControlError(error?.name === "TimeoutError" ? "click_timeout" : "click_failed");
+        }
+      }
+    }
+    await wait(Math.min(100, Math.max(1, deadline - now())));
+  }
+  throw new PortalControlError(matched ? "control_not_visible" : "control_not_found");
 }
 
 async function fillCardField(page, selectors, value, required = true) {
@@ -89,7 +167,7 @@ async function updatePaymentMethod(page, setStage) {
     await makeDefault.check();
   }
   setStage("save_payment_method");
-  await clickControl(page, /^(?:guardar|guardar método de pago|agregar|añadir|agregar método de pago|save|save payment method|add|add payment method|update payment method)$/i);
+  await clickControl(page, /^(?:guardar|guardar cambios|guardar tarjeta|guardar método de pago|actualizar|actualizar tarjeta|actualizar método de pago|agregar|añadir|agregar tarjeta|añadir tarjeta|agregar método de pago|añadir método de pago|save|save changes|save card|save payment method|add|add card|add payment method|update|update card|update payment method)$/i);
 }
 
 async function cancelAtPeriodEnd(page, setStage) {
@@ -156,6 +234,7 @@ export async function exercisePortal(page, state, setStage = () => {}) {
 
 async function main() {
   let browser;
+  let page;
   let stage = "validate_input";
   try {
     const filename = process.env.KOV005_PORTAL_STATE_FILE;
@@ -163,12 +242,16 @@ async function main() {
     const state = validatePortalState(JSON.parse(fs.readFileSync(filename, "utf8")));
     const { chromium } = await import("playwright");
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
+    page = await browser.newPage();
     const outcome = await exercisePortal(page, state, (value) => { stage = value; });
     process.stdout.write(JSON.stringify(outcome));
-  } catch {
-    // Never let Playwright diagnostics include a bearer Portal URL or customer page content.
+  } catch (error) {
+    // Only fixed enums survive; never serialize Playwright errors, URLs or arbitrary DOM labels.
+    const diagnostic = await portalFailureDiagnostics(error, page);
     process.stderr.write(`KOV005_PORTAL_FAILURE_STAGE=${stage}\n`);
+    process.stderr.write(`KOV005_PORTAL_FAILURE_REASON=${diagnostic.reason}\n`);
+    const controls = diagnostic.controls.map(({ label, enabled }) => `${label}:${enabled ? "enabled" : "disabled"}`).join(",");
+    process.stderr.write(`KOV005_PORTAL_PUBLIC_CONTROLS=${controls}\n`);
     process.exitCode = 1;
   } finally {
     if (browser) await browser.close().catch(() => {});

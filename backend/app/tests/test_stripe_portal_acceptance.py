@@ -657,3 +657,41 @@ def test_portal_opaque_path_does_not_expand_the_trusted_origin(tmp_path, monkeyp
     monkeypatch.setattr(drill.subprocess, "run", unexpected_browser)
     with pytest.raises(drill.DrillError, match="accepted hosted Portal URL"):
         drill._submit_portal_action(config, context, "inspect")
+
+
+@pytest.mark.parametrize(
+    "reason", ["control_not_found", "control_disabled", "click_timeout", "unsafe_reason"]
+)
+def test_helper_failure_diagnostic_forwards_only_safe_enums(tmp_path, monkeypatch, reason):
+    config = drill.validate_environment(_basic_environment(tmp_path))
+    context = {
+        "client": SimpleNamespace(
+            request=lambda *args: {
+                "portal_url": "https://billing.stripe.com/p/test_synthetic",
+            }
+        )
+    }
+    raw = (
+        "KOV005_PORTAL_FAILURE_STAGE=save_payment_method\n"
+        f"KOV005_PORTAL_FAILURE_REASON={reason}\n"
+        "KOV005_PORTAL_PUBLIC_CONTROLS=save_changes:disabled,add_card:enabled,"
+        "private.customer@example.com:enabled,https://billing.stripe.com/p/secret_bearer\n"
+        "raw error contains a customer and private bearer\n"
+    )
+    monkeypatch.setattr(
+        drill.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr=raw,
+        ),
+    )
+    with pytest.raises(drill.DrillError) as error:
+        drill._submit_portal_action(config, context, "payment_update")
+    message = str(error.value)
+    expected = "unknown" if reason == "unsafe_reason" else reason
+    assert f"reason={expected}" in message
+    assert "save_changes:disabled,add_card:enabled" in message
+    assert "private" not in message and "bearer" not in message and "example.com" not in message
+    assert "unsafe_reason" not in message
