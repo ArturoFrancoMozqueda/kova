@@ -24,6 +24,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.audit.models import AuditLog  # noqa: E402
 from app.billing.models import Subscription, WebhookEvent  # noqa: E402
+from app.billing.plans import PLANS, build_plan_snapshot  # noqa: E402
 from app.config import sqlalchemy_database_url  # noqa: E402
 
 ACKNOWLEDGEMENT = "KOV-005-STRIPE-SANDBOX-ONLY"
@@ -74,11 +76,17 @@ class DrillConfig:
     cleanup_path: Path
     checkout_helper: Path
     release_sha: str
+    plan_code: str
+    price_ids: dict[str, str]
 
 
 @dataclass(frozen=True)
 class SubscriptionSnapshot:
     status: str
+    plan_code: str
+    amount_minor_units: int
+    currency: str
+    features: list[str]
     cancel_at_period_end: bool
     current_period_end: str | None
     past_due_at: str | None
@@ -122,6 +130,10 @@ def _require_loopback_url(value: str, *, name: str) -> None:
 
 
 def validate_environment(environ: dict[str, str]) -> DrillConfig:
+    plan_code = environ.get("KOV005_PLAN_CODE", "standard")
+    if plan_code not in PLANS:
+        raise DrillError("KOV005_PLAN_CODE must be standard, esencial or gestion")
+    codes = ("standard",) if plan_code == "standard" else ("standard", "esencial", "gestion")
     required = {
         "KOV005_STRIPE_SECRET_KEY",
         "KOV005_STRIPE_STANDARD_PRICE_ID",
@@ -130,6 +142,7 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
         "KOV005_EVIDENCE_PATH",
         "KOV005_CLEANUP_PATH",
     }
+    required.update(f"KOV005_STRIPE_{code.upper()}_PRICE_ID" for code in codes)
     missing = sorted(name for name in required if not environ.get(name))
     if missing:
         raise DrillError(f"Missing required configuration names: {', '.join(missing)}")
@@ -149,8 +162,11 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
     stripe_key = environ["KOV005_STRIPE_SECRET_KEY"]
     if not stripe_key.startswith(("sk_test_", "rk_test_")):
         raise DrillError("KOV005_STRIPE_SECRET_KEY must be a Stripe test-mode key")
-    if not environ["KOV005_STRIPE_STANDARD_PRICE_ID"].startswith("price_"):
-        raise DrillError("KOV005_STRIPE_STANDARD_PRICE_ID must be a Stripe Price id")
+    price_ids = {code: environ[f"KOV005_STRIPE_{code.upper()}_PRICE_ID"] for code in codes}
+    if any(not value.startswith("price_") for value in price_ids.values()):
+        raise DrillError("Configured sandbox plan prices must be Stripe Price ids")
+    if len(set(price_ids.values())) != len(price_ids):
+        raise DrillError("Sandbox commercial plans must use distinct Price ids")
     if not environ["KOV005_STRIPE_ACCOUNT_ID"].startswith("acct_"):
         raise DrillError("KOV005_STRIPE_ACCOUNT_ID must be a Stripe account id")
 
@@ -168,7 +184,9 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
 
     return DrillConfig(
         stripe_key=stripe_key,
-        price_id=environ["KOV005_STRIPE_STANDARD_PRICE_ID"],
+        price_id=price_ids[plan_code],
+        plan_code=plan_code,
+        price_ids=price_ids,
         expected_account_id=environ["KOV005_STRIPE_ACCOUNT_ID"],
         database_url=sqlalchemy_database_url(environ["DATABASE_URL"]),
         app_base_url=app_base_url.rstrip("/"),
@@ -237,25 +255,34 @@ def validate_stripe_preflight(
     account = stripe.get("/v1/account")
     if account.get("id") != config.expected_account_id:
         raise DrillError("Stripe key does not belong to the configured sandbox account")
-    price = stripe.get(f"/v1/prices/{config.price_id}")
-    recurring = price.get("recurring") or {}
-    if (
-        price.get("livemode") is not False
-        or price.get("active") is not True
-        or price.get("unit_amount") != 29_900
-        or str(price.get("currency", "")).lower() != "mxn"
-        or recurring.get("interval") != "month"
-    ):
-        raise DrillError(
-            "Sandbox price must be active, test mode, MXN 299.00, and recurring monthly"
-        )
+    codes = ("standard",) if config.plan_code == "standard" else ("esencial", "gestion")
+    for code in codes:
+        plan = PLANS[code]
+        price_id = config.price_ids[code]
+        price = stripe.get(f"/v1/prices/{price_id}")
+        recurring = price.get("recurring") or {}
+        if (
+            price.get("id") != price_id
+            or price.get("livemode") is not False
+            or price.get("active") is not True
+            or price.get("unit_amount") != plan.amount_minor_units
+            or str(price.get("currency", "")).upper() != "MXN"
+            or recurring.get("interval") != "month"
+            or recurring.get("interval_count") != 1
+            or (plan.tax_inclusive and price.get("tax_behavior") != "inclusive")
+        ):
+            raise DrillError(f"Sandbox price does not match the server catalog for {code}")
+    plan = PLANS[config.plan_code]
     return {
         "account_id": redact_identifier(str(account.get("id") or "")),
-        "price_id": redact_identifier(str(price.get("id") or "")),
+        "price_id": redact_identifier(config.price_id),
+        "plan_code": config.plan_code,
         "livemode": False,
-        "amount_minor_units": 29_900,
+        "amount_minor_units": plan.amount_minor_units,
         "currency": "MXN",
         "interval": "month",
+        "interval_count": 1,
+        "tax_inclusive": plan.tax_inclusive,
     }
 
 
@@ -372,7 +399,7 @@ def _start_stripe_listener(config: DrillConfig) -> tuple[subprocess.Popen[str], 
         raise
 
 
-def _start_backend(config: DrillConfig, webhook_secret: str) -> subprocess.Popen[str]:
+def _backend_environment(config: DrillConfig, webhook_secret: str) -> dict[str, str]:
     child_env = os.environ.copy()
     child_env.update(
         {
@@ -384,7 +411,13 @@ def _start_backend(config: DrillConfig, webhook_secret: str) -> subprocess.Popen
             "SECRET_KEY": secrets.token_urlsafe(48),
             "STRIPE_SECRET_KEY": config.stripe_key,
             "STRIPE_WEBHOOK_SECRET": webhook_secret,
-            "STRIPE_STANDARD_PRICE_ID": config.price_id,
+            "STRIPE_STANDARD_PRICE_ID": config.price_ids["standard"],
+            "STRIPE_ESENCIAL_PRICE_ID": config.price_ids.get("esencial", ""),
+            "STRIPE_GESTION_PRICE_ID": config.price_ids.get("gestion", ""),
+            "BILLING_TIERED_PLANS_ENABLED": str(config.plan_code != "standard").lower(),
+            "BILLING_PORTAL_ENABLED": "false",
+            "STRIPE_STANDARD_PORTAL_CONFIGURATION_ID": "",
+            "STRIPE_TIERED_PORTAL_CONFIGURATION_ID": "",
             "STRIPE_CHECKOUT_SUCCESS_URL": f"{config.app_base_url}/health",
             "STRIPE_CHECKOUT_CANCEL_URL": f"{config.app_base_url}/health",
             "STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION": "false",
@@ -392,6 +425,11 @@ def _start_backend(config: DrillConfig, webhook_secret: str) -> subprocess.Popen
             "INTERNAL_ADMIN_EMAILS": "",
         }
     )
+    return child_env
+
+
+def _start_backend(config: DrillConfig, webhook_secret: str) -> subprocess.Popen[str]:
+    child_env = _backend_environment(config, webhook_secret)
     log_file = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
     process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
@@ -599,6 +637,10 @@ def _snapshot(engine: Any, tenant_id: str) -> SubscriptionSnapshot:
             raise DrillError("Expected local subscription mapping was not found")
         return SubscriptionSnapshot(
             status=subscription.status,
+            plan_code=subscription.plan_code,
+            amount_minor_units=subscription.amount_minor_units,
+            currency=subscription.currency,
+            features=build_plan_snapshot(db, tenant_id=parsed_tenant_id)["features"],
             cancel_at_period_end=subscription.cancel_at_period_end,
             current_period_end=_utc_iso(subscription.current_period_end),
             past_due_at=_utc_iso(subscription.past_due_at),
@@ -669,6 +711,7 @@ def _record_event(
             "step": step,
             "order": order,
             "event_type": event.get("type"),
+            "provider_object_status": (event.get("data", {}).get("object") or {}).get("status"),
             "event_id": redact_identifier(str(event.get("id") or "")),
             "event_created_at": _epoch_iso(event.get("created")),
             "delivered_at": delivered_at,
@@ -691,6 +734,13 @@ def _deliver_and_record(
     event: dict[str, Any],
 ) -> dict[str, Any]:
     response, delivered_at = _deliver_event(config, webhook_secret, event)
+    snapshot = _snapshot(engine, tenant_id)
+    expected_plan = PLANS[config.plan_code]
+    if (snapshot.plan_code != expected_plan.code
+            or snapshot.amount_minor_units != expected_plan.amount_minor_units
+            or snapshot.currency != "MXN"
+            or set(snapshot.features) != set(expected_plan.features)):
+        raise DrillError("Local lifecycle snapshot no longer matches the selected commercial plan")
     _record_event(
         records,
         step=step,
@@ -698,7 +748,7 @@ def _deliver_and_record(
         event=event,
         delivered_at=delivered_at,
         response=response,
-        snapshot=_snapshot(engine, tenant_id),
+        snapshot=snapshot,
     )
     return response
 
@@ -742,6 +792,19 @@ def _wait_for_subscription_status(
             return result
         time.sleep(1)
     raise DrillError(f"Kova did not converge to one of: {', '.join(sorted(expected))}")
+
+
+def _assert_selected_plan(config: DrillConfig, result: dict[str, Any]) -> None:
+    plan = PLANS[config.plan_code]
+    subscription = result.get("subscription") or {}
+    access = result.get("access") or {}
+    if (subscription.get("plan_code") != plan.code
+            or subscription.get("amount_minor_units") != plan.amount_minor_units
+            or subscription.get("currency") != "MXN"
+            or access.get("plan_code") != plan.code
+            or set(access.get("features") or []) != set(plan.features)
+            or access.get("allowed") is not True):
+        raise DrillError("Kova did not grant the paid plan, amount and exact catalog features")
 
 
 def _assert_status(engine: Any, tenant_id: str, expected: str) -> None:
@@ -894,6 +957,7 @@ def _run_lifecycle(
             event=event,
         )
     _assert_status(engine, tenant_id, "active")
+    _assert_selected_plan(config, client.request("GET", "/api/v1/billing/subscription"))
 
     paid_event_types = {"invoice.paid", "invoice.payment_succeeded"}
     known_paid_ids = _matching_event_ids(stripe, subscription_id, paid_event_types)
@@ -1005,6 +1069,20 @@ def _run_lifecycle(
     _assert_event_watermark(engine, tenant_id, family="lifecycle", event=deleted)
 
 
+def _register_checkout_customer(
+    config: DrillConfig, stripe_session: dict[str, Any],
+    cleanup_clocks: list[str], cleanup_customers: list[str],
+) -> None:
+    """Persist every recovered Checkout customer before accepting provider evidence."""
+    _assert_test_object(stripe_session, object_name="Checkout Session")
+    customer_id = stripe_session.get("customer")
+    if not isinstance(customer_id, str) or re.fullmatch(r"cus_[A-Za-z0-9]+", customer_id) is None:
+        raise DrillError("Checkout Session did not identify a valid customer for cleanup")
+    if customer_id not in cleanup_customers:
+        cleanup_customers.append(customer_id)
+    _persist_cleanup(config, cleanup_clocks, cleanup_customers)
+
+
 def _run_checkout(
     stripe: StripeTestClient,
     config: DrillConfig,
@@ -1017,6 +1095,7 @@ def _run_checkout(
     checkout = client.request(
         "POST",
         "/api/v1/billing/checkout",
+        {"plan_code": config.plan_code},
         headers={"Idempotency-Key": f"kov005-{secrets.token_hex(12)}"},
     )
     checkout_url = str(checkout.get("checkout_url") or "")
@@ -1036,15 +1115,19 @@ def _run_checkout(
         state_path.unlink(missing_ok=True)
         try:
             stripe_session = stripe.get(f"/v1/checkout/sessions/{checkout_id}")
-            customer_id = str(stripe_session.get("customer") or "")
-            if customer_id and customer_id not in cleanup_customers:
-                cleanup_customers.append(customer_id)
-                _persist_cleanup(config, cleanup_clocks, cleanup_customers)
+            if stripe_session.get("customer") is not None:
+                _register_checkout_customer(
+                    config, stripe_session, cleanup_clocks, cleanup_customers,
+                )
         except DrillError:
             pass
     status = _wait_for_subscription_status(client, {"active", "trialing"})
     stripe_session = stripe_session or stripe.get(f"/v1/checkout/sessions/{checkout_id}")
-    _assert_test_object(stripe_session, object_name="Checkout Session")
+    _register_checkout_customer(config, stripe_session, cleanup_clocks, cleanup_customers)
+    if (stripe_session.get("status") != "complete"
+            or stripe_session.get("payment_status") != "paid"):
+        raise DrillError("Stripe hosted Checkout did not complete with a paid result")
+    _assert_selected_plan(config, status)
     subscription = status.get("subscription") or {}
     local = _snapshot(engine, tenant_id)
     if local.status not in {"active", "trialing"} or local.lifecycle_watermark_at is None:
@@ -1055,6 +1138,11 @@ def _run_checkout(
         "provider_payment_status": stripe_session.get("payment_status"),
         "livemode": False,
         "local_subscription_status": subscription.get("status"),
+        "kova_plan": {"plan_code": subscription.get("plan_code"),
+                      "amount_minor_units": subscription.get("amount_minor_units"),
+                      "features": status["access"]["features"]},
+        "kova_access": {name: status["access"].get(name)
+                        for name in ("allowed", "reason", "valid_until")},
         "local_snapshot": asdict(local),
         "delivery": "stripe_cli_forward",
     }
@@ -1076,7 +1164,11 @@ def render_evidence(
         f"- GitHub environment: `{EXPECTED_ENVIRONMENT}`",
         "- Stripe mode: `livemode=false`",
         f"- Stripe account: `{preflight['account_id']}`",
-        f"- Stripe price: `{preflight['price_id']}` (`MXN 299.00`, monthly)",
+        f"- Plan under acceptance: `{config.plan_code}`",
+        f"- Stripe price: `{preflight['price_id']}` "
+        f"(`MXN {Decimal(PLANS[config.plan_code].amount_minor_units) / Decimal(100):.2f}`, "
+        "monthly, count 1)",
+        f"- Catalog tax inclusive: `{PLANS[config.plan_code].tax_inclusive}`",
         "- Application/database: isolated GitHub runner, loopback only",
         "",
         "## Hosted Checkout",
@@ -1084,13 +1176,17 @@ def render_evidence(
         f"- Session: `{checkout['checkout_session_id']}`",
         f"- Provider result: `{checkout['provider_status']}/{checkout['provider_payment_status']}`",
         f"- Local result: `{checkout['local_subscription_status']}`",
+        f"- Kova paid plan: `{json.dumps(checkout['kova_plan'], sort_keys=True)}`",
+        f"- Kova access at actual application time: "
+        f"`{json.dumps(checkout['kova_access'], sort_keys=True)}`",
         f"- Delivery: `{checkout['delivery']}`",
         "",
         "## Lifecycle and ordering evidence",
         "",
-        "| Step | # | Event | Event ID | Provider created | Arrived | Result | "
-        "Local status | Lifecycle watermark | Payment watermark |",
-        "|---|---:|---|---|---|---|---|---|---|---|",
+        "| Step | # | Event | Stripe object status | Event ID | Provider created | "
+        "Arrived | Result | "
+        "Kova status / plan / amount / features | Lifecycle watermark | Payment watermark |",
+        "|---|---:|---|---|---|---|---|---|---|---|---|",
     ]
     for item in records:
         snapshot = item["subscription"]
@@ -1104,15 +1200,22 @@ def render_evidence(
         )
         lines.append(
             f"| {item['step']} | {item['order']} | `{item['event_type']}` | "
+            f"`{item.get('provider_object_status', 'not recorded')}` | "
             f"`{item['event_id']}` | {item['event_created_at']} | {item['delivered_at']} | "
-            f"`{item['response']}` | `{snapshot['status']}` | {lifecycle} | {payment} |"
+            f"`{item['response']}` | `{snapshot['status']} / {snapshot['plan_code']} / "
+            f"{snapshot['currency']} {snapshot['amount_minor_units']} minor / "
+            f"{','.join(snapshot['features'])}` | {lifecycle} | {payment} |"
         )
     lines.extend(
         [
             "",
-            "## Acceptance",
+            "## Acceptance and boundaries",
             "",
-            "- Hosted Checkout completed using Stripe's test-mode page.",
+            "- Hosted Checkout completed using Stripe's test-mode page; Kova independently "
+            "confirmed the selected paid plan, amount, exact features and commercial access.",
+            "- Provider Test Clocks advance Stripe only. Kova uses its actual UTC clock; "
+            "recorded event/period dates do not prove that application time elapsed.",
+            "- Portal, upgrades and effective downgrades are NOT accepted by this drill.",
             "- A test-clock renewal remained active and advanced the payment watermark.",
             "- A failed renewal entered `past_due` with `past_due_grace`; payment "
             "recovery returned to `active`.",
