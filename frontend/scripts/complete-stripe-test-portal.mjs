@@ -10,6 +10,7 @@ const confirmNames = /^(?:confirmar|confirm|confirmar cambio|confirm change|actu
 const failureReasons = new Set([
   "control_not_found", "control_not_visible", "control_disabled", "click_timeout",
   "click_failed", "outside_provider", "stage_timeout", "unknown",
+  "field_missing", "billing_country_missing", "billing_postal_missing",
 ]);
 const publicLabels = new Map([
   ["guardar", "save"], ["save", "save"],
@@ -136,7 +137,7 @@ export async function clickControl(page, name, {
   throw new PortalControlError(matched ? "control_not_visible" : "control_not_found");
 }
 
-async function fillCardField(page, selectors, value, required = true) {
+async function fillCardField(page, selectors, value, required = true, missingReason = "field_missing") {
   const deadline = Date.now() + (required ? 30_000 : 2_000);
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
@@ -144,24 +145,68 @@ async function fillCardField(page, selectors, value, required = true) {
         const field = frame.locator(selector).first();
         if (await field.count() && await field.isVisible()) {
           await field.fill(value);
+          return field;
+        }
+      }
+    }
+    await page.waitForTimeout(100);
+  }
+  if (required) throw new PortalControlError(missingReason);
+}
+
+async function chooseTestBillingCountry(page) {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      for (const selector of ["select[name=country]", "select[name=billingCountry]",
+        "select[autocomplete~=country]", "select[autocomplete~=country-name]"]) {
+        const field = frame.locator(selector).first();
+        if (await field.count() && await field.isVisible()) {
+          await field.selectOption("US");
           return;
         }
       }
     }
     await page.waitForTimeout(100);
   }
-  if (required) throw new Error("portal_card_field_not_found");
+  throw new PortalControlError("billing_country_missing");
+}
+
+async function declineLinkOptIn(page) {
+  for (const frame of page.frames()) {
+    const candidates = [frame.locator("input[name=enableStripePass]").first(),
+      frame.getByRole("checkbox", { name: /Link|Stripe Pass/i }).first()];
+    for (const checkbox of candidates) {
+      if (await checkbox.count() && await checkbox.isVisible() && await checkbox.isChecked()) {
+        await checkbox.uncheck();
+      }
+    }
+  }
+}
+
+export async function completeTestPaymentFields(page, setStage = () => {}) {
+  setStage("fill_test_payment_method");
+  await fillCardField(page, ["input[name=cardNumber]", "input[autocomplete=cc-number]"], "4242424242424242");
+  await fillCardField(page, ["input[name=cardExpiry]", "input[autocomplete=cc-exp]"], "1230");
+  const cvc = await fillCardField(page, ["input[name=cardCvc]", "input[autocomplete=cc-csc]"], "123");
+  setStage("commit_test_card");
+  await cvc.press("Tab");
+  // Do not fill optional Link identity fields or opt the synthetic customer into Link.
+  await declineLinkOptIn(page);
+  setStage("select_billing_country");
+  await chooseTestBillingCountry(page);
+  setStage("fill_billing_postal");
+  const postal = await fillCardField(page,
+    ["input[name=postalCode]", "input[autocomplete~='postal-code']"], "10001", true,
+    "billing_postal_missing");
+  setStage("commit_billing_postal");
+  await postal.press("Tab");
 }
 
 async function updatePaymentMethod(page, setStage) {
   setStage("open_payment_method");
   await clickControl(page, /^(?:agregar método de pago|añadir método de pago|actualizar método de pago|add payment method|update payment method|edit payment method)$/i);
-  setStage("fill_test_payment_method");
-  await fillCardField(page, ["input[name=cardNumber]", "input[autocomplete=cc-number]"], "4242424242424242");
-  await fillCardField(page, ["input[name=cardExpiry]", "input[autocomplete=cc-exp]"], "1230");
-  await fillCardField(page, ["input[name=cardCvc]", "input[autocomplete=cc-csc]"], "123");
-  await fillCardField(page, ["input[name=billingName]", "input[autocomplete=cc-name]"], "Kova Sandbox", false);
-  await fillCardField(page, ["input[name=postalCode]", "input[autocomplete=postal-code]"], "10001", false);
+  await completeTestPaymentFields(page, setStage);
   const makeDefault = page.getByRole("checkbox", { name: /predeterminado|default/i }).first();
   if (await makeDefault.count() && await makeDefault.isVisible() && !await makeDefault.isChecked()) {
     await makeDefault.check();

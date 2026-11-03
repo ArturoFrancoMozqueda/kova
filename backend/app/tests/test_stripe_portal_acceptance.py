@@ -660,7 +660,16 @@ def test_portal_opaque_path_does_not_expand_the_trusted_origin(tmp_path, monkeyp
 
 
 @pytest.mark.parametrize(
-    "reason", ["control_not_found", "control_disabled", "click_timeout", "unsafe_reason"]
+    "reason",
+    [
+        "control_not_found",
+        "control_disabled",
+        "click_timeout",
+        "unsafe_reason",
+        "field_missing",
+        "billing_country_missing",
+        "billing_postal_missing",
+    ],
 )
 def test_helper_failure_diagnostic_forwards_only_safe_enums(tmp_path, monkeypatch, reason):
     config = drill.validate_environment(_basic_environment(tmp_path))

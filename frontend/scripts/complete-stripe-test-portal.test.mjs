@@ -150,3 +150,66 @@ test("diagnostics expose only fixed public label enums, never arbitrary button/c
   ] });
   assert.doesNotMatch(JSON.stringify(diagnostic), /private|bearer|stripe|raw secret|example/);
 });
+
+test("local PaymentElement iframe commits CVC and required US postal by blur without opting into Link", {
+  skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+}, async () => {
+  const { chromium } = await import("playwright");
+  const { completeTestPaymentFields } = await import("./complete-stripe-test-portal.mjs");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let externalRequest = false;
+    await page.route("**/*", async route => { externalRequest = true; await route.abort(); });
+    const form = `<!doctype html><html><body><form>
+      <input name="number" autocomplete="cc-number" required>
+      <input name="expiry" autocomplete="cc-exp" required>
+      <input name="cvc" autocomplete="cc-csc" required>
+      <select name="country" autocomplete="billing country" required>
+        <option value="" selected>Choose country</option><option value="MX">Mexico</option><option value="US">United States</option>
+      </select>
+      <label id="postal-wrap" hidden>Postal<input name="postalCode" autocomplete="billing postal-code" required disabled></label>
+      <label>Save information with Link<input name="enableStripePass" type="checkbox" checked></label>
+      <input name="billingName" autocomplete="billing name" aria-label="Optional Link full name">
+      <button type="button" id="add" disabled>Add</button>
+      <script>
+        const country = document.querySelector('[name=country]');
+        const zip = document.querySelector('[name=postalCode]');
+        const cvc = document.querySelector('[name=cvc]');
+        const link = document.querySelector('[name=enableStripePass]');
+        let cardCommitted = false, postalCommitted = false;
+        function update() {
+          document.querySelector('#add').disabled = !(cardCommitted && country.value === 'US'
+            && postalCommitted && !link.checked);
+        }
+        cvc.addEventListener('blur', () => {
+          cardCommitted = document.querySelector('[name=number]').value.length === 16
+            && document.querySelector('[name=expiry]').value.length > 0 && cvc.value.length === 3;
+          update();
+        });
+        country.addEventListener('change', () => {
+          document.querySelector('#postal-wrap').hidden = country.value !== 'US';
+          document.querySelector('#add').dataset.cardCommittedBeforeCountry = String(cardCommitted);
+          zip.disabled = country.value !== 'US'; postalCommitted = false; update();
+        });
+        zip.addEventListener('input', () => { postalCommitted = false; update(); });
+        zip.addEventListener('blur', () => { postalCommitted = /^\\d{5}$/.test(zip.value); update(); });
+        link.addEventListener('change', update);
+      </script></form></body></html>`;
+    await page.setContent(`<iframe id="payment"></iframe>`);
+    await page.locator("iframe").evaluate((iframe, html) => { iframe.srcdoc = html; }, form);
+    const frame = page.frameLocator("#payment");
+    await frame.locator("[name=country]").waitFor();
+    assert.equal(await frame.locator("#add").isEnabled(), false);
+    await completeTestPaymentFields(page);
+    assert.equal(await frame.locator("[name=country]").inputValue(), "US");
+    assert.equal(await frame.locator("#add").getAttribute("data-card-committed-before-country"), "true");
+    assert.equal(await frame.locator("[name=postalCode]").isVisible(), true);
+    assert.equal(await frame.locator("[name=enableStripePass]").isChecked(), false);
+    assert.equal(await frame.locator("[name=billingName]").inputValue(), "");
+    assert.equal(await frame.locator("#add").isEnabled(), true);
+    assert.equal(externalRequest, false);
+  } finally {
+    await browser.close();
+  }
+});

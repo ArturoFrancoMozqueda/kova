@@ -217,3 +217,14 @@ El resumen sólo incluye etiquetas públicas conocidas convertidas a enums y su 
 Cualquier texto de botón no reconocido se convierte en `other`; no se registran URLs, errores
 crudos, valores de campos, datos de tarjeta ni contenido del cliente. Estas observaciones indican
 el estado del control al fallar, no confirman por sí solas una causa de validación o de transición.
+
+
+El fixture de pago usa US y el código postal de QA 10001 explícitamente. El helper pulsa Tab tras
+CVC y tras el postal requerido, para que PaymentElement confirme los campos al perder foco. No
+rellena el nombre opcional de Link y desmarca únicamente opt-ins identificados como Link. Ausencia
+de controles de país/postal se reporta con enums `billing_country_missing`/`billing_postal_missing`,
+sin valores ni etiquetas de campos. La regresión local usa un iframe sin red cuyo botón permanece
+deshabilitado hasta completar país, postal y blur; corre obligatoriamente en el paso sandbox con
+`KOV005_PORTAL_LOCAL_BROWSER_TEST=true` después de instalar Chromium. El CI normal conserva los
+puros y puede omitir sólo ese fixture de navegador. Esta elección determinista de país no prueba
+que el país fuese la causa del fallo del proveedor; la aceptación real sigue siendo independiente.
