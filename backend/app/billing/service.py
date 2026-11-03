@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
-from app.billing import repository
+from app.billing import repository, risk
 from app.billing.access import (
     BILLING_MAX_GRACE_DAYS,
     get_billing_access_status,
@@ -1745,10 +1745,27 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
         db,
         stripe_event_id=stripe_event_id,
         event_type=event_type,
-        payload=event_payload,
+        payload=(risk.project_event(event_payload)
+                 if event_type in risk.RISK_EVENTS else event_payload),
     )
-    if event.processing_status in {"processed", "ignored"}:
+    if event.processing_status in {"processed", "ignored"} and not (
+        event_type in risk.RISK_EVENTS and event.processing_status == "ignored"
+        and risk.safe_review(event.payload) is None
+    ):
         return {"status": event.processing_status}
+
+    if event_type in risk.RISK_EVENTS:
+        # Redelivered historical ignored rows may still contain the old raw payload.
+        event.payload = risk.project_event(event_payload)
+        # Evidence/triage never touches lifecycle or payment watermarks.
+        try:
+            result = risk.process(db, event, event_payload)
+            db.commit()
+            return result
+        except Exception:
+            _mark_event(event, status="failed", error_reason="Risk event processing failed")
+            db.commit()
+            raise
 
     stripe_object = event_payload.get("data", {}).get("object", {})
     tenant_id = _tenant_id_from_event_object(stripe_object)

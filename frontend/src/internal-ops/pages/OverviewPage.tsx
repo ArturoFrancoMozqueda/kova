@@ -14,6 +14,7 @@ import type { OpsStatus } from "../types";
 const SOURCE_LABELS: Record<string, string> = {
   db: "Base de datos",
   stripe_webhooks: "Webhooks Stripe",
+  stripe_risks: "Riesgos de Stripe",
   sentry: "Sentry",
   fly: "Fly",
   vercel: "Vercel",
@@ -71,7 +72,7 @@ export default function OverviewPage() {
         <h2 className="mb-2 text-sm font-medium text-kova-muted">Estado general</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Object.entries(health.sources).map(([key, source]) => (
-            <Link key={key} to="/internal/ops/technical">
+            <Link key={key} to={key === "stripe_risks" ? "/internal/ops/incidents" : "/internal/ops/technical"}>
               <Card className="hover:bg-muted/30">
                 <CardContent className="flex items-center justify-between p-4">
                   <span className="text-sm text-kova-ink">{SOURCE_LABELS[key] ?? key}</span>

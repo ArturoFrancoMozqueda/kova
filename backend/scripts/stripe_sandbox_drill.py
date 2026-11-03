@@ -44,7 +44,12 @@ sys.path.insert(0, str(BACKEND_ROOT))
 from app.audit.models import AuditLog  # noqa: E402
 from app.billing.models import Subscription, WebhookEvent  # noqa: E402
 from app.billing.plans import PLANS, build_plan_snapshot  # noqa: E402
+from app.billing.risk import RISK_EVENTS  # noqa: E402
+from app.billing.stripe_client import StripeRiskClient  # noqa: E402
 from app.config import sqlalchemy_database_url  # noqa: E402
+from app.ops import incidents as ops_incidents  # noqa: E402
+from app.ops import repository as ops_repository  # noqa: E402
+from app.orders.models import Payment, Refund  # noqa: E402
 
 ACKNOWLEDGEMENT = "KOV-005-STRIPE-SANDBOX-ONLY"
 EXPECTED_ENVIRONMENT = "stripe-sandbox"
@@ -78,6 +83,7 @@ class DrillConfig:
     release_sha: str
     plan_code: str
     price_ids: dict[str, str]
+    include_risk: bool = False
     include_portal: bool = False
     portal_mode: str = "basic"
     portal_configuration_id: str | None = None
@@ -138,6 +144,10 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
     plan_code = environ.get("KOV005_PLAN_CODE", "standard")
     if plan_code not in PLANS:
         raise DrillError("KOV005_PLAN_CODE must be standard, esencial or gestion")
+    risk_value = environ.get("KOV005_INCLUDE_RISK", "false")
+    if risk_value not in {"false", "true"}:
+        raise DrillError("KOV005_INCLUDE_RISK must be false or true")
+    include_risk = risk_value == "true"
     include_portal_value = environ.get("KOV005_INCLUDE_PORTAL", "false")
     if include_portal_value not in {"false", "true"}:
         raise DrillError("KOV005_INCLUDE_PORTAL must be false or true")
@@ -209,6 +219,7 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
         price_id=price_ids[plan_code],
         plan_code=plan_code,
         price_ids=price_ids,
+        include_risk=include_risk,
         include_portal=include_portal,
         portal_mode=portal_mode,
         portal_configuration_id=portal_id,
@@ -230,8 +241,9 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
 
 
 class StripeTestClient:
-    def __init__(self, key: str) -> None:
+    def __init__(self, key: str, *, api_version: str | None = None) -> None:
         self._key = key
+        self._api_version = api_version
 
     def request(
         self,
@@ -251,18 +263,24 @@ class StripeTestClient:
             headers={
                 "Authorization": f"Bearer {self._key}",
                 "Content-Type": "application/x-www-form-urlencoded",
+                **({"Stripe-Version": self._api_version} if self._api_version else {}),
             },
         )
+        diagnostic_path = path if self._api_version is None else "sandbox risk resource"
         try:
             with urlopen(request, timeout=20) as response:
                 payload = json.loads(response.read())
         except HTTPError as exc:
             exc.read()
-            raise DrillError(f"Stripe API request failed with HTTP {exc.code} at {path}") from exc
+            raise DrillError(
+                f"Stripe API request failed with HTTP {exc.code} at {diagnostic_path}"
+            ) from None
         except (URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise DrillError(f"Stripe API request failed at {path}: {type(exc).__name__}") from exc
+            raise DrillError(
+                f"Stripe API request failed at {diagnostic_path}: {type(exc).__name__}"
+            ) from None
         if not isinstance(payload, dict):
-            raise DrillError(f"Stripe API returned an invalid object at {path}")
+            raise DrillError(f"Stripe API returned an invalid object at {diagnostic_path}")
         return payload
 
     def get(self, path: str, query: list[tuple[str, str]] | None = None) -> dict[str, Any]:
@@ -407,7 +425,7 @@ def _start_stripe_listener(config: DrillConfig) -> tuple[subprocess.Popen[str], 
             "--forward-to",
             f"{config.app_base_url}/api/v1/billing/webhooks/stripe",
             "--events",
-            ",".join(sorted(EVENT_TYPES)),
+            ",".join(sorted(EVENT_TYPES | (RISK_EVENTS if config.include_risk else set()))),
         ],
         cwd=REPOSITORY_ROOT,
         env=child_env,
@@ -1192,6 +1210,7 @@ def render_evidence(
     records: list[dict[str, Any]],
     cleanup: dict[str, Any],
     portal_records: list[dict[str, Any]] | None = None,
+    risk_records: list[dict[str, Any]] | None = None,
 ) -> str:
     lines = [
         "# KOV-005 — Stripe test-mode temporal convergence drill",
@@ -1269,7 +1288,7 @@ def render_evidence(
             "## Cleanup",
             "",
             f"- Test clocks deleted: `{cleanup['clocks_deleted']}`",
-            f"- Standalone Checkout customers deleted: `{cleanup['customers_deleted']}`",
+            f"- Standalone QA customers deleted: `{cleanup['customers_deleted']}`",
             "- Local listener and backend stopped; the GitHub PostgreSQL service is ephemeral.",
             "",
             "All Stripe identifiers are redacted to prefix plus final six characters. "
@@ -1288,6 +1307,8 @@ def render_evidence(
         for record in portal_records:
             lines.append("- `" + json.dumps(record, sort_keys=True) + "`")
         lines.append("")
+    if config.include_risk:
+        lines.extend(_render_risk_evidence(risk_records or []))
     output = "\n".join(lines)
     if SECRET_RE.search(output):
         raise DrillError("Evidence renderer detected a credential-shaped value")
@@ -1743,6 +1764,306 @@ def _run_portal_acceptance(
     raise DrillError("Portal downgrade did not produce a verified future schedule")
 
 
+def _risk_id(value: Any, prefix: str) -> str:
+    if isinstance(value, dict):
+        value = value.get("id")
+    if not isinstance(value, str) or re.fullmatch(prefix + r"_[A-Za-z0-9_]+", value) is None:
+        raise DrillError("Risk fixture returned an invalid provider relationship")
+    return value
+
+
+def _risk_pages(stripe: StripeTestClient, path: str, query: list[tuple[str, str]]) -> list[dict]:
+    rows: list[dict] = []
+    cursor = None
+    for _ in range(5):
+        page = stripe.get(path, query=query + ([("starting_after", cursor)] if cursor else []))
+        data = page.get("data")
+        if not isinstance(data, list) or type(page.get("has_more")) is not bool:
+            raise DrillError("Risk preflight received an invalid paginated list")
+        if any(not isinstance(row, dict) for row in data):
+            raise DrillError("Risk preflight received an invalid list item")
+        rows.extend(data)
+        if not page["has_more"]:
+            return rows
+        next_cursor = data[-1].get("id") if data else None
+        if not isinstance(next_cursor, str) or next_cursor == cursor:
+            raise DrillError("Risk preflight could not safely paginate")
+        cursor = next_cursor
+    raise DrillError("Risk preflight exceeded its pagination limit")
+
+
+def _owned_risk_charge(stripe: StripeTestClient, context: dict, expected: dict) -> dict:
+    """Prove Checkout/Customer/PI/Invoice/Subscription ownership before a refund."""
+    checkout = context["stripe_session"]
+    _assert_test_object(checkout, object_name="risk Checkout")
+    customer = _risk_id(checkout.get("customer"), "cus")
+    sub_id = _risk_id(checkout.get("subscription"), "sub")
+    if (checkout.get("status") != "complete" or checkout.get("payment_status") != "paid"
+            or expected["stripe_customer_id"] != customer
+            or expected["stripe_subscription_id"] != sub_id):
+        raise DrillError("Risk refund requires the owned paid Checkout subscription")
+    subscription = stripe.get(f"/v1/subscriptions/{sub_id}")
+    _assert_test_object(subscription, object_name="risk subscription")
+    if subscription.get("id") != sub_id or subscription.get("customer") != customer:
+        raise DrillError("Risk subscription ownership mismatch")
+    invoice_id = _risk_id(checkout.get("invoice"), "in")
+    invoice = stripe.get(f"/v1/invoices/{invoice_id}")
+    _assert_test_object(invoice, object_name="risk invoice")
+    parent = invoice.get("parent") or {}
+    if (invoice.get("id") != invoice_id or invoice.get("customer") != customer
+            or invoice.get("status") != "paid" or parent.get("type") != "subscription_details"
+            or (parent.get("subscription_details") or {}).get("subscription") != sub_id):
+        raise DrillError("Risk invoice does not prove Checkout subscription ownership")
+    payments = _risk_pages(stripe, "/v1/invoice_payments", [
+        ("invoice", invoice_id), ("status", "paid"), ("limit", "100"),
+    ])
+    intents = set()
+    for payment in payments:
+        _assert_test_object(payment, object_name="risk invoice payment")
+        details = payment.get("payment") or {}
+        if (payment.get("invoice") != invoice_id or payment.get("status") != "paid"
+                or details.get("type") != "payment_intent"):
+            raise DrillError("Risk invoice has an unsupported payment relationship")
+        intents.add(_risk_id(details.get("payment_intent"), "pi"))
+    if len(intents) != 1:
+        raise DrillError("Risk refund requires one proven Checkout PaymentIntent")
+    intent_id = intents.pop()
+    intent = stripe.get(f"/v1/payment_intents/{intent_id}")
+    _assert_test_object(intent, object_name="risk PaymentIntent")
+    if (intent.get("id") != intent_id or intent.get("customer") != customer
+            or intent.get("status") != "succeeded"):
+        raise DrillError("Risk PaymentIntent ownership mismatch")
+    charge_id = _risk_id(intent.get("latest_charge"), "ch")
+    charge = stripe.get(f"/v1/charges/{charge_id}")
+    _assert_test_object(charge, object_name="risk Charge")
+    if (charge.get("id") != charge_id or charge.get("customer") != customer
+            or charge.get("payment_intent") != intent_id or charge.get("paid") is not True
+            or charge.get("currency") != "mxn" or type(charge.get("amount")) is not int
+            or charge["amount"] <= 1 or charge.get("amount_refunded") != 0):
+        raise DrillError("Risk Charge is not an owned unrefunded sandbox payment")
+    related = _risk_pages(stripe, "/v1/invoice_payments", [
+        ("payment[type]", "payment_intent"), ("payment[payment_intent]", intent_id),
+        ("status", "paid"), ("limit", "100"),
+    ])
+    if not related or any(
+        item.get("livemode") is not False or item.get("invoice") != invoice_id
+        or item.get("status") != "paid"
+        or (item.get("payment") or {}).get("type") != "payment_intent"
+        or (item.get("payment") or {}).get("payment_intent") != intent_id for item in related
+    ):
+        raise DrillError("Risk Charge is not exclusively linked to the owned Checkout invoice")
+    return charge
+
+
+def _risk_local_state(engine: Any, context: dict) -> dict:
+    with Session(engine) as db:
+        subscription = db.scalar(select(Subscription).where(
+            Subscription.tenant_id == UUID(context["tenant_id"]),
+        ))
+        if subscription is None:
+            raise DrillError("Risk acceptance requires a local paid subscription")
+        values = {column.key: getattr(subscription, column.key)
+                  for column in Subscription.__table__.columns}
+        payments = tuple(tuple(getattr(row, column.key) for column in Payment.__table__.columns)
+                         for row in db.scalars(select(Payment).where(
+                             Payment.tenant_id == subscription.tenant_id,
+                         ).order_by(Payment.id)))
+        refunds = tuple(tuple(getattr(row, column.key) for column in Refund.__table__.columns)
+                        for row in db.scalars(select(Refund).where(
+                            Refund.tenant_id == subscription.tenant_id,
+                        ).order_by(Refund.id)))
+    access = context["client"].request("GET", "/api/v1/billing/subscription")["access"]
+    if values["status"] != "active" or not access.get("allowed"):
+        raise DrillError("Risk acceptance requires current commercial access")
+    return {"subscription": values, "payments": payments, "refunds": refunds, "access": access}
+
+
+def _wait_risk_event(stripe: StripeTestClient, event_type: str, charge_id: str, since: int) -> dict:
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        events = _risk_pages(stripe, "/v1/events", [
+            ("type", event_type), ("created[gte]", str(since)), ("limit", "100"),
+        ])
+        for event in events:
+            obj = event.get("data", {}).get("object", {})
+            related = obj.get("id") if event_type == "charge.refunded" else obj.get("charge")
+            if event.get("type") == event_type and related == charge_id:
+                _assert_test_object(event, object_name="risk event")
+                return event
+        time.sleep(1)
+    raise DrillError(f"Stripe did not emit the expected sandbox risk event: {event_type}")
+
+
+def _risk_delivery_state(engine: Any, event: dict, tenant_id: str | None, mapping: str) -> dict:
+    with Session(engine) as db:
+        row = db.scalar(select(WebhookEvent).where(WebhookEvent.stripe_event_id == event["id"]))
+        if row is None or row.processing_status == "received":
+            return {}
+        review = (row.payload or {}).get("risk_review") or {}
+        audit = db.scalars(select(AuditLog).where(
+            AuditLog.resource_id == row.id, AuditLog.action == "billing.risk_review_required",
+        )).all()
+        projected_id = (row.payload or {}).get("data", {}).get("object", {}).get("id")
+        provider_id = event.get("data", {}).get("object", {}).get("id")
+        if (row.processing_status != "processed" or row.process_attempts != 1 or len(audit) != 1
+                or row.event_type != event["type"] or not provider_id or projected_id != provider_id
+                or row.tenant_id != (UUID(tenant_id) if tenant_id else None)
+                or review.get("mapping") != mapping):
+            raise DrillError("Risk webhook did not prove processing, ownership and one audit")
+        return {"process_attempts": row.process_attempts, "audit_entries": len(audit)}
+
+
+def _risk_ops_triage(engine: Any, event_id: str, actor_id: UUID) -> None:
+    # Deliberately repository/service evidence in isolated QA, not an Ops MFA UI bypass.
+    with Session(engine) as db:
+        row = ops_repository.get_webhook_by_event_id(db, event_id)
+        if row is None or row not in ops_repository.risk_webhooks(db):
+            raise DrillError("Processed risk was not visible to Ops queries")
+        incident = ops_incidents._webhook_incident(row, now=datetime.now(UTC))
+        if incident.severity != "critical":
+            raise DrillError("Ops did not classify the risk as critical")
+        pending = ops_repository.unresolved_risk_count(db)
+        ops_repository.upsert_incident_state(db, source="stripe_webhook", external_id=event_id,
+                                             triage_status="acknowledged", snoozed_until=None,
+                                             updated_by_user_id=actor_id)
+        db.commit()
+    with Session(engine) as db:
+        state = ops_repository.get_incident_state(db, source="stripe_webhook", external_id=event_id)
+        if state is None or state.triage_status != "acknowledged" or (
+            ops_repository.unresolved_risk_count(db) != pending
+        ):
+            raise DrillError("Risk acknowledgement did not persist without resolving health")
+        ops_repository.upsert_incident_state(db, source="stripe_webhook", external_id=event_id,
+                                             triage_status="resolved", snoozed_until=None,
+                                             updated_by_user_id=actor_id)
+        db.commit()
+    with Session(engine) as db:
+        state = ops_repository.get_incident_state(db, source="stripe_webhook", external_id=event_id)
+        if state is None or state.triage_status != "resolved" or (
+            ops_repository.unresolved_risk_count(db) != pending - 1
+        ):
+            raise DrillError("Risk resolution did not persist or clear its pending health")
+
+
+def _accept_risk_event(
+    stripe: StripeTestClient, config: DrillConfig, engine: Any, context: dict,
+    webhook_secret: str, event_type: str, charge_id: str, since: int,
+    baseline: dict, *, mapping: str,
+) -> dict:
+    event = _wait_risk_event(stripe, event_type, charge_id, since)
+    tenant_id = context["tenant_id"] if mapping == "matched" else None
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        delivery = _risk_delivery_state(engine, event, tenant_id, mapping)
+        if delivery:
+            break
+        time.sleep(1)
+    else:
+        raise DrillError("Signed Stripe listener did not process the expected risk event")
+    if _risk_local_state(engine, context) != baseline:
+        raise DrillError("Risk event changed Kova subscription, payments, access or watermarks")
+    result, _ = _deliver_event(config, webhook_secret, event)
+    if result.get("status") != "processed" or (
+        _risk_delivery_state(engine, event, tenant_id, mapping) != delivery
+    ):
+        raise DrillError("Risk duplicate was not idempotent")
+    session = context["client"].request("GET", "/api/v1/auth/session")
+    _risk_ops_triage(engine, event["id"], UUID(session["user"]["id"]))
+    if _risk_local_state(engine, context) != baseline:
+        raise DrillError("Risk duplicate or Ops triage changed Kova commercial state")
+    return {"event_type": event_type, "mapping": mapping, "livemode": False,
+            **delivery, "duplicate_idempotent": True, "commercial_state_unchanged": True,
+            "ops_visible": True, "triage_persisted": True, "listener_received": True}
+
+
+def _run_risk_acceptance(
+    stripe: StripeTestClient, config: DrillConfig, engine: Any, context: dict,
+    webhook_secret: str, clocks: list[str], customers: list[str],
+) -> list[dict]:
+    if not config.include_risk:
+        return []
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        ready = _snapshot(engine, context["tenant_id"])
+        if ready.status == "active" and ready.payment_watermark_at and ready.lifecycle_watermark_at:
+            break
+        time.sleep(1)
+    else:
+        raise DrillError("Risk fixture requires settled Checkout lifecycle and payment watermarks")
+    baseline = _risk_local_state(engine, context)
+    tag = "risk-" + config.release_sha[:12] + "-" + secrets.token_hex(8)
+    charge = _owned_risk_charge(stripe, context, baseline["subscription"])
+    since = int(time.time()) - 2
+    refund = stripe.post("/v1/refunds", {"charge": charge["id"], "amount": 1,
+                                          "metadata[kov005_risk]": tag})
+    if (refund.get("charge") != charge["id"] or refund.get("amount") != 1
+            or refund.get("status") != "succeeded"):
+        raise DrillError("Sandbox partial refund did not succeed for exactly one minor unit")
+    records = [_accept_risk_event(
+        stripe, config, engine, context, webhook_secret, "charge.refunded", charge["id"], since,
+        baseline, mapping="matched",
+    )]
+    # Official reusable test PaymentMethods; no PAN, Radar changes or subscription default mutation.
+    for event_type, method in (
+        ("charge.dispute.created", "pm_card_createDispute"),
+        ("radar.early_fraud_warning.created", "pm_card_createIssuerFraudRecord"),
+    ):
+        customer = stripe.post("/v1/customers", {
+            "metadata[kov005_risk]": tag, "metadata[kov005_case]": event_type,
+        })
+        _assert_test_object(customer, object_name="risk fixture customer")
+        customer_id = _risk_id(customer.get("id"), "cus")
+        customers.append(customer_id)
+        _persist_cleanup(config, clocks, customers)  # Before charging; outer finally owns cleanup.
+        since = int(time.time()) - 2
+        intent = stripe.post("/v1/payment_intents", {
+            "amount": 100, "currency": "usd", "customer": customer_id,
+            "payment_method": method, "confirm": "true",
+            "automatic_payment_methods[enabled]": "true",
+            "automatic_payment_methods[allow_redirects]": "never",
+            "metadata[kov005_risk]": tag, "metadata[kov005_case]": event_type,
+        })
+        _assert_test_object(intent, object_name="risk fixture PaymentIntent")
+        if intent.get("customer") != customer_id or intent.get("status") != "succeeded":
+            raise DrillError("Official sandbox risk PaymentMethod did not produce a paid fixture")
+        charge_id = _risk_id(intent.get("latest_charge"), "ch")
+        records.append(_accept_risk_event(
+            stripe, config, engine, context, webhook_secret, event_type, charge_id, since,
+            baseline, mapping="no_subscription",
+        ))
+    return records
+
+
+def _render_risk_evidence(records: list[dict]) -> list[str]:
+    if len(records) != 3 or {item.get("event_type") for item in records} != RISK_EVENTS:
+        raise DrillError("Risk opt-in requires all three provider risk acceptance records")
+    keys = ("event_type", "mapping", "livemode", "process_attempts", "audit_entries",
+            "duplicate_idempotent", "commercial_state_unchanged", "ops_visible", "triage_persisted",
+            "listener_received")
+    lines = ["## Risk acceptance (sandbox only)", "",
+             "Partial Checkout refund: 1 MXN minor unit, matched to its subscription. "
+             "Dispute and early-warning fixtures: separate QA customers without invoices; "
+             "global no_subscription review, never an invented tenant.",
+             "Ops evidence uses isolated service/repository queries and persisted acknowledgement/"
+             "resolution, not the authenticated founder MFA UI. "
+             "No production risk decision is made.",
+             "Signed listener received every first delivery; a signed duplicate kept one audit and "
+             "one processing attempt. Full local Subscription/payment/access snapshots "
+             "were unchanged.",
+             "Disposable customers are deleted; successful test PaymentIntents/Charges and their "
+             "risk history remain provider records "
+             "(Stripe does not offer deletion of paid charges).",
+             ""]
+    for record in records:
+        expected = "matched" if record["event_type"] == "charge.refunded" else "no_subscription"
+        if (record.get("mapping") != expected or record.get("livemode") is not False
+                or record.get("process_attempts") != 1 or record.get("audit_entries") != 1
+                or any(record.get(key) is not True for key in keys[5:])):
+            raise DrillError("Risk acceptance record is incomplete or not sandbox-safe")
+        lines.append("- `" + json.dumps({key: record[key] for key in keys}, sort_keys=True) + "`")
+    return lines + [""]
+
+
 def run(config: DrillConfig) -> None:
     stripe = StripeTestClient(config.stripe_key)
     preflight = validate_stripe_preflight(stripe, config)
@@ -1753,6 +2074,7 @@ def run(config: DrillConfig) -> None:
     records: list[dict[str, Any]] = []
     checkout: dict[str, Any] | None = None
     portal_records: list[dict[str, Any]] = []
+    risk_records: list[dict[str, Any]] = []
     cleanup = {"clocks_deleted": 0, "customers_deleted": 0}
     _persist_cleanup(config, cleanup_clocks, cleanup_customers)
     try:
@@ -1766,6 +2088,11 @@ def run(config: DrillConfig) -> None:
             stripe, config, engine, cleanup_clocks, cleanup_customers,
             context=portal_context,
         )
+        if config.include_risk:
+            risk_records = _run_risk_acceptance(
+                StripeTestClient(config.stripe_key, api_version=StripeRiskClient.API_VERSION),
+                config, engine, portal_context, webhook_secret, cleanup_clocks, cleanup_customers,
+            )
         if config.include_portal:
             portal_records = _run_portal_acceptance(
                 stripe, config, engine, portal_context, cleanup_clocks, cleanup_customers,
@@ -1827,6 +2154,7 @@ def run(config: DrillConfig) -> None:
         records=records,
         cleanup=cleanup,
         portal_records=portal_records,
+        risk_records=risk_records,
     )
     config.evidence_path.parent.mkdir(parents=True, exist_ok=True)
     config.evidence_path.write_text(evidence, encoding="utf-8")
