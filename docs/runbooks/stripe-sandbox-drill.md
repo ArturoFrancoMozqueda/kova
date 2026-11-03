@@ -137,6 +137,13 @@ test-mode provenance. The provider session path is opaque; do not infer an ID, m
 evidence. The helper receives no provider keys or database configuration. An always-run workflow
 step also removes transient state files after cancellation.
 
+After a hosted UI failure only, `KOV005_PORTAL_FIELD_STATE` reports at most 64 visible form fields
+across at most 12 frames. It contains fixed field-kind enums and booleans for filled/required/native
+validity/ARIA invalid/checked, preserving distinct fields of the same kind. Hidden inputs, transparent
+controls and hidden frames are excluded. Names, values, lengths, URLs, IDs, raw errors and HTML never
+enter this diagnostic. The runner rejects any additional keys, invalid types or oversized/ambiguous
+payload before forwarding it. Native HTML validity alone does not prove Stripe accepted a method.
+
 The first Basic Standard attempt on `31b0693f5a74`
 ([41696841814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41696841814)) stopped before
 the hosted UI because the runner required a non-contractual `/p/session/` prefix. The independent

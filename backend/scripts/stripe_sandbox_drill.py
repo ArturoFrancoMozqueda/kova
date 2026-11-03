@@ -1458,6 +1458,35 @@ def _portal_paid_invoice(
     raise DrillError("Portal paid invoice lacks a positive current-price line covering the period")
 
 
+def _parse_portal_field_state(stderr: str) -> list[dict[str, Any]] | None:
+    """Accept only one bounded, closed diagnostic; never forward browser payloads."""
+    matches = re.findall(r"^KOV005_PORTAL_FIELD_STATE=([^\r\n]*)$", stderr, re.MULTILINE)
+    if len(matches) != 1 or len(matches[0]) > 16_384:
+        return None
+
+    def closed_object(pairs):
+        result = dict(pairs)
+        if len(result) != len(pairs):
+            raise ValueError("duplicate diagnostic keys")
+        return result
+
+    try:
+        fields = json.loads(matches[0], object_pairs_hook=closed_object)
+    except (ValueError, RecursionError):
+        return None
+    kinds = {"card_number", "card_expiry", "card_cvc", "billing_name", "billing_country",
+             "billing_postal", "link_email", "link_phone", "link_name", "link_opt_in", "other"}
+    flags = {"filled", "required", "html_valid", "aria_invalid", "checked"}
+    if type(fields) is not list or len(fields) > 64:
+        return None
+    for field in fields:
+        if (type(field) is not dict or set(field) != flags | {"kind"}
+                or type(field["kind"]) is not str or field["kind"] not in kinds
+                or any(type(field[key]) is not bool for key in flags)):
+            return None
+    return fields
+
+
 def _submit_portal_action(
     config: DrillConfig, context: dict[str, Any], action: str,
 ) -> None:
@@ -1513,8 +1542,11 @@ def _submit_portal_action(
                 if label in labels and enabled in {"enabled", "disabled"}:
                     controls.append(label + ":" + enabled)
             summary = ",".join(controls) or "none"
+            fields = _parse_portal_field_state(result.stderr)
+            field_summary = (json.dumps(fields, separators=(",", ":"), sort_keys=True)
+                             if fields is not None else "unavailable")
             raise DrillError(f"Stripe Portal UI failed at {stage} "
-                             f"(reason={reason}; controls={summary})")
+                             f"(reason={reason}; controls={summary}; field_state={field_summary})")
         try:
             outcome = json.loads(result.stdout)
         except json.JSONDecodeError as exc:

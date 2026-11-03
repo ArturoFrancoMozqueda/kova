@@ -60,6 +60,88 @@ export async function portalFailureDiagnostics(error, page) {
   return { reason, controls };
 }
 
+// This function runs inside a visible frame. Raw DOM attributes/values never leave it.
+export function visiblePortalFieldState(elements) {
+  const states = [];
+  for (const element of elements.slice(0, 128)) {
+    if (states.length >= 64) break;
+    if (element.type === "hidden") continue;
+    const style = element.ownerDocument.defaultView.getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    if (!element.getClientRects().length || rect.width <= 0 || rect.height <= 0
+        || style.display === "none" || style.visibility !== "visible" || style.opacity === "0") continue;
+    if (typeof element.checkVisibility === "function"
+        && !element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+    const name = (element.getAttribute("name") || "").toLowerCase();
+    const autocomplete = (element.getAttribute("autocomplete") || "").toLowerCase().split(/\s+/);
+    let kind = "other";
+    // Explicit Link names take precedence over ambiguous billing autocomplete tokens.
+    if (name === "search-linkemail") kind = "link_email";
+    else if (name === "linkmobilephone") kind = "link_phone";
+    else if (name === "linklegalname") kind = "link_name";
+    else if (name === "enablestripepass") kind = "link_opt_in";
+    else if (["number", "cardnumber"].includes(name) || autocomplete.includes("cc-number")) kind = "card_number";
+    else if (["expiry", "cardexpiry"].includes(name)
+        || autocomplete.some(token => ["cc-exp", "cc-exp-month", "cc-exp-year"].includes(token))) kind = "card_expiry";
+    else if (["cvc", "cardcvc"].includes(name) || autocomplete.includes("cc-csc")) kind = "card_cvc";
+    else if (["country", "billingcountry"].includes(name)
+        || autocomplete.some(token => ["country", "country-name"].includes(token))) kind = "billing_country";
+    else if (name === "postalcode" || autocomplete.includes("postal-code")) kind = "billing_postal";
+    else if (name === "billingname" || autocomplete.includes("cc-name")
+        || autocomplete.includes("billing") && autocomplete.includes("name")) kind = "billing_name";
+    const checkable = ["checkbox", "radio"].includes(element.type);
+    states.push({
+      kind,
+      filled: checkable ? element.checked === true : Boolean(element.value),
+      required: element.required === true || element.getAttribute("aria-required") === "true",
+      html_valid: element.validity?.valid === true,
+      aria_invalid: ["true", "grammar", "spelling"].includes(element.getAttribute("aria-invalid")),
+      checked: checkable && element.checked === true,
+    });
+  }
+  return states;
+}
+
+function renderedPortalElement(element) {
+  const style = element.ownerDocument.defaultView.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return element.type !== "hidden" && rect.width > 0 && rect.height > 0 && style.display !== "none"
+    && style.visibility === "visible" && style.opacity !== "0"
+    && element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+}
+
+async function visiblePortalFrame(frame) {
+  try {
+    let current = frame;
+    for (let depth = 0; depth < 12; depth++) {
+      const parent = current.parentFrame();
+      if (!parent) return true;
+      const handle = await current.frameElement();
+      try { if (!await handle.evaluate(renderedPortalElement)) return false; }
+      finally { await handle.dispose(); }
+      current = parent;
+    }
+  } catch { /* Detached/unavailable frames are not interaction targets. */ }
+  return false;
+}
+
+export async function portalFieldStateDiagnostics(page) {
+  const fields = [];
+  if (!page) return fields;
+  try { requirePortalOrigin(page); } catch { return fields; }
+  for (const frame of page.frames().slice(0, 12)) {
+    if (fields.length >= 64) break;
+    try {
+      requirePortalOrigin(page);
+      if (!await visiblePortalFrame(frame)) continue;
+      const states = await frame.locator("input,select,textarea").evaluateAll(visiblePortalFieldState);
+      requirePortalOrigin(page);
+      fields.push(...states.slice(0, 64 - fields.length));
+    } catch { /* Detached/unavailable frames disclose no data or raw errors. */ }
+  }
+  return fields;
+}
+
 export function validatePortalState(state) {
   let url;
   try { url = new URL(state.portal_url); } catch { throw new Error("invalid_portal_url"); }
@@ -141,11 +223,13 @@ async function fillCardField(page, selectors, value, required = true, missingRea
   const deadline = Date.now() + (required ? 30_000 : 2_000);
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
+      if (!await visiblePortalFrame(frame)) continue;
       for (const selector of selectors) {
-        const field = frame.locator(selector).first();
-        if (await field.count() && await field.isVisible()) {
-          await field.fill(value);
-          return field;
+        for (const field of await frame.locator(selector).all()) {
+          if (await field.isVisible() && await field.evaluate(renderedPortalElement)) {
+            await field.fill(value);
+            return field;
+          }
         }
       }
     }
@@ -158,12 +242,14 @@ async function chooseTestBillingCountry(page) {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
+      if (!await visiblePortalFrame(frame)) continue;
       for (const selector of ["select[name=country]", "select[name=billingCountry]",
         "select[autocomplete~=country]", "select[autocomplete~=country-name]"]) {
-        const field = frame.locator(selector).first();
-        if (await field.count() && await field.isVisible()) {
-          await field.selectOption("US");
-          return;
+        for (const field of await frame.locator(selector).all()) {
+          if (await field.isVisible() && await field.evaluate(renderedPortalElement)) {
+            await field.selectOption("US");
+            return;
+          }
         }
       }
     }
@@ -174,10 +260,12 @@ async function chooseTestBillingCountry(page) {
 
 async function declineLinkOptIn(page) {
   for (const frame of page.frames()) {
-    const candidates = [frame.locator("input[name=enableStripePass]").first(),
-      frame.getByRole("checkbox", { name: /Link|Stripe Pass/i }).first()];
+    if (!await visiblePortalFrame(frame)) continue;
+    const candidates = [...await frame.locator("input[name=enableStripePass]").all(),
+      ...await frame.getByRole("checkbox", { name: /Link|Stripe Pass/i }).all()];
     for (const checkbox of candidates) {
-      if (await checkbox.count() && await checkbox.isVisible() && await checkbox.isChecked()) {
+      if (await checkbox.isVisible() && await checkbox.evaluate(renderedPortalElement)
+          && await checkbox.isChecked()) {
         await checkbox.uncheck();
       }
     }
@@ -297,6 +385,8 @@ async function main() {
     process.stderr.write(`KOV005_PORTAL_FAILURE_REASON=${diagnostic.reason}\n`);
     const controls = diagnostic.controls.map(({ label, enabled }) => `${label}:${enabled ? "enabled" : "disabled"}`).join(",");
     process.stderr.write(`KOV005_PORTAL_PUBLIC_CONTROLS=${controls}\n`);
+    const fieldState = await portalFieldStateDiagnostics(page);
+    process.stderr.write(`KOV005_PORTAL_FIELD_STATE=${JSON.stringify(fieldState)}\n`);
     process.exitCode = 1;
   } finally {
     if (browser) await browser.close().catch(() => {});
