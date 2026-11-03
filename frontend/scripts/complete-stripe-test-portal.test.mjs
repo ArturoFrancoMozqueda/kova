@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { exercisePortal, validatePortalState } from "./complete-stripe-test-portal.mjs";
+import { clickControl, exercisePortal, portalFailureDiagnostics, validatePortalState } from "./complete-stripe-test-portal.mjs";
 
 const standard = {
   portal_url: "https://billing.stripe.com/p/session/test_synthetic",
@@ -76,4 +76,77 @@ test("provider-owned Portal paths stay opaque on the exact trusted origin", () =
     const state = { ...standard, portal_url: "https://billing.stripe.com" + path };
     assert.equal(validatePortalState(state), state);
   }
+});
+
+
+test("waits for a disabled save control through Playwright click auto-wait", async () => {
+  let clicked = false;
+  const save = {
+    async isVisible() { return true; }, async isEnabled() { return false; },
+    async click(options) { assert.ok(options.timeout > 0); clicked = true; },
+  };
+  const page = { url: () => standard.portal_url,
+    getByRole: role => ({ all: async () => role === "button" ? [save] : [] }),
+  };
+  await clickControl(page, /^Guardar cambios$/i);
+  assert.equal(clicked, true);
+});
+
+
+function clickPage({ visible = true, enabled = true, failure } = {}) {
+  const control = { async isVisible() { return visible; }, async isEnabled() { return enabled; },
+    async click() { if (failure) throw failure; },
+  };
+  return { url: () => standard.portal_url,
+    getByRole: role => ({ all: async () => role === "button" ? [control] : [] }),
+  };
+}
+
+for (const [name, options, expected] of [
+  ["disabled", { enabled: false }, "control_disabled"],
+  ["unobstructed state but click timeout", { enabled: true }, "click_timeout"],
+]) test(`classifies ${name} without copying the raw Playwright error`, async () => {
+  const failure = Object.assign(new Error("private customer and bearer URL"), { name: "TimeoutError" });
+  await assert.rejects(clickControl(clickPage({ ...options, failure }), /^Guardar$/), error => {
+    assert.equal(error.reason, expected);
+    assert.equal(error.message, expected);
+    return true;
+  });
+});
+
+test("polls for a late visible button and distinguishes missing from hidden controls", async () => {
+  let tick = 0, clicked = false;
+  const control = { async isVisible() { return true; }, async click() { clicked = true; } };
+  const page = { url: () => standard.portal_url,
+    getByRole: role => ({ all: async () => role === "button" && tick >= 100 ? [control] : [] }),
+  };
+  const timing = { timeoutMs: 300, now: () => tick, wait: async ms => { tick += ms; } };
+  await clickControl(page, /^Guardar$/, timing);
+  assert.equal(clicked, true);
+  for (const [candidates, expected] of [[[], "control_not_found"],
+    [[{ isVisible: async () => false }], "control_not_visible"]]) {
+    tick = 0;
+    page.getByRole = role => ({ all: async () => role === "button" ? candidates : [] });
+    await assert.rejects(clickControl(page, /^Guardar$/, timing), error => error.reason === expected);
+  }
+});
+
+test("diagnostics expose only fixed public label enums, never arbitrary button/customer contents", async () => {
+  const buttons = [
+    ["Guardar cambios", false], ["Añadir método de pago", true], ["Agregar tarjeta", false],
+    ["Actualizar", true], ["Update card", false], ["Confirmar", true],
+    ["private.customer@example.com https://billing.stripe.com/p/secret_bearer", true],
+  ].map(([text, enabled]) => ({ isVisible: async () => true, isEnabled: async () => enabled,
+    getAttribute: async () => null, innerText: async () => text }));
+  const page = { url: () => standard.portal_url,
+    getByRole: role => ({ all: async () => role === "button" ? buttons : [] }),
+  };
+  const diagnostic = await portalFailureDiagnostics(new Error("raw secret"), page);
+  assert.deepEqual(diagnostic, { reason: "unknown", controls: [
+    { label: "save_changes", enabled: false }, { label: "add_payment_method", enabled: true },
+    { label: "add_card", enabled: false }, { label: "update", enabled: true },
+    { label: "update_card", enabled: false }, { label: "confirm", enabled: true },
+    { label: "other", enabled: true },
+  ] });
+  assert.doesNotMatch(JSON.stringify(diagnostic), /private|bearer|stripe|raw secret|example/);
 });

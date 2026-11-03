@@ -7,7 +7,7 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La última verificación registrada del 3 de noviembre corresponde a `31b0693f5a74` (PR #307):
+La última verificación registrada del 3 de noviembre corresponde a `88bb94056a0f` (PR #308):
 frontend `kovasuite.com`, API `api.kovasuite.com` y proxy reportaron el mismo SHA, con la base disponible.
 Los cambios de código hasta ese PR están publicados.
 Los merges posteriores solo de documentación no cambian el SHA desplegado. `main` ya exige `CI required`,
@@ -20,7 +20,8 @@ también para administradores; [protección comprobada](despliegue.md#protecció
 - Transporte de referencias públicas de Stripe a API/jobs, protección de registro con oferta
   obsoleta y actualización de precios al volver a la app (#307). El release verifica el catálogo
   aprobado antes y después de promoción, sin reenviar bypass a redirecciones. Portal básico
-  preparado; falta repetir su aceptación después de alinear la validación de enlaces opacos.
+  preparado; el enlace opaco ya abre (#308). Falta aceptar el guardado del método de pago y la
+  cancelación desde el recorrido alojado; el helper conserva auto-wait y diagnóstico sin datos privados.
 - Recordatorios que excluyen cortesía permanente, recuperan envíos pendientes antes de vencer y
   reportan fallas al scheduler; importes de correo en Decimal (#300).
 - Dependencias PDF corregidas, motor OCR con fix oficial de propiedad de palabras y sus dos

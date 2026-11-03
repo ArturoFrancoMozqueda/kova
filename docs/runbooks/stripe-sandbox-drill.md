@@ -125,8 +125,9 @@ Preflight reads the selected Portal configuration with
 `expand[]=features.subscription_update.products` and rejects live/inactive/mismatched settings.
 Basic mode requires subscription updates **disabled**, payment method update/history enabled,
 and cancellation enabled only with `mode=at_period_end`. Configurations enabling tier changes fail
-this preflight before any customer is created. Standard and tiered configuration IDs remain
-separate. Only the ephemeral backend receives the selected configuration and Portal flag.
+this preflight before any customer is created. Both cohort-specific configuration inputs remain
+explicit; Basic may share an accepted configuration with subscription updates disabled. Only the
+ephemeral backend receives the selected configuration and Portal flag.
 
 The verified owner requests `POST /api/v1/billing/portal`; the test never sends a customer or return
 URL. The API independently reads and validates that configuration. The Node helper accepts only a
@@ -198,3 +199,21 @@ must remain redacted to their prefix and final six characters.
 
 The gate remains open if the job is skipped, fails, cannot delete every created Test Clock/customer,
 uses a commit other than the intended `main` SHA, or lacks the downloaded and reviewed artifact.
+
+
+### Diagnóstico seguro del control del Portal
+
+El segundo intento Standard sobre `88bb94056a0f`
+([41702585620](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41702585620)) abrió el Portal
+y verificó la oferta, pero falló en `save_payment_method`; la limpieza independiente aprobó. No
+acepta cambio de método ni cancelación. El helper eliminó un filtro inmediato de `isEnabled`
+que impedía el auto-wait; la regresión reprodujo ese defecto, sin atribuirle aún la causa real.
+
+El clic espera hasta 15 segundos por aparición/visibilidad y conserva el auto-wait de Playwright
+para controles deshabilitados o todavía no accionables. Nunca se fuerza un clic ni se omite la
+validación del formulario. Un fallo distingue `control_not_found`, `control_not_visible`,
+`control_disabled`, `click_timeout` o `click_failed`; un timeout de otra etapa es `stage_timeout`.
+El resumen sólo incluye etiquetas públicas conocidas convertidas a enums y su estado habilitado.
+Cualquier texto de botón no reconocido se convierte en `other`; no se registran URLs, errores
+crudos, valores de campos, datos de tarjeta ni contenido del cliente. Estas observaciones indican
+el estado del control al fallar, no confirman por sí solas una causa de validación o de transición.

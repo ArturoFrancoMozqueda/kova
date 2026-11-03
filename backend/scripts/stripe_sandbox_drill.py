@@ -1474,7 +1474,25 @@ def _submit_portal_action(
         if result.returncode != 0:
             match = re.search(r"KOV005_PORTAL_FAILURE_STAGE=([a-z_]+)", result.stderr)
             stage = match.group(1) if match else "unknown"
-            raise DrillError("Stripe Portal UI failed at " + stage)
+            reasons = ("control_not_found|control_not_visible|control_disabled|click_timeout|"
+                       "click_failed|outside_provider|stage_timeout|unknown")
+            reason_match = re.search(r"^KOV005_PORTAL_FAILURE_REASON=(" + reasons + r")$",
+                                     result.stderr, re.MULTILINE)
+            reason = reason_match.group(1) if reason_match else "unknown"
+            labels = {"save", "save_changes", "save_card", "save_payment_method", "add", "add_card",
+                      "add_payment_method", "update", "update_card", "update_payment_method",
+                      "continue", "confirm", "back",
+                      "cancel", "cancel_subscription", "other"}
+            controls_match = re.search(r"^KOV005_PORTAL_PUBLIC_CONTROLS=([^\r\n]*)$",
+                                       result.stderr, re.MULTILINE)
+            controls = []
+            for token in (controls_match.group(1).split(",")[:32] if controls_match else []):
+                label, _, enabled = token.partition(":")
+                if label in labels and enabled in {"enabled", "disabled"}:
+                    controls.append(label + ":" + enabled)
+            summary = ",".join(controls) or "none"
+            raise DrillError(f"Stripe Portal UI failed at {stage} "
+                             f"(reason={reason}; controls={summary})")
         try:
             outcome = json.loads(result.stdout)
         except json.JSONDecodeError as exc:
