@@ -123,6 +123,51 @@ Pendientes antes de activar: aceptación Stripe sandbox del catálogo/Portal y s
 validación fiscal, autorización para publicar y seguimiento de consumo/atención. Cajas
 simultáneas y hardware siguen sujetos a su aceptación específica.
 
+## Preparación de Stripe del 3 de noviembre de 2026
+
+Se prepararon dos productos y precios nuevos en el sandbox privado existente: Esencial de
+MXN 399.00 y Gestión de MXN 699.00, mensuales, con `tax_behavior=inclusive`. Se conservaron los
+productos y precios anteriores. Los IDs de configuración y capturas quedan como evidencia
+operativa privada, fuera de git.
+
+Se crearon dos configuraciones de Portal: una sin cambios de plan para acuerdos anteriores y
+otra que admite únicamente los dos precios nuevos, sin cantidades ajustables. Esta última usa
+`always_invoice` para mejoras y programa las reducciones al final del periodo. No se generó
+una página de acceso público al Portal.
+
+Con identidades y tarjetas sintéticas, el proveedor confirmó:
+
+- Checkout pagado de Esencial por MXN 399.00.
+- Mejora a Gestión con factura de prorrateo pagada y mensualidad de MXN 699.00.
+- Reducción programada a Esencial, conservando Gestión durante el periodo pagado.
+- Cancelación programada al final del periodo.
+- Configuración de acuerdos anteriores sin acción para cambiar de plan.
+- Checkout de Gestión rechazado que siguió pendiente y se recuperó en la misma sesión, con
+  pago confirmado por MXN 699.00.
+
+Esto acredita recorridos alojados de Stripe, no la sincronización de esos estados con Kova.
+No se vinculó ningún tenant productivo ni se probaron renovaciones de los nuevos planes. La
+programación de una reducción no acredita su aplicación efectiva al vencer: adelantar un Test
+Clock de Stripe no adelanta el reloj del backend.
+
+Se deshabilitó únicamente el webhook del sandbox que apuntaba al despliegue retirado de Fly.
+El drill usa un receptor efímero aislado; no debe sustituirse ese destino por la API productiva.
+El webhook live se revisó sin modificaciones y conserva el destino de la API vigente de Kova.
+
+La aceptación mostró que Stripe omite los productos del Portal si no se solicitan con
+`expand[]=features.subscription_update.products`. El cliente de Kova ahora solicita esa
+expansión y la validación rechaza cantidades ajustables. Cinco pruebas aisladas verifican el
+request HTTP y esas restricciones sin usar credenciales ni una base de datos.
+
+La cuenta real reportó cobros y depósitos habilitados, sin requisitos vencidos, pero no se
+encontraron registros fiscales activos en Stripe Tax. No se activó cálculo automático ni se
+crearon registros fiscales. El comportamiento inclusivo del precio no sustituye esa validación.
+
+La oferta productiva sigue apagada y Standard conserva MXN 299.00. Permanecen pendientes la
+aceptación integrada con Kova y los nuevos planes (el drill actual cubre Standard), la aplicación
+efectiva de las transiciones, la validación fiscal y la autorización para publicar la oferta.
+Una clave del sandbox debe instalarse directamente en el Secret store, nunca en chat ni archivos.
+
 ## Registro de trabajo y consumo
 
 Responsable: el dueño o la persona que designe. Usar un registro operativo protegido fuera del

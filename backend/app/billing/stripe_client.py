@@ -31,8 +31,9 @@ class StripePortalClient:
 
     def retrieve_configuration(self, *, secret_key: str, configuration_id: str) -> dict[str, Any]:
         path = quote(configuration_id, safe="")
+        query = urlencode({"expand[]": "features.subscription_update.products"})
         request = Request(
-            f"https://api.stripe.com/v1/billing_portal/configurations/{path}",
+            f"https://api.stripe.com/v1/billing_portal/configurations/{path}?{query}",
             headers={"Authorization": f"Bearer {secret_key}"}, method="GET",
         )
         return self._request(request)

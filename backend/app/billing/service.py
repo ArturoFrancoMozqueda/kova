@@ -681,6 +681,7 @@ def _validate_portal_configuration(
     conditions = ((update.get("schedule_at_period_end") or {}).get("conditions") or [])
     if (None in allowed_prices or len(allowed_prices) != 2 or listed_prices != allowed_prices
             or set(update.get("default_allowed_updates") or []) != {"price"}
+            or any((p.get("adjustable_quantity") or {}).get("enabled") is True for p in products)
             or update.get("proration_behavior") != "always_invoice"
             or not any(c.get("type") == "decreasing_item_amount" for c in conditions)):
         raise HTTPException(status_code=503, detail="Commercial plan changes are not accepted")
