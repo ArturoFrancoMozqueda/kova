@@ -69,10 +69,15 @@ closed without forcing a restart. No failed business request is replayed.
 checks `ctx.container.running` before starting the replacement and retains the
 SDK-owned scheduler and lifecycle callbacks.
 
-This protocol is introduced with commercial enrollment and Portal flags OFF,
-and with the public release gate expecting Standard. Accept that OFF release as
-a rollback-compatible baseline before a separate commercial activation. Both
-sides of that later activation and its rollback must understand the boot
+This protocol was prepared with commercial enrollment and Portal flags OFF,
+and with the public release gate expecting Standard. This separate activation
+sets both flags ON and the gate to `tiered`, retaining the boot checks. Its
+OFF baseline is `d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770` from PR #317, whose
+[release 41860220621](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41860220621)
+succeeded and whose public checks verified Standard/OFF, both boot markers and the
+same process. See the [operational record](../../docs/current-sprint.md#en-producción).
+Publishing this ON policy requires its own release and external verification. Both
+sides of the activation and its rollback must understand the boot
 identity protocol; an older baseline without it can retain mismatched startup
 settings during the reverse Worker/image handoff.
 

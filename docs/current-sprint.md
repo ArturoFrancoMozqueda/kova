@@ -7,19 +7,20 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-El [release 41768085471](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41768085471)
-de PR #315 aprobó para `7032d21f60aa`, incluyendo sus verificaciones de publicación: es la baseline
-verificada antes de esta entrega. En ese corte, Standard $299 MXN/mes era la oferta pública y
-Esencial/Gestión y Portal estaban apagados. La verificación independiente posterior con `verifyDeployment` y
-`verifyPublicBillingOffer` aprobó seis rutas de frontend/API/proxy/base y el catálogo Standard/OFF
-sobre `7032d21f60aa`. El PR #316 se fusionó y aprobó CI, pero su
+El PR #317 se fusionó con [CI aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41858776382)
+y su [release 41860220621](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41860220621)
+aprobó para `d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770`, con
+Standard $299 MXN/mes, Esencial/Gestión y Portal OFF. La verificación externa aprobó seis rutas de
+frontend/API/proxy/base, catálogo Standard/OFF, marcador de arranque del controlador por API y
+proxy y la misma identidad de proceso. Esta es la baseline operativa verificada para la activación.
+
+El intento previo del PR #316 pasó CI, pero su
 [release 41772733388](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41772733388)
-falló en candidato por discrepancia del catálogo y recuperó esa baseline. La comprobación
-independiente posterior confirmó de nuevo las seis rutas y Standard/OFF; no se publicó la
-activación. Esta entrega prepara la verificación del arranque del controlador con nuevas ofertas
-y Portal OFF y gate Standard, antes de repetir la activación en un cambio separado conforme a
-[ADR-022](adr/ADR-022-native-controller-boot-policy.md). Su publicación solo se acredita con
-release aprobado y verificación externa.
+falló por discrepancia del catálogo y recuperó `7032d21f60aa`; esa activación no se publicó.
+Esta entrega contiene la activación separada de Esencial/Gestión y Portal básico, con ambas flags
+ON y gate `tiered`, conservando el protocolo de [ADR-022](adr/ADR-022-native-controller-boot-policy.md)
+y la baseline OFF de #317. Su publicación necesita su propio release y verificación externa;
+este cambio de política no declara que la oferta ON ya esté publicada.
 Los merges posteriores solo de documentación no cambian el SHA desplegado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
@@ -33,9 +34,11 @@ también para administradores; [protección comprobada](despliegue.md#protecció
   sandbox de los tres planes aprobó mediante navegador interactivo: guardado efectivo del método
   de pago, historial y cancelación programada, con acceso conservado y limpieza completa.
   [Evidencia y fuentes por etapa](audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md).
-  La activación del PR #316 no aprobó publicación. Se prepara primero la baseline OFF del
-  protocolo de arranque y después una activación separada; ambas requieren release y verificación
-  externa aprobados. La aceptación interactiva no acredita éxito headless.
+  La activación del PR #316 no aprobó publicación. El release y la comprobación externa
+  de #317 aprobaron la baseline OFF `d4d81d6a4fe6` con el protocolo de arranque.
+  Esta entrega contiene la activación separada,
+  que necesita su propio release y verificación externa.
+  La aceptación interactiva no acredita éxito headless.
 - Riesgos de Stripe con firma, modo e idempotencia, mapeo autoritativo y revisión visible en Ops
   (#311), sin alterar suscripción, deuda ni acceso. El webhook se procesa fuera del event loop.
   La aceptación real de los tres riesgos en sandbox aprobó sobre `5fd7b35f75a3`:
@@ -129,9 +132,11 @@ los gates abiertos. El sandbox aprobó Checkout y ciclo de suscripción con Kova
 para Esencial $399, Gestión $699 y la regresión Standard $299 sobre `1a181853162b`.
 La activación productiva está autorizada en
 [ADR-021](adr/ADR-021-commercial-production-activation.md). El Portal básico sandbox ya aprobó
-la aceptación interactiva. El intento de activación #316 se recuperó; esta entrega prepara primero
-la baseline OFF del protocolo de arranque según ADR-022. La activación posterior y cada publicación
-se acreditan con release PASS y verificación externa. Las transiciones autónomas permanecen fuera del alcance inicial;
+la aceptación interactiva. El intento de activación #316 se recuperó; el release de #317
+y la verificación externa aprobaron `d4d81d6a4fe6` como baseline OFF del protocolo de arranque
+según ADR-022. Esta entrega fija la política ON y el gate `tiered`; no declara esa oferta ya publicada.
+La activación se acredita
+con release PASS y verificación externa. Las transiciones autónomas permanecen fuera del alcance inicial;
 la validación fiscal conserva su pendiente separado.
 Los acuerdos Standard de $299 conservan su vigencia. El dueño autorizó después alinear producción:
 se crearon en Stripe live productos separados de Esencial $399 y Gestión $699 MXN mensuales,
@@ -140,9 +145,9 @@ preliminar no utilizado quedó archivado, sin suscripciones. Se preparó un Port
 historial, método de pago y cancelación al cierre del período, sin acceso público ni cambios de
 plan. Las cuatro referencias no secretas ya llegaron a API/jobs mediante el release aceptado de
 #307. La [evidencia interactiva de los tres planes](audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md)
-ya está revisada y su limpieza concluyó. La baseline `7032d21f60aa` se verificó OFF. Antes de
-activar se debe aceptar una nueva baseline OFF que verifique la identidad del controlador al
-arrancar; el workflow capturará sus versiones exactas y conservará los cuatro IDs para el rollback.
+ya está revisada y su limpieza concluyó. La baseline OFF con identidad de arranque verificada es
+`d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770` (#317; release `41860220621` aprobado).
+El workflow capturará sus versiones exactas y conservará los cuatro IDs para el rollback.
 La publicación de la oferta ON requiere el cierre del release y su verificación externa.
 
 La revisión detectó que Stripe sólo programa reducciones entre Prices del mismo Product; agrupar

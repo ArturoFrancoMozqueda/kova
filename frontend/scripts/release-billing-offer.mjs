@@ -1,5 +1,5 @@
 // Change only with the reviewed commercial activation, independently of runtime IDs.
-export const RELEASE_BILLING_OFFER = "standard";
+export const RELEASE_BILLING_OFFER = "tiered";
 const core = ["pos", "inventory", "sales_reports", "public_catalog"];
 const gestion = [...core, "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"];
 const plans = {
