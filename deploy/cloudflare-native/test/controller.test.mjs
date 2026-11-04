@@ -52,7 +52,7 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
     ASSISTANT_INGEST_ON_DEMAND: "true", CLOUDFLARE_CONTAINER_MODE: "false",
     TRUSTED_CLIENT_IP_HEADER: "spoofed", KOVA_RELEASE_SHA: "wrong", APP_ENV: "local",
     ASSISTANT_OPEN_ROUTE: "synthetic-legacy-provider-setting",
-    BILLING_TIERED_PLANS_ENABLED: "true", BILLING_PORTAL_ENABLED: "true",
+    BILLING_TIERED_PLANS_ENABLED: "false", BILLING_PORTAL_ENABLED: "false",
     STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
     STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
     STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
@@ -71,8 +71,8 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
   assert.equal(result.TRUSTED_CLIENT_IP_HEADER, "x-kova-client-ip");
   assert.equal(result.ASSISTANT_DOCUMENTS_ENABLED, "false");
   assert.equal(result.ASSISTANT_INGEST_ON_DEMAND, "false");
-  assert.equal(result.BILLING_TIERED_PLANS_ENABLED, "false");
-  assert.equal(result.BILLING_PORTAL_ENABLED, "false");
+  assert.equal(result.BILLING_TIERED_PLANS_ENABLED, "true");
+  assert.equal(result.BILLING_PORTAL_ENABLED, "true");
   for (const name of ["STRIPE_ESENCIAL_PRICE_ID", "STRIPE_GESTION_PRICE_ID",
     "STRIPE_STANDARD_PORTAL_CONFIGURATION_ID", "STRIPE_TIERED_PORTAL_CONFIGURATION_ID"]) {
     assert.equal(result[name], env[name]);

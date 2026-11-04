@@ -1,19 +1,25 @@
 # Aceptación y medición de los planes comerciales
 
-Guía para preparar Esencial/Gestión sin modificar precios ni suscripciones productivas. La
-dirección aprobada está en [ADR-019](../adr/ADR-019-commercial-plan-design.md). Una lista revisada
-no acredita implementación, publicación, aceptación de Stripe ni rentabilidad observada.
+Guía de aceptación de Esencial/Gestión y su activación productiva autorizada en
+[ADR-021](../adr/ADR-021-commercial-production-activation.md), conservando Standard y cortesías.
+El diseño original está en [ADR-019](../adr/ADR-019-commercial-plan-design.md). Una lista revisada
+no acredita publicación, aceptación del Portal, cobro live, validación fiscal ni rentabilidad.
+La aceptación interactiva sandbox de los tres planes ya está
+[registrada](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md), con fuentes por
+etapa y limpieza completa. Esta entrega fija la política ON y el gate `tiered`; su publicación
+productiva se acredita únicamente con release PASS y verificación externa registrada.
 
 ## Evidencia y entorno
 
 - Registrar el commit, entorno, fecha y resultado de cada prueba. Separar validación local,
   integración con sandbox y aceptación productiva.
 - Usar PostgreSQL desechable, cuentas sintéticas y el sandbox dedicado. No reutilizar una cuenta
-  live para completar una prueba pendiente. El [drill de Stripe](stripe-sandbox-drill.md) vigente
-  valida Standard; no dar por probado el nuevo catálogo solo porque ese drill pase.
+  live para completar una prueba pendiente. El [drill de Stripe](stripe-sandbox-drill.md) selecciona
+  Standard, Esencial o Gestión; cada ejecución acredita solo el alcance y plan de su evidencia.
 - Mantener fuera de git claves, cookies, direcciones de clientes, IDs de tenant y capturas con
   datos reales. Conservar evidencia operativa privada y publicar solo resultados agregados.
-- La aprobación de diseño no contrata ampliaciones de proveedores ni autoriza publicar la oferta.
+- La autorización posterior del dueño permite alinear producción según ADR-021; no contrata
+  ampliaciones de proveedores, migra acuerdos existentes ni aprueba transiciones autónomas.
 
 ## Qué debe demostrar la aceptación
 
@@ -29,6 +35,8 @@ no acredita implementación, publicación, aceptación de Stripe ni rentabilidad
 | Checkout | Solo precios admitidos y correspondientes al entorno; nunca un importe enviado por el cliente |
 | Dos contrataciones | Pestañas, administradores y claves distintas convergen al mismo intento; un timeout no abre otro y solo se reemplaza tras expiración verificada |
 | Confirmación | Volver desde Stripe no activa por sí solo acceso ni funciones de pago |
+| Portal básico inicial | Abre desde Kova; historial, guardado de método de pago y cancelación al cierre aceptados; sin cambios de plan/cantidad |
+| Transiciones entre planes | Fuera del alcance inicial: no anunciar upgrade/downgrade autónomos; aceptar el Portal básico no los acredita |
 | Checkout concurrente | Dos pestañas o administradores comparten un intento durable y una sesión; cambiar de oferta pendiente muestra conflicto |
 | Resultado incierto | Timeout y pérdida del proceso conservan clave/payload; sin ID después de 23 horas se exige conciliación, sin un nuevo cobro |
 | Webhooks | Firma, modo, duplicados y orden temporal conservan sus controles |
@@ -64,12 +72,32 @@ Revisar a 390 y 1440 px y con teclado:
 
 ## Oferta pública y SEO antes de activar
 
-El controlador nativo fija `BILLING_TIERED_PLANS_ENABLED=false` y
-`BILLING_PORTAL_ENABLED=false` en esta publicación, incluso ante valores externos diferentes.
-La activación futura requiere otro cambio revisado que retire esa protección, además de la
-configuración y aceptación de Stripe. No modificar el Price de Standard ni migrar acuerdos.
+La baseline preparatoria `7032d21f60aa`, verificada antes de esta entrega, fijaba
+`BILLING_TIERED_PLANS_ENABLED=false` y `BILLING_PORTAL_ENABLED=false`, incluso ante valores
+externos diferentes. Esta entrega versiona ambas flags nativas en `true` y la oferta esperada
+del gate en `tiered`. Cambiar solo variables externas no sustituye esa política. No modificar el Price de Standard ni migrar acuerdos.
 
-Esta verificación no activa la oferta ni cambia Stripe. En un entorno controlado:
+Antes de ejecutar el release de activación, registrar:
+
+1. Baseline productiva aceptada con los cuatro IDs públicos en API y jobs; capturar sus versiones
+   exactas para recuperar a OFF. No usar la baseline anterior al transporte ni retirar IDs al
+   apagar ofertas: siguen resolviendo acuerdos tiered existentes.
+2. Catálogo live verificado: dos Products, Prices activos distintos de Standard, 39900/69900 MXN,
+   mensuales con intervalo 1 e inclusivos. Checkout mantiene su validación de modo y precios.
+3. Evidencia integrada del Portal básico desde Kova en sandbox: método de pago guardado,
+   cancelación al cierre, estado autoritativo e idempotencia; configuración sin cambios de plan
+   ni cantidad. Registrar plan, fuente y limpieza. Un enlace que abre no acredita el guardado.
+   La evidencia de Checkout de los tres planes conserva su alcance separado.
+4. CI y release normal: catálogo/revisión de oferta por API y proxy, rechazo de registro obsoleto,
+   Standard/cortesía conservados y recuperación por versiones capturadas. Solo declarar activa
+   la oferta después de aprobar la publicación y su verificación pública.
+
+Las transiciones entre planes no son un requisito del Portal básico inicial: permanecen
+inhabilitadas y no se venden como prestaciones disponibles. El cobro live controlado, validación
+fiscal, hardware físico y medición de costos/atención siguen abiertos; esta aceptación no los
+cierra ni declara a Kova listo al 100%.
+
+Esta revisión documental no activa la oferta ni cambia Stripe. En un entorno controlado:
 
 - Con la oferta apagada, landing, registro y facturación presentan el catálogo público vigente;
   títulos, descripciones, datos estructurados y HTML prerenderizado no anuncian precios futuros.
@@ -81,8 +109,9 @@ Esta verificación no activa la oferta ni cambia Stripe. En un entorno controlad
   de respaldo ni presentar una oferta de otro entorno. Comprobar la invalidación de caché para que
   una activación o desactivación no mantenga copy y precios contradictorios.
 
-La aprobación de QA local no sustituye la aceptación fiscal, Stripe sandbox ni la autorización
-separada para publicar precios y ofertas productivas.
+La aprobación de QA local no sustituye la aceptación integrada del Portal básico ni el release.
+Los precios inclusivos no prueban registro fiscal, CFDI o aceptación contable. Mantener dichos
+pendientes explícitos conforme a ADR-021, sin presentarlos como pruebas aprobadas.
 
 ## Evidencia local del 2 de noviembre de 2026
 
@@ -119,9 +148,10 @@ creación de otro Checkout y el purge de la cuenta. Requiere conciliación opera
 no se borra la fila ni se inventa un estado terminal para desbloquearlo. La solicitud de
 eliminación y los datos permanecen conservados mientras el trabajo de purge reporta el incidente.
 
-Pendientes antes de activar: aceptación Stripe sandbox del catálogo/Portal y sus transiciones,
-validación fiscal, autorización para publicar y seguimiento de consumo/atención. Cajas
-simultáneas y hardware siguen sujetos a su aceptación específica.
+Este corte local no acreditó los pasos externos. La autorización posterior y el alcance inicial
+se rigen por ADR-021 y los criterios de activación anteriores; no exigen aceptar transiciones
+que permanecen deshabilitadas. Validación fiscal, consumo/atención y hardware siguen pendientes
+y no se consideran aprobados por esos criterios.
 
 ## Preparación de Stripe del 3 de noviembre de 2026
 
@@ -151,8 +181,9 @@ Portal básico y la de cambios de plan deben registrarse por separado.
 El código preparatorio añade revisión pública de oferta y rechazo 409 de un registro obsoleto
 antes de crear tenant/enviar correo. La UI refresca y confirma la oferta sin perder el formulario;
 volver al foco durante conciliación de Checkout no la interrumpe. El release compara la oferta
-por API y proxy antes de promoción y después de publicación. Las banderas siguen apagadas hasta
-la entrega explícita de activación y la comprobación de su configuración completa.
+por API y proxy antes de promoción y después de publicación. Las banderas permanecieron apagadas
+en la baseline `7032d21f60aa`; esta entrega habilita la política nativa y exige su configuración
+completa y el cierre de release antes de acreditar la publicación.
 
 ### Evidencia anterior del sandbox
 
@@ -194,10 +225,22 @@ La cuenta real reportó cobros y depósitos habilitados, sin requisitos vencidos
 encontraron registros fiscales activos en Stripe Tax. No se activó cálculo automático ni se
 crearon registros fiscales. El comportamiento inclusivo del precio no sustituye esa validación.
 
-La oferta productiva sigue apagada y Standard conserva MXN 299.00. El runner ya admite seleccionar
+En el corte previo a esta entrega, la oferta verificada era Standard MXN 299.00 y las flags
+estaban OFF. El release de PR #315
+([41768085471](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41768085471)) aprobó sobre
+`7032d21f60aafd21b65832f847b380d10e384b3c`, con sus verificaciones de publicación. La verificación
+independiente posterior con `verifyDeployment` y `verifyPublicBillingOffer` aprobó seis rutas de
+frontend/API/proxy/base y catálogo Standard/OFF sobre esa fuente.
+El primer [release de #314](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41760340561)
+falló en la fase candidata y recuperó la baseline. #315 conserva el código de #314 y añade
+reintentos GET acotados de readiness: no reintenta errores de auth, redirecciones, certificados o
+identidad desconocida ni acepta un éxito fuera del presupuesto. Eso no acredita la causa del
+fallo previo ni un recorrido headless del Portal.
+El runner ya admite seleccionar
 Standard, Esencial o Gestión y comprueba los importes, funciones y acceso de Kova, según el
 [runbook del simulacro](stripe-sandbox-drill.md). Sus 64 pruebas aisladas pasaron. Las referencias a
-ambos precios nuevos están configuradas únicamente en el entorno `stripe-sandbox` de GitHub.
+ambos precios nuevos están configuradas en `stripe-sandbox`; la preparación live posterior
+instaló además las cuatro referencias públicas en `production`, sin activar la oferta.
 
 La aceptación integrada del 3 de noviembre sobre `1a181853162b92f5d9a0c4d6432416c3dd157ed6` aprobó
 Esencial y Gestión, con Kova y PostgreSQL efímeros en el runner. Stripe confirmó `complete/paid` y
@@ -225,9 +268,121 @@ El perfil heredado del sandbox todavía reporta requisitos de dirección vencido
 inactivas, aunque permitió completar pagos simulados. Esto no acredita habilitación de cobros ni
 depósitos en ese sandbox; la revisión de habilitación live descrita arriba corresponde a otra cuenta.
 
-Permanecen pendientes las transiciones mediante el Portal de Kova, su aplicación efectiva al vencer,
-la validación fiscal y la autorización para publicar la oferta. Los recorridos alojados del Portal
-y las pruebas locales no cierran esos gates por sí solos; Test Clocks no adelanta el reloj de Kova.
+La aceptación interactiva del Portal básico de los tres planes ya aprobó con limpieza completa;
+[su evidencia](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md) distingue fuentes
+por etapa. Los intentos headless anteriores sin guardado del método de pago conservan su resultado
+fallido. La autorización de publicación está en ADR-021; el cierre se acredita con release PASS
+y verificación externa, por separado de las pruebas interactivas. Las transiciones autónomas
+y su aplicación efectiva quedan fuera del alcance inicial. Cobro live controlado, validación fiscal,
+hardware y recuperación regional conservan sus pendientes. Test Clocks no adelanta el reloj de Kova.
+
+### Intento integrado posterior a PR #311
+
+El recorrido Standard con riesgo y Portal básico
+([41737681325](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41737681325)) se detuvo
+antes del Portal: Stripe rechazó el reembolso de QA con `amount_too_small`. Ese intento
+no acredita aceptación de riesgos ni guardado/cancelación en el Portal. Los dos pasos de limpieza
+aprobaron y se retiró la copia temporal de la clave del Secret store.
+PR #312 corrigió el fixture de reembolso a $1 MXN. No se cambió por ello un pago, deuda o
+condición comercial de producción.
+
+### Intento de Portal posterior a PR #313 y riesgos por separado
+
+El recorrido Standard [41754550717](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41754550717)
+falló con Add deshabilitado aun con el email de Link vacío. No identifica la causa ni acredita
+guardado del método de pago o cancelación. Los dos pasos de limpieza aprobaron y se retiró la
+copia temporal de la clave usada en ese intento.
+
+La validación manual con datos oficiales sintéticos habilitó Add tanto con MX como con US y
+postal de QA, sin pulsar Guardar. Solo comprueba validación del formulario; no creó un método de
+pago, cobro o suscripción y no sustituye la aceptación del Portal.
+
+El [drill independiente de riesgos 41756012658](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41756012658)
+aprobó sobre `5fd7b35f75a33a76172afb58524a4cab89e277fd`, con `include_portal=false`:
+[evidencia revisada](../audits/evidence/KOV-005-STRIPE-RISK-DRILL-2026-11-03-standard.md).
+El listener firmado recibió los tres tipos reales del sandbox. El reembolso se correlacionó con
+su suscripción probada; disputa y alerta temprana, generadas con Customers QA separados sin
+facturas, quedaron globales como `no_subscription`. Cada caso conservó un intento y una auditoría,
+replay idempotente, estado comercial intacto y triage persistido y visible por consultas de Ops.
+
+También aprobaron Checkout Standard y su ciclo con relojes: renovación, falla/gracia/recuperación,
+cancelación y eventos repetidos/fuera de orden. Se eliminaron tres relojes y tres Customers QA;
+los dos pasos de limpieza aprobaron y se retiró la copia temporal de la clave de GitHub. El
+historial de PaymentIntents/Charges de prueba permanece en Stripe, como corresponde.
+La evidencia usa servicios/repositorios aislados: no acredita UI del fundador con MFA, recepción
+live, validación fiscal ni aceptación del Portal. El código de riesgo probado conserva la
+implementación publicada en #311; los cambios posteriores del runner no reescriben esa aceptación.
+
+### Aceptación interactiva del Portal básico aprobada
+
+La [evidencia pública revisada](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md)
+registra Standard, Esencial y Gestión con Kova local/PostgreSQL desechable, navegador interactivo
+y consultas de lectura al sandbox dedicado. Checkout y guardado efectivo del método de pago se
+comprobaron sobre `8528431675423d2deefaf521fdb19b70121fb169`; cancelación y acceso sobre
+`7032d21f60aafd21b65832f847b380d10e384b3c`. #315 no cambia Checkout ni guardado del método de pago.
+
+Se comprobaron el catálogo y acceso exactos, historial y ausencia de cambios de plan, precio y
+período conservados. En los tres planes Stripe devolvió el booleano crudo falso y `cancel_at`
+igual al límite pagado; Kova expuso correctamente su marca normalizada verdadera sin retirar
+acceso anticipadamente. Standard además se reanudó desde el Portal. El rollback local de nuevas
+ofertas a OFF conservó acceso y capacidades de Gestión. La [matriz de estados](../billing-state-copy-matrix.md)
+describe la normalización, sin inferir fechas desde caché o `canceled_at`.
+
+La limpieza terminó: tres Customers sintéticos propios eliminados y tres suscripciones propias
+canceladas; cero Customers ajenos modificados. Frontend/backend y listeners CLI quedaron
+detenidos, PostgreSQL temporal eliminado y puertos cerrados; la copia temporal de clave de prueba
+está ausente del Secret store. El historial inmutable de PaymentIntents/Charges de prueba permanece
+en Stripe. La validación no constituye aceptación operativa del dueño en
+su negocio, éxito del helper headless ni una corrida Actions de Portal aprobada.
+
+La aceptación interactiva sandbox cierra este gate del Portal básico. El workflow de esta
+activación debe capturar la baseline previa OFF `7032d21f60aa` con los cuatro IDs en API/jobs.
+La política ON y gate `tiered` de esta entrega solo se presentan como publicados después de
+release PASS y verificación externa. Cobro live, fiscal, hardware, recuperación
+regional y recepción de avisos conservan sus límites separados.
+
+## Revisión de cuenta Stripe live del 3 de noviembre
+
+La consulta del proveedor confirmó `charges_enabled`, `payouts_enabled` y `details_submitted`
+verdaderos, sin requisitos `currently_due` ni `past_due`. El webhook vigente está habilitado
+hacia la API de Kova para Checkout, ciclo de suscripción y facturas pagadas/fallidas. No se
+modificaron identidad legal, domicilio, banco, descriptor, calendario de depósitos ni política
+de reintentos. La revisión detallada confirmó Smart Retries ya habilitado: hasta ocho intentos
+en dos semanas.
+
+El nombre comercial público live se guardó y verificó como Kova. Con aprobación del dueño se
+guardaron el sitio [https://kovasuite.com](https://kovasuite.com), el correo de soporte
+[posprojectsupport@gmail.com](mailto:posprojectsupport@gmail.com),
+[privacidad](https://kovasuite.com/privacy) y [términos](https://kovasuite.com/terms). Nombre,
+correo y sitio se confirmaron por API; los enlaces legales persistieron al reabrir una UI nueva.
+Estos cambios conservaron identidad legal, banco y descriptor. Los avisos live de pago fallido, tarjeta por
+vencer y autenticación requerida mediante enlace de Stripe se guardaron y verificaron tras recargar.
+Fin de prueba, próxima renovación y débito bancario siguen apagados; no se forzó 3DS ni se habilitó
+el enlace de gestión de suscripción. Los avisos propios de Kova y los del proveedor deben evitar
+duplicados. Guardar estos ajustes no acredita todavía un envío/recepción real de cada aviso.
+
+PR #311 publicó el tratamiento de `charge.dispute.created`, `charge.refunded` y
+`radar.early_fraud_warning.created`: firma y modo verificados, asignación por la cadena autoritativa
+de recursos, registro idempotente y revisión visible en Ops. El procesamiento síncrono se ejecuta
+fuera del event loop; los casos sin correlación probada quedan globales y un riesgo procesado no se cuenta
+como fallo de entrega. El [runbook de riesgos](stripe-risk-review.md) describe triage y límites.
+La aceptación real sandbox de los tres tipos aprobó en el recorrido independiente anterior.
+Los tres tipos ya se habilitaron en el destino live mediante el formulario oficial y se
+verificaron por API: nueve tipos exactos, conservando los seis anteriores, destino y versión de
+API. El dueño autorizó el reenvío histórico, que sigue sin completarse. La Shell oficial también
+es de solo lectura para el usuario en live: no sirve para ejecutar el comando retirado. Una
+recepción/conciliación histórica autorizada requiere CLI nativa autenticada para live u otra vía
+permitida, sin extraer claves live. Faltan confirmar permisos de lectura, recepción controlada y
+UI de Ops con MFA; este pendiente no bloquea la aceptación Portal sandbox ni la activación del
+catálogo autorizado. Ni la configuración guardada ni la evidencia sandbox acreditan esas
+comprobaciones. El [runbook de riesgos](stripe-risk-review.md) distingue configuración y entrega.
+Una disputa, devolución parcial o alerta de
+fraude no autoriza inventar deuda, cancelar la suscripción ni retirar acceso automáticamente.
+Este pendiente afecta todos los planes y no se cierra por activar precios.
+
+No hay registros activos en Stripe Tax y no se habilitó `automatic_tax`. El precio inclusivo no
+acredita cálculo fiscal, registro de obligaciones, CFDI ni aceptación del contador. Mantener esa
+validación separada del cobro y no completar información fiscal con datos supuestos.
 
 ## Registro de trabajo y consumo
 

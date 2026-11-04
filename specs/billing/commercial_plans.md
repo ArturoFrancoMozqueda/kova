@@ -7,11 +7,18 @@ resolución autoritativa que preserve Standard y cortesías sin convertir flags 
 la selección del navegador en permisos pagados. Usuarios: dueño, gerente, cajero y staff; soporte
 interno solo bajo sus controles propios.
 
-Estado: implementación local con pruebas de backend y migración aprobadas. La oferta nueva está
-apagada por defecto; esta spec no
-acredita publicación, aceptación de Stripe, dispositivos ni rentabilidad. Decisiones:
-[ADR-019](../../docs/adr/ADR-019-commercial-plan-design.md) y
-[ADR-020](../../docs/adr/ADR-020-commercial-plan-foundation.md).
+Estado: base comercial con activación autorizada en
+[ADR-021](../../docs/adr/ADR-021-commercial-production-activation.md). Esta entrega fija ambas
+flags nativas en ON y el gate público en `tiered`; su publicación se acredita con release PASS
+y verificación externa registrada por separado. La baseline anterior `7032d21f60aa` se verificó
+OFF. Esta spec describe la política y no sustituye la evidencia de despliegue. Conserva la base de
+[ADR-020](../../docs/adr/ADR-020-commercial-plan-foundation.md) y el diseño de
+[ADR-019](../../docs/adr/ADR-019-commercial-plan-design.md). Cobro live controlado, aceptación
+fiscal, dispositivos y rentabilidad conservan sus validaciones separadas.
+La [aceptación interactiva del Portal básico sandbox](../../docs/audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md)
+aprobó para Standard, Esencial y Gestión con fuentes por etapa y limpieza. No acredita una corrida
+headless ni demuestra por sí sola una activación productiva: esa publicación requiere release
+PASS y verificación externa.
 
 ## Requisitos funcionales
 
@@ -19,8 +26,9 @@ acredita publicación, aceptación de Stripe, dispositivos ni rentabilidad. Deci
   se resuelven al crearse, sin reclasificar negocios por fechas o al cambiar la configuración.
 - Standard anterior conserva $299 MXN/mes y el alcance comprometido. La cortesía permanente conserva
   [su contrato](complimentary_access.md), no ofrece Checkout y no oculta deuda de Stripe.
-- Esencial y Gestión son $399 y $699 MXN mensuales finales propuestos, respectivamente. Antes de
-  activar, el precio de Stripe debe coincidir con moneda, importe, intervalo y tratamiento fiscal.
+- Esencial y Gestión son $399 y $699 MXN mensuales finales autorizados, respectivamente. Antes de
+  activar, el precio configurado de Stripe debe coincidir con moneda, importe, intervalo y
+  comportamiento inclusivo. Esa coincidencia no acredita registro fiscal, CFDI o aceptación contable.
 - El estado autenticado añade `plan_code`, `plan_name`, `features` y `limits`, también para empleados
   que no pueden administrar facturación. Facturación añade catálogo `available_plans` e indicador
   `tiered_pricing_enabled`. No exponer claves ni datos privados del proveedor.
@@ -126,9 +134,13 @@ WhatsApp, inferencia externa ni un modelo de impresora.
   de operaciones admitidas conservan idempotencia, versiones, locks y transacciones existentes.
 - Los webhooks conservan firma, modo y evaluación temporal. Un Price desconocido o no verificable
   nunca habilita Gestión por defecto. No confiar en `plan_code`, nombre, precio o pago del navegador.
-- El Portal conserva configuraciones explícitas por cohorte. Si permite cambiar plan y depende de
-  programar reducciones al cierre del período, los dos Prices autorizados deben pertenecer a un
-  solo Product: Stripe no admite ese downgrade entre Products distintos. Una configuración con
+- El alcance inicial autorizado conserva un Product por plan y habilita solo Portal básico para
+  historial, método de pago y cancelación al cierre del período. No ofrece cambios autónomos de
+  plan o cantidad. La aceptación del guardado de pago y cancelación del Portal se registra aparte
+  de Checkout; las transiciones y su aplicación efectiva no se anuncian como disponibles.
+- El Portal conserva configuraciones explícitas por cohorte. Si en un alcance posterior permite
+  cambiar plan y depende de programar reducciones al cierre del período, los dos Prices autorizados
+  deben pertenecer a un solo Product: Stripe no admite ese downgrade entre Products distintos. Una configuración con
   cambios de plan habilitados y múltiples Products falla cerrada antes de crear la sesión. El
   catálogo con Products distintos sigue admitiendo Portal con cambios de plan deshabilitados
   para recuperación de pago, historial y cancelación; esto no activa ningún flag.
@@ -262,6 +274,8 @@ Scenario: Venta offline pendiente al cambiar de plan
 |---|---|
 | Backend y PostgreSQL | Cohortes, acceso por rol/plan, RLS, idempotencia y registros conservados |
 | Stripe sandbox | Catálogo, precio final, eventos repetidos/fuera de orden y asignación autoritativa |
+| Portal básico inicial | Sesión desde Kova, historial, método de pago guardado y cancelación al cierre; sin cambio de plan/cantidad, precio Standard conservado y cortesías sin Portal |
+| Transiciones posteriores | Upgrade/downgrade autónomos excluidos del alcance inicial; no se consideran aprobados por aceptar Portal básico |
 | Público | Menú/QR básicos, POST sin capacidad y lecturas históricas sin PII |
 | Agregados | Sin fuga por dashboard, herramientas del asistente o trabajos |
 | Frontend | Navegación, error de plan, 390/1440 px, teclado y ausencia de promesas no aceptadas |

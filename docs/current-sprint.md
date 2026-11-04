@@ -7,21 +7,54 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La última verificación registrada del 3 de noviembre corresponde a `88bb94056a0f` (PR #308):
-frontend `kovasuite.com`, API `api.kovasuite.com` y proxy reportaron el mismo SHA, con la base disponible.
-Los cambios de código hasta ese PR están publicados.
+El [release 41768085471](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41768085471)
+de PR #315 aprobó para `7032d21f60aa`, incluyendo sus verificaciones de publicación: es la baseline
+verificada antes de esta entrega. En ese corte, Standard $299 MXN/mes era la oferta pública y
+Esencial/Gestión y Portal estaban apagados. La verificación independiente posterior con `verifyDeployment` y
+`verifyPublicBillingOffer` aprobó seis rutas de frontend/API/proxy/base y el catálogo Standard/OFF
+sobre `7032d21f60aa`. Esta entrega cambia la política nativa a ON para nuevas ofertas y Portal
+básico, y el gate de catálogo a `tiered`. Su publicación se acredita únicamente con release PASS
+y verificación externa; la evidencia de ese cierre se registra por separado.
 Los merges posteriores solo de documentación no cambian el SHA desplegado. `main` ya exige `CI required`,
 también para administradores; [protección comprobada](despliegue.md#protección-de-main). Lo más reciente:
 
 - Corrección de acceso por facturación e imágenes de ejecución endurecidas (#287).
 - Fundación de planes comerciales y Checkout durable (#302), validación de Portal con productos
   expandidos y sin cantidades ajustables (#303), y simulacro aislado seleccionable por plan (#304).
-  Esencial/Gestión y Portal siguen apagados en producción; Standard conserva $299 MXN mensuales.
+  Standard conserva sus acuerdos de $299 MXN mensuales; la nueva oferta no migra esa cohorte.
 - Transporte de referencias públicas de Stripe a API/jobs, protección de registro con oferta
   obsoleta y actualización de precios al volver a la app (#307). El release verifica el catálogo
-  aprobado antes y después de promoción, sin reenviar bypass a redirecciones. Portal básico
-  preparado; el enlace opaco ya abre (#308). Falta aceptar el guardado del método de pago y la
-  cancelación desde el recorrido alojado; el helper conserva auto-wait y diagnóstico sin datos privados.
+  aprobado antes y después de promoción, sin reenviar bypass a redirecciones. El Portal básico
+  sandbox de los tres planes aprobó mediante navegador interactivo: guardado efectivo del método
+  de pago, historial y cancelación programada, con acceso conservado y limpieza completa.
+  [Evidencia y fuentes por etapa](audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md).
+  Esta entrega habilita la política de activación; su publicación requiere release y verificación
+  externa aprobados. La aceptación interactiva no acredita éxito headless.
+- Riesgos de Stripe con firma, modo e idempotencia, mapeo autoritativo y revisión visible en Ops
+  (#311), sin alterar suscripción, deuda ni acceso. El webhook se procesa fuera del event loop.
+  La aceptación real de los tres riesgos en sandbox aprobó sobre `5fd7b35f75a3`:
+  [evidencia](audits/evidence/KOV-005-STRIPE-RISK-DRILL-2026-11-03-standard.md).
+  Los tres tipos ya están habilitados en el destino live, verificados por API con los seis
+  anteriores, sin cambiar destino ni versión. Faltan permisos de lectura live confirmados,
+  recepción/conciliación histórica live y revisión de Ops con MFA;
+  [procedimiento](runbooks/stripe-risk-review.md).
+  El intento Standard con Portal
+  [41754550717](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41754550717) se detuvo en
+  Add deshabilitado aun con el email de Link vacío; no demuestra la causa ni acepta el Portal.
+  Ambas limpiezas aprobaron y se retiró la copia temporal de la clave de ese intento. El
+  [drill independiente de riesgos 41756012658](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41756012658)
+  aprobó con `include_portal=false`, tres relojes y tres Customers QA eliminados. Esa corrida
+  no acepta Portal; su aceptación interactiva posterior está enlazada arriba. El ajuste de
+  entrada y harness de #314 está incluido en #315.
+  El primer [release de #314](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41760340561)
+  falló durante la fase candidata y recuperó la baseline; no aprobó publicación. #315 añade
+  reintentos acotados de GET de readiness, conservando presupuesto, identidad y fallos cerrados,
+  sin demostrar por ello la causa del fallo anterior.
+- Cancelación programada de Stripe normalizada (#315): reconoce el booleano legado o un
+  `cancel_at` entero futuro que coincide con el fin del período del mismo objeto autoritativo.
+  Conserva estado, deuda, período pagado y acceso. La cancelación y el acceso de los tres planes
+  se aceptaron interactivamente sobre #315; Checkout y guardado del método de pago se comprobaron
+  sobre #314, sin atribuir todas las etapas a un único SHA ni al helper headless.
 - Recordatorios que excluyen cortesía permanente, recuperan envíos pendientes antes de vencer y
   reportan fallas al scheduler; importes de correo en Decimal (#300).
 - Dependencias PDF corregidas, motor OCR con fix oficial de propiedad de palabras y sus dos
@@ -33,9 +66,11 @@ también para administradores; [protección comprobada](despliegue.md#protecció
 - Carga progresiva con skeletons y correos con presentación editorial compartida (#296).
   Reset desde API publicado y `delivered` a Gmail el 30 de octubre. Las seis muestras QA actuales
   llegaron a Inbox y se revisaron en Gmail web el 2 de noviembre; otros clientes siguen pendientes.
-- Restauración 0099 con la imagen `4e3a58060f81` y el respaldo nuevo del 2 de noviembre: login,
-  exportación por API, RLS/integridad y limpieza aprobados. [Run actual](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223)
-  y [alcance y tiempos](runbooks/restore-supabase-backup.md#drill-log).
+- Restauración 0101 con respaldo nuevo del 3 de noviembre y una imagen reconstruida desde la
+  fuente publicada `88bb94056a0f`: login, exportación por API, RLS/integridad y limpieza aprobados.
+  [Evidencia redactada](audits/KOVA-R2-RESTORE-2026-11-03.md) y
+  [alcance y tiempos](runbooks/restore-supabase-backup.md#drill-log). No acredita el mismo digest
+  desplegado ni recuperación regional.
 - Navegación por rol con Caja, Pedidos y Ventas fijos y categorías desplegables (#285). Aceptada en
   producción.
 - Pedidos con seguimiento público y operación diaria simplificada (#283). Aceptado en producción
@@ -76,57 +111,76 @@ El [CI completo del PR](https://github.com/ArturoFrancoMozqueda/kova/actions/run
 La verificación pública posterior confirmó sitio HTTP 200, frontend/API/proxy con el mismo SHA y
 base accesible por API directa y proxy. No se hicieron escrituras de negocio en producción.
 
-## Planes comerciales preparados, oferta apagada
+## Planes comerciales: aceptación y política de activación
 
 El dueño aprobó avanzar con Esencial $399/Gestión $699 MXN mensuales, conservar acuerdos actuales y
 medir atención/consumo antes de cerrar la rentabilidad. [ADR-019](adr/ADR-019-commercial-plan-design.md)
 registra el diseño; [ADR-020](adr/ADR-020-commercial-plan-foundation.md) documenta la fundación
-de cohortes/capacidades, ya publicada detrás de banderas apagadas. El contrato está en
+de cohortes/capacidades, publicada con activación separada. El contrato está en
 [planes comerciales](../specs/billing/commercial_plans.md) y la
 [aceptación/medición](runbooks/commercial-plan-acceptance.md) distingue los recorridos aprobados y
 los gates abiertos. El sandbox aprobó Checkout y ciclo de suscripción con Kova/PostgreSQL efímeros
 para Esencial $399, Gestión $699 y la regresión Standard $299 sobre `1a181853162b`.
-Faltan las transiciones mediante el Portal de Kova, la aplicación efectiva al vencer y la
-validación fiscal antes de autorizar la oferta productiva.
-Standard $299 sigue vigente en la app productiva. El dueño autorizó después alinear producción:
+La activación productiva está autorizada en
+[ADR-021](adr/ADR-021-commercial-production-activation.md). El Portal básico sandbox ya aprobó
+la aceptación interactiva. Esta entrega habilita la política ON; la publicación se acredita con
+release PASS y verificación externa. Las transiciones autónomas entre planes permanecen fuera del alcance inicial;
+la validación fiscal conserva su pendiente separado.
+Los acuerdos Standard de $299 conservan su vigencia. El dueño autorizó después alinear producción:
 se crearon en Stripe live productos separados de Esencial $399 y Gestión $699 MXN mensuales,
 con precios inclusivos, sin modificar suscripciones ni los precios de $299 anteriores. Un precio
 preliminar no utilizado quedó archivado, sin suscripciones. Se preparó un Portal privado para
 historial, método de pago y cancelación al cierre del período, sin acceso público ni cambios de
 plan. Las cuatro referencias no secretas ya llegaron a API/jobs mediante el release aceptado de
-#307. Falta aceptar el recorrido del Portal antes de activar la oferta de Kova.
+#307. La [evidencia interactiva de los tres planes](audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md)
+ya está revisada y su limpieza concluyó. La baseline previa `7032d21f60aa` se verificó OFF;
+el workflow de activación debe capturar sus versiones exactas, con los cuatro IDs, para el rollback.
+La publicación de la oferta ON requiere el cierre del release y su verificación externa.
 
 La revisión detectó que Stripe sólo programa reducciones entre Prices del mismo Product; agrupar
 ambos planes eliminaría su identidad en Checkout/comprobantes. Se conserva un Product por plan y
 no se habilitan cambios autónomos entre planes. El resultado anterior de UI alojada no basta para
 aceptar esa transición en el catálogo definitivo. Los cambios de plan y su aplicación al vencer
-siguen pendientes, separados del Portal básico. Identidad pública, enlaces legales, recuperación
-automática y aceptación fiscal se revisan sin inventar datos del titular.
+siguen pendientes, separados del Portal básico. En live se guardaron y verificaron el nombre
+público Kova, el sitio [kovasuite.com](https://kovasuite.com), el correo de soporte
+[posprojectsupport@gmail.com](mailto:posprojectsupport@gmail.com) y los enlaces de
+[privacidad](https://kovasuite.com/privacy) y [términos](https://kovasuite.com/terms). Nombre,
+correo y sitio se confirmaron por API; privacidad y términos al reabrir la UI.
 La revisión detallada de recuperación confirmó Smart Retries ya habilitado, con hasta ocho
-intentos en dos semanas; no se cambió esa política. Los avisos de tarjeta por vencer, pago
-fallido y autenticación requerida están apagados. Los enlaces legales y el nombre comercial
-público requieren guardar la corrección preparada; no se consideran resueltos por crear el Portal.
+intentos en dos semanas; no se cambió esa política. Se guardaron y verificaron tras recargar los
+avisos live de pago fallido, tarjeta por vencer y autenticación requerida mediante enlace de Stripe.
+Los avisos de fin de prueba, próxima renovación y débito bancario siguen apagados. Estos ajustes
+no cierran la aceptación fiscal ni la aceptación controlada de cobro.
 
 ## Gates abiertos
 
 Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 
-1. **Cobro live de Stripe.** La cuenta y el webhook están habilitados; la consulta del 29 de octubre
-   confirma renovación pagada y pago fallido recientes, procesados por Kova. Falta la aceptación
-   controlada de checkout y cancelación sobre la versión vigente antes del acceso pagado general.
+1. **Cobro live de Stripe.** La cuenta y el webhook de ciclo de suscripción están habilitados.
+   La aceptación controlada de cobro y cancelación live sobre la versión vigente sigue pendiente.
+   La activación del catálogo y Checkout está autorizada en esta entrega conforme a ADR-021 y
+   se acredita con release PASS y verificación externa; no equivale a aceptación live completada
+   ni operación al 100%.
+   Los handlers de disputa, reembolso y alerta temprana de fraude ya están
+   publicados (#311) y su aceptación sandbox real aprobó sobre `5fd7b35f75a3`. Los tres tipos live
+   ya están habilitados y verificados por API. Faltan confirmar permisos de lectura live, ejecutar
+   recepción/conciliación histórica controlada y revisar Ops con MFA.
+   Un riesgo procesado conserva el acceso y requiere revisión en Ops.
    El simulacro sandbox del 3 de noviembre aprobó los tres planes contra Kova/PostgreSQL efímeros:
    Checkout, renovación simulada, falla/gracia/recuperación, cancelación y eventos duplicados o fuera
    de orden. No prueba un cobro live ni adelanta el reloj de Kova. La clave de prueba se instaló
    temporalmente en el Secret store para ejecutar esos recorridos y ya fue retirada tras conservar
    la evidencia. Webhook live habilitado hacia la API vigente.
    [Simulacro y evidencia por plan](runbooks/stripe-sandbox-drill.md).
-2. **Restauración de respaldo.** El respaldo diario a R2 corre. El simulacro lógico del 27 de
-   octubre pasó con revisión 0095; el del 2 de noviembre restauró la revisión actual 0099 con RLS
-   e integridad aprobadas. La repetición sobre `4e3a58060f81` aprobó login, exportación por API
-   y logout con una cuenta sintética aislada. Snapshot de 23 min 37 s; drill lógico/ASGI de
-   22.447 s sin construcción de imagen: no equivalen a RTO/RPO regionales.
+2. **Restauración de respaldo.** El respaldo diario a R2 corre. El 3 de noviembre se restauró
+   la revisión `0101_checkout_attempts` y se aprobó RLS, integridad, login, exportación por API,
+   logout y limpieza con una cuenta sintética aislada. La imagen se reconstruyó desde la fuente
+   publicada `88bb94056a0f`; no se acredita igualdad de digest con Cloudflare. Snapshot de
+   5 min 7.659 s; drill lógico/ASGI de 20.962 s sin construcción de imagen: no equivalen a
+   RTO/RPO regionales. La evidencia previa de 0099 conserva su alcance histórico.
    Falta la recuperación regional con bindings de producción, tráfico y RTO/RPO completos.
-   [Alcance comprobado](runbooks/restore-supabase-backup.md).
+   [Evidencia redactada](audits/KOVA-R2-RESTORE-2026-11-03.md) y
+   [alcance comprobado](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. El reset solicitado desde el proxy del backend
    publicado llegó a `delivered` el 29 de octubre CDMX y se repitió con el diseño nuevo sobre
