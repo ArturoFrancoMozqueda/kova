@@ -3,7 +3,7 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from threading import Barrier, Event, Lock
+from threading import Barrier, Event, Lock, local
 from time import monotonic, time
 from uuid import uuid4
 
@@ -16,6 +16,13 @@ from app.billing import service
 from app.config import settings
 from app.db import set_tenant_context
 from app.tests.test_billing_api import _configure_stripe
+
+
+def _blocked_by_checkout_holder(connection, *, waiter_pid, holder_pid):
+    # Read the live lock manager, not a pg_stat_activity/application_name snapshot.
+    return connection.execute(text(
+        "SELECT CAST(:holder AS integer) = ANY(pg_blocking_pids(CAST(:waiter AS integer)))"
+    ), {"holder": holder_pid, "waiter": waiter_pid}).scalar_one()
 
 
 @pytest.fixture
@@ -55,7 +62,7 @@ def committed_checkout_owners(owner_engine):
 
 
 def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_committed(
-    owner_engine, kova_app_engine, committed_checkout_owners, monkeypatch,
+    owner_engine, kova_app_engine, committed_checkout_owners, monkeypatch, request,
 ):
     tenant, owners, other_tenant = committed_checkout_owners
     _configure_stripe(monkeypatch)
@@ -65,10 +72,40 @@ def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_commit
     release_http = Event()
     fake_lock = Lock()
     backend_actors = Queue(maxsize=2)
+    progress = Event()
+    state_lock = Lock()
+    current_actor = local()
+    actors = {owner: {"phase": "starting", "pid": None, "lock_pid": None} for owner in owners}
+    provider_holder = {"owner": None, "pid": None}
     start = Barrier(2)
     calls = []
     remote_sessions = {}
     durable_snapshots = []
+
+    def before_lock(connection, cursor, statement, parameters, context, executemany):
+        actor = getattr(current_actor, "owner", None)
+        if actor is not None and "pg_advisory_xact_lock(" in statement:
+            with state_lock:
+                actors[actor]["phase"] = "lock_issued"
+                actors[actor]["lock_pid"] = actors[actor]["pid"]
+            progress.set()
+
+    def after_lock(connection, cursor, statement, parameters, context, executemany):
+        actor = getattr(current_actor, "owner", None)
+        if actor is not None and "pg_advisory_xact_lock(" in statement:
+            with state_lock:
+                actors[actor]["phase"] = "lock_acquired"
+                actors[actor]["lock_pid"] = None
+            progress.set()
+
+    event.listen(kova_app_engine, "before_cursor_execute", before_lock)
+    event.listen(kova_app_engine, "after_cursor_execute", after_lock)
+
+    def remove_observers():
+        event.remove(kova_app_engine, "before_cursor_execute", before_lock)
+        event.remove(kova_app_engine, "after_cursor_execute", after_lock)
+
+    request.addfinalizer(remove_observers)
 
     class StripeWithOneObjectPerKey:
         def create_checkout_session(self, **kwargs):
@@ -97,6 +134,11 @@ def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_commit
                     if name not in {"secret_key", "idempotency_key"}
                 }
             if first_call:
+                actor = current_actor.owner
+                with state_lock:
+                    actors[actor]["phase"] = "provider_wait"
+                    provider_holder.update(owner=actor, pid=actors[actor]["pid"])
+                progress.set()
                 first_http_started.set()
                 assert release_http.wait(timeout=12), "First provider response was not released"
             else:
@@ -112,20 +154,20 @@ def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_commit
     monkeypatch.setattr(service, "checkout_client", StripeWithOneObjectPerKey())
 
     def checkout(owner):
+        current_actor.owner = owner
         with Session(kova_app_engine) as db:
-            application = f"checkout-race-{owner.hex}"
-
             @event.listens_for(db, "after_begin")
             def identify_transaction(session, transaction, connection):
                 # NullPool gives a new backend PID after each durable commit.
-                connection.execute(text(
-                    "SELECT set_config('application_name',:name,true)"
-                ), {"name": application})
+                pid = connection.execute(text("SELECT pg_backend_pid()")).scalar_one()
+                with state_lock:
+                    actors[owner].update(phase="transaction_open", pid=pid, lock_pid=None)
+                progress.set()
 
             set_tenant_context(db, tenant)
             db.execute(text("SET LOCAL lock_timeout='10s'"))
             assert db.execute(text("SELECT current_user")).scalar_one() == "kova_app"
-            backend_actors.put(application)
+            backend_actors.put(True)
             start.wait(timeout=10)
             return service.create_checkout_session(
                 db, tenant_id=tenant, user_id=owner, idempotency_key=f"tab-{uuid4()}",
@@ -134,26 +176,36 @@ def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_commit
     with ThreadPoolExecutor(max_workers=2) as pool:
         futures = [pool.submit(checkout, owner) for owner in owners]
         try:
-            actors = [backend_actors.get(timeout=10), backend_actors.get(timeout=10)]
+            backend_actors.get(timeout=10)
+            backend_actors.get(timeout=10)
             assert first_http_started.wait(timeout=10)
             overlapped = False
             deadline = monotonic() + 6
             with owner_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 while monotonic() < deadline:
+                    progress.clear()
                     for future in futures:
                         if future.done():
                             future.result()  # Surface runtime failures instead of hiding them as a wait.
                     if another_http_started.is_set():
                         overlapped = True
                         break
-                    waiting = conn.execute(text(
-                        "SELECT count(*) FROM pg_stat_activity "
-                        "WHERE application_name=ANY(:actors) AND wait_event_type='Lock'"
-                    ), {"actors": actors}).scalar_one()
-                    if waiting:
+                    with state_lock:
+                        holder = provider_holder["pid"]
+                        contender = next(owner for owner in owners
+                                         if owner != provider_holder["owner"])
+                        waiter = actors[contender]["lock_pid"]
+                    if waiter is not None and holder is not None and _blocked_by_checkout_holder(
+                        conn, waiter_pid=waiter, holder_pid=holder,
+                    ):
                         overlapped = True
                         break
-            assert overlapped, "Requests did not overlap at the provider or PostgreSQL lock"
+                    # Only the observer yields; requests have no new gates or serializing waits.
+                    progress.wait(timeout=min(0.02, max(0, deadline - monotonic())))
+            with state_lock:
+                phases = ",".join(actors[owner]["phase"] for owner in owners)
+            assert overlapped, ("Requests did not overlap at the provider or PostgreSQL lock; "
+                                f"phases={phases}")
         finally:
             release_http.set()
         results = [future.result(timeout=12) for future in futures]
@@ -185,3 +237,51 @@ def test_distinct_tabs_and_owners_share_one_checkout_after_the_attempt_is_commit
                 "VALUES(:id,:tenant,CAST(:payload AS json),:fingerprint,'standard','uncertain',now())"
             ), {"id": uuid4(), "tenant": tenant, "payload": json.dumps({}),
                 "fingerprint": "a" * 64})
+
+
+def test_checkout_overlap_observer_rejects_unrelated_or_released_locks(
+    owner_engine, kova_app_engine,
+):
+    """A real wait only counts when this Checkout's provider holder blocks it."""
+    first_key, second_key = str(uuid4()), str(uuid4())
+    ready = Queue(maxsize=1)
+    lock_sql = text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
+
+    def wait_for_second_holder():
+        with kova_app_engine.connect() as conn:
+            ready.put(conn.execute(text("SELECT pg_backend_pid()")).scalar_one())
+            conn.execute(lock_sql, {"key": second_key})
+
+    with (kova_app_engine.connect() as unrelated_holder,
+          kova_app_engine.connect() as actual_holder,
+          owner_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as observer):
+        unrelated_pid = unrelated_holder.execute(text("SELECT pg_backend_pid()")).scalar_one()
+        actual_pid = actual_holder.execute(text("SELECT pg_backend_pid()")).scalar_one()
+        unrelated_holder.execute(lock_sql, {"key": first_key})
+        actual_holder.execute(lock_sql, {"key": second_key})
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            waiting = pool.submit(wait_for_second_holder)
+            try:
+                waiter_pid = ready.get(timeout=10)
+                blocked = False
+                deadline = monotonic() + 6
+                while monotonic() < deadline:
+                    if waiting.done():
+                        waiting.result()
+                    blocked = _blocked_by_checkout_holder(
+                        observer, waiter_pid=waiter_pid, holder_pid=actual_pid,
+                    )
+                    if blocked:
+                        break
+                assert blocked, "Control waiter did not reach its real PostgreSQL lock"
+                unrelated = _blocked_by_checkout_holder(
+                    observer, waiter_pid=waiter_pid, holder_pid=unrelated_pid,
+                )
+                assert not unrelated, "An unrelated lock must not prove Checkout overlap"
+            finally:
+                actual_holder.rollback()
+            waiting.result(timeout=12)
+            released = _blocked_by_checkout_holder(
+                observer, waiter_pid=waiter_pid, holder_pid=actual_pid,
+            )
+            assert not released, "A released lock must not prove Checkout overlap"
