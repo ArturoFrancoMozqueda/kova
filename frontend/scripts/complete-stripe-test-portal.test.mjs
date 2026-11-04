@@ -180,6 +180,8 @@ test("field diagnostics emit fixed enums and booleans without names, values or l
   assert.deepEqual(snapshot.map(field => field.kind), entries.map(entry => entry[2]));
   for (const field of snapshot) assert.deepEqual(field, {
     kind: field.kind, filled: true, required: true, html_valid: false, aria_invalid: true, checked: false,
+    ...(["card_number", "card_expiry", "card_cvc", "billing_country", "billing_postal"].includes(field.kind)
+      ? { fixture_match: false } : {}),
   });
   assert.doesNotMatch(JSON.stringify(snapshot), /private|secret|example|https|bearer|length|autocomplete/);
   const checkbox = visiblePortalFieldState([diagnosticField({
@@ -377,5 +379,88 @@ test("local optional Link form with prefilled email and no checkbox opts out by 
     assert.equal(after.find(field => field.kind === "link_email").filled, false);
     assert.doesNotMatch(JSON.stringify(after), /example|qa-only|customer-kept|424242|10001/);
     assert.equal(externalRequest, false);
+  } finally { await browser.close(); }
+});
+
+
+
+test("fixture match diagnostics normalize only known fixtures and never emit their values", () => {
+  const inputs = [
+    ["number", "4242 4242 4242 4242"], ["expiry", "12 / 30"], ["cvc", "123"],
+    ["country", "US"], ["postalCode", "10001"],
+  ];
+  const matching = visiblePortalFieldState(inputs.map(([name, value]) => diagnosticField({ name, value })));
+  assert.deepEqual(matching.map(field => field.fixture_match), [true, true, true, true, true]);
+  const wrong = visiblePortalFieldState(inputs.map(([name]) => diagnosticField({
+    name, value: "private.customer@example.invalid/secret",
+  })));
+  assert.deepEqual(wrong.map(field => field.fixture_match), [false, false, false, false, false]);
+  const identity = visiblePortalFieldState([diagnosticField({ name: "search-linkEmail", value: "private" })]);
+  assert.equal(Object.hasOwn(identity[0], "fixture_match"), false);
+  assert.doesNotMatch(JSON.stringify([...matching, ...wrong, ...identity]),
+    /4242|1230|10001|private|secret|example|value|length/);
+});
+
+
+test("local keyboard-handled masked form commits all five fixtures without forcing submission", {
+  skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+}, async () => {
+  const { chromium } = await import("playwright");
+  const { completeTestPaymentFields } = await import("./complete-stripe-test-portal.mjs");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let externalRequest = false;
+    await page.route("**/*", async route => { externalRequest = true; await route.abort(); });
+    // A local reproduction of special keyboard handling, not a claim that the
+    // hosted Portal uses this implementation or that its root cause is proven.
+    const html = `<!doctype html><html><body><form>
+      <input name="number" autocomplete="cc-number" required>
+      <input name="expiry" autocomplete="cc-exp" required>
+      <input name="cvc" autocomplete="cc-csc" required>
+      <select name="country" required><option value="MX">Mexico</option><option value="US">United States</option></select>
+      <input name="postalCode" autocomplete="billing postal-code" required>
+      <button id="add" type="button" disabled>Add</button>
+      <script>
+        const names = ['number', 'expiry', 'cvc', 'postalCode'];
+        const keyed = {}, committed = {};
+        let countryCommitted = false;
+        function update() {
+          document.querySelector('#add').disabled = !countryCommitted
+            || !names.every(name => keyed[name] && committed[name]);
+        }
+        for (const name of names) {
+          const field = document.querySelector('[name="' + name + '"]');
+          field.addEventListener('keydown', event => {
+            if (/^[0-9]$/.test(event.key)) keyed[name] = true;
+          });
+          field.addEventListener('input', () => {
+            if (!field.value) keyed[name] = false;
+            if (name === 'expiry') {
+              const digits = field.value.replace(/[^0-9]/g, '');
+              field.value = digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
+            }
+            committed[name] = false; update();
+          });
+          field.addEventListener('blur', () => { committed[name] = Boolean(field.value); update(); });
+        }
+        const country = document.querySelector('[name=country]');
+        country.addEventListener('blur', () => { countryCommitted = country.value === 'US'; update(); });
+      </script></form></body></html>`;
+    await page.setContent('<iframe id="payment"></iframe>');
+    await page.locator("#payment").evaluate((frame, src) => { frame.srcdoc = src; }, html);
+    const frame = page.frameLocator("#payment");
+    await frame.locator("[name=expiry]").waitFor();
+    await frame.locator("[name=expiry]").fill("1230");
+    await frame.locator("[name=expiry]").press("Tab");
+    assert.equal(await frame.locator("[name=expiry]").evaluate(field => field.validity.valid), true);
+    assert.equal(await frame.locator("#add").isEnabled(), false);
+    await completeTestPaymentFields(page);
+    const fields = await frame.locator("input,select").evaluateAll(visiblePortalFieldState);
+    assert.equal(fields.length, 5);
+    assert.equal(fields.every(field => field.fixture_match === true), true);
+    assert.equal(await frame.locator("#add").isEnabled(), true, "keyboard-handled local form remained disabled");
+    assert.equal(externalRequest, false);
+    assert.doesNotMatch(JSON.stringify(fields), /4242|1230|10001|value|length/);
   } finally { await browser.close(); }
 });
