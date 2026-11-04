@@ -20,9 +20,12 @@ escribe un ADR nuevo que reemplaza al anterior.
 ## Referencia de producto y negocio
 
 - [Diseño comercial de Esencial y Gestión](adr/ADR-019-commercial-plan-design.md): dirección
-  aprobada de $399/$699, protección de acuerdos actuales y mediciones pendientes; sin publicar.
+  aprobada de $399/$699, protección de acuerdos actuales y mediciones pendientes.
 - [Base comercial multiplan](adr/ADR-020-commercial-plan-foundation.md): cohortes y capacidades
   del servidor, con activación de nuevas ofertas apagada por defecto.
+- [Activación comercial productiva](adr/ADR-021-commercial-production-activation.md): autorización
+  de $399/$699 con Portal básico sandbox aceptado interactivamente, acuerdos anteriores conservados
+  y política ON cuya publicación se acredita con release y verificación externa.
 - [Aceptación y medición comercial](runbooks/commercial-plan-acceptance.md): Standard, cortesías,
   pruebas de planes, atención y consumo, sin confundir proyecciones con costos comprobados.
 - [report-metric-definitions.md](report-metric-definitions.md): cómo se calcula cada métrica de

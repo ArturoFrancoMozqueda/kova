@@ -25,6 +25,10 @@ database output and container logs are never uploaded or printed. Cleanup runs o
 successful evidence requires confirmed container and private-file removal.
 
 The workflow also builds the current `backend/Dockerfile.api` image before passing any R2 secrets.
+It rebuilds the workflow commit's source and verifies its image identities; it does not pull or
+prove digest equality with the image deployed in Cloudflare. There is no image/SHA or backup-key
+input: run from `main` at the reviewed commit after a successful fresh backup, before merging the
+next release. The newest valid R2 snapshot is selected automatically.
 With `RESTORE_SERVICE_SMOKE=true`, acceptance requires the backup revision to equal the repository's
 single migration head. A read-only, non-root API container shares the database's `--network none`
 namespace, whose only interface is loopback. No public HTTP listener is started. The probe uses the
@@ -285,12 +289,18 @@ Record every drill execution here (store detailed evidence in restricted storage
 | 2026-10-27 | Authorized workflow; evidence reviewed 2026-10-29 | R2 snapshot 2026-10-26 15:52:58 UTC, revision 0095 | Logical drill 17.055 s; restore 0.791 s; service RTO not established | Snapshot age 9 h 26 min; service RPO not established | RLS, payments/lots and Data API grants passed; no API service smoke | Verified | [Run 40431841128](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40431841128); does not validate current revision 0098 or regional service recovery |
 | 2026-10-30 | Authorized workflow (29 October CDMX) | R2 snapshot 2026-10-29 15:52:45 UTC, revision 0098 | Logical drill 20.747 s; restore 0.576 s; service RTO not established | Snapshot age 10 h 43 min; service RPO not established | 14 tenants, 2,218 orders; 106 policies; tenant RLS, payments/lots, Data API grants passed | Verified | [Run 40992603802](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40992603802), source `071e2bd8c7c0`; no API service smoke in this run |
 | 2026-10-30 | Authorized workflow (29 October CDMX) | Same snapshot, revision 0098 | Isolated logical + ASGI drill 18.244 s, excluding image build; restore 0.801 s; regional RTO not established | Snapshot age 11 h 30 min; regional RPO not established | Health/db, secure cookie login, CSRF/identity rejection, tenant export of 2,217 existing orders matched SQL, logout; runtime RLS and financial checks passed | Both containers and private dump removed | [Run 40996995394](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40996995394), source `57fe4cf7004f`; CI configuration, synthetic clone-only owner, no production bindings or traffic cutover |
-| _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |
 | 2026-11-02 | Authorized workflow | R2 snapshot 2026-11-01 15:48:29 UTC, revision 0099 | Isolated logical + ASGI drill 20.766 s, excluding image build; restore 0.488 s; regional RTO not established | Snapshot age 24 h 18 min; regional RPO not established | Current-head schema, health/db, cookie login, tenant export, logout, RLS and payment/lot integrity passed | Both containers and private files removed | [Run 41478117936](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936), source `79f73a326b14`; [aggregate evidence](../audits/KOVA-R2-RESTORE-2026-11-02.json); no production bindings or traffic cutover |
 | 2026-11-02 | Authorized repeat after native-runtime changes | Fresh R2 snapshot 2026-11-02 16:17:04 UTC, revision 0099 | Isolated logical + ASGI drill 22.447 s, excluding image build; restore 0.840 s; regional RTO not established | Snapshot age 23 min 37 s; regional RPO not established | Health/db, cookie login, export, logout, runtime RLS and payment/lot integrity passed with image `4e3a58060f81` | Containers and private files removed | [Run 41483756223](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223); aggregate evidence below; no production bindings or traffic cutover |
+| 2026-11-03 | Authorized workflow | Fresh R2 snapshot, revision 0101; object location omitted | Isolated logical + ASGI drill 20.962 s, excluding image build; restore 0.630 s; regional RTO not established | Snapshot age 5 min 7.659 s; regional RPO not established | Health/db, cookie login, tenant export, logout, runtime RLS and payment/lot integrity passed | Both containers and private files removed | [Backup run 41706779313](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41706779313), [restore run 41707510744](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41707510744); [redacted evidence](../audits/KOVA-R2-RESTORE-2026-11-03.md); rebuilt source `88bb94056a0f`, deployed digest not verified; no production bindings or traffic cutover |
+| _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |
+
+La repetición del [3 de noviembre](../audits/KOVA-R2-RESTORE-2026-11-03.md) aprobó la revisión
+`0101_checkout_attempts` con un snapshot nuevo y una imagen reconstruida desde la fuente publicada
+`88bb94056a0f`. Su evidencia pública omite la ubicación del respaldo y datos de clientes. El
+resultado del 2 de noviembre que sigue corresponde a la revisión histórica 0099.
 
 <details>
-<summary>Aggregate evidence: current native image, 2 November 2026</summary>
+<summary>Aggregate evidence: native source tested on 2 November 2026 (revision 0099)</summary>
 
 ```json
 {
