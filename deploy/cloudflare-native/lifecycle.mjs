@@ -1,6 +1,8 @@
 import { CONTROLLER_FAILURE_HEADER, CODE_UPDATE_RESET, isCodeUpdateReset } from "../controller-update-recovery.mjs";
 import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavailable } from "./policy.mjs";
 
+export const BOOT_CONTROLLER_HEADER = "x-kova-boot-controller-sha";
+
 // Only the read-only acceptance contracts can opt in to fixed stage telemetry.
 // Query strings and arbitrary paths/headers never become diagnostics.
 const diagnosticPhases = new Set(["ensure_ready", "start_fetch", "response", "failed"]);
@@ -49,6 +51,11 @@ export function residentContainerClass(Container) {
     sleepAfter = "5m";
     portProbeRequired = false;
     diagnosticEvents = 0;
+    bootVerified = false;
+    bootGeneration = 0;
+    readinessPromise;
+    reconfigurationRequested = false;
+    reconfigurationAttempted = false;
 
     constructor(ctx, env) {
       super(ctx, env);
@@ -81,16 +88,68 @@ export function residentContainerClass(Container) {
 
     async ensureReady() {
       if (!this.isResident()) return await this.env.API.getByName(NATIVE_INSTANCE).ensureReady();
+      // Coalesce application checks without holding a DO input gate across I/O.
+      if (!this.readinessPromise) {
+        const pending = this.reconcileReady().finally(() => {
+          if (this.readinessPromise === pending) this.readinessPromise = undefined;
+        });
+        this.readinessPromise = pending;
+      }
+      await this.readinessPromise;
+    }
+
+    invalidateBoot() {
+      this.bootVerified = false;
+      this.bootGeneration++;
+    }
+
+    async reconcileReady() {
+      // SDK stop() signals SIGTERM but does not await process exit. Never
+      // forward traffic or repeatedly signal a process while it is draining.
+      if (this.reconfigurationRequested) {
+        if (this.ctx.container.running) throw new Error("Native boot reconfiguration pending");
+        this.reconfigurationRequested = false;
+      }
       // A running process may still be importing/compiling the application.
       // Avoid repeating port probes once healthy, but never let the SDK's
       // shorter default startup timeout handle an in-progress first boot.
-      if (!this.portProbeRequired && this.ctx.container.running
-          && (await this.getState()).status === "healthy") return;
-      await this.startAndWaitForPorts({ cancellationOptions: {
-        instanceGetTimeoutMS: 60_000,
-        portReadyTimeoutMS: 120_000,
-      } });
-      this.portProbeRequired = false;
+      const healthy = !this.portProbeRequired && this.ctx.container.running
+        && (await this.getState()).status === "healthy";
+      if (healthy && this.bootVerified) return;
+      if (!healthy) {
+        this.invalidateBoot();
+        await this.startAndWaitForPorts({ cancellationOptions: {
+          instanceGetTimeoutMS: 60_000,
+          portReadyTimeoutMS: 120_000,
+        } });
+        this.portProbeRequired = false;
+      }
+      const generation = this.bootGeneration;
+      const response = await this.containerFetch("http://container/health", {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error("Native container failed boot readiness");
+      let body;
+      try { body = await response.json(); }
+      catch { throw new Error("Malformed native boot readiness"); }
+      // Worker and image versions can overlap. A foreign image never triggers
+      // an application-controlled restart or passes readiness.
+      if (body?.status !== "ok" || body.release_sha !== this.env.KOVA_BUILD_SHA) {
+        throw new Error("Native container release identity mismatch");
+      }
+      if (response.headers.get(BOOT_CONTROLLER_HEADER) !== this.env.KOVA_BUILD_SHA) {
+        if (!this.reconfigurationAttempted) {
+          this.reconfigurationAttempted = true;
+          this.reconfigurationRequested = true;
+          await this.stop();
+        }
+        throw new Error("Native boot reconfiguration pending");
+      }
+      if (generation !== this.bootGeneration || !this.ctx.container.running) {
+        throw new Error("Native boot changed during readiness");
+      }
+      this.bootVerified = true;
+      this.reconfigurationAttempted = false;
     }
 
     async fetch(request) {
@@ -109,6 +168,7 @@ export function residentContainerClass(Container) {
         // native redirects preserve the original HTTPS scheme safely.
         const headers = new Headers(request.headers);
         headers.delete(CONTROLLER_FAILURE_HEADER);
+        headers.delete(BOOT_CONTROLLER_HEADER);
         const origin = new URL(request.url);
         headers.set("x-forwarded-proto", origin.protocol === "https:" ? "https" : "http");
         headers.set("host", origin.host);
@@ -123,6 +183,7 @@ export function residentContainerClass(Container) {
           // A rollout can disconnect after ensureReady. Reprobe on the next
           // request without replaying this request or mutating SDK state.
           this.portProbeRequired = true;
+          this.invalidateBoot();
           await response.body?.cancel();
           console.error(JSON.stringify({ event: "native_backend_unavailable" }));
           return unavailable();
@@ -131,6 +192,7 @@ export function residentContainerClass(Container) {
         result.headers.delete(CONTROLLER_FAILURE_HEADER);
         return result;
       } catch (error) {
+        if (this.bootVerified) this.invalidateBoot();
         diagnostic?.("failed");
         const reset = isCodeUpdateReset(error);
         try { console.error(JSON.stringify({ event: "native_backend_unavailable",
@@ -149,6 +211,8 @@ export function residentContainerClass(Container) {
     }
 
     async onStop() {
+      this.invalidateBoot();
+      this.portProbeRequired = true;
       // Run after SDK stop bookkeeping; do not restart recursively inside its
       // shutdown promise or replace the SDK-owned alarm handler.
       if (this.isResident()) await this.schedule(5, "ensureRunning");
@@ -167,11 +231,26 @@ export function residentContainerClass(Container) {
     async ready() {
       if (!this.isResident()) return await this.env.API.getByName(NATIVE_INSTANCE).ready();
       await this.ensureReady();
-      const response = await this.containerFetch("http://container/health");
-      if (!response.ok) throw new Error("Native container failed readiness");
-      const body = await response.json();
-      if (body.release_sha !== this.env.KOVA_BUILD_SHA) {
+      const response = await this.containerFetch("http://container/health", {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) {
+        this.invalidateBoot();
+        throw new Error("Native container failed readiness");
+      }
+      let body;
+      try { body = await response.json(); }
+      catch {
+        this.invalidateBoot();
+        throw new Error("Malformed native readiness");
+      }
+      if (body?.status !== "ok" || body.release_sha !== this.env.KOVA_BUILD_SHA) {
+        this.invalidateBoot();
         throw new Error("Native container release identity mismatch");
+      }
+      if (response.headers.get(BOOT_CONTROLLER_HEADER) !== this.env.KOVA_BUILD_SHA) {
+        this.invalidateBoot();
+        throw new Error("Native container boot identity mismatch");
       }
       const database = await this.containerFetch("http://container/health/db");
       if (!database.ok) throw new Error("Native container database failed readiness");

@@ -7,6 +7,7 @@ from app.main import app as application
 from app.middleware.resident_identity import ResidentIdentityMiddleware
 from app.native_checks import (
     prepare_native_routes,
+    validate_boot_controller_identity,
     validate_image_identity,
     validate_storage_transport,
 )
@@ -15,6 +16,12 @@ from app.native_checks import (
 # explicitly enables the container flag together with its durable rate limiter.
 if settings.cloudflare_container_mode:
     validate_image_identity(os.environ.get("KOVA_IMAGE_SHA"), settings.kova_release_sha)
+    validate_boot_controller_identity(
+        os.environ.get("KOVA_BOOT_CONTROLLER_SHA"), settings.kova_release_sha,
+        allow_legacy_off_boot=(
+            not settings.billing_tiered_plans_enabled and not settings.billing_portal_enabled
+        ),
+    )
     if settings.app_env == "production":
         # Only bind the HTTP listener after the existing app guards AND native
         # private-storage transport are ready. This never writes business data.
@@ -22,4 +29,9 @@ if settings.cloudflare_container_mode:
     # Compile the complete route/dependency graph once before Uvicorn exposes
     # its listener. New product areas must not impose first-request CPU stalls.
     prepare_native_routes(application)
-app = ResidentIdentityMiddleware(application) if settings.cloudflare_container_mode else application
+app = (
+    ResidentIdentityMiddleware(
+        application, boot_controller_sha=os.environ.get("KOVA_BOOT_CONTROLLER_SHA"),
+    )
+    if settings.cloudflare_container_mode else application
+)

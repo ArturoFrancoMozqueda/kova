@@ -8,10 +8,12 @@ la selección del navegador en permisos pagados. Usuarios: dueño, gerente, caje
 interno solo bajo sus controles propios.
 
 Estado: base comercial con activación autorizada en
-[ADR-021](../../docs/adr/ADR-021-commercial-production-activation.md). Esta entrega fija ambas
-flags nativas en ON y el gate público en `tiered`; su publicación se acredita con release PASS
-y verificación externa registrada por separado. La baseline anterior `7032d21f60aa` se verificó
-OFF. Esta spec describe la política y no sustituye la evidencia de despliegue. Conserva la base de
+[ADR-021](../../docs/adr/ADR-021-commercial-production-activation.md). Tras recuperarse el release
+del PR #316, [ADR-022](../../docs/adr/ADR-022-native-controller-boot-policy.md) exige publicar primero
+la verificación del arranque del controlador con flags nativas OFF y gate Standard, y activar
+en un cambio separado desde esa nueva baseline aceptada. Cada publicación requiere release PASS
+y verificación externa registrada por separado. La baseline `7032d21f60aa` se verificó OFF.
+Esta spec describe la política y no sustituye la evidencia de despliegue. Conserva la base de
 [ADR-020](../../docs/adr/ADR-020-commercial-plan-foundation.md) y el diseño de
 [ADR-019](../../docs/adr/ADR-019-commercial-plan-design.md). Cobro live controlado, aceptación
 fiscal, dispositivos y rentabilidad conservan sus validaciones separadas.

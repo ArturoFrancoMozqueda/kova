@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { nativeEnvironment, rateLimitBridge, jobsBridge, privateResponse, publicPath } from "../policy.mjs";
-import { residentContainerClass } from "../lifecycle.mjs";
+import { BOOT_CONTROLLER_HEADER, residentContainerClass } from "../lifecycle.mjs";
 import { persistentRateLimitClass } from "../rate-limit.mjs";
 import settingsKeys from "../settings-keys.json" with { type: "json" };
 
@@ -13,10 +13,14 @@ const settings = () => ({
   SECRET_KEY: "synthetic-test-key-not-for-production",
   KOVA_BUILD_SHA: sha,
 });
+const healthyBoot = (env, release = env.KOVA_BUILD_SHA, boot = env.KOVA_BUILD_SHA) => Response.json({
+  status: "ok", release_sha: release,
+}, { headers: boot === null ? {} : { [BOOT_CONTROLLER_HEADER]: boot } });
 
 test("native controller preserves public raster caching only for the narrow versioned image route", async () => {
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async fetch() { return this.env.testResponse; }
   }
@@ -52,7 +56,8 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
     ASSISTANT_INGEST_ON_DEMAND: "true", CLOUDFLARE_CONTAINER_MODE: "false",
     TRUSTED_CLIENT_IP_HEADER: "spoofed", KOVA_RELEASE_SHA: "wrong", APP_ENV: "local",
     ASSISTANT_OPEN_ROUTE: "synthetic-legacy-provider-setting",
-    BILLING_TIERED_PLANS_ENABLED: "false", BILLING_PORTAL_ENABLED: "false",
+    BILLING_TIERED_PLANS_ENABLED: "true", BILLING_PORTAL_ENABLED: "true",
+    KOVA_BOOT_CONTROLLER_SHA: "untrusted-binding",
     STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
     STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
     STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
@@ -71,8 +76,9 @@ test("runtime projection excludes unrelated secrets/resources/Fly and pins safet
   assert.equal(result.TRUSTED_CLIENT_IP_HEADER, "x-kova-client-ip");
   assert.equal(result.ASSISTANT_DOCUMENTS_ENABLED, "false");
   assert.equal(result.ASSISTANT_INGEST_ON_DEMAND, "false");
-  assert.equal(result.BILLING_TIERED_PLANS_ENABLED, "true");
-  assert.equal(result.BILLING_PORTAL_ENABLED, "true");
+  assert.equal(result.BILLING_TIERED_PLANS_ENABLED, "false");
+  assert.equal(result.BILLING_PORTAL_ENABLED, "false");
+  assert.equal(result.KOVA_BOOT_CONTROLLER_SHA, sha);
   for (const name of ["STRIPE_ESENCIAL_PRICE_ID", "STRIPE_GESTION_PRICE_ID",
     "STRIPE_STANDARD_PORTAL_CONFIGURATION_ID", "STRIPE_TIERED_PORTAL_CONFIGURATION_ID"]) {
     assert.equal(result[name], env[name]);
@@ -106,13 +112,14 @@ test("image identities cannot be overridden even by future Settings allowlist en
   try {
     // Simulate Settings later exposing either image-owned field. Neither may
     // ever become a container.start env override, regardless of its value.
-    settingsKeys.push("KOVA_IMAGE_SHA", "KOVA_RELEASE_SHA");
+    settingsKeys.push("KOVA_IMAGE_SHA", "KOVA_RELEASE_SHA", "KOVA_BOOT_CONTROLLER_SHA");
     for (const value of ["malicious", "b".repeat(40), sha]) {
       const projected = nativeEnvironment({
-        ...settings(), KOVA_RELEASE_SHA: value, KOVA_IMAGE_SHA: value,
+        ...settings(), KOVA_RELEASE_SHA: value, KOVA_IMAGE_SHA: value, KOVA_BOOT_CONTROLLER_SHA: value,
       });
       assert.equal(Object.hasOwn(projected, "KOVA_RELEASE_SHA"), false);
       assert.equal(Object.hasOwn(projected, "KOVA_IMAGE_SHA"), false);
+      assert.equal(projected.KOVA_BOOT_CONTROLLER_SHA, sha);
     }
   } finally {
     settingsKeys.splice(0, settingsKeys.length, ...originalKeys);
@@ -136,7 +143,7 @@ test("rolling image keeps baked identities but readiness requires the controller
     }
     async containerFetch(url) {
       if (url.endsWith("/db")) { databaseReads++; return new Response(null); }
-      return Response.json({ status: "ok", release_sha: processEnvironment.KOVA_RELEASE_SHA });
+      return healthyBoot(this.env, processEnvironment.KOVA_RELEASE_SHA, processEnvironment.KOVA_BOOT_CONTROLLER_SHA);
     }
   }
   const Resident = residentContainerClass(FakeContainer);
@@ -157,6 +164,7 @@ test("only api-0 starts the process; all other existing API objects proxy there"
   let proxiedRequest;
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async startAndWaitForPorts() { starts++; this.ctx.container.running = true; }
     async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
     async fetch(request) {
@@ -180,6 +188,7 @@ test("only api-0 starts the process; all other existing API objects proxy there"
       method: "POST", body: "synthetic-request-body",
       headers: { Cookie: "csrf=synthetic", Origin: "https://app.test", "x-kova-client-ip": "192.0.2.9",
         "x-forwarded-for": "spoofed", Forwarded: "spoofed", "x-forwarded-proto": "http",
+        [BOOT_CONTROLLER_HEADER]: "spoofed",
         "x-forwarded-host": "spoofed", Host: "spoofed" },
     });
     const response = await objects.get(`api-${index}`).fetch(request);
@@ -194,6 +203,7 @@ test("only api-0 starts the process; all other existing API objects proxy there"
     for (const name of ["x-forwarded-for", "forwarded", "x-forwarded-host"]) {
       assert.equal(proxiedRequest.headers.has(name), false);
     }
+    assert.equal(proxiedRequest.headers.has(BOOT_CONTROLLER_HEADER), false);
   }
   assert.equal(starts, 1);
   assert.equal(proxyCalls, 15);
@@ -217,7 +227,7 @@ test("idle expiry leaves process resident; restart scheduling uses SDK and readi
     async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
     async containerFetch(url) {
       if (url.endsWith("/db")) return new Response(null, { status: databaseOK ? 200 : 503 });
-      return Response.json({ status: "ok", release_sha: release });
+      return healthyBoot(this.env, release);
     }
     stop() { assert.fail("idle callback must not stop the resident process"); }
     destroy() { assert.fail("idle callback must not destroy the resident process"); }
@@ -249,6 +259,7 @@ test("a running but unready process receives the full startup budget only once",
   let status = "running";
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status }; }
     async startAndWaitForPorts(options) {
       assert.deepEqual(options, { cancellationOptions: {
@@ -266,6 +277,254 @@ test("a running but unready process receives the full startup budget only once",
   assert.equal(starts, 1, "steady requests must not repeat startup port checks");
 });
 
+function bootHandoffFixture({ image = "b".repeat(40), boot = "a".repeat(40),
+  running = true, markerOverride, beforeHealth } = {}) {
+  const process = { image, boot, tiered: "false", portal: "false" };
+  const counts = { starts: 0, stops: 0, probes: 0, health: 0, database: 0, forwarded: [] };
+  const ctx = { id: { toString: () => "resident" }, container: { running } };
+  class FakeSdk {
+    constructor(context, env) { this.ctx = context; this.env = env; }
+    async getState() { return { status: this.ctx.container.running ? "healthy" : "stopped" }; }
+    async startAndWaitForPorts(options) {
+      counts.probes++;
+      assert.deepEqual(options, { cancellationOptions: {
+        instanceGetTimeoutMS: 60_000, portReadyTimeoutMS: 120_000,
+      } });
+      // Match SDK 0.3.7: probing a running container cannot replace its env.
+      if (this.ctx.container.running) return;
+      counts.starts++;
+      process.boot = this.envVars.KOVA_BOOT_CONTROLLER_SHA;
+      process.tiered = this.envVars.BILLING_TIERED_PLANS_ENABLED;
+      process.portal = this.envVars.BILLING_PORTAL_ENABLED;
+      this.ctx.container.running = true;
+    }
+    async stop() { counts.stops++; /* SIGTERM is sent; process exit is asynchronous. */ }
+    async schedule() { /* Existing SDK scheduler owns the later restart. */ }
+    async containerFetch(url, init) {
+      if (url.endsWith("/db")) { counts.database++; return new Response(null); }
+      counts.health++;
+      assert.ok(init === undefined || init.signal instanceof AbortSignal);
+      if (beforeHealth) await beforeHealth();
+      return healthyBoot(this.env, process.image, markerOverride === undefined ? process.boot : markerOverride);
+    }
+    async fetch(request) {
+      counts.forwarded.push({ method: request.method, body: await request.text() });
+      return new Response("application-response");
+    }
+  }
+  const Resident = residentContainerClass(FakeSdk);
+  return { process, counts, ctx,
+    controller(expected = image, tiered = "false") {
+      const controller = new Resident(ctx, { ...settings(), KOVA_BUILD_SHA: expected,
+        API: { idFromName: () => ({ toString: () => "resident" }) } });
+      // Model two reviewed Worker policies on the same runtime, independently
+      // of the OFF pinning asserted by the projection test above.
+      controller.envVars.BILLING_TIERED_PLANS_ENABLED = tiered;
+      controller.envVars.BILLING_PORTAL_ENABLED = tiered;
+      return controller;
+    },
+    async finishStop(controller) { ctx.container.running = false; await controller.onStop(); },
+  };
+}
+
+test("forward and rollback handoffs replace stale boot settings once, without replaying blocked writes", async t => {
+  t.mock.method(console, "error", () => {});
+  const oldSha = "a".repeat(40), newSha = "b".repeat(40);
+  const fixture = bootHandoffFixture();
+  const next = fixture.controller(newSha, "true");
+  const write = body => new Request("https://api.test/api/v1/orders", { method: "POST", body });
+  const blocked = await next.fetch(write("first-write-not-replayed"));
+  assert.equal(blocked.status, 503);
+  assert.match(blocked.headers.get("cache-control"), /no-store/);
+  assert.equal(fixture.ctx.container.running, true, "stop does not imply that SIGTERM has finished");
+  const draining = await Promise.all(Array.from({ length: 8 }, () => next.fetch(write("draining-write"))));
+  assert.ok(draining.every(response => response.status === 503));
+  assert.equal(fixture.counts.stops, 1);
+  assert.equal(fixture.counts.starts, 0);
+  assert.equal(fixture.counts.forwarded.length, 0);
+  assert.equal(fixture.process.tiered, "false");
+  await fixture.finishStop(next);
+  const admitted = await Promise.all(Array.from({ length: 8 }, (_, index) => next.fetch(write(`new-write-${index}`))));
+  assert.ok(admitted.every(response => response.status === 200));
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(fixture.counts.stops, 1);
+  assert.equal(fixture.counts.health, 2, "concurrent requests share one check per boot");
+  assert.equal(fixture.process.tiered, "true");
+  assert.equal(fixture.process.portal, "true");
+  assert.equal(fixture.process.boot, newSha);
+  assert.equal(fixture.counts.forwarded.length, 8);
+  assert.ok(fixture.counts.forwarded.every(call => call.body.startsWith("new-write-")));
+  assert.equal((await next.ready()).release_sha, newSha);
+  assert.equal(fixture.counts.database, 1);
+
+  // Provider restores the old image while the newer Worker is still present.
+  // Its process keeps the newer startup settings until the old Worker checks it.
+  fixture.process.image = oldSha;
+  const restored = fixture.controller(oldSha, "false");
+  assert.equal((await restored.fetch(write("rollback-write-not-replayed"))).status, 503);
+  assert.equal(fixture.counts.stops, 2);
+  assert.equal(fixture.process.tiered, "true");
+  await fixture.finishStop(restored);
+  assert.equal((await restored.ready()).release_sha, oldSha);
+  assert.equal(fixture.counts.starts, 2);
+  assert.equal(fixture.process.tiered, "false");
+  assert.equal(fixture.process.portal, "false");
+  assert.equal(fixture.process.boot, oldSha);
+  assert.equal(fixture.counts.forwarded.length, 8);
+});
+
+test("missing, malformed or foreign boot identities cannot cause repeated stop loops or false readiness", async () => {
+  for (const marker of [null, "", "not-a-sha", "c".repeat(39), "c".repeat(40)]) {
+    const fixture = bootHandoffFixture({ markerOverride: marker });
+    const controller = fixture.controller();
+    await assert.rejects(() => controller.ready(), /boot reconfiguration pending/);
+    assert.equal(fixture.counts.stops, 1);
+    await assert.rejects(() => controller.ready(), /boot reconfiguration pending/);
+    assert.equal(fixture.counts.stops, 1, "a draining process is never signalled again");
+    await fixture.finishStop(controller);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await assert.rejects(() => controller.ready(), /boot reconfiguration pending/);
+    }
+    assert.equal(fixture.counts.starts, 1);
+    assert.equal(fixture.counts.stops, 1, "a defective replacement must fail without a blind restart loop");
+    assert.equal(fixture.counts.database, 0);
+    assert.equal(fixture.counts.forwarded.length, 0);
+  }
+});
+
+test("a matching running process survives Worker eviction without a forced restart", async () => {
+  const fixture = bootHandoffFixture({ boot: "b".repeat(40) });
+  const first = fixture.controller();
+  await Promise.all([first.ensureReady(), first.ensureReady(), first.ensureReady()]);
+  await first.ensureReady();
+  assert.equal(fixture.counts.health, 1);
+  const afterEviction = fixture.controller();
+  await afterEviction.ensureReady();
+  await afterEviction.ensureReady();
+  assert.equal(fixture.counts.health, 2, "a replacement controller verifies the actual process once");
+  assert.equal(fixture.counts.starts, 0);
+  assert.equal(fixture.counts.stops, 0);
+});
+
+test("an overlapping image cannot pass readiness or trigger an application-controlled restart", async () => {
+  const fixture = bootHandoffFixture({ image: "a".repeat(40), boot: null });
+  const controller = fixture.controller("b".repeat(40));
+  await assert.rejects(() => controller.ready(), /release identity mismatch/);
+  assert.equal(fixture.counts.stops, 0);
+  assert.equal(fixture.counts.database, 0);
+  assert.equal(fixture.counts.forwarded.length, 0);
+});
+
+test("cold startup and an observed stop revalidate the new process instead of reusing stale readiness", async () => {
+  const fixture = bootHandoffFixture({ running: false });
+  const controller = fixture.controller();
+  await Promise.all([controller.ensureReady(), controller.ensureReady()]);
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(fixture.counts.health, 1);
+  await fixture.finishStop(controller);
+  await Promise.all([controller.ensureReady(), controller.ensureReady()]);
+  assert.equal(fixture.counts.starts, 2);
+  assert.equal(fixture.counts.health, 2);
+  assert.equal(fixture.counts.stops, 0);
+});
+
+test("a stop during the boot check invalidates its result before any business request is forwarded", async t => {
+  t.mock.method(console, "error", () => {});
+  let releaseHealth;
+  let blockHealth = true;
+  const healthBlocked = new Promise(resolve => { releaseHealth = resolve; });
+  const fixture = bootHandoffFixture({ boot: "b".repeat(40), beforeHealth: () => blockHealth ? healthBlocked : undefined });
+  const controller = fixture.controller();
+  const pending = controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "not-replayed" }));
+  await new Promise(resolve => setImmediate(resolve));
+  await fixture.finishStop(controller);
+  releaseHealth();
+  assert.equal((await pending).status, 503);
+  assert.equal(fixture.counts.forwarded.length, 0);
+  blockHealth = false;
+  await controller.ensureReady();
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(fixture.counts.stops, 0);
+  assert.equal(fixture.counts.health, 2);
+});
+
+test("failed or malformed boot health never permits traffic, exposes its body or initiates a restart", async t => {
+  const logs = [];
+  t.mock.method(console, "error", value => logs.push(value));
+  for (const health of [
+    () => new Response("synthetic-private-health", { status: 503 }),
+    () => new Response("synthetic-private-not-json", { headers: { [BOOT_CONTROLLER_HEADER]: sha } }),
+    () => Response.json({ status: "bad", release_sha: sha }, { headers: { [BOOT_CONTROLLER_HEADER]: sha } }),
+    () => Response.json(null, { headers: { [BOOT_CONTROLLER_HEADER]: sha } }),
+  ]) {
+    let forwarded = 0, stops = 0;
+    class FakeSdk {
+      constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+      async getState() { return { status: "healthy" }; }
+      async containerFetch() { return health(); }
+      async stop() { stops++; }
+      async fetch() { forwarded++; return new Response("must-not-forward"); }
+    }
+    const Resident = residentContainerClass(FakeSdk);
+    const controller = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, {
+      ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) },
+    });
+    const response = await controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "test-write" }));
+    assert.equal(response.status, 503);
+    assert.equal((await response.text()).includes("synthetic-private"), false);
+    assert.equal(forwarded, 0);
+    assert.equal(stops, 0);
+  }
+  assert.deepEqual(logs, Array(4).fill(JSON.stringify({ event: "native_backend_unavailable" })));
+});
+
+test("boot health has a bounded abort signal and a timed-out check can be retried without replaying a write", async t => {
+  t.mock.method(console, "error", () => {});
+  const abort = new AbortController();
+  t.mock.method(AbortSignal, "timeout", timeout => {
+    assert.equal(timeout, 10_000);
+    return abort.signal;
+  });
+  let health = 0, forwarded = 0;
+  class FakeSdk {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async getState() { return { status: "healthy" }; }
+    async containerFetch(url, init) {
+      health++;
+      if (health > 1) return healthyBoot(this.env);
+      assert.equal(url, "http://container/health");
+      return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
+    }
+    async fetch() { forwarded++; return new Response("ok"); }
+    async stop() { assert.fail("a health timeout is not evidence of configuration drift"); }
+  }
+  const Resident = residentContainerClass(FakeSdk);
+  const controller = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, {
+    ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) },
+  });
+  const pending = controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "not-replayed" }));
+  await new Promise(resolve => setImmediate(resolve));
+  abort.abort(new DOMException("synthetic-private-timeout", "TimeoutError"));
+  const timedOut = await pending;
+  assert.equal(timedOut.status, 503);
+  assert.equal((await timedOut.text()).includes("synthetic-private"), false);
+  assert.equal(forwarded, 0);
+  assert.equal((await controller.fetch(new Request("https://api.test/health"))).status, 200);
+  assert.equal(health, 2);
+  assert.equal(forwarded, 1);
+});
+
+test("readiness RPC rechecks the boot marker even after a successful cached verification", async () => {
+  const fixture = bootHandoffFixture({ boot: "b".repeat(40) });
+  const controller = fixture.controller();
+  await controller.ensureReady();
+  fixture.process.boot = "a".repeat(40);
+  await assert.rejects(() => controller.ready(), /boot identity mismatch/);
+  assert.equal(fixture.counts.database, 0);
+  await assert.rejects(() => controller.ensureReady(), /boot reconfiguration pending/);
+  assert.equal(fixture.counts.stops, 1, "failed RPC readiness invalidates the cached boot check");
+});
+
 test("SDK transport responses become redacted 503s and force the next port probe without replaying writes", async t => {
   const logs = [];
   const originalLog = console.error;
@@ -279,6 +538,7 @@ test("SDK transport responses become redacted 503s and force the next port probe
     let failed = true;
     class FakeContainer {
       constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+      async containerFetch() { return healthyBoot(this.env); }
       async getState() { return { status: "healthy" }; }
       async startAndWaitForPorts(options) {
         probes++;
@@ -320,6 +580,7 @@ test("real application errors and unrecognized 500 responses stay failures witho
   let probes = 0;
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async startAndWaitForPorts() { probes++; }
     async fetch() { return this.env.response; }
@@ -454,6 +715,7 @@ function diagnosticResident({ running = true, ready = Promise.resolve(), respons
   resident = true, forwarded } = {}) {
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async startAndWaitForPorts() { await ready; this.ctx.container.running = true; }
     async fetch(request) { return typeof response === "function" ? response(request) : await response; }
@@ -559,6 +821,7 @@ test("only the exact code-update reset marks a private controller failure and ne
   let calls = 0;
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async fetch() { calls++; throw this.env.error; }
   }
@@ -586,6 +849,7 @@ test("only the exact code-update reset marks a private controller failure and ne
 test("an application cannot forge the controller reset marker", async () => {
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async fetch() { return new Response("app failure", { status: 503, headers: {
       "x-kova-controller-failure": "code-update-reset", "x-kova-runtime": "native-resident",
@@ -607,6 +871,7 @@ test("only a proved code-update reset adds a fixed reason to the existing unavai
   console.error = value => events.push(value);
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
     async getState() { return { status: "healthy" }; }
     async fetch() { throw this.env.error; }
   }

@@ -6,8 +6,10 @@ El diseño original está en [ADR-019](../adr/ADR-019-commercial-plan-design.md)
 no acredita publicación, aceptación del Portal, cobro live, validación fiscal ni rentabilidad.
 La aceptación interactiva sandbox de los tres planes ya está
 [registrada](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md), con fuentes por
-etapa y limpieza completa. Esta entrega fija la política ON y el gate `tiered`; su publicación
-productiva se acredita únicamente con release PASS y verificación externa registrada.
+etapa y limpieza completa. El release de activación #316 se recuperó por discrepancia del catálogo.
+[ADR-022](../adr/ADR-022-native-controller-boot-policy.md) exige ahora una baseline preparatoria OFF
+con verificación del controlador al arrancar, seguida por una activación ON separada. Cada
+publicación productiva se acredita únicamente con release PASS y verificación externa registrada.
 
 ## Evidencia y entorno
 
@@ -74,8 +76,10 @@ Revisar a 390 y 1440 px y con teclado:
 
 La baseline preparatoria `7032d21f60aa`, verificada antes de esta entrega, fijaba
 `BILLING_TIERED_PLANS_ENABLED=false` y `BILLING_PORTAL_ENABLED=false`, incluso ante valores
-externos diferentes. Esta entrega versiona ambas flags nativas en `true` y la oferta esperada
-del gate en `tiered`. Cambiar solo variables externas no sustituye esa política. No modificar el Price de Standard ni migrar acuerdos.
+externos diferentes. La preparación del protocolo de arranque conserva ambas flags en `false`
+y gate `standard`. Solo después de aceptar esa baseline se cambian ambas a `true` y el gate a
+`tiered` en una activación separada. Cambiar solo variables externas no sustituye esa política.
+No modificar el Price de Standard ni migrar acuerdos.
 
 Antes de ejecutar el release de activación, registrar:
 
@@ -182,8 +186,9 @@ El código preparatorio añade revisión pública de oferta y rechazo 409 de un 
 antes de crear tenant/enviar correo. La UI refresca y confirma la oferta sin perder el formulario;
 volver al foco durante conciliación de Checkout no la interrumpe. El release compara la oferta
 por API y proxy antes de promoción y después de publicación. Las banderas permanecieron apagadas
-en la baseline `7032d21f60aa`; esta entrega habilita la política nativa y exige su configuración
-completa y el cierre de release antes de acreditar la publicación.
+en la baseline `7032d21f60aa`. El intento #316 no aprobó publicación; la secuencia de ADR-022
+prepara primero el protocolo OFF y exige configuración completa y release aprobado antes de
+acreditar una activación posterior.
 
 ### Evidencia anterior del sandbox
 
@@ -335,10 +340,10 @@ está ausente del Secret store. El historial inmutable de PaymentIntents/Charges
 en Stripe. La validación no constituye aceptación operativa del dueño en
 su negocio, éxito del helper headless ni una corrida Actions de Portal aprobada.
 
-La aceptación interactiva sandbox cierra este gate del Portal básico. El workflow de esta
-activación debe capturar la baseline previa OFF `7032d21f60aa` con los cuatro IDs en API/jobs.
-La política ON y gate `tiered` de esta entrega solo se presentan como publicados después de
-release PASS y verificación externa. Cobro live, fiscal, hardware, recuperación
+La aceptación interactiva sandbox cierra este gate del Portal básico. Antes de activar, el workflow
+debe capturar una baseline OFF aceptada con el protocolo de arranque y los cuatro IDs en API/jobs,
+conforme a ADR-022. La política ON y gate `tiered` de la activación posterior solo se presentan como
+publicados después de release PASS y verificación externa. Cobro live, fiscal, hardware, recuperación
 regional y recepción de avisos conservan sus límites separados.
 
 ## Revisión de cuenta Stripe live del 3 de noviembre

@@ -7,7 +7,11 @@ import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
 
 from app.assistant import storage
-from app.native_checks import validate_image_identity, validate_storage_transport
+from app.native_checks import (
+    validate_boot_controller_identity,
+    validate_image_identity,
+    validate_storage_transport,
+)
 
 
 def test_native_image_identity_accepts_exact_complete_commit():
@@ -21,6 +25,21 @@ def test_native_image_identity_accepts_exact_complete_commit():
 def test_native_image_identity_rejects_missing_invalid_or_old_image(image, release):
     with pytest.raises(RuntimeError, match="image does not match the deployed release"):
         validate_image_identity(image, release)
+
+
+def test_native_boot_controller_accepts_matching_release_or_legacy_absence():
+    validate_boot_controller_identity("a" * 40, "a" * 40)
+    validate_boot_controller_identity(None, "a" * 40, allow_legacy_off_boot=True)
+
+
+@pytest.mark.parametrize("controller,release", [
+    (None, "a" * 40), ("", "a" * 40), ("unknown", "unknown"), ("a" * 12, "a" * 12),
+    ("a" * 40, "b" * 40), ("g" * 40, "g" * 40),
+    ("a" * 40 + "\n", "a" * 40),
+])
+def test_native_boot_controller_rejects_invalid_or_overlapping_start(controller, release):
+    with pytest.raises(RuntimeError, match="boot controller does not match the image release"):
+        validate_boot_controller_identity(controller, release)
 
 
 def test_native_storage_keeps_optional_unconfigured_state(monkeypatch):

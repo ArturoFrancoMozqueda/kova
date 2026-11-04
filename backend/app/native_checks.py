@@ -13,6 +13,24 @@ def validate_image_identity(image_sha: str | None, release_sha: str) -> None:
         raise RuntimeError("Native API image does not match the deployed release")
 
 
+def validate_boot_controller_identity(
+    controller_sha: str | None, release_sha: str, *, allow_legacy_off_boot: bool = False,
+) -> None:
+    """Reject an SDK auto-start under another controller before opening HTTP.
+
+    The legacy controller omits this marker during the initial OFF bootstrap.
+    Once supplied, it must identify the exact immutable application release.
+    This also covers a process replacement after the controller's readiness
+    check but before the SDK forwards a write.
+    """
+    if controller_sha is None and allow_legacy_off_boot:
+        return
+    if (not isinstance(controller_sha, str)
+            or not re.fullmatch(r"[a-fA-F0-9]{40}", controller_sha)
+            or controller_sha != release_sha):
+        raise RuntimeError("Native boot controller does not match the image release")
+
+
 def validate_storage_transport() -> None:
     from app.assistant import storage
 

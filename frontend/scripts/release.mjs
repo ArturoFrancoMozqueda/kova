@@ -49,6 +49,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
         sha, previousSha: artifact.releaseSha,
+        requireControllerBootIdentity: true,
         frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
@@ -65,7 +66,8 @@ export async function release({ artifact: rawArtifact, sha, provider,
     }
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
-        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha });
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha,
+        requireControllerBootIdentity: true });
     }
     if (provider.requiresCloudflare) {
       await verifyPublicDeployment({ frontendUrl: artifact.frontendUrl,

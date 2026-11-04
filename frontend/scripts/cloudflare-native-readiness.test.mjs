@@ -13,6 +13,103 @@ const ready = (release = sha, headers = {}) => globalThis.Response.json({ status
 });
 const options = { backendUrl: "https://api.example.test", sha, previousSha };
 
+test("new publication requires matching boot controller identity on both hops", async () => {
+  const targets = [];
+  await waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+    frontendUrl: "https://candidate.example.test", frontendBypassSecret: "synthetic-bypass",
+    now: () => 0, wait: assert.fail, fetcher: async (url, init) => {
+      targets.push(url.pathname);
+      assert.equal(init.headers["x-vercel-protection-bypass"],
+        url.pathname === "/api/health" ? "synthetic-bypass" : undefined);
+      return ready(sha, { "x-kova-boot-controller-sha": sha });
+    },
+  });
+  assert.deepEqual(targets, ["/health", "/health", "/api/health"]);
+});
+
+test("new publication never accepts legacy or previous boot configuration as readiness", async () => {
+  for (const oldHeader of [null, previousSha]) {
+    let clock = 0, calls = 0;
+    await waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+      now: () => clock, wait: async ms => { clock += ms; }, fetcher: async () => {
+        calls++;
+        const boot = calls < 3 ? oldHeader : sha;
+        return ready(sha, boot === null ? {} : { "x-kova-boot-controller-sha": boot });
+      },
+    });
+    assert.equal(calls, 3);
+    assert.equal(clock, 2000);
+  }
+});
+
+test("legacy and previous boot handoffs retain the existing deadline and attempt ceiling", async () => {
+  for (const boot of [null, previousSha]) {
+    for (const advancing of [false, true]) {
+      let clock = 0, calls = 0;
+      await assert.rejects(waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+        now: () => clock, wait: async ms => { if (advancing) clock += ms; }, fetcher: async () => {
+          calls++;
+          return ready(sha, boot === null ? {} : { "x-kova-boot-controller-sha": boot });
+        },
+      }), new RegExp(`five minutes.*boot_controller=${boot === null ? "legacy" : "previous"}$`));
+      assert.equal(calls, 300);
+      assert.equal(clock, advancing ? 300_000 : 0);
+    }
+  }
+});
+
+test("a matching boot marker returned after the deadline cannot pass publication", async () => {
+  let clock = 0;
+  await assert.rejects(waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+    now: () => clock, wait: assert.fail, fetcher: async () => {
+      clock = 300_000;
+      return ready(sha, { "x-kova-boot-controller-sha": sha });
+    },
+  }), /five minutes/);
+});
+
+test("malformed or foreign boot markers fail immediately without logging their values", async () => {
+  for (const marker of ["", "invalid-private-config", "https://private.invalid/token", "e".repeat(40)]) {
+    let calls = 0;
+    await assert.rejects(waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+      now: () => 0, wait: assert.fail, fetcher: async () => {
+        calls++;
+        return ready(sha, { "x-kova-boot-controller-sha": marker });
+      },
+    }), error => error.message === "Invalid native boot controller identity");
+    assert.equal(calls, 1);
+  }
+});
+
+test("the frontend proxy cannot substitute a foreign boot marker after direct readiness", async () => {
+  await assert.rejects(waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,
+    frontendUrl: "https://candidate.example.test", now: () => 0, wait: assert.fail,
+    fetcher: async url => ready(sha, { "x-kova-boot-controller-sha": url.pathname === "/health"
+      ? sha : "e".repeat(40) }),
+  }), /Invalid native boot controller identity/);
+});
+
+test("recovery remains compatible with captured legacy native images", async () => {
+  await waitForNativeBackendRelease({ ...options, now: () => 0, wait: assert.fail,
+    fetcher: async () => ready(),
+  });
+});
+
+test("a redeployment of the same release accepts its matching boot marker", async () => {
+  await waitForNativeBackendRelease({ ...options, previousSha: sha, requireControllerBootIdentity: true,
+    now: () => 0, wait: assert.fail,
+    fetcher: async () => ready(sha, { "x-kova-boot-controller-sha": sha }),
+  });
+});
+
+test("an invalid boot identity requirement fails before network access", async () => {
+  for (const requireControllerBootIdentity of ["true", 1, null]) {
+    await assert.rejects(waitForNativeBackendRelease({ ...options, requireControllerBootIdentity,
+      fetcher: assert.fail,
+    }), /must be boolean/);
+  }
+});
+
 test("readiness GET transport uses a closed allowlist without an inner retry or raw errors", async () => {
   for (const code of ["ECONNRESET", "ECONNREFUSED", "EPIPE", "EAI_AGAIN", "ETIMEDOUT",
     "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"]) {
@@ -509,7 +606,7 @@ test("persistent SDK proxy500 is never ready and exhausts the same five-minute/3
   }
 });
 
-test("candidate and recovery readiness share the native provider helper with unchanged acceptance", async () => {
+test("candidate opts into boot identity while recovery preserves the legacy native contract", async () => {
   const { cloudflareBackendProvider } = await import("./cloudflare-backend-provider.mjs");
   const { nativeContainerIdentity } = await import("./cloudflare-container-provider.mjs");
   const checks = [];
@@ -524,10 +621,11 @@ test("candidate and recovery readiness share the native provider helper with unc
     const targetSha = phase === "candidate" ? sha : previousSha;
     await provider.waitForPublicBackend({ ...options, nativeRuntime: true,
       sha: targetSha, previousSha: phase === "candidate" ? previousSha : sha,
+      ...(phase === "candidate" ? { requireControllerBootIdentity: true } : {}),
       now: () => time, wait: async ms => { time += ms; },
       fetcher: async () => {
         if (++calls === 1) { time += 360_000; return sdkProxyFailure(); }
-        return ready(targetSha);
+        return ready(targetSha, phase === "candidate" ? { "x-kova-boot-controller-sha": targetSha } : {});
       },
     });
     assert.equal(calls, 2);
