@@ -105,6 +105,20 @@ internal Stripe synchronization timestamp.
 | `stale` | A local period exists, but it is expired or was not synchronized with Stripe in the previous 24 hours. | Recheck current Stripe state; if a current period cannot be verified, suspend commercial access and show recovery without asserting cancellation. |
 | `unavailable` | No period end is available. | Uses the same verification/reassurance copy and does not invent a date. |
 
+`subscription.cancel_at_period_end` is a normalized scheduling flag, not a copy of one provider
+field. It is true for Stripe's explicit legacy boolean or for an integer `cancel_at` in the future
+that exactly matches the period end in the same authoritative subscription object (top level or
+item). Missing/null, booleans used as timestamps, strings, floats, expired dates and different future
+dates do not establish this scheduling flag. It never uses a cached local period as proof.
+
+When the period is verified, both representations use `Acceso hasta` and the existing scheduled
+cancellation copy; neither changes the active plan, price, paid boundary, debt or access gates.
+An authoritative resume with false/null clears the flag, while stale/replayed events cannot undo a
+newer state. `canceled_at` can be the cancellation request time and is not the service end; only the
+subscription's authoritative status establishes effective cancellation. See the
+[Stripe Subscription fields](https://docs.stripe.com/api/subscriptions/object) and
+[cancellation lifecycle](https://docs.stripe.com/billing/subscriptions/cancel).
+
 The success return from Stripe is also non-authoritative: it says `Estamos confirmando tu
 suscripción` until the billing API or bounded reconciliation returns `active` or `trialing`. If
 confirmation remains delayed, the UI tells the owner not to repeat the payment and provides the

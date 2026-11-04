@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from "node:url";
 import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
 import { waitForNativeBackendRelease } from "./cloudflare-native-readiness.mjs";
 import { cloudflareContainerProvider, validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
+import { fetchReadinessGet, ReadinessFetchError } from "./readiness-fetch.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare-backend");
@@ -19,7 +20,7 @@ export function validateBackendVersions(input) {
 /** A successful deployment can precede global Worker/DO convergence.
  * Wait only for the captured previous identity; foreign/error responses still fail closed.
  * This readiness check never replaces the full site/API/database verification.
- * The deadline may overrun by the one in-flight read (at most 20 seconds).
+ * Each read is capped by the remaining original deadline.
  */
 export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
   frontendBypassSecret, fetcher = globalThis.fetch,
@@ -29,34 +30,46 @@ export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, prev
     throw new Error("Backend propagation requires complete release SHAs");
   }
   const targets = [
-    { url: new URL("/health", backendUrl), headers: {} },
-    ...(frontendUrl === undefined ? [] : [{ url: new URL("/api/health", frontendUrl),
+    { target: "direct", url: new URL("/health", backendUrl), headers: {} },
+    ...(frontendUrl === undefined ? [] : [{ target: "candidate_proxy", url: new URL("/api/health", frontendUrl),
       headers: frontendBypassSecret ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} }]),
   ];
   // Preserve the published direct-only helper contract. Full release checks also
   // inspect the frontend proxy and allow the documented DO propagation window.
   const withProxy = frontendUrl !== undefined;
   const deadline = now() + (withProxy ? 120_000 : 20_000);
+  let lastFailure;
   for (let attempt = 0; attempt < (withProxy ? 120 : 20) && now() < deadline; attempt++) {
-    const observations = await Promise.all(targets.map(async ({ url, headers }) => {
-      const response = await fetcher(url, {
-        signal: globalThis.AbortSignal.timeout(20_000),
-        headers: { "cache-control": "no-cache", ...headers }, redirect: "error",
-      });
+    const observations = await Promise.all(targets.map(async ({ target, url, headers }) => {
+      if (now() >= deadline) return null;
+      let response;
+      try {
+        response = await fetchReadinessGet(url, {
+          target, headers, deadline, timeoutMs: 20_000, now, fetcher,
+        });
+      } catch (error) {
+        if (!(error instanceof ReadinessFetchError) || !error.retryable) throw error;
+        lastFailure = error.message;
+        return null;
+      }
       if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
-      const body = await response.json();
-      if (body.status !== "ok" || (body.release_sha !== sha
+      let body;
+      try { body = await response.json(); }
+      catch { throw new Error("Malformed backend readiness response"); }
+      if (!body || body.status !== "ok" || (body.release_sha !== sha
           && (previousSha === undefined || body.release_sha !== previousSha))) {
         throw new Error("Unexpected backend version or status during publication");
       }
       return body.release_sha;
     }));
+    if (now() >= deadline) break;
     if (observations.every(value => value === sha)) return;
     const remaining = deadline - now();
     if (remaining <= 0) break;
     await wait(Math.min(withProxy ? 1000 : 500, remaining));
   }
-  throw new Error("Backend publication did not finish propagating");
+  throw new Error("Backend publication did not finish propagating"
+    + (lastFailure ? ` ${lastFailure}` : ""));
 }
 
 export function cloudflareBackendProvider({ run, env }) {

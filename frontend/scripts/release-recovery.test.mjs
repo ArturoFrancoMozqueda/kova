@@ -24,10 +24,11 @@ const artifact = {
 test("the disposable recovery fixture imports with its staged scripts and no Cloudflare installation", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kova-recovery-fixture-"));
   try {
-    // The resident release adds two runtime dependencies to the recovery
-    // bundle. Stage those actual modules; retain the isolated import check.
+    // Stage the complete resident/readiness dependency graph; retain the
+    // isolated import check without a Cloudflare installation.
     const staged = ["release-recovery.mjs", "verify-deployment.mjs", "cloudflare-provider.mjs",
-      "cloudflare-backend-provider.mjs", "cloudflare-native-readiness.mjs", "cloudflare-container-provider.mjs"];
+      "cloudflare-backend-provider.mjs", "cloudflare-native-readiness.mjs", "cloudflare-container-provider.mjs",
+      "readiness-fetch.mjs"];
     for (const file of staged) {
       fs.copyFileSync(fileURLToPath(new URL(file, import.meta.url)), path.join(directory, file));
     }

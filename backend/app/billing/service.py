@@ -895,9 +895,7 @@ def cancel_subscription(
     except StripeSubscriptionError as exc:
         raise HTTPException(status_code=502, detail="Stripe cancellation failed") from exc
 
-    subscription.cancel_at_period_end = bool(
-        stripe_subscription.get("cancel_at_period_end", True)
-    )
+    subscription.cancel_at_period_end = _scheduled_cancellation_at_period_end(stripe_subscription)
     subscription.status = _subscription_status(stripe_subscription.get("status"))
     cancel_start, cancel_end = _extract_period(stripe_subscription)
     subscription.current_period_start = _timestamp(cancel_start)
@@ -950,6 +948,27 @@ def _extract_period(stripe_object: dict[str, Any]) -> tuple[Any, Any]:
             if end is None:
                 end = first.get("current_period_end")
     return start, end
+
+
+def _scheduled_cancellation_at_period_end(stripe_object: dict[str, Any]) -> bool:
+    """Normalize Stripe's two representations without inventing a cancel date.
+
+    A canceled_at timestamp can identify the request, rather than the service
+    end. Only an explicit legacy flag or a future cancel_at matching this
+    object's own billing boundary proves scheduled period-end cancellation.
+    """
+    if stripe_object.get("cancel_at_period_end") is True:
+        return True
+    cancel_at = stripe_object.get("cancel_at")
+    if type(cancel_at) is not int:
+        return False
+    _, period_end = _extract_period(stripe_object)
+    if type(period_end) is not int or cancel_at != period_end:
+        return False
+    try:
+        return datetime.fromtimestamp(cancel_at, tz=UTC) > _now_utc()
+    except (ValueError, OverflowError, OSError):
+        return False
 
 
 def _retrieve_live_period(stripe_subscription_id: str | None) -> tuple[Any, Any]:
@@ -1134,7 +1153,7 @@ def _upsert_subscription_from_stripe_object(
         subscription.current_period_end = _timestamp(period_end)
         subscription.stripe_period_synced_at = _now_utc()
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
-    subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
+    subscription.cancel_at_period_end = _scheduled_cancellation_at_period_end(stripe_object)
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))
     if apply_status:
         if subscription.status == "past_due":
