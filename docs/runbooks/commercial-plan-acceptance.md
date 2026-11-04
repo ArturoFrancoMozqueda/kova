@@ -8,8 +8,12 @@ La aceptación interactiva sandbox de los tres planes ya está
 [registrada](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md), con fuentes por
 etapa y limpieza completa. El release de activación #316 se recuperó por discrepancia del catálogo.
 [ADR-022](../adr/ADR-022-native-controller-boot-policy.md) exige ahora una baseline preparatoria OFF
-con verificación del controlador al arrancar, seguida por una activación ON separada. Cada
-publicación productiva se acredita únicamente con release PASS y verificación externa registrada.
+con verificación del controlador al arrancar, seguida por una activación ON separada. La baseline
+OFF del PR #317 es `d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770`, con
+[release 41860220621 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41860220621)
+y verificación externa de las seis rutas, catálogo Standard/OFF, marcadores de API/proxy e identidad
+de proceso. Esta entrega contiene la activación ON con gate `tiered` y conserva el protocolo;
+su publicación necesita su propio release y verificación externa registrada.
 
 ## Evidencia y entorno
 
@@ -76,9 +80,13 @@ Revisar a 390 y 1440 px y con teclado:
 
 La baseline preparatoria `7032d21f60aa`, verificada antes de esta entrega, fijaba
 `BILLING_TIERED_PLANS_ENABLED=false` y `BILLING_PORTAL_ENABLED=false`, incluso ante valores
-externos diferentes. La preparación del protocolo de arranque conserva ambas flags en `false`
-y gate `standard`. Solo después de aceptar esa baseline se cambian ambas a `true` y el gate a
-`tiered` en una activación separada. Cambiar solo variables externas no sustituye esa política.
+externos diferentes. La preparación del protocolo de arranque del PR #317 conserva ambas flags
+en `false` y gate `standard`; su release aprobado y la verificación externa confirmaron el SHA
+`d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770` (run `41860220621`).
+Esta entrega cambia ambas a `true` y el gate a `tiered`, conservando esa baseline para capturar sus
+versiones exactas. El marcador y la
+verificación del arranque se conservan tanto al activar como al recuperar la baseline OFF.
+Cambiar solo variables externas no sustituye esa política.
 No modificar el Price de Standard ni migrar acuerdos.
 
 Antes de ejecutar el release de activación, registrar:
@@ -341,8 +349,9 @@ en Stripe. La validación no constituye aceptación operativa del dueño en
 su negocio, éxito del helper headless ni una corrida Actions de Portal aprobada.
 
 La aceptación interactiva sandbox cierra este gate del Portal básico. Antes de activar, el workflow
-debe capturar una baseline OFF aceptada con el protocolo de arranque y los cuatro IDs en API/jobs,
-conforme a ADR-022. La política ON y gate `tiered` de la activación posterior solo se presentan como
+debe capturar la baseline OFF `d4d81d6a4fe6`, verificada tras el release aprobado del run
+`41860220621`, con el protocolo de arranque y los cuatro IDs en API/jobs, conforme a ADR-022.
+La política ON y gate `tiered` solo se presentan como
 publicados después de release PASS y verificación externa. Cobro live, fiscal, hardware, recuperación
 regional y recepción de avisos conservan sus límites separados.
 

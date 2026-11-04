@@ -10,9 +10,13 @@ interno solo bajo sus controles propios.
 Estado: base comercial con activación autorizada en
 [ADR-021](../../docs/adr/ADR-021-commercial-production-activation.md). Tras recuperarse el release
 del PR #316, [ADR-022](../../docs/adr/ADR-022-native-controller-boot-policy.md) exige publicar primero
-la verificación del arranque del controlador con flags nativas OFF y gate Standard, y activar
-en un cambio separado desde esa nueva baseline aceptada. Cada publicación requiere release PASS
-y verificación externa registrada por separado. La baseline `7032d21f60aa` se verificó OFF.
+la verificación del arranque del controlador con flags nativas OFF y gate Standard. Esta entrega
+contiene la activación separada: ambas flags nativas ON y gate `tiered`, conservando el protocolo
+de arranque. La baseline OFF de #317 es `d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770`: su
+[release 41860220621](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41860220621) aprobó
+y la verificación externa confirmó catálogo, imagen y controlador. La oferta ON necesita su propio
+release y verificación externa registrada por separado.
+La baseline histórica `7032d21f60aa` se verificó OFF y no sustituye el protocolo de #317.
 Esta spec describe la política y no sustituye la evidencia de despliegue. Conserva la base de
 [ADR-020](../../docs/adr/ADR-020-commercial-plan-foundation.md) y el diseño de
 [ADR-019](../../docs/adr/ADR-019-commercial-plan-design.md). Cobro live controlado, aceptación

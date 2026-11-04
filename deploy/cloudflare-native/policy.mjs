@@ -31,9 +31,9 @@ export function nativeEnvironment(env) {
     TRUSTED_CLIENT_IP_HEADER: "x-kova-client-ip",
     ASSISTANT_DOCUMENTS_ENABLED: "false",
     ASSISTANT_INGEST_ON_DEMAND: "false",
-    // Establish a rollback-compatible boot protocol before commercial activation.
-    BILLING_TIERED_PLANS_ENABLED: "false",
-    BILLING_PORTAL_ENABLED: "false",
+    // Commercial activation requires an accepted OFF baseline with this boot protocol.
+    BILLING_TIERED_PLANS_ENABLED: "true",
+    BILLING_PORTAL_ENABLED: "true",
     // Public build identity only; never accept this value from a Settings binding.
     KOVA_BOOT_CONTROLLER_SHA: env.KOVA_BUILD_SHA,
     DATABASE_POOL_SIZE: "3",

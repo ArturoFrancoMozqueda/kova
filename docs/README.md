@@ -27,7 +27,8 @@ escribe un ADR nuevo que reemplaza al anterior.
   de $399/$699 con Portal básico sandbox aceptado interactivamente, acuerdos anteriores conservados
   y política ON cuya publicación se acredita con release y verificación externa.
 - [Configuración de arranque nativa](adr/ADR-022-native-controller-boot-policy.md): identidad del
-  controlador verificada y baseline OFF aceptada antes de repetir la activación comercial.
+  controlador verificada; la política ON conserva la baseline OFF `d4d81d6a4fe6` y necesita su
+  propio release y verificación externa.
 - [Aceptación y medición comercial](runbooks/commercial-plan-acceptance.md): Standard, cortesías,
   pruebas de planes, atención y consumo, sin confundir proyecciones con costos comprobados.
 - [report-metric-definitions.md](report-metric-definitions.md): cómo se calcula cada métrica de
