@@ -255,7 +255,8 @@ while the real Stripe CLI listener and isolated Kova receiver are running:
 1. Prove that the test Checkout, its Customer, local/remote Subscription, paid Invoice,
    InvoicePayments, successful PaymentIntent and Charge belong together. Reject live objects,
    contradictory ownership, prior refunds and payments shared with another invoice before making
-   a refund. Request a partial refund of **one MXN minor unit** on that Charge. The resulting
+   a refund. Request a partial refund of **100 MXN minor units (MXN 1.00)** on that Charge;
+   the Charge must exceed that amount so the refund stays partial. The resulting
    `charge.refunded` must arrive through the signed listener and persist as processed/matched,
    associated with the proven local tenant, with exactly one risk audit and processing attempt.
 2. Create separate, tagged QA Customers and durably register their cleanup **before** creating
@@ -269,6 +270,13 @@ while the real Stripe CLI listener and isolated Kova receiver are running:
    through Ops queries and persisted acknowledgement/resolution, including pending-health counts.
    This exercises **services/repositories in the disposable database**, not founder MFA, the Ops
    authenticated API or its UI. It does not authorize an operator action on a production case.
+
+The Standard risk/Portal attempt
+[41737681325](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41737681325) failed before
+Portal: Stripe rejected the original MXN 0.01 refund with `amount_too_small` because of currency
+conversion. The QA fixture now uses MXN 1.00; this is not a universal Stripe minimum or an exchange
+rate assertion. Repeat the guarded drill to accept the corrected fixture; this code change does
+not constitute provider acceptance.
 
 The official CLI version has a dispute fixture but no early-fraud-warning trigger. This option
 uses documented test PaymentMethods through Stripe HTTP instead of inventing an event or card:

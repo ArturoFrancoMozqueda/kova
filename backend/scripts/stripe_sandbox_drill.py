@@ -53,6 +53,8 @@ from app.orders.models import Payment, Refund  # noqa: E402
 
 ACKNOWLEDGEMENT = "KOV-005-STRIPE-SANDBOX-ONLY"
 EXPECTED_ENVIRONMENT = "stripe-sandbox"
+# QA fixture amount in MXN minor units; not a universal Stripe minimum.
+RISK_REFUND_AMOUNT_MINOR = 100
 EVENT_TYPES = {
     "checkout.session.completed",
     "customer.subscription.created",
@@ -1871,7 +1873,7 @@ def _owned_risk_charge(stripe: StripeTestClient, context: dict, expected: dict) 
     if (charge.get("id") != charge_id or charge.get("customer") != customer
             or charge.get("payment_intent") != intent_id or charge.get("paid") is not True
             or charge.get("currency") != "mxn" or type(charge.get("amount")) is not int
-            or charge["amount"] <= 1 or charge.get("amount_refunded") != 0):
+            or charge["amount"] <= RISK_REFUND_AMOUNT_MINOR or charge.get("amount_refunded") != 0):
         raise DrillError("Risk Charge is not an owned unrefunded sandbox payment")
     related = _risk_pages(stripe, "/v1/invoice_payments", [
         ("payment[type]", "payment_intent"), ("payment[payment_intent]", intent_id),
@@ -2026,11 +2028,16 @@ def _run_risk_acceptance(
     tag = "risk-" + config.release_sha[:12] + "-" + secrets.token_hex(8)
     charge = _owned_risk_charge(stripe, context, baseline["subscription"])
     since = int(time.time()) - 2
-    refund = stripe.post("/v1/refunds", {"charge": charge["id"], "amount": 1,
-                                          "metadata[kov005_risk]": tag})
-    if (refund.get("charge") != charge["id"] or refund.get("amount") != 1
+    refund = stripe.post("/v1/refunds", {
+        "charge": charge["id"], "amount": RISK_REFUND_AMOUNT_MINOR,
+        "metadata[kov005_risk]": tag,
+    })
+    if (refund.get("charge") != charge["id"] or refund.get("amount") != RISK_REFUND_AMOUNT_MINOR
             or refund.get("status") != "succeeded"):
-        raise DrillError("Sandbox partial refund did not succeed for exactly one minor unit")
+        raise DrillError(
+            f"Sandbox partial refund did not succeed for exactly {RISK_REFUND_AMOUNT_MINOR} "
+            "MXN minor units"
+        )
     records = [_accept_risk_event(
         stripe, config, engine, context, webhook_secret, "charge.refunded", charge["id"], since,
         baseline, mapping="matched",
@@ -2073,7 +2080,9 @@ def _render_risk_evidence(records: list[dict]) -> list[str]:
             "duplicate_idempotent", "commercial_state_unchanged", "ops_visible", "triage_persisted",
             "listener_received")
     lines = ["## Risk acceptance (sandbox only)", "",
-             "Partial Checkout refund: 1 MXN minor unit, matched to its subscription. "
+             f"Partial Checkout refund: {RISK_REFUND_AMOUNT_MINOR} MXN minor units "
+             f"(MXN {Decimal(RISK_REFUND_AMOUNT_MINOR) / Decimal(100):.2f}), "
+             "matched to its subscription. "
              "Dispute and early-warning fixtures: separate QA customers without invoices; "
              "global no_subscription review, never an invented tenant.",
              "Ops evidence uses isolated service/repository queries and persisted acknowledgement/"

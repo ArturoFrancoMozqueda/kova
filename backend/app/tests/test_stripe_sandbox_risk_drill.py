@@ -58,9 +58,9 @@ class StripeFixture:
     def post(self, path, data):
         self.created.append((path, data.copy()))
         if path == "/v1/refunds":
-            assert data["charge"] == "ch_qa" and data["amount"] == 1
+            assert data["charge"] == "ch_qa" and data["amount"] == 100
             assert data["metadata[kov005_risk]"].startswith("risk-")
-            return {"id": "re_qa", "charge": "ch_qa", "amount": 1, "status": "succeeded"}
+            return {"id": "re_qa", "charge": "ch_qa", "amount": 100, "status": "succeeded"}
         if path == "/v1/customers":
             return {"id": "cus_fixture" + str(len(self.created)), "livemode": False}
         if path == "/v1/payment_intents":
@@ -144,6 +144,8 @@ def test_only_opt_in_listener_subscribes_risk_types_without_key_in_arguments(
     ("/v1/charges/ch_qa", "customer", "cus_somebody_else"),
     ("/v1/charges/ch_qa", "payment_intent", "pi_somebody_else"),
     ("/v1/charges/ch_qa", "amount", 1),
+    ("/v1/charges/ch_qa", "amount", 99),
+    ("/v1/charges/ch_qa", "amount", 100),
     ("/v1/charges/ch_qa", "amount_refunded", 1),
     ("/v1/payment_intents/pi_qa", "livemode", True),
     ("/v1/payment_intents/pi_qa", "customer", "cus_somebody_else"),
@@ -224,6 +226,8 @@ def test_risk_evidence_requires_all_types_and_projects_no_external_data():
     text = "\n".join(drill._render_risk_evidence(records))
     assert "NEVERPERSIST" not in text and "@example.invalid" not in text
     assert "MFA UI" in text and "global no_subscription" in text
+    assert "100 MXN minor units (MXN 1.00)" in text
+    assert '"audit_entries": 1' in text and '"process_attempts": 1' in text
     for invalid in [records[:2], [records[0]] * 3]:
         with pytest.raises(drill.DrillError):
             drill._render_risk_evidence(invalid)
@@ -330,3 +334,29 @@ def test_failed_fixture_cleanup_keeps_its_durable_manifest_for_retry(tmp_path):
         drill.cleanup_provider_objects(config, stripe)
     assert "cus_own_fixture" in config.cleanup_path.read_text()
     assert not config.evidence_path.exists()
+
+
+def test_owned_charge_above_qa_refund_amount_remains_partial(tmp_path):
+    config = _config(tmp_path)
+    stripe = StripeFixture(config)
+    stripe.objects["/v1/charges/ch_qa"]["amount"] = 101
+    owned = {"stripe_customer_id": "cus_checkout", "stripe_subscription_id": "sub_qa"}
+    assert drill._owned_risk_charge(stripe, _context(), owned)["amount"] == 101
+    assert stripe.created == []
+
+
+@pytest.mark.parametrize("returned_amount", [1, 99, 101])
+def test_risk_refund_requires_exact_qa_amount_in_provider_response(
+    tmp_path, monkeypatch, returned_amount,
+):
+    config = _config(tmp_path)
+    _prepare(monkeypatch)
+    stripe = StripeFixture(config)
+    post = stripe.post
+    def wrong_amount(path, data):
+        result = post(path, data)
+        return {**result, "amount": returned_amount} if path == "/v1/refunds" else result
+    monkeypatch.setattr(stripe, "post", wrong_amount)
+    with pytest.raises(drill.DrillError, match="exactly 100 MXN minor units"):
+        drill._run_risk_acceptance(stripe, config, None, _context(), "whsec_synthetic", [], [])
+    assert [path for path, _ in stripe.created] == ["/v1/refunds"]
