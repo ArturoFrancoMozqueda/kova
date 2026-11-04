@@ -1662,6 +1662,23 @@ def _assert_basic_portal_plan(
     return kova
 
 
+def _basic_portal_cancel_at_end(subscription: dict[str, Any], original_end: int) -> bool:
+    """Independent provider oracle; never import the application's normalizer."""
+    end = subscription.get("current_period_end")
+    if end is None:
+        items = (subscription.get("items") or {}).get("data") or []
+        end = items[0].get("current_period_end") if len(items) == 1 else None
+    if type(end) is not int or end != original_end or end <= int(time.time()):
+        return False
+    try:
+        datetime.fromtimestamp(end, tz=UTC)
+    except (ValueError, OverflowError, OSError):
+        return False
+    return subscription.get("cancel_at_period_end") is True or (
+        type(subscription.get("cancel_at")) is int and subscription["cancel_at"] == end
+    )
+
+
 def _run_basic_portal(
     stripe: StripeTestClient, config: DrillConfig, engine: Any, context: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -1710,12 +1727,17 @@ def _run_basic_portal(
     while time.monotonic() < deadline:
         current = _portal_subscription(stripe, context)
         kova = _assert_basic_portal_plan(config, context, current, period_end)
-        if (current.get("cancel_at_period_end") is True
+        if (_basic_portal_cancel_at_end(current, period_end)
                 and (kova.get("subscription") or {}).get("cancel_at_period_end") is True):
             record = _portal_record(engine, context, current, step="basic_cancellation_scheduled")
             if record["kova"]["plan_effective_until"] != entitlement_end:
                 raise DrillError("Scheduled cancellation changed the paid entitlement boundary")
             record["limits"] = {"effective_cancellation": False, "tier_changes": "blocked"}
+            record["provider_cancellation"] = {
+                "at_period_end": True, "scheduled_at": _epoch_iso(period_end),
+                "source": ("cancel_at_period_end" if current.get("cancel_at_period_end") is True
+                           else "cancel_at"),
+            }
             records.append(record)
             return records
         time.sleep(1)

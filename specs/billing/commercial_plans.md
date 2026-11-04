@@ -132,6 +132,14 @@ WhatsApp, inferencia externa ni un modelo de impresora.
   cambios de plan habilitados y múltiples Products falla cerrada antes de crear la sesión. El
   catálogo con Products distintos sigue admitiendo Portal con cambios de plan deshabilitados
   para recuperación de pago, historial y cancelación; esto no activa ningún flag.
+- La marca pública `subscription.cancel_at_period_end` representa cancelación programada al
+  cierre del periodo: acepta el booleano legado explícitamente verdadero o un `cancel_at`
+  entero, futuro y exactamente igual al fin del periodo del mismo objeto Stripe (incluido su
+  item). No se infiere de `canceled_at`, de una fecha futura distinta ni del periodo en caché.
+  Una reanudación autoritativa elimina la marca; eventos atrasados o repetidos conservan las
+  reglas de firma, idempotencia y orden temporal. Programar la cancelación no cambia plan,
+  precio, periodo pagado, deuda ni acceso; el estado terminal y los gates siguen siendo
+  autoritativos. El simulacro contrasta proveedor y Kova con oráculos independientes.
 - Dos pestañas, distintos administradores o claves de reintento no pueden abrir contrataciones
   cobrables independientes para el mismo negocio. El intento y su payload se guardan antes de
   llamar a Stripe, con una clave de idempotencia compartida e inmutable. Un fallo de red conserva

@@ -1,4 +1,5 @@
 import { URL } from "node:url";
+import { fetchReadinessGet, ReadinessFetchError } from "./readiness-fetch.mjs";
 
 const SDK_PROVISIONING = "There is no Container instance available at this time.\nThis is likely because you have reached your max concurrent instance count (set in wrangler config) or are you currently provisioning the Container.\nIf you are deploying your Container for the first time, check your dashboard to see provisioning status, this may take a few minutes.";
 
@@ -108,10 +109,17 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
     const observations = await Promise.all(activeTargets.map(async ({ target, url, headers }) => {
       const remaining = deadline - now();
       if (remaining <= 0) return null;
-      const response = await fetcher(url, {
-        signal: globalThis.AbortSignal.timeout(Math.min(190_000, remaining)),
-        headers: { "cache-control": "no-cache", ...headers }, redirect: "error",
-      });
+      let response;
+      try {
+        response = await fetchReadinessGet(url, {
+          target: target === "proxy" ? "candidate_proxy" : "direct",
+          headers, deadline, timeoutMs: 190_000, now, fetcher,
+        });
+      } catch (error) {
+        if (!(error instanceof ReadinessFetchError) || !error.retryable) throw error;
+        lastFailure = error.message;
+        return null;
+      }
       if (!response.ok) {
         const diagnostic = await errorDiagnostic(response, target, deadline - now());
         // Correlated production telemetry confirms the old Worker can emit

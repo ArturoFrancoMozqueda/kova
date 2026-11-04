@@ -540,6 +540,7 @@ def test_basic_portal_preflight_blocks_unaccepted_features(tmp_path, fault):
 
 
 @pytest.mark.parametrize("code", ["standard", "esencial", "gestion"])
+@pytest.mark.parametrize("cancellation_form", ["legacy", "timestamp"])
 @pytest.mark.parametrize(
     "override", [False, True], ids=["customer-default", "subscription-default"]
 )
@@ -548,6 +549,7 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
     monkeypatch,
     code,
     override,
+    cancellation_form,
 ):
     config = drill.validate_environment(_basic_environment(tmp_path, code))
     source = _subscription(code)
@@ -559,11 +561,12 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
         "invoice_settings": {"default_payment_method": "pm_old"},
     }
     actions = []
+    kova_cancellation_scheduled = False
 
     class Client:
         def request(self, *args):
             result = _kova(code)
-            result["subscription"]["cancel_at_period_end"] = source["cancel_at_period_end"]
+            result["subscription"]["cancel_at_period_end"] = kova_cancellation_scheduled
             return result
 
     context = {
@@ -586,13 +589,17 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
             raise AssertionError("Basic billing changes must be submitted by hosted Portal")
 
     def submit(config, context, action):
+        nonlocal kova_cancellation_scheduled
         actions.append(action)
         if action == "payment_update":
             customer["invoice_settings"]["default_payment_method"] = "pm_new"
             if override:
                 source["default_payment_method"] = "pm_new"
         if action == "cancel":
-            source["cancel_at_period_end"] = True
+            source["cancel_at_period_end"] = cancellation_form == "legacy"
+            source["cancel_at"] = source["current_period_end"] if cancellation_form == "timestamp" else None
+            # Expected Kova contract is independently specified, not computed by app code.
+            kova_cancellation_scheduled = True
 
     monkeypatch.setattr(drill, "_submit_portal_action", submit)
 
@@ -603,7 +610,7 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
             amount_minor_units=drill.PLANS[code].amount_minor_units,
             currency="MXN",
             features=list(drill.PLANS[code].features),
-            cancel_at_period_end=source["cancel_at_period_end"],
+            cancel_at_period_end=kova_cancellation_scheduled,
             current_period_end=drill._epoch_iso(source["current_period_end"]),
             past_due_at=None,
             grace_period_ends_at=None,
@@ -631,9 +638,34 @@ def test_basic_portal_updates_effective_payment_and_defers_cancellation_without_
         r["kova"]["amount_minor_units"] == drill.PLANS[code].amount_minor_units for r in result
     )
     assert result[1]["provider_payment_method"]["changed"] is True
-    assert result[2]["provider_subscription"]["cancel_at_period_end"] is True
+    assert result[2]["provider_subscription"]["cancel_at_period_end"] is (cancellation_form == "legacy")
+    assert result[2]["provider_cancellation"] == {
+        "at_period_end": True, "scheduled_at": drill._epoch_iso(source["current_period_end"]),
+        "source": "cancel_at_period_end" if cancellation_form == "legacy" else "cancel_at",
+    }
+    assert result[2]["kova"]["cancel_at_period_end"] is True
     assert result[2]["kova_access"]["allowed"] is True
     assert result[2]["limits"] == {"effective_cancellation": False, "tier_changes": "blocked"}
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("kind", ["timestamp", "none", "zero", "bool", "string", "float", "past",
+                                 "other_future", "overflow", "missing_period"])
+def test_basic_cancellation_oracle_requires_exact_future_provider_period(nested, kind):
+    end = int(time.time()) + 86400
+    value = {"timestamp": end, "none": None, "zero": 0, "bool": True, "string": str(end),
+             "float": float(end), "past": 1, "other_future": end + 86400,
+             "overflow": 10**100, "missing_period": end}[kind]
+    boundary = 1 if kind == "past" else (10**100 if kind == "overflow" else end)
+    source = {"cancel_at_period_end": False, "cancel_at": value}
+    if kind != "missing_period":
+        if nested:
+            source["items"] = {"data": [{"current_period_end": boundary}]}
+        else:
+            source["current_period_end"] = boundary
+    assert drill._basic_portal_cancel_at_end(source, boundary) is (kind == "timestamp")
+    if kind == "timestamp":
+        assert drill._basic_portal_cancel_at_end(source, boundary + 1) is False
 
 
 @pytest.mark.parametrize(

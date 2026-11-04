@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { URL } from "node:url";
 import { test } from "node:test";
 import { backendWorkers, cloudflareBackendProvider, validateBackendVersions, waitForBackendRelease } from "./cloudflare-backend-provider.mjs";
 import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
@@ -120,7 +121,80 @@ test("backend readiness rejects HTTP errors, malformed health and foreign commit
   }
   await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
     previousSha: "b".repeat(40), wait: assert.fail,
-    fetcher: async () => { throw new Error("network unavailable"); } }), /network unavailable/);
+    // Unknown transport errors now fail closed with fixed diagnostics, never raw messages.
+    fetcher: async () => { throw new Error("private network details"); } }), /target=direct cause=unknown/);
+});
+
+test("backend readiness retries only transient GETs without leaking bypass headers to direct", async () => {
+  let clock = 0, direct = 0, proxy = 0;
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl,
+    frontendUrl: "https://candidate.example.test", frontendBypassSecret: "synthetic-private-bypass",
+    sha, previousSha: "b".repeat(40), now: () => clock, wait: async ms => { clock += ms; },
+    fetcher: async (url, init) => {
+      assert.equal(init.method, "GET");
+      assert.equal(init.redirect, "error");
+      if (url.hostname === new URL(artifact.backendUrl).hostname) {
+        assert.equal(init.headers["x-vercel-protection-bypass"], undefined);
+        if (++direct === 1) throw Object.assign(new Error("private raw error"), { code: "ECONNRESET" });
+      } else {
+        proxy++;
+        assert.equal(init.headers["x-vercel-protection-bypass"], "synthetic-private-bypass");
+      }
+      return globalThis.Response.json({ status: "ok", release_sha: sha });
+    },
+  });
+  assert.equal(direct, 2);
+  assert.equal(proxy, 2);
+  assert.equal(clock, 1000);
+});
+
+test("backend transient failures preserve attempt ceiling and the original deadline", async t => {
+  let calls = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    now: () => 0, wait: async () => {}, fetcher: async () => {
+      calls++;
+      throw Object.assign(new Error("private"), { code: "EAI_AGAIN" });
+    } }), /did not finish propagating.*target=direct cause=EAI_AGAIN/);
+  assert.equal(calls, 20);
+  let clock = 0;
+  const caps = [];
+  t.mock.method(globalThis.AbortSignal, "timeout", ms => {
+    caps.push(ms); return new globalThis.AbortController().signal;
+  });
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl,
+    frontendUrl: "https://candidate.example.test", sha, previousSha: "b".repeat(40),
+    now: () => clock, wait: async ms => { clock += ms; },
+    fetcher: async url => {
+      if (url.pathname === "/health") {
+        clock = 119_990;
+        return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) });
+      }
+      throw Object.assign(new Error("private"), { code: "ECONNRESET" });
+    },
+  }), /did not finish propagating.*target=candidate_proxy cause=ECONNRESET/);
+  assert.deepEqual(caps, [20_000, 10]);
+  assert.equal(clock, 120_000);
+});
+
+test("backend retry never accepts foreign health, malformed JSON or readiness after deadline", async () => {
+  for (const response of [globalThis.Response.json({ status: "ok", release_sha: "c".repeat(40) }),
+    new globalThis.Response("private token=never-forward-this")]) {
+    let clock = 0, calls = 0;
+    await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+      now: () => clock, wait: async ms => { clock += ms; }, fetcher: async () => {
+        if (++calls === 1) throw Object.assign(new Error("private"), { code: "ECONNRESET" });
+        return response;
+      },
+    }), error => !error.message.includes("never-forward-this"));
+    assert.equal(calls, 2);
+  }
+  let clock = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    now: () => clock, wait: assert.fail, fetcher: async () => {
+      clock = 20_001;
+      return globalThis.Response.json({ status: "ok", release_sha: sha });
+    },
+  }), /did not finish propagating/);
 });
 
 test("backend readiness has a bounded retry count and requires complete SHAs", async () => {

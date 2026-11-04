@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { URL } from "node:url";
 import { waitForNativeBackendRelease } from "./cloudflare-native-readiness.mjs";
+import { fetchReadinessGet, ReadinessFetchError } from "./readiness-fetch.mjs";
 
 const sha = "a".repeat(40);
 const previousSha = "b".repeat(40);
@@ -9,6 +12,129 @@ const ready = (release = sha, headers = {}) => globalThis.Response.json({ status
   headers: { "x-kova-runtime": "native-resident", "x-kova-process-id": process, ...headers },
 });
 const options = { backendUrl: "https://api.example.test", sha, previousSha };
+
+test("readiness GET transport uses a closed allowlist without an inner retry or raw errors", async () => {
+  for (const code of ["ECONNRESET", "ECONNREFUSED", "EPIPE", "EAI_AGAIN", "ETIMEDOUT",
+    "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"]) {
+    let calls = 0;
+    await assert.rejects(fetchReadinessGet(new URL("https://private.invalid/?token=secret"), {
+      target: "candidate_proxy", headers: { "x-vercel-protection-bypass": "private-bypass" },
+      deadline: 1000, timeoutMs: 190_000, now: () => 0, fetcher: async (_url, init) => {
+        calls++;
+        assert.equal(init.method, "GET");
+        assert.equal(init.redirect, "error");
+        throw new TypeError("private customer@example.com token=secret", { cause: { code } });
+      },
+    }), error => {
+      assert.ok(error instanceof ReadinessFetchError);
+      assert.equal(error.retryable, true);
+      assert.equal(error.message, `Readiness GET failed target=candidate_proxy cause=${code}`);
+      assert.equal(error.cause, undefined);
+      assert.doesNotMatch(error.message, /private|secret|example|https|bypass/);
+      return true;
+    });
+    assert.equal(calls, 1);
+  }
+});
+
+test("DNS not found, certificates, external aborts and unknown transports never retry", async () => {
+  for (const [error, expected] of [
+    [Object.assign(new Error("private"), { code: "ENOTFOUND" }), "dns_not_found"],
+    [Object.assign(new Error("private"), { code: "CERT_HAS_EXPIRED" }), "certificate"],
+    [Object.assign(new Error("private"), { name: "AbortError", code: "ECONNRESET" }), "aborted"],
+    [Object.assign(new Error("private"), { name: "TimeoutError" }), "unowned_timeout"],
+    [new TypeError("private", { cause: new Error("unexpected redirect") }), "redirect"],
+    [new TypeError("private", { cause: { code: "secret-unknown-code" } }), "unknown"],
+  ]) {
+    await assert.rejects(fetchReadinessGet(new URL("https://private.invalid"), {
+      target: "direct", headers: {}, deadline: 1000, timeoutMs: 20_000, now: () => 0,
+      fetcher: async () => { throw error; },
+    }), failure => failure.retryable === false && failure.message ===
+      `Readiness GET failed target=direct cause=${expected}`);
+  }
+});
+
+test("only the owned timeout signal may retry, capped by remaining original time", async t => {
+  const controller = new globalThis.AbortController();
+  t.mock.method(globalThis.AbortSignal, "timeout", ms => {
+    assert.equal(ms, 7);
+    return controller.signal;
+  });
+  await assert.rejects(fetchReadinessGet(new URL("https://private.invalid"), {
+    target: "direct", headers: {}, deadline: 1000, timeoutMs: 190_000, now: () => 993,
+    fetcher: async () => {
+      controller.abort(new globalThis.DOMException("private timeout", "TimeoutError"));
+      throw controller.signal.reason;
+    },
+  }), error => error.retryable && error.message.endsWith("cause=request_timeout"));
+});
+
+test("local auth redirect fails closed and sends no bypass header to another origin", async () => {
+  let receiverRequests = 0;
+  const receiver = createServer((_request, response) => { receiverRequests++; response.end("private"); });
+  const redirect = createServer((_request, response) => {
+    response.writeHead(302, { Location: `http://127.0.0.1:${receiver.address().port}/private` });
+    response.end();
+  });
+  try {
+    await Promise.all([receiver, redirect].map(server => new Promise(resolve => server.listen(0, "127.0.0.1", resolve))));
+    await assert.rejects(fetchReadinessGet(new URL(`http://127.0.0.1:${redirect.address().port}/`), {
+      target: "candidate_proxy", headers: { "x-vercel-protection-bypass": "synthetic-private" },
+      deadline: Date.now() + 1000, timeoutMs: 1000, now: Date.now, fetcher: globalThis.fetch,
+    }), error => !error.retryable && error.message.endsWith("cause=redirect"));
+    assert.equal(receiverRequests, 0);
+  } finally {
+    for (const server of [receiver, redirect]) server.closeAllConnections();
+    await Promise.all([receiver, redirect].map(server => new Promise(resolve => server.close(resolve))));
+  }
+});
+
+test("native transport retry still requires exact SHA and matching direct/proxy process", async () => {
+  let clock = 0, direct = 0, proxy = 0;
+  await waitForNativeBackendRelease({ ...options, frontendUrl: "https://candidate.example.test",
+    now: () => clock, wait: async ms => { clock += ms; }, fetcher: async url => {
+      if (url.pathname === "/health") {
+        if (++direct === 1) throw Object.assign(new Error("private"), { code: "ECONNRESET" });
+        if (direct === 2) return ready(previousSha);
+      } else {
+        assert.ok(direct >= 3);
+        if (++proxy === 1) throw Object.assign(new Error("private"), { code: "UND_ERR_SOCKET" });
+        if (proxy === 2) return ready(sha, { "x-kova-process-id": "d".repeat(32) });
+      }
+      return ready();
+    },
+  });
+  assert.equal(proxy, 3, "A mismatched process must not become acceptance after a retry");
+});
+
+test("transient native GETs keep the existing deadline and attempt ceiling", async () => {
+  for (const advancing of [true, false]) {
+    let clock = 0, calls = 0;
+    await assert.rejects(waitForNativeBackendRelease({ ...options, now: () => clock,
+      wait: async ms => { if (advancing) clock += ms; }, fetcher: async () => {
+        calls++;
+        throw new TypeError("private url secret", { cause: { code: "ECONNRESET" } });
+      },
+    }), /five minutes.*target=direct cause=ECONNRESET/);
+    assert.equal(calls, 300);
+    if (advancing) assert.equal(clock, 300_000);
+  }
+});
+
+test("a transient native error never hides auth, schema or identity failures on the next read", async () => {
+  for (const response of [new globalThis.Response(null, { status: 401 }),
+    new globalThis.Response("private malformed body"), ready("e".repeat(40)),
+    ready(sha, { "x-kova-runtime": "wrong" }), ready(sha, { "x-kova-process-id": "invalid" })]) {
+    let clock = 0, calls = 0;
+    await assert.rejects(waitForNativeBackendRelease({ ...options, now: () => clock,
+      wait: async ms => { clock += ms; }, fetcher: async () => {
+        if (++calls === 1) throw Object.assign(new Error("private"), { code: "EAI_AGAIN" });
+        return response;
+      },
+    }), error => !error.message.includes("private"));
+    assert.equal(calls, 2);
+  }
+});
 
 test("first provisioning 503 retries without accepting it as readiness", async () => {
   let time = 0;
