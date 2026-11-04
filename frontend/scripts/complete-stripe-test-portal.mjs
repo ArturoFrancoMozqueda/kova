@@ -90,14 +90,24 @@ export function visiblePortalFieldState(elements) {
     else if (name === "billingname" || autocomplete.includes("cc-name")
         || autocomplete.includes("billing") && autocomplete.includes("name")) kind = "billing_name";
     const checkable = ["checkbox", "radio"].includes(element.type);
-    states.push({
+    const state = {
       kind,
       filled: checkable ? element.checked === true : Boolean(element.value),
       required: element.required === true || element.getAttribute("aria-required") === "true",
       html_valid: element.validity?.valid === true,
       aria_invalid: ["true", "grammar", "spelling"].includes(element.getAttribute("aria-invalid")),
       checked: checkable && element.checked === true,
-    });
+    };
+    // Fixed synthetic fixtures only; values stay inside the visible frame.
+    const fixtures = { card_number: "4242424242424242", card_expiry: "1230", card_cvc: "123",
+      billing_country: "US", billing_postal: "10001" };
+    if (Object.hasOwn(fixtures, kind)) {
+      const value = String(element.value ?? "");
+      const normalized = kind === "card_number" ? value.replace(/\s/g, "")
+        : kind === "card_expiry" ? value.replace(/[\s/]/g, "") : value;
+      state.fixture_match = normalized === fixtures[kind];
+    }
+    states.push(state);
   }
   return states;
 }
@@ -227,7 +237,8 @@ async function fillCardField(page, selectors, value, required = true, missingRea
       for (const selector of selectors) {
         for (const field of await frame.locator(selector).all()) {
           if (await field.isVisible() && await field.evaluate(renderedPortalElement)) {
-            await field.fill(value);
+            await field.fill("");
+            await field.pressSequentially(value, { delay: 25 });
             return field;
           }
         }
@@ -248,6 +259,7 @@ async function chooseTestBillingCountry(page) {
         for (const field of await frame.locator(selector).all()) {
           if (await field.isVisible() && await field.evaluate(renderedPortalElement)) {
             await field.selectOption("US");
+            await field.press("Tab");
             return;
           }
         }
@@ -283,8 +295,12 @@ async function declineLinkOptIn(page) {
 
 export async function completeTestPaymentFields(page, setStage = () => {}) {
   setStage("fill_test_payment_method");
-  await fillCardField(page, ["input[name=cardNumber]", "input[autocomplete=cc-number]"], "4242424242424242");
-  await fillCardField(page, ["input[name=cardExpiry]", "input[autocomplete=cc-exp]"], "1230");
+  const number = await fillCardField(page,
+    ["input[name=cardNumber]", "input[autocomplete=cc-number]"], "4242424242424242");
+  await number.press("Tab");
+  const expiry = await fillCardField(page,
+    ["input[name=cardExpiry]", "input[autocomplete=cc-exp]"], "1230");
+  await expiry.press("Tab");
   const cvc = await fillCardField(page, ["input[name=cardCvc]", "input[autocomplete=cc-csc]"], "123");
   setStage("commit_test_card");
   await cvc.press("Tab");

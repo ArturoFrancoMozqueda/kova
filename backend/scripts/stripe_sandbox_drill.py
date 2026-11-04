@@ -1481,10 +1481,16 @@ def _parse_portal_field_state(stderr: str) -> list[dict[str, Any]] | None:
     flags = {"filled", "required", "html_valid", "aria_invalid", "checked"}
     if type(fields) is not list or len(fields) > 64:
         return None
+    fixture_kinds = {"card_number", "card_expiry", "card_cvc", "billing_country", "billing_postal"}
     for field in fields:
-        if (type(field) is not dict or set(field) != flags | {"kind"}
-                or type(field["kind"]) is not str or field["kind"] not in kinds
-                or any(type(field[key]) is not bool for key in flags)):
+        if (type(field) is not dict or type(field.get("kind")) is not str
+                or field["kind"] not in kinds):
+            return None
+        expected = flags | {"kind"}
+        if field["kind"] in fixture_kinds:
+            expected.add("fixture_match")
+        if (set(field) != expected or any(type(field[key]) is not bool for key in flags)
+                or ("fixture_match" in field and type(field["fixture_match"]) is not bool)):
             return None
     return fields
 

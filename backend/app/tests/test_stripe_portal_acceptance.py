@@ -707,12 +707,18 @@ def test_helper_failure_diagnostic_forwards_only_safe_enums(tmp_path, monkeypatc
 
 
 def _field_state(**overrides):
-    return {"kind": "card_number", "filled": False, "required": True, "html_valid": False,
-            "aria_invalid": True, "checked": False, **overrides}
+    field = {"kind": "card_number", "filled": False, "required": True, "html_valid": False,
+             "aria_invalid": True, "checked": False, **overrides}
+    if isinstance(field["kind"], str) and field["kind"] in {
+        "card_number", "card_expiry", "card_cvc", "billing_country", "billing_postal",
+    }:
+        field.setdefault("fixture_match", False)
+    return field
 
 
 def test_field_state_parser_preserves_only_closed_enums_and_booleans():
-    fields = [_field_state(), _field_state(filled=True), _field_state(kind="link_name")]
+    fields = [_field_state(), _field_state(filled=True, fixture_match=True),
+              _field_state(kind="link_name")]
     assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps(fields)) == fields
     assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=[]") == []
     assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps(
@@ -724,6 +730,9 @@ def test_field_state_parser_preserves_only_closed_enums_and_booleans():
     {"fields": []}, [None], ["private-secret"], [_field_state(kind="private-secret")],
     [_field_state(kind={"token": "private-secret"})], [_field_state(filled="true")],
     [_field_state(filled=1)], [_field_state(checked=None)],
+    [_field_state(fixture_match=1)], [_field_state(fixture_match="true")],
+    [_field_state(fixture_match=None)], [_field_state(fixture_match={"secret": "private-secret"})],
+    [_field_state(kind="link_email", fixture_match=True)],
     [_field_state(aria_invalid={"token": "private-secret"})],
     [_field_state(value="private.card@example.com https://secret.invalid/bearer")],
     [_field_state(), _field_state(value="private-secret")],
@@ -765,3 +774,16 @@ def test_helper_error_forwards_only_validated_field_state(tmp_path, monkeypatch,
     assert ('"kind":"card_number"' in message) is valid
     assert ("field_state=unavailable" in message) is not valid
     assert "private" not in message and "secret" not in message and "bearer" not in message
+
+
+
+@pytest.mark.parametrize("kind", [
+    "card_number", "card_expiry", "card_cvc", "billing_country", "billing_postal",
+])
+@pytest.mark.parametrize("matched", [False, True])
+def test_fixture_match_is_strictly_boolean_and_required_only_for_test_fields(kind, matched):
+    field = _field_state(kind=kind, fixture_match=matched)
+    raw = "KOV005_PORTAL_FIELD_STATE=" + json.dumps([field])
+    assert drill._parse_portal_field_state(raw) == [field]
+    del field["fixture_match"]
+    assert drill._parse_portal_field_state("KOV005_PORTAL_FIELD_STATE=" + json.dumps([field])) is None

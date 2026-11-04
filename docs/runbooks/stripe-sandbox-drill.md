@@ -250,6 +250,28 @@ sección «Optional». Ambas limpiezas aprobaron, pero no existe artefacto de ac
 corrida. El ajuste del helper y sus pruebas locales no acreditan el Portal del proveedor: hace
 falta repetir el workflow sobre el SHA corregido.
 
+El siguiente intento, [41754550717](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41754550717),
+volvió a detenerse en Add deshabilitado aunque el campo de Link ya estaba vacío. Por tanto, esa
+observación no demuestra que Link causara el fallo. La inspección manual con datos QA, `fill` y
+Tab habilitó Add tanto con país MX como con US y postal; no se pulsó Add ni se guardó un método de
+pago. No está probada una restricción universal del Portal, un problema de vencimiento o una causa
+antifraude.
+
+La variante de entrada usa `fill("")`, `pressSequentially(text, {delay: 25})` y Tab para número,
+vencimiento, CVC y postal; el país conserva `selectOption("US")` y Tab. Esta es una hipótesis
+acotada de sincronización/eventos de teclado. La regresión DOM local modela una máscara que
+requiere `keydown` y demuestra ese mecanismo, no la implementación interna de Stripe. Playwright
+[documenta entrada secuencial para manejo especial de teclado](https://playwright.dev/docs/input#type-characters).
+La causa y la aceptación real siguen pendientes del workflow. El helper no fuerza controles,
+no lee internos del SDK ni evita desafíos de seguridad.
+
+El diagnóstico añade `fixture_match` boolean únicamente a `card_number`, `card_expiry`, `card_cvc`,
+`billing_country` y `billing_postal`. Compara los fixtures dentro del frame visible (normaliza
+espacios de tarjeta y espacios/separador de vencimiento); no exporta valores, longitudes, mensajes
+crudos ni atributos. Los demás kinds no incluyen esa clave. El parser exige exactamente esa forma
+y tipos boolean, y rechaza claves extra, números, texto, null o valores anidados. Coincidir con
+un fixture y tener `html_valid=true` no equivale al `complete` del SDK ni a un pago aceptado.
+
 ## Optional risk-event acceptance
 
 `include_risk` is **false by default**. Opt in on the same reviewed `main` SHA that contains the
