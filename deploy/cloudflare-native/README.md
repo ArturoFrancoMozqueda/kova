@@ -42,6 +42,44 @@ still requires their exact match; readiness separately compares the running
 image's release SHA with the controller's `KOVA_BUILD_SHA` and the public verifier
 requires the requested release and resident process identity before acceptance.
 
+The controller also projects a public `KOVA_BOOT_CONTROLLER_SHA` derived only from
+its own build SHA. The native `/health` response echoes it as
+`x-kova-boot-controller-sha`. Matching image identity alone cannot establish that
+a running process received the current startup settings: the SDK does not update
+the environment of an already running container. The controller verifies image
+and boot identities before forwarding requests, coalesces concurrent checks, and
+rechecks after Worker eviction, process stop or a recognized SDK transport failure.
+Steady healthy traffic does not repeat this private health request.
+The process also refuses to open HTTP when a supplied boot-controller identity
+does not match its immutable image. This protects the SDK's automatic start
+between a successful controller check and forwarding a write. An absent marker
+is allowed only when both commercial flags are OFF for the legacy bootstrap;
+an ON policy always requires the marker.
+The marker identifies the controller build, not a fingerprint of its bindings.
+Configuration changes that must reach an existing process require a reviewed
+release with a new SHA; redeploying the same SHA does not prove a fresh environment.
+
+A matching image with a stale or absent boot identity receives one graceful SDK
+`stop()` signal and returns private 503 responses until the process has exited.
+The next start receives the current projected environment; its health identity
+must verify before requests are forwarded. A defective replacement cannot cause
+an automatic stop/restart loop. A foreign image or malformed health body fails
+closed without forcing a restart. No failed business request is replayed.
+`stop()` sends SIGTERM but does not itself prove process exit; the controller
+checks `ctx.container.running` before starting the replacement and retains the
+SDK-owned scheduler and lifecycle callbacks.
+
+This protocol is introduced with commercial enrollment and Portal flags OFF,
+and with the public release gate expecting Standard. Accept that OFF release as
+a rollback-compatible baseline before a separate commercial activation. Both
+sides of that later activation and its rollback must understand the boot
+identity protocol; an older baseline without it can retain mismatched startup
+settings during the reverse Worker/image handoff.
+
+Cloudflare documents that [startup environment remains unchanged until the next
+start](https://developers.cloudflare.com/containers/examples/env-vars-and-secrets/)
+and that [Worker and Container rollouts can overlap](https://developers.cloudflare.com/containers/concepts/architecture/).
+
 Production is active with `KOVA_NATIVE_BACKEND=1` after release
 [`39531362675`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39531362675)
 for `6bd525e42c22c2b6d8798638ef4de6f3498d47af`. The one-time database provisioning

@@ -12,9 +12,41 @@ import time
 from pathlib import Path
 
 import httpx
+import pytest
 
 
-def test_native_private_proxy_preserves_https_redirect_and_secure_cookies(tmp_path):
+@pytest.mark.parametrize("boot_marker,tiered,portal", [
+    ("b" * 40, "false", "false"),
+    (None, "true", "false"),
+    (None, "false", "true"),
+])
+def test_native_controller_mismatch_aborts_before_the_application_can_serve(
+    tmp_path, boot_marker, tiered, portal,
+):
+    backend = Path(__file__).resolve().parents[2]
+    env = {name: os.environ[name] for name in ("PATH", "LANG", "TMPDIR") if name in os.environ}
+    env.update({
+        "APP_ENV": "local", "CLOUDFLARE_CONTAINER_MODE": "true",
+        "KOVA_IMAGE_SHA": "a" * 40, "KOVA_RELEASE_SHA": "a" * 40,
+        "BILLING_TIERED_PLANS_ENABLED": tiered, "BILLING_PORTAL_ENABLED": portal,
+        "DATABASE_URL": "postgresql+psycopg://synthetic@127.0.0.1:1/unused",
+        "APP_DATABASE_URL": "postgresql+psycopg://synthetic@127.0.0.1:1/unused",
+        "MIGRATION_DATABASE_URL": "postgresql+psycopg://synthetic@127.0.0.1:1/unused",
+        "ASSISTANT_DOCUMENTS_ENABLED": "false", "ASSISTANT_INGEST_ON_DEMAND": "false",
+        "PYTHONPATH": str(backend),
+    })
+    if boot_marker is not None:
+        env["KOVA_BOOT_CONTROLLER_SHA"] = boot_marker
+    result = subprocess.run(
+        [sys.executable, "-c", "from app.native import app"],
+        cwd=tmp_path, env=env, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode != 0
+    assert "Native boot controller does not match the image release" in result.stderr
+
+
+@pytest.mark.parametrize("boot_marker", ["a" * 40, None])
+def test_native_private_proxy_preserves_https_redirect_and_secure_cookies(tmp_path, boot_marker):
     backend = Path(__file__).resolve().parents[2]
     (tmp_path / "native_proxy_probe.py").write_text(
         "from fastapi import Request\n"
@@ -48,6 +80,8 @@ def test_native_private_proxy_preserves_https_redirect_and_secure_cookies(tmp_pa
         "ASSISTANT_INGEST_ON_DEMAND": "false",
         "PYTHONPATH": str(backend),
     })
+    if boot_marker is not None:
+        env["KOVA_BOOT_CONTROLLER_SHA"] = boot_marker
     with socket.socket() as listener, (tmp_path / "uvicorn.log").open("w") as log:
         listener.bind(("127.0.0.1", 0))
         listener.listen()
@@ -72,6 +106,12 @@ def test_native_private_proxy_preserves_https_redirect_and_secure_cookies(tmp_pa
                 else:
                     raise AssertionError("Native probe did not become ready")
                 headers = {"Host": "api.example.test", "X-Forwarded-Proto": "https"}
+                health = client.get("/health", headers={
+                    **headers, "X-Kova-Boot-Controller-Sha": "c" * 40,
+                })
+                assert health.status_code == 200
+                assert health.json()["release_sha"] == "a" * 40
+                assert health.headers.get("x-kova-boot-controller-sha") == boot_marker
                 redirect = client.get("/_native_proxy_probe", headers=headers)
                 assert redirect.status_code == 307
                 assert redirect.headers["location"] == "https://api.example.test/_native_proxy_probe/"
@@ -84,6 +124,7 @@ def test_native_private_proxy_preserves_https_redirect_and_secure_cookies(tmp_pa
                 assert "HttpOnly" not in cookies[2]  # CSRF cookie stays readable by the SPA.
                 assert response.headers["x-kova-runtime"] == "native-resident"
                 assert response.headers["x-kova-process-id"] == redirect.headers["x-kova-process-id"]
+                assert "x-kova-boot-controller-sha" not in response.headers
         finally:
             process.terminate()
             process.wait(timeout=10)

@@ -133,6 +133,7 @@ test("Cloudflare waits for the new backend before verifying or promoting the can
       ? artifact.frontendUrl : "https://candidate.vercel.app";
     assert.deepEqual(input, { backendUrl: artifact.backendUrl, frontendUrl, sha,
       previousSha: artifact.releaseSha,
+      requireControllerBootIdentity: true,
       ...(fake.calls.includes("promote") ? {} : {
         frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
       }) });
@@ -160,11 +161,14 @@ test("failed backend readiness restores and waits for the exact old backend befo
   };
   fake.provider.waitForPublicBackend = async input => {
     if (input.sha === sha) {
+      assert.equal(input.requireControllerBootIdentity, true);
       fake.calls.push("new-readiness-failed");
       throw new Error("new backend did not propagate");
     }
     assert.deepEqual(input, { frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl,
       sha: artifact.releaseSha, previousSha: sha });
+    assert.equal(Object.hasOwn(input, "requireControllerBootIdentity"), false,
+      "An older captured baseline must not acquire a boot-header requirement during recovery");
     fake.calls.push("restored-ready");
   };
   await assert.rejects(release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions },

@@ -80,8 +80,11 @@ function describeDiagnostic({ target, content, runtime, process, signature, read
  * text with no native identity; application/foreign/malformed errors fail closed.
  */
 export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
-  frontendBypassSecret, rollout = false, fetcher = globalThis.fetch,
+  frontendBypassSecret, rollout = false, requireControllerBootIdentity = false, fetcher = globalThis.fetch,
   wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
+  if (typeof requireControllerBootIdentity !== "boolean") {
+    throw new Error("Native boot identity requirement must be boolean");
+  }
   if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
       || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
     throw new Error("Native propagation requires complete release SHAs");
@@ -151,6 +154,21 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
       if (runtime !== "native-resident") throw new Error("Unexpected native runtime identity");
       const process = response.headers.get("x-kova-process-id") || "";
       if (!/^[a-f0-9]{32}$/.test(process)) throw new Error("Invalid native process identity");
+      if (requireControllerBootIdentity) {
+        const controller = response.headers.get("x-kova-boot-controller-sha");
+        // New images can briefly run under the captured controller, which
+        // retains their original startup environment. Neither that marker nor
+        // a legacy controller's missing header proves the new configuration.
+        // Wait only for those known handoff states within the original budget.
+        if (controller !== sha && (controller === null
+            || (previousSha !== undefined && controller === previousSha))) {
+          lastFailure = controller === null ? "boot_controller=legacy" : "boot_controller=previous";
+          return null;
+        }
+        if (!/^[a-f0-9]{40}$/i.test(controller) || controller !== sha) {
+          throw new Error("Invalid native boot controller identity");
+        }
+      }
       return process;
     }));
     if (now() >= deadline) break;

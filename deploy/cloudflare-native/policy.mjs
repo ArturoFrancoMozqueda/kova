@@ -5,16 +5,16 @@ export const NATIVE_INSTANCE = "api-0";
 export const RATE_LIMIT_HOST = "rate-limit.kova.internal";
 export const JOBS_HOST = "jobs.kova.internal";
 
-// Both identities belong to the immutable image. A Worker and its Container
-// image roll independently; injecting the Worker's SHA can break a valid image.
-const IMAGE_IDENTITIES = new Set(["KOVA_RELEASE_SHA", "KOVA_IMAGE_SHA"]);
+// Image identities remain baked; the boot identity is derived from this Worker.
+// None can come from a Settings binding, even if its allowlist grows later.
+const PROTECTED_IDENTITIES = new Set(["KOVA_RELEASE_SHA", "KOVA_IMAGE_SHA", "KOVA_BOOT_CONTROLLER_SHA"]);
 
 // Explicit Settings projection: never enumerate arbitrary account secrets or
 // serialize resource bindings. Values stay inside the Worker/container runtime.
 export function nativeEnvironment(env) {
   const values = {};
   for (const name of settingsKeys) {
-    if (IMAGE_IDENTITIES.has(name)) continue;
+    if (PROTECTED_IDENTITIES.has(name)) continue;
     if (typeof env[name] === "string") values[name] = env[name];
   }
   for (const name of ["APP_DATABASE_URL", "MIGRATION_DATABASE_URL", "SECRET_KEY"]) {
@@ -31,9 +31,11 @@ export function nativeEnvironment(env) {
     TRUSTED_CLIENT_IP_HEADER: "x-kova-client-ip",
     ASSISTANT_DOCUMENTS_ENABLED: "false",
     ASSISTANT_INGEST_ON_DEMAND: "false",
-    // Reviewed activation for new cohorts; existing agreements remain server-owned.
-    BILLING_TIERED_PLANS_ENABLED: "true",
-    BILLING_PORTAL_ENABLED: "true",
+    // Establish a rollback-compatible boot protocol before commercial activation.
+    BILLING_TIERED_PLANS_ENABLED: "false",
+    BILLING_PORTAL_ENABLED: "false",
+    // Public build identity only; never accept this value from a Settings binding.
+    KOVA_BOOT_CONTROLLER_SHA: env.KOVA_BUILD_SHA,
     DATABASE_POOL_SIZE: "3",
     DATABASE_MAX_OVERFLOW: "0",
     DATABASE_POOL_RECYCLE_SECONDS: "1800",
