@@ -227,13 +227,28 @@ el estado del control al fallar, no confirman por sí solas una causa de validac
 
 El fixture de pago usa US y el código postal de QA 10001 explícitamente. El helper pulsa Tab tras
 CVC y tras el postal requerido, para que PaymentElement confirme los campos al perder foco. No
-rellena el nombre opcional de Link y desmarca únicamente opt-ins identificados como Link. Ausencia
+rellena el nombre opcional de Link y desmarca únicamente opt-ins identificados como Link.
+Cuando la sección opcional observada no tiene checkbox, vacía sólo el campo visible
+`search-linkEmail` y confirma el opt-out con blur. Repite ese paso tras país/postal por si Stripe
+vuelve a prellenarlo. No modifica el correo del Customer ni campos genéricos de billing, teléfono,
+nombre, configuración de Link o CAPTCHA. La regresión de iframe conserva intactos los proxies
+invisibles y el email de billing y no envía peticiones externas. Este comportamiento se apoya en
+la inscripción opcional y el prefill documentados por
+[Stripe Link](https://docs.stripe.com/payments/link/payment-element-link#automatically-prefill-link-for-your-customers). Ausencia
 de controles de país/postal se reporta con enums `billing_country_missing`/`billing_postal_missing`,
 sin valores ni etiquetas de campos. La regresión local usa un iframe sin red cuyo botón permanece
 deshabilitado hasta completar país, postal y blur; corre obligatoriamente en el paso sandbox con
 `KOV005_PORTAL_LOCAL_BROWSER_TEST=true` después de instalar Chromium. El CI normal conserva los
 puros y puede omitir sólo ese fixture de navegador. Esta elección determinista de país no prueba
 que el país fuese la causa del fallo del proveedor; la aceptación real sigue siendo independiente.
+
+El intento Standard con riesgos/Portal
+[41752448546](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41752448546) superó el
+reembolso QA de MXN 1.00 y falló al guardar el método de pago. El diagnóstico observó el email de
+Link prellenado, teléfono vacío requerido y ningún checkbox; la inspección visible confirmó la
+sección «Optional». Ambas limpiezas aprobaron, pero no existe artefacto de aceptación de esa
+corrida. El ajuste del helper y sus pruebas locales no acreditan el Portal del proveedor: hace
+falta repetir el workflow sobre el SHA corregido.
 
 ## Optional risk-event acceptance
 

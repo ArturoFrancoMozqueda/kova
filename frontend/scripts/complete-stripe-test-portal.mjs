@@ -269,6 +269,15 @@ async function declineLinkOptIn(page) {
         await checkbox.uncheck();
       }
     }
+    // The observed Optional Link form can expand with a prefilled QA email and
+    // no checkbox. Edit only that Link enrollment field, never Customer/billing
+    // email or optional phone/name; blur commits the normal user opt-out.
+    for (const email of await frame.locator('input[name="search-linkEmail"]').all()) {
+      if (await email.isVisible() && await email.evaluate(renderedPortalElement)) {
+        await email.fill("");
+        await email.press("Tab");
+      }
+    }
   }
 }
 
@@ -280,6 +289,7 @@ export async function completeTestPaymentFields(page, setStage = () => {}) {
   setStage("commit_test_card");
   await cvc.press("Tab");
   // Do not fill optional Link identity fields or opt the synthetic customer into Link.
+  setStage("decline_link_enrollment");
   await declineLinkOptIn(page);
   setStage("select_billing_country");
   await chooseTestBillingCountry(page);
@@ -289,6 +299,9 @@ export async function completeTestPaymentFields(page, setStage = () => {}) {
     "billing_postal_missing");
   setStage("commit_billing_postal");
   await postal.press("Tab");
+  // Billing changes may rerender Stripe's prefilled optional Link fields.
+  setStage("decline_link_enrollment");
+  await declineLinkOptIn(page);
 }
 
 async function updatePaymentMethod(page, setStage) {
