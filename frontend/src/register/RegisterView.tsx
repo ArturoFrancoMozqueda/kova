@@ -1892,6 +1892,7 @@ function RegularRegisterView() {
                           </button>
                         </div>
                         <Select
+                          aria-label={`Método de pago ${index + 1}`}
                           value={payment.method}
                           onChange={(event) =>
                             updateSplitPayment(payment.id, {
