@@ -186,6 +186,8 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
         {receipt ? (
           <TicketPaper className="mx-auto mt-5 max-w-sm">
             <ReceiptTemplate
+              className="print-receipt-root"
+              paperWidthMm={receipt.paper_width_mm ?? 80}
               businessName={receipt.tenant_name || tenantName}
               logoUrl={logoUrl}
               receiptNumber={receipt.receipt_number}

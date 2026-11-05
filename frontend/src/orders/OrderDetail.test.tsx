@@ -416,6 +416,8 @@ describe("OrderDetail", () => {
       expect.objectContaining({ method: "POST" }),
     ));
     expect(await screen.findByText(/venta cancelada/i)).toBeInTheDocument();
+    expect(await screen.findByText("Error del operador", { exact: true })).toBeVisible();
+    expect(screen.queryByText("operator error", { exact: true })).not.toBeInTheDocument();
   });
 
   it("explains unavailable actions on voided orders without implying a role problem", async () => {

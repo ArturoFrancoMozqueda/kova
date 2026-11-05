@@ -108,5 +108,25 @@ futuras operarán sobre la venta financiera, nunca sobre el pedido pendiente.
   normal ni contabilizar ingreso antes del cobro.
 - Dos pedidos, o un pedido y Caja, no comprometen silenciosamente las mismas existencias.
 - Reintentos y concurrencia no generan ventas duplicadas ni reservas huérfanas.
+- Después de cobrar desde Caja un pedido, `Imprimir recibo` conserva el contenido de la venta y
+  el ancho térmico de su recibo, con el mismo contrato de impresión de las ventas inmediatas.
 - Roles, feature flag, acceso comercial y tenant impiden accesos no autorizados.
 - Sin conexión se conserva visibilidad de trabajo reciente en modo de solo lectura.
+
+## Escenario P1: impresión del recibo después del cobro
+
+```gherkin
+Esquema del escenario: Imprimir un pedido cobrado desde Caja
+  Dado un pedido cuyo cobro terminó y cuyo recibo usa el ancho <configurado>
+  Cuando el operador pulsa "Imprimir recibo" desde la confirmación del cobro
+  Entonces el diálogo nativo recibe un documento térmico de <papel> mm
+  Y el documento contiene el negocio, folio, todos los productos y total de la venta
+  Y no incluye controles de la aplicación ni genera una hoja vacía
+  Y cerrar y volver a abrir la impresión no vuelve a cobrar el pedido
+
+  Ejemplos:
+    | configurado | papel |
+    | 58 mm       | 58    |
+    | 80 mm       | 80    |
+    | sin definir | 80    |
+```

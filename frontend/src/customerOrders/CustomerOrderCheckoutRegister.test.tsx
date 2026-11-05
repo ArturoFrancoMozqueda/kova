@@ -152,6 +152,38 @@ describe("CustomerOrderCheckoutRegister", () => {
     expect(screen.queryByRole("button", { name: /cobrar/i })).not.toBeInTheDocument();
   });
 
+  it.each([58, 80, undefined])("exposes a printable receipt with configured paper width %s after checkout", async (paperWidth) => {
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-print", version: 2 },
+      sale_order: { id: "sale-print", total_amount: "50.00" },
+    });
+    api.getReceipt.mockResolvedValue({
+      order_id: "sale-print",
+      receipt_number: "VENTA-QA50",
+      tenant_name: "Sweet Home",
+      created_at: order.created_at,
+      status: "completed",
+      paper_width_mm: paperWidth,
+      items: order.items,
+      subtotal_amount: "50.00",
+      total_amount: "50.00",
+      payments: [{ method: "cash", amount_amount: "50.00" }],
+      total_tendered: "50.00",
+      total_change: "0.00",
+      refunds: [],
+      void: null,
+    });
+    const view = renderCheckout();
+    fireEvent.change(await screen.findByLabelText("Efectivo recibido"), { target: { value: "50.00" } });
+    fireEvent.click(screen.getByRole("button", { name: /cobrar \$50\.00/i }));
+
+    expect(await screen.findByRole("button", { name: "Imprimir recibo" })).toBeVisible();
+    const receipt = view.container.querySelector(".print-receipt-root");
+    expect(receipt).toHaveTextContent("VENTA-QA50");
+    expect(receipt).toHaveTextContent("Concha");
+    expect(receipt).toHaveAttribute("data-paper-width", String(paperWidth ?? 80));
+  });
+
   it("reuses the idempotency key after a lost checkout response", async () => {
     api.checkoutCustomerOrder
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
