@@ -87,6 +87,20 @@ class RuntimeAssemblyTests(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             self.assertIn("/usr/lib/x86_64-linux-gnu/libcrypt.so.1", run.call_args.args[0])
 
+    def test_zlib_is_copied_from_patched_builder_instead_of_reusing_vulnerable_base(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+            RUNTIME.subprocess, "run"
+        ) as run:
+            run.side_effect = [
+                subprocess.CompletedProcess([], 0, stdout=(
+                    "libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x1)\n"
+                )),
+                subprocess.CompletedProcess([], 0, stdout=(
+                    "zlib1g:amd64: /usr/lib/x86_64-linux-gnu/libz.so.1\n"
+                )),
+            ]
+            self.assertEqual(RUNTIME.required_packages(Path(directory)), ["zlib1g"])
+
 
 if __name__ == "__main__":
     unittest.main()

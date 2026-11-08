@@ -22,8 +22,12 @@ from pathlib import Path
 BASE_SONAMES = {
     "libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1",
     "libresolv.so.2", "libutil.so.1", "libssl.so.3", "libcrypto.so.3",
-    "libz.so.1", "libzstd.so.1",
+    "libzstd.so.1",
 }
+# The pinned Distroless image still contains the pre-DSA-6613 zlib package.
+# Copy the security-updated Debian builder's actual library AND replace that
+# package's existing Distroless metadata; never just relabel the old bytes.
+BASE_PACKAGE_OVERRIDES = {"zlib1g"}
 # These extensions support terminal/GUI interaction or libuuid's platform helpers.
 # Kova uses uuid4() from Python's os.urandom-backed implementation. Omitting the
 # optional _uuid extension retains Python's documented pure-Python fallback.
@@ -136,7 +140,8 @@ def assemble(destination: Path) -> None:
             copied.append(str(copyright_file))
         if not copied:
             raise RuntimeError(f"No runtime libraries found for {package}")
-        metadata = destination / "var/lib/dpkg/status.d" / f"{package}_status"
+        metadata_name = package if package in BASE_PACKAGE_OVERRIDES else f"{package}_status"
+        metadata = destination / "var/lib/dpkg/status.d" / metadata_name
         metadata.parent.mkdir(parents=True, exist_ok=True)
         metadata.write_text(status)
         file_list = destination / "var/lib/dpkg/info" / f"{package}.list"
