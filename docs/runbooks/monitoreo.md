@@ -73,9 +73,7 @@ or `ValueError: wrapper loop when unwrapping`. This also affects business routes
 changing only the health handler or switching the monitor to GET leaves the
 underlying defect. Kova pins SDK 2.63.0 with the
 [official correction](https://github.com/getsentry/sentry-python/pull/6569) in both
-native and Workers locks. The resident-process regression exercises 2,200 health
-requests and verifies error capture and authentication dependencies remain active.
-This local regression is not production release acceptance.
+native and Workers locks.
 
 Sentry release metadata uses the image's `KOVA_RELEASE_SHA`, falling back to the
 legacy `GIT_SHA` only when the image identity is unknown. Compare the public full
