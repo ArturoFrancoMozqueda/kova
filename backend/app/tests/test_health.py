@@ -40,3 +40,20 @@ def test_health_db_head_ok(client: TestClient) -> None:
     response = client.head("/health/db")
     assert response.status_code == 200
     assert response.content == b""
+
+
+def test_database_connection_timeout_has_safe_actionable_classification(caplog):
+    from psycopg.errors import ConnectionTimeout
+
+    from app.health.router import _log_database_failure
+
+    try:
+        try:
+            raise ConnectionTimeout("private-database-location-and-credentials")
+        except ConnectionTimeout as exc:
+            raise RuntimeError("private-driver-details") from exc
+    except RuntimeError as exc:
+        _log_database_failure(exc)
+
+    assert "type=RuntimeError reason=timeout" in caplog.text
+    assert "private-" not in caplog.text

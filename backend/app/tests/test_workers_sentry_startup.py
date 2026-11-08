@@ -1,3 +1,5 @@
+import pytest
+
 from app.observability import sentry
 
 
@@ -34,3 +36,18 @@ def test_native_sentry_retains_existing_autodetection_and_transport(monkeypatch)
     assert captured["before_send"] is sentry.sanitize_sentry_event
     assert captured["send_default_pii"] is False
     assert captured["include_local_variables"] is False
+
+
+@pytest.mark.parametrize("image_sha,legacy_sha,expected", [
+    ("a" * 40, "b" * 40, "a" * 40),
+    ("unknown", "b" * 40, "b" * 40),
+    ("unknown", None, None),
+])
+def test_sentry_release_prefers_immutable_image_identity(monkeypatch, image_sha, legacy_sha, expected):
+    captured = {}
+    monkeypatch.setattr(sentry.settings, "sentry_dsn", "https://synthetic-public@sentry.test/1")
+    monkeypatch.setattr(sentry.settings, "kova_release_sha", image_sha)
+    monkeypatch.setattr(sentry.settings, "git_sha", legacy_sha)
+    monkeypatch.setattr(sentry.sentry_sdk, "init", lambda **kwargs: captured.update(kwargs))
+    sentry.init_sentry()
+    assert captured["release"] == expected

@@ -18,6 +18,8 @@ def _log_database_failure(exc):
     seen = set()
     while current is not None and id(current) not in seen:
         seen.add(id(current))
+        if type(current).__name__ in {"ConnectionTimeout", "TimeoutError"}:
+            reason = "timeout"
         description = str(current).lower()
         for marker, code in (
             ("different request", "request_context"),

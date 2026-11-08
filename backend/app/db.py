@@ -276,6 +276,10 @@ def _pool_options(*, privileged: bool = False) -> dict:
         if privileged else settings.effective_app_database_url
     )
     database_url = make_url(sqlalchemy_database_url(connection_url))
+    if database_url.drivername == "postgresql+psycopg":
+        options["connect_args"] = {
+            "connect_timeout": settings.database_connect_timeout_seconds,
+        }
     if privileged and database_url.drivername == "postgresql+psycopg":
         # Only explicitly scoped public reads use AUTOCOMMIT below. Ordinary
         # privileged auth/webhook sessions still roll back their transactions.
@@ -289,7 +293,7 @@ def _pool_options(*, privileged: bool = False) -> dict:
         # one server session. Native psycopg otherwise prepares after repeated
         # execution and can fail only after production traffic warms the pool.
         # Leave session/direct connections and other drivers unchanged.
-        options["connect_args"] = {"prepare_threshold": None}
+        options["connect_args"]["prepare_threshold"] = None
     return options
 
 
