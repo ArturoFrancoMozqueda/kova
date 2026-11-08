@@ -28,6 +28,16 @@ remains 300 seconds and Workers continue using Hyperdrive without a local pool.
 This removes a known reconnect trigger; it does not establish how much of any
 observed request time was spent connecting rather than querying or rendering.
 
+Native psycopg connections enforce `DATABASE_CONNECT_TIMEOUT_SECONDS` (default 5,
+allowed 2–30) for both runtime and privileged engines. This bounds establishing
+each connection/address independently of `DATABASE_POOL_TIMEOUT`, which only
+bounds waiting for a pool slot. Multiple resolved addresses can multiply the
+connection budget; this is not an end-to-end request or SQL execution timeout.
+Failed connects release their pool slot. Pre-ping, TLS, role separation and pool
+caps remain in force; writes are never retried automatically after an uncertain
+outcome. A healthy PostgreSQL process with client connection timeouts still
+requires checking the pooler, network and provider evidence.
+
 Fresh public product-image SELECTs use psycopg AUTOCOMMIT on that same privileged
 pool to avoid unnecessary BEGIN/ROLLBACK commands. Session close restores the
 connection's default isolation before reuse. Existing transactions, scoped

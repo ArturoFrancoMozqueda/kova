@@ -65,6 +65,39 @@ When an alert fires, look at **which combination** of monitors is down. That iso
 
 ### Common failures and fixes
 
+#### `/health` starts returning 500 after days of healthy operation
+
+With FastAPI 0.137+ and Sentry SDK before 2.63.0, repeated requests to included
+sync routes can accumulate endpoint wrappers until they raise `RecursionError`
+or `ValueError: wrapper loop when unwrapping`. This also affects business routes;
+changing only the health handler or switching the monitor to GET leaves the
+underlying defect. Kova pins SDK 2.63.0 with the
+[official correction](https://github.com/getsentry/sentry-python/pull/6569) in both
+native and Workers locks. The resident-process regression exercises 2,200 health
+requests and verifies error capture and authentication dependencies remain active.
+This local regression is not production release acceptance.
+
+Sentry release metadata uses the image's `KOVA_RELEASE_SHA`, falling back to the
+legacy `GIT_SHA` only when the image identity is unknown. Compare the public full
+SHA as well as the event timestamp; old unresolved events do not prove the
+current image still has the defect.
+
+#### Native database probes time out while `/health` remains green
+
+`/health` does not use Postgres. A successful response cannot dismiss a failing
+`/health/db`. Native psycopg has a separate connection-establishment timeout;
+`DATABASE_POOL_TIMEOUT` only limits waiting for a slot in the local pool. See the
+[native connection budget](../../deploy/cloudflare-native/README.md).
+
+Correlate UptimeRobot's exact interval/method with sanitized application
+`ConnectionTimeout` classification, Supabase pooler/Postgres logs, server start
+time and connection-capacity evidence. Inspect network restrictions and provider
+incidents without exporting credentials. Pooler shutdown after no clients is not
+by itself proof of a provider outage. Do not weaken RLS/TLS, switch to an owner
+connection, retry uncertain business writes or restart production as a diagnostic.
+Record any remaining gap; a shorter timeout reduces blocked resources, but does
+not establish or fix the external cause of a lost network connection.
+
 #### `/health/db` returns 405 Method Not Allowed
 Cause: monitor is using HEAD against an endpoint without a HEAD handler. As of `health/router.py` both endpoints support HEAD — but if you ever add a new health endpoint, remember to declare both `@router.get(...)` and `@router.head(...)` or UptimeRobot's probes will 405.
 

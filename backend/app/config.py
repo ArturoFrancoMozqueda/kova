@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 0
     database_pool_timeout: int = 10
+    # libpq otherwise waits for the OS TCP timeout for each resolved address.
+    # Bound connection establishment independently of waiting for a pool slot.
+    database_connect_timeout_seconds: int = Field(default=5, ge=2, le=30)
     database_pool_recycle_seconds: int = 300
     frontend_url: str = "http://localhost:5173"
     # Immutable source identity injected by the Fly image build. It is public
