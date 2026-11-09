@@ -119,7 +119,7 @@ predeterminado sin proporcionar teléfono ni registrar Link. Un correo precargad
 opcional no es consentimiento para ese registro. El helper conserva esos campos y sólo desmarca
 un control de opt-in que realmente esté marcado; no vacía campos que Stripe mantiene como
 requeridos. El fixture local anterior asumía incorrectamente que el correo precargado activaba
-Link. Se corrigió ese supuesto y se comprueba que vaciar el correo impide guardar en ese fixture.
+Link. Se corrigió ese supuesto y se comprueba que el helper conserva el correo suministrado.
 La aceptación alojada sigue exigiendo que cambie el método predeterminado efectivo del mismo
 Customer; el resultado local y la reproducción aislada no sustituyen el drill completo de Kova.
 
