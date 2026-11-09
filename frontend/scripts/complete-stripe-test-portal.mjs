@@ -274,10 +274,12 @@ async function declineLinkOptIn(page) {
   for (const frame of page.frames()) {
     if (!await visiblePortalFrame(frame)) continue;
     const candidates = [...await frame.locator("input[name=enableStripePass]").all(),
-      ...await frame.getByRole("checkbox", { name: /Link|Stripe Pass/i }).all()];
+      ...await frame.getByRole("checkbox", { name: /Link|Stripe Pass|guardar mis datos para un proceso de compra más rápido|save my information for faster checkout/i }).all()];
     for (const checkbox of candidates) {
-      if (await checkbox.isVisible() && await checkbox.evaluate(renderedPortalElement)
-          && await checkbox.isChecked()) {
+      // A styled checkbox can have an opacity-zero native input behind its
+      // visible label. Playwright's normal actionability checks can operate it;
+      // the stricter card/autofill visibility filter incorrectly skipped it.
+      if (await checkbox.isVisible() && await checkbox.isChecked()) {
         await checkbox.uncheck();
       }
     }
