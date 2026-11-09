@@ -23,6 +23,9 @@ const publicLabels = new Map([
   ["agregar tarjeta", "add_card"], ["añadir tarjeta", "add_card"], ["add card", "add_card"],
   ["agregar método de pago", "add_payment_method"], ["añadir método de pago", "add_payment_method"],
   ["add payment method", "add_payment_method"],
+  ["agrega un método de pago", "add_payment_method"],
+  ["agregar un método de pago", "add_payment_method"],
+  ["add a payment method", "add_payment_method"],
   ["actualizar método de pago", "update_payment_method"], ["update payment method", "update_payment_method"],
   ["continuar", "continue"], ["continue", "continue"], ["siguiente", "continue"], ["next", "continue"],
   ["confirmar", "confirm"], ["confirm", "confirm"],
@@ -317,9 +320,13 @@ export async function completeTestPaymentFields(page, setStage = () => {}) {
   await declineLinkOptIn(page);
 }
 
-async function updatePaymentMethod(page, setStage) {
+export async function updatePaymentMethod(page, setStage) {
   setStage("open_payment_method");
-  await clickControl(page, /^(?:agregar método de pago|añadir método de pago|actualizar método de pago|add payment method|update payment method|edit payment method)$/i);
+  // Add at Customer level. The subscription's edit control can open a
+  // separate picker with no card fields; it does not open the add-card form.
+  // The backend and provider oracle verify this new Customer default becomes
+  // the owned subscription's effective method, rather than just saving a card.
+  await clickControl(page, /^(?:agrega(?:r)? (?:un )?método de pago|añadir (?:un )?método de pago|add (?:a )?payment method)$/i);
   await completeTestPaymentFields(page, setStage);
   const makeDefault = page.getByRole("checkbox", { name: /predeterminado|default/i }).first();
   if (await makeDefault.count() && await makeDefault.isVisible() && !await makeDefault.isChecked()) {

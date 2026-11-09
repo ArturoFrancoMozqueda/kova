@@ -360,3 +360,106 @@ def test_risk_refund_requires_exact_qa_amount_in_provider_response(
     with pytest.raises(drill.DrillError, match="exactly 100 MXN minor units"):
         drill._run_risk_acceptance(stripe, config, None, _context(), "whsec_synthetic", [], [])
     assert [path for path, _ in stripe.created] == ["/v1/refunds"]
+
+
+def test_checkout_failure_summary_is_read_only_and_omits_foreign_events_and_private_values(db):
+    import json
+    from uuid import uuid4
+
+    from app.billing.models import Subscription, WebhookEvent
+    from app.tenants.models import Tenant
+
+    owner = Tenant(name="Diagnostic QA", slug=f"diagnostic-{uuid4().hex}")
+    db.add(owner)
+    db.flush()
+    sub = Subscription(
+        tenant_id=owner.id,
+        status="active",
+        stripe_customer_id="cus_diagnostic",
+        stripe_subscription_id="sub_diagnostic",
+    )
+    db.add(sub)
+    db.add_all(
+        [
+            WebhookEvent(
+                stripe_event_id="evt_owned_diagnostic",
+                event_type="invoice.paid",
+                processing_status="failed",
+                error_reason="private-provider-body",
+                payload={
+                    "data": {
+                        "object": {
+                            "customer": "cus_diagnostic",
+                            "email": "private@example.invalid",
+                            "url": "private-bearer",
+                        }
+                    }
+                },
+            ),
+            WebhookEvent(
+                stripe_event_id="evt_ignored_diagnostic",
+                event_type="invoice.paid",
+                processing_status="ignored",
+                error_reason="Missing subscription mapping",
+                payload={"data": {"object": {"customer": "cus_diagnostic"}}},
+            ),
+            WebhookEvent(
+                stripe_event_id="evt_foreign_diagnostic",
+                event_type="invoice.paid",
+                processing_status="processed",
+                payload={"data": {"object": {"customer": "cus_other", "private": "foreign"}}},
+            ),
+        ]
+    )
+    db.commit()
+    before = db.query(WebhookEvent).count()
+    summary = drill._checkout_failure_summary(db.get_bind(), {"tenant_id": str(owner.id)})
+    assert summary == {
+        "available": True,
+        "active": True,
+        "lifecycle_watermark_present": False,
+        "payment_watermark_present": False,
+        "events": [
+            {"type": "invoice.paid", "status": "failed", "reason_category": "other", "count": 1},
+            {
+                "type": "invoice.paid",
+                "status": "ignored",
+                "reason_category": "missing_mapping",
+                "count": 1,
+            },
+        ],
+    }
+    assert db.query(WebhookEvent).count() == before
+    assert not any(
+        value in json.dumps(summary)
+        for value in (
+            "cus_",
+            "sub_",
+            "evt_",
+            "private",
+            "foreign",
+            str(owner.id),
+        )
+    )
+    sub.stripe_customer_id = None
+    sub.stripe_subscription_id = None
+    db.commit()
+    assert (
+        drill._checkout_failure_summary(db.get_bind(), {"tenant_id": str(owner.id)})["events"] == []
+    )
+
+
+def test_backend_failure_diagnostic_emits_only_fixed_exception_enums(tmp_path):
+    log = tmp_path / "private-runner-log"
+    log.write_text(
+        "private-provider-body private@example.invalid\n"
+        "sqlalchemy.exc.IntegrityError: private-query\n"
+        "psycopg.errors.UniqueViolation: private-values\n"
+    )
+    with log.open("r+") as file:
+        file.seek(7)
+        process = SimpleNamespace(_kova_log_file=file)
+        assert drill._backend_failure_types(process) == ["IntegrityError", "UniqueViolation"]
+        assert file.tell() == 7, "diagnosis must not move the running process's write offset"
+    assert drill._backend_failure_types(None) == []
+    assert drill._checkout_failure_summary(None, {}) == {"available": False}

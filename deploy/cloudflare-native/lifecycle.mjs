@@ -162,10 +162,31 @@ export function residentContainerClass(Container, {
         this.portProbeRequired = false;
       }
       const generation = this.bootGeneration;
-      const response = await this.containerFetch("http://container/health", {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) throw new Error("Native container failed boot readiness");
+      let response;
+      try {
+        response = await this.containerFetch("http://container/health", {
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (error) {
+        // This is a boot probe, before dispatching any business payload. A
+        // process can disconnect between the SDK state check and this read.
+        // Preserve code-update resets for the gateway's separate recovery.
+        if (!isCodeUpdateReset(error)
+            && nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now())) {
+          throw new NativeStartupPending("Native boot transport pending");
+        }
+        throw error;
+      }
+      if (!response.ok) {
+        const startupResponse = [502, 503, 504].includes(response.status)
+          || await sdkTransportFailure(response);
+        void response.body?.cancel().catch(() => {});
+        if (startupResponse
+            && nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now())) {
+          throw new NativeStartupPending("Native boot health pending");
+        }
+        throw new Error("Native container failed boot readiness");
+      }
       let body;
       try { body = await response.json(); }
       catch { throw new Error("Malformed native boot readiness"); }
@@ -204,6 +225,7 @@ export function residentContainerClass(Container, {
         return privateResponse(Response.json({ detail: "Not Found" }, { status: 404 }));
       }
       let diagnostic;
+      let dispatched = false;
       try {
         if (!this.isResident()) {
           return await this.env.API.getByName(NATIVE_INSTANCE).fetch(request);
@@ -224,6 +246,7 @@ export function residentContainerClass(Container, {
         }
         await this.ensureReadyForRequest();
         diagnostic("start_fetch");
+        dispatched = true;
         const response = await super.fetch(new Request(request, { headers }));
         diagnostic("response", response.status);
         if (await sdkTransportFailure(response)) {
@@ -232,7 +255,7 @@ export function residentContainerClass(Container, {
           this.portProbeRequired = true;
           this.invalidateBoot();
           await response.body?.cancel();
-          console.error(JSON.stringify({ event: "native_backend_unavailable" }));
+          console.error(JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" }));
           return unavailable();
         }
         const result = privateResponse(response, request);
@@ -243,6 +266,7 @@ export function residentContainerClass(Container, {
         diagnostic?.("failed");
         const reset = isCodeUpdateReset(error);
         try { console.error(JSON.stringify({ event: "native_backend_unavailable",
+          phase: dispatched ? "forwarded" : "readiness",
           ...(reset ? { reason: "code_update_reset" } : {}),
         })); }
         catch { /* Observability must never replace the private failure. */ }

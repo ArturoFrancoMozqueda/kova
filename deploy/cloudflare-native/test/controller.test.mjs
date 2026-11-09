@@ -657,7 +657,7 @@ test("failed or malformed boot health never permits traffic, exposes its body or
     assert.equal(forwarded, 0);
     assert.equal(stops, 0);
   }
-  assert.deepEqual(logs, Array(4).fill(JSON.stringify({ event: "native_backend_unavailable" })));
+  assert.deepEqual(logs, Array(4).fill(JSON.stringify({ event: "native_backend_unavailable", phase: "readiness" })));
 });
 
 test("boot health has a bounded abort signal and a timed-out check can be retried without replaying a write", async t => {
@@ -756,7 +756,7 @@ test("SDK transport responses become redacted 503s and force the next port probe
     assert.equal(calls.length, 3, "a failed write is never automatically replayed");
   }
   assert.equal(logs.length, 3);
-  assert.ok(logs.every(value => value === JSON.stringify({ event: "native_backend_unavailable" })));
+  assert.ok(logs.every(value => value === JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" })));
 });
 
 test("real application errors and unrecognized 500 responses stay failures without being reclassified", async () => {
@@ -1066,8 +1066,8 @@ test("only a proved code-update reset adds a fixed reason to the existing unavai
   env.error = new Error("synthetic-private-failure");
   assert.equal((await resident.fetch(new Request("https://api.test/api/v1/quotes"))).status, 503);
   assert.deepEqual(events, [
-    JSON.stringify({ event: "native_backend_unavailable", reason: "code_update_reset" }),
-    JSON.stringify({ event: "native_backend_unavailable" }),
+    JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded", reason: "code_update_reset" }),
+    JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" }),
   ]);
   assert.equal(events.join("").includes("synthetic-private"), false);
   console.error = () => { throw new Error("synthetic-logger-failure"); };
@@ -1075,4 +1075,51 @@ test("only a proved code-update reset adds a fixed reason to the existing unavai
   const response = await resident.fetch(new Request("https://api.test/api/v1/quotes"));
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("x-kova-controller-failure"), "code-update-reset");
+});
+
+for (const failure of ["transport", 502, 503, 504, "sdk_500"]) test(`transient boot probe ${failure} waits before any write`, async () => {
+  let clock = Date.now(), waits = 0, probes = 0;
+  const fixture = bootHandoffFixture({ image: "b".repeat(40), boot: "b".repeat(40),
+    requestReadiness: { now: () => clock, wait: async ms => {
+      clock += ms; waits++;
+      assert.equal(fixture.counts.forwarded.length, 0);
+    } } });
+  const controller = fixture.controller();
+  const health = controller.containerFetch.bind(controller);
+  controller.containerFetch = async (...args) => {
+    probes++;
+    if (waits) return health(...args);
+    if (failure === "transport") throw new Error("synthetic-private-transport");
+    if (failure === "sdk_500") return new Response("Failed to start container: synthetic-private", {
+      status: 500, headers: { "content-type": "text/plain" } });
+    return new Response("synthetic-private", { status: failure });
+  };
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: clock + 60_000 });
+  const responses = await Promise.all(Array.from({ length: 3 }, (_, index) => controller.fetch(new Request(
+    "https://api.test/api/v1/orders", { method: "POST", body: `once-${index}` }))));
+  assert.ok(responses.every(response => response.status === 200));
+  assert.equal(waits, 1);
+  assert.equal(probes, 2);
+  assert.equal(fixture.counts.forwarded.length, 3);
+  assert.equal(new Set(fixture.counts.forwarded.map(call => call.body)).size, 3);
+  assert.equal(fixture.counts.starts, 0);
+  assert.equal(fixture.counts.stops, 0);
+});
+
+test("boot probe failures cannot extend a lease or retry malformed successful health", async t => {
+  t.mock.method(console, "error", () => {});
+  for (const failure of ["transport", 503, "malformed", 401, "app_500"]) {
+    let clock = Date.now(), waits = 0;
+    const fixture = bootHandoffFixture({ image: "b".repeat(40), boot: "b".repeat(40),
+      requestReadiness: { now: () => clock, wait: async ms => { clock += ms; waits++; } } });
+    const controller = fixture.controller();
+    controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: clock + 500 });
+    controller.containerFetch = async () => {
+      if (failure === "transport") throw new Error("synthetic-private");
+      return new Response("synthetic-private", { status: failure === "malformed" ? 200 : failure === "app_500" ? 500 : failure });
+    };
+    assert.equal((await controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "blocked" }))).status, 503);
+    assert.equal(waits, ["transport", 503].includes(failure) ? 2 : 0);
+    assert.equal(fixture.counts.forwarded.length, 0);
+  }
 });

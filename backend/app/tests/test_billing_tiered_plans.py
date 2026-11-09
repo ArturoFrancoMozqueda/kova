@@ -588,3 +588,72 @@ def test_tiered_portal_rejects_unknown_prices_and_immediate_downgrades(tiered_se
         service._validate_portal_configuration(
             configuration, configuration_id="bpc_tiered", tiered=True,
         )
+
+
+@pytest.mark.parametrize("code", ["esencial", "gestion"])
+@pytest.mark.parametrize("parent_reference", [False, True], ids=["legacy", "dahlia"])
+@pytest.mark.parametrize("event_type", ["invoice.paid", "invoice.payment_succeeded"])
+def test_invoice_mapping_committed_between_owner_lookups_is_not_permanently_ignored(
+    client, db, monkeypatch, new_owner, code, parent_reference, event_type,
+):
+    import json
+
+    from app.billing.models import WebhookEvent
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    source = _source(tenant_id, code)
+    row = _apply(db, monkeypatch, new_owner, source)
+    original_lookup = service.repository.get_subscription_by_stripe_id
+    lookups = []
+
+    def lookup(session, **kwargs):
+        lookups.append(True)
+        # Model the first SELECT occurring before the concurrent lifecycle
+        # transaction commits. The fallback SELECT now sees the real mapping.
+        if len(lookups) == 1:
+            return None
+        return original_lookup(session, **kwargs)
+
+    monkeypatch.setattr(service.repository, "get_subscription_by_stripe_id", lookup)
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "synthetic-webhook")
+    monkeypatch.setattr(service, "_send_payment_receipt_for_tenant", lambda *_a, **_k: None)
+    invoice = {"id": "in_plan", "object": "invoice", "customer": "cus_plan", "livemode": False,
+               "amount_paid": PLANS[code].amount_minor_units, "currency": "mxn", "metadata": {}}
+    invoice.update({"parent": {"subscription_details": {"subscription": "sub_plan"}}}
+                   if parent_reference else {"subscription": "sub_plan"})
+    created = int(datetime.now(UTC).timestamp())
+    event_id = f"evt_mapping_race_{uuid4().hex}"
+    payload = json.dumps({"id": event_id, "type": event_type, "livemode": False,
+                          "created": created, "data": {"object": invoice}}).encode()
+    for _ in range(2):
+        response = client.post("/api/v1/billing/webhooks/stripe", content=payload,
+                               headers={"Stripe-Signature": _stripe_signature(payload, "synthetic-webhook")})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"status": "processed"}
+    assert len(lookups) >= 2
+    db.refresh(row)
+    assert row.status == "active" and row.plan_code == code
+    assert row.stripe_subscription_id == "sub_plan" and row.stripe_customer_id == "cus_plan"
+    assert row.stripe_payment_watermark_at == datetime.fromtimestamp(created, UTC)
+    event = db.query(WebhookEvent).filter_by(stripe_event_id=event_id).one()
+    assert event.tenant_id == tenant_id and event.process_attempts == 1
+
+
+@pytest.mark.parametrize("mismatch", ["tenant", "customer", "mode"])
+def test_newly_visible_invoice_mapping_preserves_ownership_and_mode_guards(
+    db, monkeypatch, new_owner, mismatch,
+):
+    from fastapi import HTTPException
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    _apply(db, monkeypatch, new_owner, _source(tenant_id))
+    invoice = {"subscription": "sub_plan", "customer": "cus_plan", "livemode": False}
+    if mismatch == "customer":
+        invoice["customer"] = "cus_other"
+    if mismatch == "mode":
+        invoice["livemode"] = True
+    with pytest.raises(HTTPException):
+        service._initial_paid_invoice_subscription(
+            db, event_type="invoice.paid", event_payload={"livemode": False},
+            stripe_object=invoice, tenant_id=uuid4() if mismatch == "tenant" else None,
+        )

@@ -2148,6 +2148,63 @@ def _render_risk_evidence(records: list[dict]) -> list[str]:
     return lines + [""]
 
 
+def _checkout_failure_summary(engine: Any, context: dict[str, Any]) -> dict[str, Any]:
+    """Read-only, identifier-free evidence before the disposable runner exits."""
+    if engine is None or not context.get("tenant_id"):
+        return {"available": False}
+    with Session(engine) as db:
+        subscription = db.scalar(select(Subscription).where(
+            Subscription.tenant_id == UUID(context["tenant_id"]),
+        ))
+        if subscription is None:
+            return {"available": False}
+        counts: dict[tuple[str, str, str], int] = {}
+        for event in db.scalars(select(WebhookEvent)).all():
+            if event.event_type not in EVENT_TYPES:
+                continue
+            obj = ((event.payload or {}).get("data") or {}).get("object") or {}
+            if not (event.tenant_id == subscription.tenant_id
+                    or (subscription.stripe_customer_id
+                        and obj.get("customer") == subscription.stripe_customer_id)
+                    or obj.get("id") in {value for value in (
+                        subscription.stripe_customer_id, subscription.stripe_subscription_id,
+                    ) if value}):
+                continue
+            reason = event.error_reason
+            category = ("missing_mapping" if reason in {
+                "Missing subscription mapping", "Missing tenant metadata",
+            } else "stale_event" if reason in {
+                "stale_lifecycle_event", "stale_payment_event",
+            } else "other" if reason else "none")
+            status = (event.processing_status if event.processing_status in {
+                "received", "processed", "ignored", "failed",
+            } else "unknown")
+            key = (event.event_type, status, category)
+            counts[key] = counts.get(key, 0) + 1
+        return {
+            "available": True,
+            "active": subscription.status == "active",
+            "lifecycle_watermark_present": subscription.stripe_lifecycle_watermark_at is not None,
+            "payment_watermark_present": subscription.stripe_payment_watermark_at is not None,
+            "events": [{"type": kind, "status": status, "reason_category": reason, "count": count}
+                       for (kind, status, reason), count in sorted(counts.items())],
+        }
+
+
+def _backend_failure_types(process: Any) -> list[str]:
+    """Only fixed exception enums; never persist raw runner logs or provider bodies."""
+    file = getattr(process, "_kova_log_file", None)
+    if file is None:
+        return []
+    size = os.fstat(file.fileno()).st_size
+    tail = os.pread(file.fileno(), 131_072, max(0, size - 131_072)).decode(errors="replace")
+    return [name for name in (
+        "IntegrityError", "UniqueViolation", "ForeignKeyViolation", "CheckViolation",
+        "OperationalError", "SerializationFailure", "DeadlockDetected", "StripeSubscriptionError",
+        "HTTPException", "AttributeError", "TypeError", "NameError", "KeyError", "TimeoutError",
+    ) if re.search(r"\b" + name + r"\b", tail)]
+
+
 def run(config: DrillConfig) -> None:
     stripe = StripeTestClient(config.stripe_key)
     preflight = validate_stripe_preflight(stripe, config)
@@ -2160,6 +2217,8 @@ def run(config: DrillConfig) -> None:
     portal_records: list[dict[str, Any]] = []
     risk_records: list[dict[str, Any]] = []
     cleanup = {"clocks_deleted": 0, "customers_deleted": 0}
+    engine = None
+    portal_context: dict[str, Any] = {}
     _persist_cleanup(config, cleanup_clocks, cleanup_customers)
     try:
         listener, webhook_secret = _start_stripe_listener(config)
@@ -2167,7 +2226,6 @@ def run(config: DrillConfig) -> None:
         _wait_for_health(config, backend)
         engine = create_engine(config.database_url, pool_pre_ping=True)
 
-        portal_context: dict[str, Any] = {}
         checkout = _run_checkout(
             stripe, config, engine, cleanup_clocks, cleanup_customers,
             context=portal_context,
@@ -2217,6 +2275,14 @@ def run(config: DrillConfig) -> None:
         )
     finally:
         error_in_flight = sys.exc_info()[0] is not None
+        if error_in_flight:
+            try:
+                summary = {"checkout": _checkout_failure_summary(engine, portal_context),
+                           "backend_exception_types": _backend_failure_types(backend)}
+                print("KOV005_ISOLATED_FAILURE=" + json.dumps(summary, sort_keys=True),
+                      file=sys.stderr)
+            except Exception:
+                print('KOV005_ISOLATED_FAILURE={"available":false}', file=sys.stderr)
         _stop_process(listener)
         _stop_process(backend)
         try:
