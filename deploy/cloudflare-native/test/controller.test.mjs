@@ -437,6 +437,11 @@ test("bounded handoff serves an already healthy captured image with its original
   const publicHealth = await controller.fetch(new Request("https://api.test/health"));
   assert.equal((await publicHealth.json()).release_sha, previous);
   assert.equal(publicHealth.headers.get(BOOT_CONTROLLER_HEADER), previous, "health never relabels the old process");
+  assert.equal(publicHealth.headers.get("x-kova-controller-sha"), target,
+    "controller adoption is separate from the image's immutable boot identity");
+  assert.equal((await controller.fetch(new Request("https://api.test/api/v1/orders", {
+    headers: { "x-kova-controller-sha": "caller-forgery" },
+  }))).headers.get("x-kova-controller-sha"), null);
   await assert.rejects(() => controller.ready(), /release identity mismatch/);
   assert.equal(fixture.counts.database, 0, "the old release cannot pass candidate acceptance");
   await controller.ensureReady();
@@ -756,7 +761,9 @@ test("SDK transport responses become redacted 503s and force the next port probe
     assert.equal(calls.length, 3, "a failed write is never automatically replayed");
   }
   assert.equal(logs.length, 3);
-  assert.ok(logs.every(value => value === JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" })));
+  assert.deepEqual(logs, ["sdk_start", "sdk_disconnected", "sdk_proxy"].map(reason =>
+    JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded", reason })));
+  assert.equal(logs.join("").includes("synthetic-private"), false);
 });
 
 test("real application errors and unrecognized 500 responses stay failures without being reclassified", async () => {

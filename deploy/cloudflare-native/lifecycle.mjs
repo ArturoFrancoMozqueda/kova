@@ -3,6 +3,7 @@ import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavai
 import { nativeHandoff } from "../native-handoff.mjs";
 
 export const BOOT_CONTROLLER_HEADER = "x-kova-boot-controller-sha";
+export const ACTIVE_CONTROLLER_HEADER = "x-kova-controller-sha";
 class NativeStartupPending extends Error {}
 
 // Only the read-only acceptance contracts can opt in to fixed stage telemetry.
@@ -31,8 +32,11 @@ async function sdkTransportFailure(response) {
       const { value, done } = await reader.read();
       if (done) break;
       prefix += decoder.decode(value.subarray(0, 96 - prefix.length));
-      if (["Failed to start container: ", "Container suddenly disconnected, try again",
-        "Error proxying request to container: "].some(message => prefix.startsWith(message))) return true;
+      for (const [message, category] of [
+        ["Failed to start container: ", "sdk_start"],
+        ["Container suddenly disconnected, try again", "sdk_disconnected"],
+        ["Error proxying request to container: ", "sdk_proxy"],
+      ]) if (prefix.startsWith(message)) return category;
     }
     return false;
   } catch {
@@ -238,6 +242,7 @@ export function residentContainerClass(Container, {
         const headers = new Headers(request.headers);
         headers.delete(CONTROLLER_FAILURE_HEADER);
         headers.delete(BOOT_CONTROLLER_HEADER);
+        headers.delete(ACTIVE_CONTROLLER_HEADER);
         const origin = new URL(request.url);
         headers.set("x-forwarded-proto", origin.protocol === "https:" ? "https" : "http");
         headers.set("host", origin.host);
@@ -249,17 +254,22 @@ export function residentContainerClass(Container, {
         dispatched = true;
         const response = await super.fetch(new Request(request, { headers }));
         diagnostic("response", response.status);
-        if (await sdkTransportFailure(response)) {
+        const sdkFailure = await sdkTransportFailure(response);
+        if (sdkFailure) {
           // A rollout can disconnect after ensureReady. Reprobe on the next
           // request without replaying this request or mutating SDK state.
           this.portProbeRequired = true;
           this.invalidateBoot();
           await response.body?.cancel();
-          console.error(JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" }));
+          console.error(JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded", reason: sdkFailure }));
           return unavailable();
         }
         const result = privateResponse(response, request);
         result.headers.delete(CONTROLLER_FAILURE_HEADER);
+        result.headers.delete(ACTIVE_CONTROLLER_HEADER);
+        if (new URL(request.url).pathname === "/health") {
+          result.headers.set(ACTIVE_CONTROLLER_HEADER, this.env.KOVA_BUILD_SHA);
+        }
         return result;
       } catch (error) {
         if (this.bootVerified) this.invalidateBoot();

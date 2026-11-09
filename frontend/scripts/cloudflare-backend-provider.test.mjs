@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { URL } from "node:url";
 import { test } from "node:test";
-import { backendWorkers, cloudflareBackendProvider, validateBackendVersions, waitForBackendRelease } from "./cloudflare-backend-provider.mjs";
+import { backendWorkers, cloudflareBackendProvider, validateBackendVersions, waitForBackendRelease, waitForNativeController } from "./cloudflare-backend-provider.mjs";
 import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
 import { release, releaseProvider } from "./release.mjs";
 import { nativeContainerIdentity } from "./cloudflare-container-provider.mjs";
@@ -9,6 +9,9 @@ import { nativeContainerIdentity } from "./cloudflare-container-provider.mjs";
 const version = "dcad4869-ba1d-43d4-865b-66349697bd7c";
 const versions = Object.fromEntries(backendWorkers.map(name => [name, version]));
 const sha = "a".repeat(40);
+const stagedHealth = () => Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+  headers: { "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": "b".repeat(40) },
+});
 const env = { KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf",
   CLOUDFLARE_ACCOUNT_ID: "test-account", VERCEL_TOKEN: "test-only-vercel",
   KOVA_HYPERDRIVE_APP_ID: "test-runtime", KOVA_HYPERDRIVE_PRIVILEGED_ID: "test-owner",
@@ -21,6 +24,74 @@ const publicStripeIds = {
   STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
   STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Basic123",
 };
+
+test("controller staging waits for code adoption while preserving baseline image and boot identity", async () => {
+  let elapsed = 0, reads = 0;
+  await waitForNativeController({ sha, previousSha: "b".repeat(40), now: () => elapsed,
+    wait: async ms => { elapsed += ms; }, fetcher: async (_url, options) => {
+      assert.equal(options.method, "GET");
+      assert.equal(options.redirect, "error");
+      reads++;
+      if (reads === 1) return Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+        headers: { "x-kova-boot-controller-sha": "b".repeat(40) },
+      });
+      return stagedHealth();
+    } });
+  assert.equal(reads, 2);
+  assert.equal(elapsed, 1000);
+});
+
+test("controller staging rejects foreign images, relabeled boots, malformed health and HTTP failures", async () => {
+  for (const response of [
+    Response.json({ status: "ok", release_sha: sha }, { headers: {
+      "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha,
+    } }),
+    Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
+      "x-kova-controller-sha": "c".repeat(40), "x-kova-boot-controller-sha": "b".repeat(40),
+    } }),
+    Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
+      "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha,
+    } }),
+    new Response("malformed"), new Response(null, { status: 503 }),
+  ]) {
+    await assert.rejects(waitForNativeController({ sha, previousSha: "b".repeat(40),
+      fetcher: async () => response }));
+  }
+});
+
+test("controller staging never extends the original handoff lease or accepts a late success", async () => {
+  for (const lateSuccess of [false, true]) {
+    let elapsed = 0, reads = 0;
+    await assert.rejects(waitForNativeController({ sha, previousSha: "b".repeat(40),
+      expiresAt: 1500, now: () => elapsed, wait: async ms => { elapsed += ms; },
+      fetcher: async () => {
+        reads++;
+        if (lateSuccess) { elapsed = 1500; return stagedHealth(); }
+        return Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+          headers: { "x-kova-boot-controller-sha": "b".repeat(40) },
+        });
+      } }), /before the deadline/);
+    assert.equal(elapsed, 1500);
+    assert.equal(reads, lateSuccess ? 1 : 2);
+  }
+});
+
+test("failed controller staging cannot replace the image or publish the gateway", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    fetcher: async () => new Response(null, { status: 503 }),
+    run: async (_command, args) => {
+      calls.push(args);
+      if (args.includes("secrets")) return JSON.stringify([
+        { name: "APP_DATABASE_URL" }, { name: "MIGRATION_DATABASE_URL" },
+      ]);
+    } });
+  await assert.rejects(provider.publish(sha, "b".repeat(40)), /Controller staging failed/);
+  const mutations = calls.filter(args => args.includes("deploy") && !args.includes("--dry-run"));
+  assert.equal(mutations.length, 2);
+  assert.deepEqual(mutations[1].slice(-2), ["--containers-rollout", "none"]);
+});
 
 test("public Stripe transport rejects partial, malformed or uncaptured configuration before commands", async () => {
   const partial = { ...publicStripeIds }; delete partial.STRIPE_GESTION_PRICE_ID;
@@ -35,7 +106,7 @@ test("public Stripe transport rejects partial, malformed or uncaptured configura
 
 test("public IDs reach API and job artifacts only through the normal captured release", async () => {
   const calls = [];
-  const provider = cloudflareBackendProvider({ env: { ...env, ...publicStripeIds, KOVA_NATIVE_BACKEND: "1",
+  const provider = cloudflareBackendProvider({ fetcher: stagedHealth, env: { ...env, ...publicStripeIds, KOVA_NATIVE_BACKEND: "1",
     CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
     run: async (command, args, options) => {
       calls.push({ command, args, options });
@@ -59,7 +130,8 @@ test("public IDs reach API and job artifacts only through the normal captured re
   assert.equal(calls.some(call => call.args.includes("put") || call.args.includes("delete")), false);
   assert.equal(calls.filter(call => call.args.some(argument => argument.endsWith("/build.mjs"))).length, 2);
   const deploys = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
-  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]), backendWorkers);
+  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]),
+    [backendWorkers[0], backendWorkers[1], backendWorkers[1], backendWorkers[2]]);
 });
 
 for (const worker of ["kova-backend", "kova-backend-jobs"]) {
@@ -308,7 +380,11 @@ test("resident release refuses missing sealed runtime credentials before migrati
 
 test("resident release replaces only API artifact and preserves rollback workers and secrets", async () => {
   const calls = [];
-  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+  const provider = cloudflareBackendProvider({ fetcher: async () => {
+    assert.equal(calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run")).length, 2,
+      "the image and gateway cannot publish before staged adoption is observed");
+    return stagedHealth();
+  }, env: { ...env, KOVA_NATIVE_BACKEND: "1",
     CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
     run: async (command, args, options) => {
       calls.push({ command, args, options });
@@ -326,10 +402,14 @@ test("resident release replaces only API artifact and preserves rollback workers
     } });
   await provider.publish(sha, "b".repeat(40));
   const deploys = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
-  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]), backendWorkers);
+  assert.deepEqual(deploys.map(call => call.args[call.args.indexOf("--worker") + 1]),
+    [backendWorkers[0], backendWorkers[1], backendWorkers[1], backendWorkers[2]]);
+  assert.deepEqual(deploys[1].args.slice(-2), ["--containers-rollout", "none"]);
+  assert.equal(deploys[2].args.includes("--containers-rollout"), false);
   assert.ok(deploys[1].options.cwd.endsWith("/deploy/cloudflare-native"));
   assert.ok(deploys[0].options.cwd.endsWith("/deploy/cloudflare-backend"));
-  assert.ok(deploys[2].options.cwd.endsWith("/deploy/cloudflare-backend"));
+  assert.ok(deploys[2].options.cwd.endsWith("/deploy/cloudflare-native"));
+  assert.ok(deploys[3].options.cwd.endsWith("/deploy/cloudflare-backend"));
   assert.equal(calls.some(call => call.args.includes("put")), false);
   for (const call of calls.filter(call => call.options.cwd.endsWith("/deploy/cloudflare-native") && call.args.includes("deploy"))) {
     assert.equal(call.options.env.KOVA_NATIVE_PREVIOUS_SHA, "b".repeat(40));

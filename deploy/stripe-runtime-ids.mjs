@@ -38,7 +38,10 @@ export function normalizeStripeRuntimeIdDiff(remote, local, environment, rules) 
   const previous = environment.KOVA_NATIVE_PREVIOUS_SHA;
   const target = environment.KOVA_NATIVE_DEPLOY_SHA;
   if (!/^[a-f0-9]{40}$/i.test(previous ?? "") || !/^[a-f0-9]{40}$/i.test(target ?? "")
-      || remote.vars?.KOVA_BUILD_SHA !== previous || local.vars?.KOVA_BUILD_SHA !== target
+      || (remote.vars?.KOVA_BUILD_SHA !== previous
+        && !(local.name === "kova-backend" && remote.vars?.KOVA_BUILD_SHA === target
+          && names.every(name => remote.vars?.[name] === local.vars[name])))
+      || local.vars?.KOVA_BUILD_SHA !== target
       || (remote.name !== undefined && remote.name !== local.name)) {
     throw new Error("Public Stripe configuration requires the captured release transition");
   }
