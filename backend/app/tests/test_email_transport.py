@@ -15,7 +15,7 @@ def sent_mail(monkeypatch):
     monkeypatch.setattr(service.settings, "resend_api_key", "re_synthetic_test_only")
     monkeypatch.setattr(service.settings, "email_from", "Kova QA <qa@example.invalid>")
     monkeypatch.setattr(service.settings, "frontend_url", "https://qa.kova.invalid")
-    monkeypatch.setattr(resend.Emails, "send", lambda payload: sent.append(payload))
+    monkeypatch.setattr(resend.Emails, "send", lambda payload, options=None: sent.append(payload))
     return sent
 
 
@@ -145,6 +145,22 @@ def test_provider_failures_log_only_a_fixed_category_without_addresses_tokens_or
     assert "qa-auth-token" not in caplog.text
     assert "re_synthetic_test_only" not in caplog.text
     assert not sent_mail
+
+
+@pytest.mark.parametrize("kind", ["welcome", "payment_receipt"])
+def test_billing_transport_uses_a_stable_recipient_and_content_key(sent_mail, monkeypatch, kind):
+    import resend
+
+    attempts = []
+    monkeypatch.setattr(resend.Emails, "send", lambda message, options=None: attempts.append((message, options)))
+    for to, html in [("owner@example.invalid", "<p>same</p>"), ("owner@example.invalid", "<p>same</p>"),
+                     ("other@example.invalid", "<p>same</p>"), ("owner@example.invalid", "<p>different</p>")]:
+        assert service._send(to=to, subject="QA billing", html=html, kind=kind)
+    keys = [options["idempotency_key"] for _, options in attempts]
+    assert keys[0] == keys[1]
+    assert len(set(keys)) == 3
+    assert all(key.startswith(f"kova-{kind}-") for key in keys)
+    assert all("@" not in key and "same" not in key and "different" not in key for key in keys)
 
 
 def test_unrecognized_email_kind_never_becomes_log_content(sent_mail, monkeypatch, caplog):

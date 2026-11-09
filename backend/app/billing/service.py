@@ -1715,7 +1715,7 @@ def _process_temporal_event(
     if family == EVENT_FAMILY_LIFECYCLE:
         if event_type == "checkout.session.completed":
             action = "billing.subscription_activated"
-            if not reconciled and status_applied and subscription.status == "active":
+            if subscription.status == "active":
                 _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
         elif event_type == "customer.subscription.deleted":
             action = "billing.subscription_canceled"
@@ -1765,10 +1765,13 @@ def _process_temporal_event(
                 event_id=event_id,
                 event_type=event_type,
             )
-        if payment_succeeded and not reconciled:
+        if payment_succeeded:
             _send_payment_receipt_for_tenant(
                 db, tenant_id=tenant_id, invoice_object=stripe_object
             )
+            if (stripe_object.get("billing_reason") == "subscription_create"
+                    and subscription.status == "active"):
+                _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
         action = (
             "billing.payment_failed"
             if event_type == "invoice.payment_failed"

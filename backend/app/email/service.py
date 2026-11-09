@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 from decimal import Decimal
 
@@ -38,16 +40,22 @@ def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
 
     resend.api_key = settings.resend_api_key
     try:
-        resend.Emails.send(
-            {
-                "from": settings.email_from,
-                "to": to,
-                "subject": subject,
-                "html": html,
-                "text": plain_text_email(html) or subject,
-                "reply_to": SUPPORT_EMAIL,
-            }
-        )
+        message = {
+            "from": settings.email_from,
+            "to": to,
+            "subject": subject,
+            "html": html,
+            "text": plain_text_email(html) or subject,
+            "reply_to": SUPPORT_EMAIL,
+        }
+        if kind in {"welcome", "payment_receipt"}:
+            # Reconciliation and signed events may confirm the same message.
+            # Stable content + recipient gives provider-level idempotency for
+            # the billing email, without exposing identifiers or changing gates.
+            digest = hashlib.sha256(json.dumps(message, sort_keys=True).encode()).hexdigest()
+            resend.Emails.send(message, {"idempotency_key": f"kova-{kind}-{digest}"})
+        else:
+            resend.Emails.send(message)
         logger.info("email.sent type=%s", log_kind)
         return True
     except Exception:
@@ -124,7 +132,7 @@ def send_payment_receipt_email(
         preheader=f"Confirmamos el pago de {amount_str} a tu suscripción Kova.",
         heading="Recibo de pago",
         eyebrow="Pago confirmado",
-        intro_html=p("Confirmamos el pago de tu suscripción a Kova. Tu plan continúa activo."),
+        intro_html=p("Confirmamos el pago de tu suscripción a Kova."),
         cta_label="Ver recibo en Stripe" if invoice_url else None,
         cta_url=invoice_url if invoice_url else None,
         detail_html=kv_table(rows),
