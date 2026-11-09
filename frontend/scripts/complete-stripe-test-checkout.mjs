@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { chromium } from "playwright";
+import { checkoutFailureReason, completeCheckoutBilling, fillCheckoutField } from "./stripe-test-checkout-fields.mjs";
 
 const statePath = process.env.KOV005_CHECKOUT_STATE_FILE;
 const diagnosticPath = process.env.KOV005_CHECKOUT_DIAGNOSTIC_PATH;
@@ -19,23 +20,7 @@ try {
   const page = await browser.newPage();
   await page.goto(checkoutUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
-  const fillFirstVisible = async (selectors, value, required = true) => {
-    const deadline = Date.now() + (required ? 30_000 : 3_000);
-    while (Date.now() < deadline) {
-      for (const selector of selectors) {
-        for (const frame of page.frames()) {
-          const field = frame.locator(selector).first();
-          if ((await field.count()) && (await field.isVisible())) {
-            await field.fill(value);
-            return true;
-          }
-        }
-      }
-      await page.waitForTimeout(250);
-    }
-    if (required) throw new Error(`Stripe Checkout field not found: ${selectors.join(", ")}`);
-    return false;
-  };
+  const fillFirstVisible = (selectors, value) => fillCheckoutField(page, selectors, value);
 
   stage = "fill_email";
   await fillFirstVisible(
@@ -49,16 +34,7 @@ try {
   stage = "fill_cvc";
   await fillFirstVisible(["input[name=cardCvc]", "input[autocomplete=cc-csc]"], "123");
   stage = "fill_optional_billing";
-  await fillFirstVisible(["input[name=billingName]", "input[autocomplete=cc-name]"], "Kova Sandbox", false);
-  await fillFirstVisible(
-    [
-      "input[name=postalCode]",
-      "input[name=postal_code]",
-      "input[autocomplete=postal-code]",
-      'input[placeholder="ZIP"]',
-    ],
-    "10001",
-  );
+  await completeCheckoutBilling(page);
 
   stage = "disable_link_save";
   const linkSave = page.locator('input[name="enableStripePass"], input[type="checkbox"]').first();
@@ -79,7 +55,8 @@ try {
     if (page) await page.screenshot({ path: diagnosticPath, fullPage: true }).catch(() => {});
   }
   process.stderr.write(`KOV005_CHECKOUT_FAILURE_STAGE=${stage}\n`);
-  throw error;
+  process.stderr.write(`KOV005_CHECKOUT_FAILURE_REASON=${checkoutFailureReason(error)}\n`);
+  process.exitCode = 1;
 } finally {
   await browser.close();
 }
