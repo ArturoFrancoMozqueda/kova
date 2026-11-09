@@ -559,3 +559,30 @@ for (const language of ["es", "en"]) test(`local ${language} cancellation feedba
     assert.equal(await page.locator("output").textContent(), "scheduled");
   } finally { await browser.close(); }
 });
+
+for (const label of ["Agrega un método de pago", "Add a payment method"]) test(`payment update opens global ${label} rather than the subscription picker`, {
+  skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+}, async () => {
+  const { chromium } = await import("playwright");
+  const { updatePaymentMethod } = await import("./complete-stripe-test-portal.mjs");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<button id="edit">Actualizar método de pago</button>
+      <button id="add">${label}</button><form hidden>
+      <input name="cardNumber" autocomplete="cc-number">
+      <input name="cardExpiry" autocomplete="cc-exp">
+      <input name="cardCvc" autocomplete="cc-csc">
+      <select name="country"><option value="MX">Mexico</option><option value="US">US</option></select>
+      <input name="postalCode" autocomplete="billing postal-code"><button type="button" id="save">Agregar</button>
+      </form><output></output><script>
+      document.querySelector('#edit').onclick=()=>{document.querySelector('output').textContent='wrong-picker'};
+      document.querySelector('#add').onclick=()=>{document.querySelector('form').hidden=false};
+      document.querySelector('#save').onclick=()=>{document.querySelector('output').textContent='saved'};
+      </script>`);
+    const trusted = { url: () => standard.portal_url, frames: () => page.frames(),
+      getByRole: (...args) => page.getByRole(...args), waitForTimeout: ms => page.waitForTimeout(ms) };
+    await updatePaymentMethod(trusted, () => {});
+    assert.equal(await page.locator("output").textContent(), "saved");
+  } finally { await browser.close(); }
+});
