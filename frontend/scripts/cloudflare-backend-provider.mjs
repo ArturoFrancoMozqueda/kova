@@ -117,6 +117,7 @@ export function cloudflareBackendProvider({ run, env }) {
       // Recovery/capture also import this module in a disposable standalone bundle.
       // Only publication needs repository-owned commercial configuration.
       const { stripeRuntimeIds } = await import("../../deploy/stripe-runtime-ids.mjs");
+      const { NATIVE_HANDOFF_MAX_MS } = await import("../../deploy/native-handoff.mjs");
       const publicIds = stripeRuntimeIds(env);
       const hasPublicIds = Object.keys(publicIds).length !== 0;
       if (!/^[a-f0-9]{40}$/i.test(sha)) throw new Error("Full backend release SHA is required");
@@ -125,6 +126,10 @@ export function cloudflareBackendProvider({ run, env }) {
       }
       const publicationEnv = { ...env, KOVA_NATIVE_DEPLOY_SHA: sha,
         KOVA_NATIVE_PREVIOUS_SHA: previousSha };
+      if (native && sha !== previousSha) publicationEnv.KOVA_NATIVE_HANDOFF = JSON.stringify({
+        previousSha, expiresAt: Date.now() + NATIVE_HANDOFF_MAX_MS,
+      });
+      else delete publicationEnv.KOVA_NATIVE_HANDOFF;
       if (!env.KOVA_HYPERDRIVE_APP_ID || !env.KOVA_HYPERDRIVE_PRIVILEGED_ID || !env.KOVA_WORKERS_PACKAGES) {
         throw new Error("Backend build requires both Hyperdrive IDs and locked Python packages");
       }
@@ -147,6 +152,9 @@ export function cloudflareBackendProvider({ run, env }) {
           if (secrets.some(secret => Object.hasOwn(publicIds, secret.name))) {
             throw new Error("A public Stripe identifier conflicts with an existing sealed binding");
           }
+          if (native && worker === "kova-backend" && secrets.some(secret => secret.name === "KOVA_NATIVE_HANDOFF")) {
+            throw new Error("Native handoff conflicts with an existing sealed binding");
+          }
         }
       }
       await run("uv", ["run", "--frozen", "alembic", "upgrade", "head"], {
@@ -154,7 +162,7 @@ export function cloudflareBackendProvider({ run, env }) {
           ...env, DATABASE_URL: env.SUPABASE_DB_URL, MIGRATION_DATABASE_URL: env.SUPABASE_DB_URL,
         },
       });
-      const artifactEnv = { ...env, KOVA_BUILD_SHA: sha };
+      const artifactEnv = { ...publicationEnv, KOVA_BUILD_SHA: sha };
       delete artifactEnv.SUPABASE_DB_URL;
       await run(process.execPath, [path.join(directory, "build.mjs")],
         { cwd: directory, env: artifactEnv, label: "Cloudflare backend artifact" });

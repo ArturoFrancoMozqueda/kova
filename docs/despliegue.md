@@ -36,6 +36,11 @@ Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idén
    1. `alembic upgrade head` con `SUPABASE_DB_URL`.
    2. Construye la imagen nativa `kova-native:<sha>` (linux/amd64).
    3. Publica en orden: `kova-backend-jobs` → `kova-backend` (Container) → `kova-backend-gateway`.
+      La actualización del controlador es inmediata. Durante el rollout independiente de imagen,
+      [ADR-024](adr/ADR-024-bounded-native-image-handoff.md) permite continuar únicamente al proceso
+      anterior ya sano, con SHA y marcador propios verificados, dentro de una concesión absoluta
+      de hasta treinta minutos. No se reinicia esa imagen con la nueva configuración ni se
+      presenta como versión nueva. Imágenes ajenas o mal arrancadas siguen bloqueadas.
    4. Espera a que el proceso nativo reporte el nuevo SHA (hasta 30 min por el drenado de
       Containers).
 4. **Verificar el candidato** contra el backend nuevo. El ejecutable de release también compara
