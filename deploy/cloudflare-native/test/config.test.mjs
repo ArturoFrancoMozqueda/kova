@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveAndParseConfig } from "@cloudflare/config";
+import { convertToWranglerConfig, resolveAndParseConfig } from "@cloudflare/config";
 import { stripeRuntimeIds } from "../../stripe-runtime-ids.mjs";
 
 test("candidate retains existing namespace contracts and permits exactly one basic process", async () => {
@@ -12,6 +12,7 @@ test("candidate retains existing namespace contracts and permits exactly one bas
   assert.equal(worker.name, "kova-backend");
   assert.equal(worker.workersDev, false);
   assert.equal(worker.previewUrls, false);
+  assert.deepEqual(worker.unsafe.metadata.code_update_strategy, { mode: "immediate" });
   assert.equal(worker.domains, undefined);
   assert.deepEqual(Object.keys(worker.exports).sort(), ["ContainerProxy", "KovaApi", "KovaRateLimit"]);
   assert.equal(worker.exports.KovaApi.container, "kova-native-api");
@@ -25,6 +26,20 @@ test("candidate retains existing namespace contracts and permits exactly one bas
   assert.equal(containers[0].instanceType, "basic");
   assert.equal(containers[0].ssh.enabled, false);
   assert.equal(containers[0].image.buildVars.KOVA_RELEASE_SHA, process.env.KOVA_BUILD_SHA);
+});
+
+test("native code update strategy reaches the pinned CLI's actual upload metadata", async () => {
+  process.env.KOVA_BUILD_SHA = "a".repeat(40);
+  const { default: config } = await import("../cloudflare.config.ts");
+  const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
+  assert.equal(parsed.success, true);
+  const converted = convertToWranglerConfig(parsed.data);
+  const { t: createWorkerUploadForm } = await import("../node_modules/cf/dist/chunk-DSGVRFIS-C5SqiTOz.mjs");
+  const form = createWorkerUploadForm({ main: { name: "entry.mjs", content: "export default {}", type: "esm" } },
+    {}, { unsafe: converted.unsafe });
+  const metadata = JSON.parse(form.get("metadata"));
+  assert.deepEqual(metadata.code_update_strategy, { mode: "immediate" });
+  assert.equal(Object.hasOwn(metadata, "migrations"), false);
 });
 
 test("public Stripe IDs are text bindings only on API and jobs with no rollout flags", async () => {

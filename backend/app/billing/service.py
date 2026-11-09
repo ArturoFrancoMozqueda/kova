@@ -47,6 +47,7 @@ from app.email import service as email_service
 from app.idempotency import service as idempotency_service
 from app.rbac.permissions import Permission, has_permission
 from app.shared.exceptions import bad_request, conflict, forbidden
+from app.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -1278,6 +1279,42 @@ def _tenant_id_from_related_subscription(
     return subscription.tenant_id if subscription else None
 
 
+def _initial_paid_invoice_subscription(
+    db: Session, *, event_type: str, event_payload: dict[str, Any],
+    stripe_object: dict[str, Any], tenant_id: UUID | None,
+) -> tuple[UUID | None, dict[str, Any] | None]:
+    """A paid invoice can arrive before either event that creates its mapping.
+
+    Resolve ownership from Stripe itself, never from an unverified customer or
+    an invoice's missing metadata. Existing provider mappings keep the normal
+    ordering/replacement path. Provider failure remains retryable, not ignored.
+    """
+    if event_type not in {"invoice.paid", "invoice.payment_succeeded"}:
+        return tenant_id, None
+    subscription_id = _stripe_subscription_id(event_type=event_type, stripe_object=stripe_object)
+    customer_id = stripe_object.get("customer")
+    mode = event_payload.get("livemode")
+    if (not subscription_id or not isinstance(customer_id, str) or not customer_id
+            or type(mode) is not bool or type(stripe_object.get("livemode")) is not bool
+            or not settings.stripe_secret_key
+            or repository.get_subscription_by_stripe_id(db, stripe_subscription_id=subscription_id)
+    ):
+        return tenant_id, None
+    if stripe_object["livemode"] is not mode:
+        raise bad_request("Stripe invoice mode does not match its event")
+    source = _retrieve_authoritative_subscription(subscription_id)
+    owner = _tenant_id_from_event_object(source)
+    if owner is None:
+        return None, None
+    if tenant_id is not None and tenant_id != owner:
+        raise forbidden("Stripe invoice does not belong to this tenant")
+    if db.get(Tenant, owner) is None:
+        return None, None
+    _validate_checkout_subscription(source, tenant_id=owner, subscription_id=subscription_id,
+                                    customer_id=customer_id, livemode=mode)
+    return owner, source
+
+
 def _mark_event(
     event: WebhookEvent,
     *,
@@ -1527,6 +1564,7 @@ def _process_temporal_event(
     event_payload: dict[str, Any],
     stripe_object: dict[str, Any],
     tenant_id: UUID,
+    initial_subscription: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     event_type = event.event_type
     event_id = event.stripe_event_id
@@ -1535,6 +1573,15 @@ def _process_temporal_event(
 
     repository.lock_billing_tenant(db, tenant_id=tenant_id)
     subscription = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if initial_subscription is not None and (
+        subscription is None or not subscription.stripe_subscription_id
+    ):
+        if (subscription is not None and subscription.stripe_customer_id
+                not in {None, initial_subscription["customer"]}):
+            raise forbidden("Stripe invoice customer does not belong to this tenant")
+        subscription = _upsert_subscription_from_stripe_object(
+            db, tenant_id=tenant_id, stripe_object=initial_subscription,
+        )
     replacement = None
     incoming_subscription_id = _stripe_subscription_id(
         event_type=event_type, stripe_object=stripe_object,
@@ -1800,6 +1847,10 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
 
     try:
         family = _event_family(event_type)
+        tenant_id, initial_subscription = _initial_paid_invoice_subscription(
+            db, event_type=event_type, event_payload=event_payload,
+            stripe_object=stripe_object, tenant_id=tenant_id,
+        )
         if family is not None and tenant_id is not None:
             result = _process_temporal_event(
                 db,
@@ -1807,6 +1858,7 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
                 event_payload=event_payload,
                 stripe_object=stripe_object,
                 tenant_id=tenant_id,
+                initial_subscription=initial_subscription,
             )
             db.commit()
             return result

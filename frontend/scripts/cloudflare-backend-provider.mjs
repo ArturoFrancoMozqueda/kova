@@ -180,8 +180,18 @@ export function cloudflareBackendProvider({ run, env }) {
       const versions = validateBackendVersions(input);
       if (native) validateNativeContainerSnapshot(nativeSnapshot);
       for (const name of ["kova-backend", "kova-backend-jobs", "kova-backend-gateway"]) {
-        await cf(["workers", "deployments", "create", "--script-name", name,
-          "--strategy", "percentage", "--versions", JSON.stringify([{ version_id: versions[name], percentage: 100 }])]);
+        if (native && name === "kova-backend") {
+          // This write-only API setting is per deployment, not a property of
+          // the captured Worker version. Recovery needs the same ordering as
+          // publication before restoring the captured image.
+          await cf(["workers", "deployments", "create", "--script-name", name,
+            "--body", JSON.stringify({ strategy: "percentage",
+              versions: [{ version_id: versions[name], percentage: 100 }],
+              code_update_strategy: { mode: "immediate" } })]);
+        } else {
+          await cf(["workers", "deployments", "create", "--script-name", name,
+            "--strategy", "percentage", "--versions", JSON.stringify([{ version_id: versions[name], percentage: 100 }])]);
+        }
       }
       if (native) await containers.restore(nativeSnapshot, { workersRestored: true });
     },

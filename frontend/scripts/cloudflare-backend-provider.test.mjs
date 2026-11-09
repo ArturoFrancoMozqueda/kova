@@ -345,6 +345,27 @@ test("resident publication rejects absent or malformed previous identities befor
 const absentContainer = { name: nativeContainerIdentity.name, namespaceId: nativeContainerIdentity.namespaceId,
   applicationId: null, image: null, instanceType: "lite", maxInstances: 1 };
 
+test("native recovery immediately updates the captured controller before any image restoration", async () => {
+  const calls = [];
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    run: async (_command, args) => {
+      calls.push(args);
+      if (args.includes("applications")) {
+        assert.equal(calls.filter(call => call.includes("deployments")).length, 3,
+          "all captured workers must be restored before inspecting/restoring images");
+        return "[]";
+      }
+    } });
+  await provider.restore(versions, absentContainer);
+  assert.deepEqual(JSON.parse(calls[0].at(-1)), { strategy: "percentage",
+    versions: [{ version_id: version, percentage: 100 }],
+    code_update_strategy: { mode: "immediate" } });
+  for (const call of calls.slice(1, 3)) {
+    assert.deepEqual(JSON.parse(call.at(-1)), [{ version_id: version, percentage: 100 }]);
+  }
+});
+
 test("resident releases require a captured image or explicit absence before creating a candidate", async () => {
   await assert.rejects(release({ artifact, sha, provider: {
     requiresNativeContainer: true, createCandidate: assert.fail,
