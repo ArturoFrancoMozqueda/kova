@@ -277,6 +277,39 @@ def test_portal_bearer_state_is_private_and_removed_on_all_helper_outcomes(
     assert paths and all(not p.exists() for p in paths)
 
 
+def test_headed_portal_receives_only_ephemeral_display_and_diagnostic_environment(
+    tmp_path, monkeypatch,
+):
+    config = drill.validate_environment({**_environment(tmp_path),
+                                         "KOV005_PORTAL_BROWSER": "headed"})
+    monkeypatch.setenv("DISPLAY", ":77")
+    monkeypatch.setenv("XAUTHORITY", str(tmp_path / "ephemeral-display"))
+    monkeypatch.setenv("KOV005_PORTAL_DIAGNOSTIC_PATH", str(tmp_path / "portal.png"))
+    monkeypatch.setenv("KOV005_STRIPE_SECRET_KEY", "sk_test_synthetic_not_forwarded")
+
+    class Client:
+        def request(self, method, path):
+            return {"portal_url": "https://billing.stripe.com/p/session/test_synthetic"}
+
+    def run(*args, **kwargs):
+        env = kwargs["env"]
+        assert env["KOV005_PORTAL_BROWSER"] == "headed"
+        assert env["DISPLAY"] == ":77"
+        assert env["XAUTHORITY"] == str(tmp_path / "ephemeral-display")
+        assert env["KOV005_PORTAL_DIAGNOSTIC_PATH"] == str(tmp_path / "portal.png")
+        assert "KOV005_STRIPE_SECRET_KEY" not in env
+        assert "STRIPE_API_KEY" not in env
+        assert "DATABASE_URL" not in env
+        return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps(
+            {"action": "inspect", "submitted": False, "inspected": True},
+        ))
+
+    monkeypatch.setattr(drill.subprocess, "run", run)
+    drill._submit_portal_action(config, {"client": Client()}, "inspect")
+    with pytest.raises(drill.DrillError, match="KOV005_PORTAL_BROWSER"):
+        drill.validate_environment({**_environment(tmp_path), "KOV005_PORTAL_BROWSER": "stealth"})
+
+
 @pytest.mark.parametrize("revision", [None, "offer-current"])
 def test_signup_adapter_fetches_and_echoes_offer_revision_only_if_present(revision):
     client = drill.KovaClient("http://127.0.0.1:8000", "http://127.0.0.1:5173")
