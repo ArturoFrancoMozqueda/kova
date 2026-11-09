@@ -278,7 +278,7 @@ test("a running but unready process receives the full startup budget only once",
 });
 
 function bootHandoffFixture({ image = "b".repeat(40), boot = "a".repeat(40),
-  running = true, markerOverride, beforeHealth } = {}) {
+  running = true, markerOverride, beforeHealth, requestReadiness = { readinessWaitMs: 0 } } = {}) {
   const process = { image, boot, tiered: "false", portal: "false" };
   const counts = { starts: 0, stops: 0, probes: 0, health: 0, database: 0, forwarded: [] };
   const ctx = { id: { toString: () => "resident" }, container: { running } };
@@ -313,7 +313,9 @@ function bootHandoffFixture({ image = "b".repeat(40), boot = "a".repeat(40),
       return new Response("application-response");
     }
   }
-  const Resident = residentContainerClass(FakeSdk);
+  // Denial fixtures use an exhausted request-wait budget. Dedicated cases below
+  // exercise a real bounded handoff wait with a controllable clock and stop.
+  const Resident = residentContainerClass(FakeSdk, requestReadiness);
   return { process, counts, ctx,
     controller(expected = image, tiered = "false") {
       const controller = new Resident(ctx, { ...settings(), KOVA_BUILD_SHA: expected,
@@ -486,7 +488,7 @@ test("handoff deadline and concurrent stop are rechecked without extending the l
     beforeHealth: () => { interrupted.ctx.container.running = false; } });
   const racing = interrupted.controller(target);
   racing.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 10_000 });
-  await assert.rejects(() => racing.ensureReady(), /release identity mismatch/);
+  await assert.rejects(() => racing.ensureReady(), /previous image handoff pending/);
   assert.equal(interrupted.counts.forwarded.length, 0);
 });
 
@@ -504,6 +506,95 @@ test("request headers cannot grant an old-image handoff or rewrite its boot envi
   assert.equal(response.status, 503);
   assert.equal(fixture.counts.forwarded.length, 0);
   assert.equal(fixture.process.boot, previous);
+});
+
+test("requests share a bounded pre-forward stop wait and each write is sent exactly once after verified restart", async () => {
+  let clock = Date.now(), waits = 0, controller;
+  const fixture = bootHandoffFixture({ requestReadiness: { now: () => clock, wait: async ms => {
+    waits++; clock += ms;
+    assert.equal(fixture.counts.forwarded.length, 0, "business payloads must remain unsent while draining");
+    await fixture.finishStop(controller);
+  } } });
+  controller = fixture.controller("b".repeat(40), "true");
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: clock + 60_000 });
+  const responses = await Promise.all(Array.from({ length: 8 }, (_, index) => controller.fetch(new Request(
+    "https://api.test/api/v1/orders", { method: "POST", body: `single-${index}` }))));
+  assert.ok(responses.every(response => response.status === 200));
+  assert.equal(waits, 1, "concurrent callers share the same original wait budget");
+  assert.equal(fixture.counts.stops, 1);
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(fixture.counts.forwarded.length, 8);
+  assert.equal(new Set(fixture.counts.forwarded.map(call => call.body)).size, 8);
+  assert.equal(fixture.process.boot, "b".repeat(40));
+  assert.equal(fixture.process.tiered, "true");
+});
+
+test("a draining captured old image waits for replacement and never receives a business write", async () => {
+  let clock = Date.now(), controller;
+  const fixture = bootHandoffFixture({ image: "a".repeat(40), boot: "a".repeat(40),
+    requestReadiness: { now: () => clock, wait: async ms => {
+      clock += ms;
+      assert.equal(fixture.counts.forwarded.length, 0);
+      fixture.process.image = "b".repeat(40);
+      await fixture.finishStop(controller);
+    } } });
+  controller = fixture.controller("b".repeat(40));
+  const state = controller.getState.bind(controller);
+  controller.getState = async () => fixture.process.image === "a".repeat(40) ? { status: "stopping" } : state();
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: clock + 60_000 });
+  const response = await controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "once" }));
+  assert.equal(response.status, 200);
+  assert.equal(fixture.counts.forwarded.length, 1);
+  assert.equal(fixture.counts.forwarded[0].body, "once");
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(fixture.counts.stops, 0, "only the platform initiates the image rollout stop");
+});
+
+test("startup failure during an active handoff can wait before the first business dispatch", async () => {
+  let clock = Date.now(), waits = 0;
+  const fixture = bootHandoffFixture({ image: "b".repeat(40), boot: "a".repeat(40), running: false,
+    requestReadiness: { now: () => clock, wait: async ms => { clock += ms; waits++; } } });
+  const controller = fixture.controller();
+  const start = controller.startAndWaitForPorts.bind(controller);
+  controller.startAndWaitForPorts = async options => {
+    if (waits === 0) throw new Error("synthetic-private-provider-startup");
+    return start(options);
+  };
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: clock + 60_000 });
+  assert.equal((await controller.fetch(new Request("https://api.test/health"))).status, 200);
+  assert.equal(waits, 1);
+  assert.equal(fixture.counts.forwarded.length, 1);
+});
+
+test("pre-forward wait expires without extending the lease, repeating SIGTERM or dispatching a write", async t => {
+  t.mock.method(console, "error", () => {});
+  for (const leaseMs of [10_000, 60_000]) {
+    const started = Date.now(); let clock = started;
+    const fixture = bootHandoffFixture({ requestReadiness: { now: () => clock,
+      wait: async ms => { clock += ms; } } });
+    const controller = fixture.controller();
+    controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: started + leaseMs });
+    const responses = await Promise.all(Array.from({ length: 3 }, () => controller.fetch(new Request(
+      "https://api.test/api/v1/orders", { method: "POST", body: "never-dispatched" }))));
+    assert.ok(responses.every(response => response.status === 503));
+    assert.equal(clock - started, Math.min(leaseMs, 30_000));
+    assert.equal(fixture.counts.stops, 1);
+    assert.equal(fixture.counts.starts, 0);
+    assert.equal(fixture.counts.forwarded.length, 0);
+  }
+});
+
+test("malformed or unknown image/boot identities fail immediately even inside the handoff window", async t => {
+  t.mock.method(console, "error", () => {});
+  for (const change of [{ image: "c".repeat(40), boot: "c".repeat(40) }, { image: "a".repeat(40), boot: null }]) {
+    const fixture = bootHandoffFixture({ ...change, requestReadiness: { wait: assert.fail } });
+    const controller = fixture.controller("b".repeat(40));
+    controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "a".repeat(40), expiresAt: Date.now() + 60_000 });
+    assert.equal((await controller.fetch(new Request("https://api.test/api/v1/orders", {
+      method: "POST", body: "blocked" }))).status, 503);
+    assert.equal(fixture.counts.forwarded.length, 0);
+    assert.equal(fixture.counts.stops, 0);
+  }
 });
 
 test("cold startup and an observed stop revalidate the new process instead of reusing stale readiness", async () => {
@@ -644,7 +735,8 @@ test("SDK transport responses become redacted 503s and force the next port probe
       }
     }
     const Resident = residentContainerClass(FakeContainer);
-    const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+    const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) },
+      KOVA_NATIVE_HANDOFF: JSON.stringify({ previousSha: "c".repeat(40), expiresAt: Date.now() + 60_000 }) };
     const resident = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
     const unavailable = await resident.fetch(new Request("https://api.test/api/v1/orders", {
       method: "POST", body: "synthetic-write",

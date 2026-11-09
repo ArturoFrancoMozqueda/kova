@@ -3,6 +3,7 @@ import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavai
 import { nativeHandoff } from "../native-handoff.mjs";
 
 export const BOOT_CONTROLLER_HEADER = "x-kova-boot-controller-sha";
+class NativeStartupPending extends Error {}
 
 // Only the read-only acceptance contracts can opt in to fixed stage telemetry.
 // Query strings and arbitrary paths/headers never become diagnostics.
@@ -45,7 +46,9 @@ async function sdkTransportFailure(response) {
 
 // The injected SDK base permits focused lifecycle tests without pretending a
 // process was started. Actual image/runtime checks remain a release gate.
-export function residentContainerClass(Container) {
+export function residentContainerClass(Container, {
+  now = Date.now, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), readinessWaitMs = 30_000,
+} = {}) {
   return class extends Container {
     defaultPort = 8000;
     requiredPorts = [8000];
@@ -55,6 +58,7 @@ export function residentContainerClass(Container) {
     bootVerified = false;
     bootGeneration = 0;
     readinessPromise;
+    requestReadinessPromise;
     reconfigurationRequested = false;
     reconfigurationAttempted = false;
 
@@ -99,6 +103,33 @@ export function residentContainerClass(Container) {
       await this.readinessPromise;
     }
 
+    async ensureReadyForRequest() {
+      if (!this.requestReadinessPromise) {
+        const pending = this.waitForRequestReadiness().finally(() => {
+          if (this.requestReadinessPromise === pending) this.requestReadinessPromise = undefined;
+        });
+        this.requestReadinessPromise = pending;
+      }
+      await this.requestReadinessPromise;
+    }
+
+    async waitForRequestReadiness() {
+      const handoff = nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now());
+      const deadline = handoff ? Math.min(handoff.expiresAt, now() + readinessWaitMs) : now();
+      for (;;) {
+        try { await this.ensureReady(); return; }
+        catch (error) {
+          // No business request has been forwarded. Wait only for a recognized
+          // startup transition during the original reviewed handoff lease.
+          // Never retry super.fetch(), unknown identities, or application errors.
+          const remaining = deadline - now();
+          if (!(error instanceof NativeStartupPending) || remaining <= 0
+              || !nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now())) throw error;
+          await wait(Math.min(250, remaining));
+        }
+      }
+    }
+
     invalidateBoot() {
       this.bootVerified = false;
       this.bootGeneration++;
@@ -108,7 +139,7 @@ export function residentContainerClass(Container) {
       // SDK stop() signals SIGTERM but does not await process exit. Never
       // forward traffic or repeatedly signal a process while it is draining.
       if (this.reconfigurationRequested) {
-        if (this.ctx.container.running) throw new Error("Native boot reconfiguration pending");
+        if (this.ctx.container.running) throw new NativeStartupPending("Native boot reconfiguration pending");
         this.reconfigurationRequested = false;
       }
       // A running process may still be importing/compiling the application.
@@ -119,10 +150,15 @@ export function residentContainerClass(Container) {
       if (healthy && this.bootVerified) return;
       if (!healthy) {
         this.invalidateBoot();
-        await this.startAndWaitForPorts({ cancellationOptions: {
-          instanceGetTimeoutMS: 60_000,
-          portReadyTimeoutMS: 120_000,
-        } });
+        try {
+          await this.startAndWaitForPorts({ cancellationOptions: {
+            instanceGetTimeoutMS: 60_000,
+            portReadyTimeoutMS: 120_000,
+          } });
+        } catch (error) {
+          if (!nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now())) throw error;
+          throw new NativeStartupPending("Native container startup pending");
+        }
         this.portProbeRequired = false;
       }
       const generation = this.bootGeneration;
@@ -137,10 +173,12 @@ export function residentContainerClass(Container) {
       // serving with its own verified startup configuration during this bounded
       // rollout. Never cold-start it with the new environment, cache this
       // exception, relabel its health, or accept it as release readiness.
-      const handoff = nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA);
-      if (healthy && handoff && body?.status === "ok" && body.release_sha === handoff.previousSha
-          && response.headers.get(BOOT_CONTROLLER_HEADER) === handoff.previousSha
-          && generation === this.bootGeneration && this.ctx.container.running) return;
+      const handoff = nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA, now());
+      if (handoff && body?.status === "ok" && body.release_sha === handoff.previousSha
+          && response.headers.get(BOOT_CONTROLLER_HEADER) === handoff.previousSha) {
+        if (healthy && generation === this.bootGeneration && this.ctx.container.running) return;
+        throw new NativeStartupPending("Native previous image handoff pending");
+      }
       // Every other image remains foreign: no traffic or application-controlled
       // restart. A new image must still prove this controller's boot identity.
       if (body?.status !== "ok" || body.release_sha !== this.env.KOVA_BUILD_SHA) {
@@ -152,10 +190,10 @@ export function residentContainerClass(Container) {
           this.reconfigurationRequested = true;
           await this.stop();
         }
-        throw new Error("Native boot reconfiguration pending");
+        throw new NativeStartupPending("Native boot reconfiguration pending");
       }
       if (generation !== this.bootGeneration || !this.ctx.container.running) {
-        throw new Error("Native boot changed during readiness");
+        throw new NativeStartupPending("Native boot changed during readiness");
       }
       this.bootVerified = true;
       this.reconfigurationAttempted = false;
@@ -184,7 +222,7 @@ export function residentContainerClass(Container) {
         for (const name of ["x-forwarded-host", "x-forwarded-for", "x-real-ip", "forwarded", "fly-client-ip"]) {
           headers.delete(name);
         }
-        await this.ensureReady();
+        await this.ensureReadyForRequest();
         diagnostic("start_fetch");
         const response = await super.fetch(new Request(request, { headers }));
         diagnostic("response", response.status);
