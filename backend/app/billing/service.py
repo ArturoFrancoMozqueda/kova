@@ -1300,11 +1300,20 @@ def _initial_paid_invoice_subscription(
     if (not subscription_id or not isinstance(customer_id, str) or not customer_id
             or type(mode) is not bool or type(stripe_object.get("livemode")) is not bool
             or not settings.stripe_secret_key
-            or repository.get_subscription_by_stripe_id(db, stripe_subscription_id=subscription_id)
     ):
         return tenant_id, None
     if stripe_object["livemode"] is not mode:
         raise bad_request("Stripe invoice mode does not match its event")
+    mapped = repository.get_subscription_by_stripe_id(db, stripe_subscription_id=subscription_id)
+    if mapped is not None:
+        # The lifecycle transaction may have committed after the caller's
+        # first owner lookup. Reuse the mapping now visible instead of keeping
+        # that earlier None and permanently ignoring a valid paid invoice.
+        if tenant_id is not None and mapped.tenant_id != tenant_id:
+            raise forbidden("Stripe invoice does not belong to this tenant")
+        if mapped.stripe_customer_id not in {None, customer_id}:
+            raise forbidden("Stripe invoice customer does not belong to this tenant")
+        return mapped.tenant_id, None
     source = _retrieve_authoritative_subscription(subscription_id)
     owner = _tenant_id_from_event_object(source)
     if owner is None:

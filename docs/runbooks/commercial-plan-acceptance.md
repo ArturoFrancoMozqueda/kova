@@ -464,3 +464,18 @@ conservando URL, secreto de firma, versión y todos los eventos anteriores. El l
 lo incluye también. La aceptación mantiene el oráculo de **método efectivo** (primero el de la
 suscripción, después el del Customer); no repara datos mediante API para pasar la prueba.
 Referencia: [integración del Portal](https://docs.stripe.com/customer-management/integrate-customer-portal).
+
+### Factura pagada y mapeo concurrente (9 de noviembre de 2026)
+
+Se reprodujo una segunda carrera en el alta inicial: la búsqueda inicial de propietario puede
+no ver una suscripción que otra transacción registra antes de la búsqueda de respaldo. El código
+anterior detectaba que el mapeo ya existía, pero conservaba el propietario `None` de la primera
+consulta y marcaba la factura como ignorada permanentemente.
+
+La búsqueda de respaldo ahora reutiliza el negocio del mapeo visible y verifica su Customer,
+modo y posible propietario previo. Después conserva el bloqueo, orden temporal, validación de
+plan y procesamiento idempotente existentes. Ocho regresiones nuevas fallan con el código
+anterior y pasan con la corrección (Esencial/Gestión, legacy/Dahlia y ambos eventos de pago);
+tres casos adicionales conservan el rechazo de propietario, Customer o modo inconsistentes.
+Esto demuestra el defecto reproducido, sin atribuirle una causa exclusiva al runner histórico
+que ya fue destruido. La repetición integrada sigue siendo el criterio de cierre.
