@@ -389,6 +389,20 @@ export async function exercisePortal(page, state, setStage = () => {}) {
   return { action: state.action, submitted: true, inspected: true };
 }
 
+export function portalBrowserOptions(mode = "headless") {
+  if (!["headless", "headed"].includes(mode)) throw new Error("invalid_portal_browser_mode");
+  return { headless: mode === "headless" };
+}
+
+export async function savePortalDiagnostic(page, filename) {
+  if (!page || !filename) return false;
+  try {
+    requirePortalOrigin(page);
+    await page.screenshot({ path: filename, fullPage: false });
+    return true;
+  } catch { return false; }
+}
+
 async function main() {
   let browser;
   let page;
@@ -398,7 +412,7 @@ async function main() {
     if (!filename) throw new Error("missing_portal_state");
     const state = validatePortalState(JSON.parse(fs.readFileSync(filename, "utf8")));
     const { chromium } = await import("playwright");
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch(portalBrowserOptions(process.env.KOV005_PORTAL_BROWSER));
     page = await browser.newPage();
     const outcome = await exercisePortal(page, state, (value) => { stage = value; });
     process.stdout.write(JSON.stringify(outcome));
@@ -411,6 +425,7 @@ async function main() {
     process.stderr.write(`KOV005_PORTAL_PUBLIC_CONTROLS=${controls}\n`);
     const fieldState = await portalFieldStateDiagnostics(page);
     process.stderr.write(`KOV005_PORTAL_FIELD_STATE=${JSON.stringify(fieldState)}\n`);
+    await savePortalDiagnostic(page, process.env.KOV005_PORTAL_DIAGNOSTIC_PATH);
     process.exitCode = 1;
   } finally {
     if (browser) await browser.close().catch(() => {});

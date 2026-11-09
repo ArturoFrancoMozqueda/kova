@@ -123,6 +123,16 @@ nunca copia el error crudo del navegador ni su enlace de sesión.
 
 ### Campo opcional de Link
 
+El runner integrado usa Chromium con interfaz bajo Xvfb al incluir Portal; la evidencia indica
+`Browser mode: headed`. El mismo correo sintético y entrada por teclado guardaron el método
+predeterminado en el navegador interactivo el 9 de noviembre, mientras la variante sin interfaz
+seguía mostrando Agregar deshabilitado. Esta comparación justifica probar el modo de navegador;
+no demuestra todavía la causa exclusiva ni sustituye la aceptación integrada.
+No se cambian controles de Stripe, identidades, consentimiento ni criterios del método efectivo.
+Si falla, la captura temporal del formulario se conserva en un artefacto privado por un día,
+junto al diagnóstico de Checkout; nunca se comitea. El subproceso recibe sólo la sesión temporal,
+el display y rutas de diagnóstico, sin claves de Stripe ni acceso a la base del runner.
+
 La reproducción interactiva del 9 de noviembre guardó una tarjeta de prueba como método
 predeterminado sin proporcionar teléfono ni registrar Link. Un correo precargado en el bloque
 opcional no es consentimiento para ese registro. El helper conserva esos campos y sólo desmarca

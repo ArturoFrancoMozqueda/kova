@@ -17,7 +17,7 @@ for (const project of ["cloudflare-native", "cloudflare-backend"]) {
     const directory = new URL(`../../${project}/node_modules/cf/dist/`, import.meta.url);
     const scratch = mkdtempSync(join(tmpdir(), "kova-public-stripe-comparator-"));
     const name = "containers-BtcOgwm5.mjs";
-    const names = ["KOVA_NATIVE_PREVIOUS_SHA", "KOVA_NATIVE_DEPLOY_SHA", ...Object.keys(ids)];
+    const names = ["KOVA_NATIVE_PREVIOUS_SHA", "KOVA_NATIVE_DEPLOY_SHA", "KOVA_NATIVE_HANDOFF", ...Object.keys(ids)];
     const saved = Object.fromEntries(names.map(name => [name, process.env[name]]));
     try {
       symlinkSync(realpathSync(new URL(`../../${project}/node_modules`, import.meta.url)), join(scratch, "node_modules"));
@@ -48,6 +48,21 @@ for (const project of ["cloudflare-native", "cloudflare-backend"]) {
             metadata: { code_update_strategy: { mode: "immediate" } } } };
           assert.equal(compareForTest(remote, withPolicy).nonDestructive, true,
             "the write-only deployment strategy must not appear to replace sealed bindings");
+          const handoff = JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 600_000 });
+          process.env.KOVA_NATIVE_HANDOFF = handoff;
+          const withHandoff = { ...local, vars: { ...local.vars, KOVA_NATIVE_HANDOFF: handoff } };
+          assert.equal(compareForTest(remote, withHandoff).diff, null);
+          const oldLease = structuredClone(remote);
+          oldLease.vars.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "c".repeat(40), expiresAt: 1 });
+          assert.equal(compareForTest(oldLease, withHandoff).diff, null, "only the previous public lease is replaced");
+          const sealedConflict = structuredClone(remote);
+          sealedConflict.unsafe.bindings.push({ name: "KOVA_NATIVE_HANDOFF", type: "secret_text" });
+          assert.equal(compareForTest(sealedConflict, withHandoff).nonDestructive, false);
+          const foreignLease = { ...withHandoff, vars: { ...withHandoff.vars,
+            KOVA_NATIVE_HANDOFF: JSON.stringify({ previousSha: "c".repeat(40), expiresAt: Date.now() + 600_000 }) } };
+          assert.throws(() => compareForTest(remote, foreignLease), /bounded captured/);
+          delete process.env.KOVA_NATIVE_HANDOFF;
+          assert.throws(() => compareForTest(remote, withHandoff), /bounded captured/);
         }
         assert.deepEqual(remote, original);
         const added = structuredClone(remote);

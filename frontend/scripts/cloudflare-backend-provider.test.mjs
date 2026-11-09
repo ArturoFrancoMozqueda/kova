@@ -318,6 +318,9 @@ test("resident release replaces only API artifact and preserves rollback workers
       if (args.some(arg => arg.endsWith("/build.mjs"))) {
         assert.equal(options.env.SUPABASE_DB_URL, undefined);
         assert.equal(options.env.KOVA_BUILD_SHA, sha);
+        const lease = JSON.parse(options.env.KOVA_NATIVE_HANDOFF);
+        assert.equal(lease.previousSha, "b".repeat(40));
+        assert.ok(lease.expiresAt > Date.now() && lease.expiresAt <= Date.now() + 30 * 60 * 1000);
       }
       assert.equal(args.join(" ").includes(env.SUPABASE_DB_URL), false);
     } });
@@ -331,7 +334,20 @@ test("resident release replaces only API artifact and preserves rollback workers
   for (const call of calls.filter(call => call.options.cwd.endsWith("/deploy/cloudflare-native") && call.args.includes("deploy"))) {
     assert.equal(call.options.env.KOVA_NATIVE_PREVIOUS_SHA, "b".repeat(40));
     assert.equal(call.options.env.KOVA_NATIVE_DEPLOY_SHA, sha);
+    assert.equal(call.options.env.KOVA_NATIVE_HANDOFF, deploys[1].options.env.KOVA_NATIVE_HANDOFF,
+      "build, dry run and publication must share the original non-renewable lease");
   }
+});
+
+test("resident publication rejects a sealed handoff binding before any build or database migration", async () => {
+  const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
+    CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
+    run: async (_command, args) => {
+      assert.ok(args.includes("secrets") && args.includes("list"));
+      return JSON.stringify([{ name: "APP_DATABASE_URL" }, { name: "MIGRATION_DATABASE_URL" },
+        { name: "KOVA_NATIVE_HANDOFF" }]);
+    } });
+  await assert.rejects(provider.publish(sha, "b".repeat(40)), /handoff conflicts with an existing sealed binding/);
 });
 
 test("resident publication rejects absent or malformed previous identities before any command", async () => {

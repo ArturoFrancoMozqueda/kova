@@ -42,6 +42,23 @@ test("native code update strategy reaches the pinned CLI's actual upload metadat
   assert.equal(Object.hasOwn(metadata, "migrations"), false);
 });
 
+test("native handoff is a validated versioned binding, never an image environment override", async () => {
+  const saved = process.env.KOVA_NATIVE_HANDOFF;
+  try {
+    process.env.KOVA_BUILD_SHA = "a".repeat(40);
+    process.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "b".repeat(40), expiresAt: Date.now() + 600_000 });
+    const { default: config } = await import("../cloudflare.config.ts?handoff");
+    const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
+    assert.equal(parsed.success, true);
+    assert.deepEqual(parsed.data.worker.env.KOVA_NATIVE_HANDOFF, { type: "text", value: process.env.KOVA_NATIVE_HANDOFF });
+    assert.deepEqual(parsed.data.containers[0].image.buildVars, { KOVA_RELEASE_SHA: "a".repeat(40) });
+    process.env.KOVA_NATIVE_HANDOFF = "{}";
+    await assert.rejects(() => import("../cloudflare.config.ts?invalid-handoff"), /Invalid native release handoff/);
+  } finally {
+    if (saved === undefined) delete process.env.KOVA_NATIVE_HANDOFF; else process.env.KOVA_NATIVE_HANDOFF = saved;
+  }
+});
+
 test("public Stripe IDs are text bindings only on API and jobs with no rollout flags", async () => {
   const ids = {
     STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",

@@ -167,6 +167,7 @@ test("pinned cf workaround refuses version, missing marker and duplicate drift b
     const patch = join(project, "patch-cf.mjs");
     writeFileSync(patch, readFileSync(new URL("../patch-cf.mjs", import.meta.url), "utf8"));
     writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
+    writeFileSync(join(scratch, "native-handoff.mjs"), readFileSync(new URL("../../native-handoff.mjs", import.meta.url)));
     writeFileSync(join(dist, "containers-BtcOgwm5.mjs"), 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);');
     const packageFile = join(project, "node_modules/cf/package.json");
     const adapterFile = join(dist, "deploy-input-test.mjs");

@@ -1,3 +1,5 @@
+import { normalizeNativeHandoffDiff } from "./native-handoff.mjs";
+
 // Public identifiers only. Credentials, URLs and rollout flags never enter this map.
 export const STRIPE_RUNTIME_ID_RULES = Object.freeze({
   STRIPE_ESENCIAL_PRICE_ID: "price_",
@@ -59,6 +61,9 @@ export function normalizeStripeRuntimeIdDiff(remote, local, environment, rules) 
 }
 
 export function commercialComparatorPrefix({ native = false } = {}) {
+  // Validate handoff while remote still has the captured SHA, before the
+  // existing commercial comparator normalizes its build identity.
+  const handoff = native ? `e=(${normalizeNativeHandoffDiff.toString()})(e,n,process.env);` : "";
   const normalize = `(${normalizeStripeRuntimeIdDiff.toString()})(e,n,process.env,${JSON.stringify(STRIPE_RUNTIME_ID_RULES)})`;
   const ownNamespaces = native
     ? "for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;"
@@ -66,5 +71,5 @@ export function commercialComparatorPrefix({ native = false } = {}) {
   const previousIdentity = native
     ? "let i=process.env.KOVA_NATIVE_PREVIOUS_SHA,a=process.env.KOVA_NATIVE_DEPLOY_SHA;if(n.name===`kova-backend`&&/^[a-f0-9]{40}$/i.test(i??``)&&/^[a-f0-9]{40}$/i.test(a??``)&&e.vars?.KOVA_BUILD_SHA===i&&n.vars?.KOVA_BUILD_SHA===a)e.vars.KOVA_BUILD_SHA=a;"
     : "";
-  return `function xE(e,t){let n=SE(t);e=${normalize};${ownNamespaces}${previousIdentity}let r=_E(DE(e,n),n);`;
+  return `function xE(e,t){let n=SE(t);${handoff}e=${normalize};${ownNamespaces}${previousIdentity}let r=_E(DE(e,n),n);`;
 }

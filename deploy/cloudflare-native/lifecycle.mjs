@@ -1,5 +1,6 @@
 import { CONTROLLER_FAILURE_HEADER, CODE_UPDATE_RESET, isCodeUpdateReset } from "../controller-update-recovery.mjs";
 import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavailable } from "./policy.mjs";
+import { nativeHandoff } from "../native-handoff.mjs";
 
 export const BOOT_CONTROLLER_HEADER = "x-kova-boot-controller-sha";
 
@@ -132,8 +133,16 @@ export function residentContainerClass(Container) {
       let body;
       try { body = await response.json(); }
       catch { throw new Error("Malformed native boot readiness"); }
-      // Worker and image versions can overlap. A foreign image never triggers
-      // an application-controlled restart or passes readiness.
+      // An already healthy process from the captured baseline may continue
+      // serving with its own verified startup configuration during this bounded
+      // rollout. Never cold-start it with the new environment, cache this
+      // exception, relabel its health, or accept it as release readiness.
+      const handoff = nativeHandoff(this.env.KOVA_NATIVE_HANDOFF, this.env.KOVA_BUILD_SHA);
+      if (healthy && handoff && body?.status === "ok" && body.release_sha === handoff.previousSha
+          && response.headers.get(BOOT_CONTROLLER_HEADER) === handoff.previousSha
+          && generation === this.bootGeneration && this.ctx.container.running) return;
+      // Every other image remains foreign: no traffic or application-controlled
+      // restart. A new image must still prove this controller's boot identity.
       if (body?.status !== "ok" || body.release_sha !== this.env.KOVA_BUILD_SHA) {
         throw new Error("Native container release identity mismatch");
       }

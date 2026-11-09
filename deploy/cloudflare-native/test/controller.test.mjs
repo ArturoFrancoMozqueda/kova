@@ -309,6 +309,7 @@ function bootHandoffFixture({ image = "b".repeat(40), boot = "a".repeat(40),
     }
     async fetch(request) {
       counts.forwarded.push({ method: request.method, body: await request.text() });
+      if (new URL(request.url).pathname === "/health") return healthyBoot(this.env, process.image, process.boot);
       return new Response("application-response");
     }
   }
@@ -413,6 +414,96 @@ test("an overlapping image cannot pass readiness or trigger an application-contr
   assert.equal(fixture.counts.stops, 0);
   assert.equal(fixture.counts.database, 0);
   assert.equal(fixture.counts.forwarded.length, 0);
+});
+
+test("bounded handoff serves an already healthy captured image with its original policy, without declaring readiness", async t => {
+  t.mock.method(console, "error", () => {});
+  const previous = "a".repeat(40), target = "b".repeat(40);
+  const fixture = bootHandoffFixture({ image: previous, boot: previous });
+  const controller = fixture.controller(target, "true");
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 60_000 });
+  const writes = Array.from({ length: 8 }, (_, index) => controller.fetch(new Request("https://api.test/api/v1/orders", {
+    method: "POST", body: `original-${index}`,
+  })));
+  assert.ok((await Promise.all(writes)).every(response => response.status === 200));
+  assert.equal(fixture.counts.forwarded.length, 8);
+  assert.equal(new Set(fixture.counts.forwarded.map(call => call.body)).size, 8, "no write is replayed");
+  assert.equal(fixture.process.tiered, "false", "old process keeps its own reviewed startup policy");
+  assert.equal(controller.bootVerified, false, "previous-image exception must never be cached");
+  assert.equal(fixture.counts.starts, 0);
+  assert.equal(fixture.counts.stops, 0);
+  const publicHealth = await controller.fetch(new Request("https://api.test/health"));
+  assert.equal((await publicHealth.json()).release_sha, previous);
+  assert.equal(publicHealth.headers.get(BOOT_CONTROLLER_HEADER), previous, "health never relabels the old process");
+  await assert.rejects(() => controller.ready(), /release identity mismatch/);
+  assert.equal(fixture.counts.database, 0, "the old release cannot pass candidate acceptance");
+  await controller.ensureReady();
+  assert.ok(fixture.counts.health >= 3, "baseline identity is reprobed after each shared request batch");
+
+  // The platform completes its image replacement; the new process captures
+  // only the new controller environment and must prove both identities.
+  fixture.process.image = target;
+  await fixture.finishStop(controller);
+  assert.equal((await controller.ready()).release_sha, target);
+  assert.equal(fixture.process.boot, target);
+  assert.equal(fixture.process.tiered, "true");
+  assert.equal(fixture.counts.starts, 1);
+  assert.equal(controller.bootVerified, true);
+});
+
+test("handoff cannot admit expired, cold, foreign, or incorrectly booted old processes", async t => {
+  t.mock.method(console, "error", () => {});
+  const previous = "a".repeat(40), target = "b".repeat(40);
+  for (const change of [{ expiresAt: Date.now() - 1 }, { boot: null }, { boot: target },
+    { image: "c".repeat(40) }, { running: false }, { unhealthy: true }, { portProbeRequired: true }]) {
+    const fixture = bootHandoffFixture({ image: previous, boot: previous, ...change });
+    const controller = fixture.controller(target);
+    controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: previous,
+      expiresAt: change.expiresAt ?? Date.now() + 60_000 });
+    if (change.unhealthy) controller.getState = async () => ({ status: "starting" });
+    if (change.portProbeRequired) controller.portProbeRequired = true;
+    const response = await controller.fetch(new Request("https://api.test/api/v1/orders", { method: "POST", body: "never-replayed" }));
+    assert.equal(response.status, 503, JSON.stringify(change));
+    assert.equal(fixture.counts.forwarded.length, 0);
+    assert.equal(fixture.counts.stops, 0, "a foreign image cannot be restarted by application logic");
+  }
+});
+
+test("handoff deadline and concurrent stop are rechecked without extending the lease", async t => {
+  t.mock.method(console, "error", () => {});
+  t.mock.timers.enable({ apis: ["Date"], now: 1_800_000_000_000 });
+  const previous = "a".repeat(40), target = "b".repeat(40);
+  const fixture = bootHandoffFixture({ image: previous, boot: previous });
+  const controller = fixture.controller(target);
+  controller.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 10 });
+  await controller.ensureReady();
+  t.mock.timers.tick(11);
+  await assert.rejects(() => controller.ensureReady(), /release identity mismatch/);
+  assert.equal(fixture.counts.forwarded.length, 0);
+  assert.equal(fixture.counts.starts, 0);
+  assert.equal(fixture.counts.stops, 0);
+  const interrupted = bootHandoffFixture({ image: previous, boot: previous,
+    beforeHealth: () => { interrupted.ctx.container.running = false; } });
+  const racing = interrupted.controller(target);
+  racing.env.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 10_000 });
+  await assert.rejects(() => racing.ensureReady(), /release identity mismatch/);
+  assert.equal(interrupted.counts.forwarded.length, 0);
+});
+
+test("request headers cannot grant an old-image handoff or rewrite its boot environment", async t => {
+  t.mock.method(console, "error", () => {});
+  const previous = "a".repeat(40), target = "b".repeat(40);
+  const fixture = bootHandoffFixture({ image: previous, boot: previous });
+  const controller = fixture.controller(target);
+  const response = await controller.fetch(new Request("https://api.test/api/v1/orders", {
+    method: "POST", body: "blocked", headers: {
+      "x-kova-native-handoff": JSON.stringify({ previousSha: previous, expiresAt: Date.now() + 60_000 }),
+      [BOOT_CONTROLLER_HEADER]: target,
+    },
+  }));
+  assert.equal(response.status, 503);
+  assert.equal(fixture.counts.forwarded.length, 0);
+  assert.equal(fixture.process.boot, previous);
 });
 
 test("cold startup and an observed stop revalidate the new process instead of reusing stale readiness", async () => {

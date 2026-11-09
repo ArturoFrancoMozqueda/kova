@@ -1,7 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { clickControl, exercisePortal, portalFailureDiagnostics, portalFieldStateDiagnostics,
-  validatePortalState, visiblePortalFieldState } from "./complete-stripe-test-portal.mjs";
+  portalBrowserOptions, savePortalDiagnostic, validatePortalState,
+  visiblePortalFieldState } from "./complete-stripe-test-portal.mjs";
+
+test("Portal browser selection changes rendering only and rejects unknown modes", () => {
+  assert.deepEqual(portalBrowserOptions(), { headless: true });
+  assert.deepEqual(portalBrowserOptions("headed"), { headless: false });
+  assert.throws(() => portalBrowserOptions("stealth"), /invalid_portal_browser_mode/);
+});
+
+test("temporary Portal screenshots stay on the exact provider origin", async () => {
+  const captures = [];
+  const page = { url: () => "https://billing.stripe.com/p/session/test_synthetic",
+    screenshot: async options => captures.push(options) };
+  assert.equal(await savePortalDiagnostic(page, "/tmp/portal-fixture.png"), true);
+  assert.deepEqual(captures, [{ path: "/tmp/portal-fixture.png", fullPage: false }]);
+  assert.equal(await savePortalDiagnostic({ ...page, url: () => "https://example.invalid" },
+    "/tmp/portal-fixture.png"), false);
+  assert.equal(await savePortalDiagnostic(page), false);
+  assert.equal(captures.length, 1);
+});
 
 const standard = {
   portal_url: "https://billing.stripe.com/p/session/test_synthetic",

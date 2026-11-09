@@ -86,6 +86,7 @@ jobs:
       KOV005_EVIDENCE_PATH: /tmp/kov-005-stripe-sandbox-evidence-${{ github.run_id }}.md
       KOV005_CLEANUP_PATH: /tmp/kov-005-stripe-sandbox-cleanup-${{ github.run_id }}.json
       KOV005_CHECKOUT_DIAGNOSTIC_PATH: /tmp/kov-005-checkout-failure-${{ github.run_id }}.png
+      KOV005_PORTAL_DIAGNOSTIC_PATH: /tmp/kov-005-portal-failure-${{ github.run_id }}.png
       STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION: "false"
 
     steps:
@@ -156,7 +157,13 @@ jobs:
       - name: Run Stripe Sandbox drill
         env:
           STRIPE_API_KEY: ${{ secrets.KOV005_STRIPE_SECRET_KEY }}
-        run: uv run --project backend python backend/scripts/stripe_sandbox_drill.py
+          KOV005_PORTAL_BROWSER: ${{ inputs.include_portal && 'headed' || 'headless' }}
+        run: |
+          if [[ "$KOV005_INCLUDE_PORTAL" == "true" ]]; then
+            xvfb-run --auto-servernum uv run --project backend python backend/scripts/stripe_sandbox_drill.py
+          else
+            uv run --project backend python backend/scripts/stripe_sandbox_drill.py
+          fi
 
       - name: Upload redacted evidence
         if: success()
@@ -167,12 +174,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Checkout failure diagnostic
+      - name: Upload hosted UI failure diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: kov-005-checkout-failure-${{ github.sha }}
-          path: ${{ env.KOV005_CHECKOUT_DIAGNOSTIC_PATH }}
+          name: kov-005-hosted-ui-failure-${{ github.sha }}
+          path: |
+            ${{ env.KOV005_CHECKOUT_DIAGNOSTIC_PATH }}
+            ${{ env.KOV005_PORTAL_DIAGNOSTIC_PATH }}
           if-no-files-found: ignore
           retention-days: 1
 
@@ -189,4 +198,5 @@ jobs:
           rm -f "$RUNNER_TEMP"/kov005-checkout-*.json
           rm -f /tmp/kov005-portal-*.json /tmp/kov005-checkout-*.json
           rm -f "$KOV005_CHECKOUT_DIAGNOSTIC_PATH"
+          rm -f "$KOV005_PORTAL_DIAGNOSTIC_PATH"
           rm -f "$KOV005_CLEANUP_PATH"

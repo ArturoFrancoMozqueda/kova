@@ -82,6 +82,7 @@ test("all pinned patches validate before writing and registry diagnostics are id
     mkdirSync(target, { recursive: true });
     writeFileSync(join(project, "patch-cf.mjs"), readFileSync(patch));
     writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
+    writeFileSync(join(scratch, "native-handoff.mjs"), readFileSync(new URL("../../native-handoff.mjs", import.meta.url)));
     const originalContext = readFileSync(new URL(moduleName, dist), "utf8");
     const patchedStart = originalContext.indexOf('if(!t.ok){let n=e.method');
     const patchedEnd = originalContext.indexOf('},`catchErrorCodes`)', patchedStart);

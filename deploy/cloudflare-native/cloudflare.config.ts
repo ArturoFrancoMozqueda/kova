@@ -1,9 +1,14 @@
 import { bindings, defineConfig, defineContainer, exports } from "cf/config";
 import { stripeRuntimeIds } from "../stripe-runtime-ids.mjs";
+import { nativeHandoff } from "../native-handoff.mjs";
 
 const release = process.env.KOVA_BUILD_SHA;
 if (!release || !/^[a-f0-9]{40}$/i.test(release)) {
   throw new Error("Full native build SHA is required");
+}
+const handoff = process.env.KOVA_NATIVE_HANDOFF;
+if (handoff !== undefined && !nativeHandoff(handoff, release)) {
+  throw new Error("Invalid native release handoff");
 }
 
 const api = defineContainer({
@@ -29,7 +34,8 @@ export default defineConfig({
     previewUrls: false,
     // A resident controller never hibernates. Cloudflare's deferred default
     // otherwise keeps its old boot environment for up to 300s while the image
-    // rollout is already running. Apply the controller before replacing images.
+    // rollout is already running. The bounded handoff preserves the already
+    // running, verified previous process until the platform replaces its image.
     unsafe: { metadata: { code_update_strategy: { mode: "immediate" } } },
     limits: { cpuMs: 30_000 },
     exports: {
@@ -39,6 +45,7 @@ export default defineConfig({
     },
     env: {
       KOVA_BUILD_SHA: bindings.text(release),
+      ...(handoff === undefined ? {} : { KOVA_NATIVE_HANDOFF: bindings.text(handoff) }),
       ...Object.fromEntries(Object.entries(stripeRuntimeIds(process.env))
         .map(([name, value]) => [name, bindings.text(value)])),
       ...(process.env.KOVA_HYPERDRIVE_APP_ID ? {

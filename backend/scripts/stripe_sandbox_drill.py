@@ -88,6 +88,7 @@ class DrillConfig:
     include_risk: bool = False
     include_portal: bool = False
     portal_mode: str = "basic"
+    portal_browser: str = "headless"
     portal_configuration_id: str | None = None
     portal_helper: Path | None = None
 
@@ -157,6 +158,9 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
     portal_mode = environ.get("KOV005_PORTAL_MODE", "basic")
     if portal_mode not in {"basic", "transitions"}:
         raise DrillError("KOV005_PORTAL_MODE must be basic or transitions")
+    portal_browser = environ.get("KOV005_PORTAL_BROWSER", "headless")
+    if portal_browser not in {"headless", "headed"}:
+        raise DrillError("KOV005_PORTAL_BROWSER must be headless or headed")
     if include_portal and portal_mode == "transitions" and plan_code == "gestion":
         raise DrillError("Portal transition acceptance must start from standard or esencial")
     portal_cohort = "STANDARD" if plan_code == "standard" else "TIERED"
@@ -224,6 +228,7 @@ def validate_environment(environ: dict[str, str]) -> DrillConfig:
         include_risk=include_risk,
         include_portal=include_portal,
         portal_mode=portal_mode,
+        portal_browser=portal_browser,
         portal_configuration_id=portal_id,
         portal_helper=REPOSITORY_ROOT / "frontend/scripts/complete-stripe-test-portal.mjs",
         expected_account_id=environ["KOV005_STRIPE_ACCOUNT_ID"],
@@ -1309,6 +1314,7 @@ def render_evidence(
         if not portal_records:
             raise DrillError("Portal opt-in did not produce acceptance records")
         lines.extend(["## Portal acceptance (sandbox only)", "",
+                      f"Browser mode: {config.portal_browser}.", "",
                       "Emitted by Kova API for a verified owner; "
                       "hosted Stripe UI submitted changes.",
                       "No Kova frontend return or effective downgrade is claimed.", ""])
@@ -1528,9 +1534,11 @@ def _submit_portal_action(
             "target_amount": 399 if action == "downgrade" else 699,
             "current_amount": PLANS[current_code].amount_minor_units // 100,
         }), encoding="utf-8")
-        safe_names = {"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "PLAYWRIGHT_BROWSERS_PATH"}
+        safe_names = {"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "PLAYWRIGHT_BROWSERS_PATH",
+                      "DISPLAY", "XAUTHORITY", "KOV005_PORTAL_DIAGNOSTIC_PATH"}
         child_env = {key: value for key, value in os.environ.items() if key in safe_names}
         child_env["KOV005_PORTAL_STATE_FILE"] = str(path)
+        child_env["KOV005_PORTAL_BROWSER"] = config.portal_browser
         result = subprocess.run(
             ["node", str(config.portal_helper)], cwd=REPOSITORY_ROOT, env=child_env,
             capture_output=True, text=True, timeout=120, check=False,
