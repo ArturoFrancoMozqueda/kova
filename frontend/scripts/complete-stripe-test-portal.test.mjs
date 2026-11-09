@@ -326,6 +326,56 @@ test("local PaymentElement iframe commits CVC and required US postal by blur wit
 });
 
 
+for (const label of ["Guardar mis datos para un proceso de compra más rápido", "Save my information for faster checkout"]) {
+  test(`styled Link opt-in is unchecked through normal actionability: ${label}`, {
+    skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+  }, async () => {
+    const { chromium } = await import("playwright");
+    const { completeTestPaymentFields } = await import("./complete-stripe-test-portal.mjs");
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      let externalRequest = false;
+      await page.route("**/*", async route => { externalRequest = true; await route.abort(); });
+      // The hosted diagnostic shows the optional enrollment visibly checked.
+      // A native input styled with opacity zero remains an actionable checkbox;
+      // it is different from an invisible autofill input/frame.
+      const form = `<!doctype html><html><body>
+        <input name="number" autocomplete="cc-number" required>
+        <input name="expiry" autocomplete="cc-exp" required>
+        <input name="cvc" autocomplete="cc-csc" required>
+        <select name="country"><option value="MX">Mexico</option><option value="US">United States</option></select>
+        <input name="postalCode" autocomplete="billing postal-code" required>
+        <label><input name="savePaymentDetails" type="checkbox" checked style="opacity:0;width:20px;height:20px">${label}</label>
+        <input name="search-linkEmail" value="qa-only@example.invalid">
+        <input name="linkMobilePhone">
+        <button id="add" type="button" disabled>Add</button>
+        <script>
+          const optIn = document.querySelector('[type=checkbox]');
+          const postal = document.querySelector('[name=postalCode]');
+          function update() { document.querySelector('#add').disabled = optIn.checked || postal.value !== '10001'; }
+          optIn.addEventListener('change', update);
+          postal.addEventListener('blur', update);
+          document.querySelector('select').addEventListener('change', () => { optIn.checked = true; update(); });
+        </script></body></html>`;
+      await page.setContent('<iframe id="proxy" style="opacity:0"></iframe><iframe id="payment"></iframe>');
+      for (const id of ["proxy", "payment"]) {
+        await page.locator(`#${id}`).evaluate((iframe, html) => { iframe.srcdoc = html; }, form);
+      }
+      const frame = page.frameLocator("#payment");
+      await frame.getByRole("checkbox", { name: label }).waitFor();
+      assert.equal(await frame.getByRole("checkbox", { name: label }).isChecked(), true);
+      await completeTestPaymentFields(page);
+      assert.equal(await frame.getByRole("checkbox", { name: label }).isChecked(), false);
+      assert.equal(await page.frameLocator("#proxy").getByRole("checkbox", { name: label }).isChecked(), true);
+      assert.equal(await frame.locator('[name="search-linkEmail"]').inputValue(), "qa-only@example.invalid");
+      assert.equal(await frame.locator('[name="linkMobilePhone"]').inputValue(), "");
+      assert.equal(await frame.locator("#add").isEnabled(), true);
+      assert.equal(externalRequest, false);
+    } finally { await browser.close(); }
+  });
+}
+
 test("optional Link prefill is preserved without supplying phone or enrolling the customer", {
   skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
 }, async () => {

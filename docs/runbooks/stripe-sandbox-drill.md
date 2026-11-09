@@ -258,9 +258,9 @@ el estado del control al fallar, no confirman por sí solas una causa de validac
 El fixture de pago usa US y el código postal de QA 10001 explícitamente. El helper pulsa Tab tras
 CVC y tras el postal requerido, para que PaymentElement confirme los campos al perder foco. No
 rellena el nombre opcional de Link y desmarca únicamente opt-ins identificados como Link.
-Cuando la sección opcional observada no tiene checkbox, vacía sólo el campo visible
-`search-linkEmail` y confirma el opt-out con blur. Repite ese paso tras país/postal por si Stripe
-vuelve a prellenarlo. No modifica el correo del Customer ni campos genéricos de billing, teléfono,
+Cuando la sección opcional observada no tiene checkbox, conserva el correo prellenado: su
+presencia por sí sola no acredita consentimiento. Repite la comprobación del opt-in después de
+país/postal. No modifica el correo del Customer ni campos genéricos de billing, teléfono,
 nombre, configuración de Link o CAPTCHA. La regresión de iframe conserva intactos los proxies
 invisibles y el email de billing y no envía peticiones externas. Este comportamiento se apoya en
 la inscripción opcional y el prefill documentados por
@@ -286,6 +286,17 @@ observación no demuestra que Link causara el fallo. La inspección manual con d
 Tab habilitó Add tanto con país MX como con US y postal; no se pulsó Add ni se guardó un método de
 pago. No está probada una restricción universal del Portal, un problema de vencimiento o una causa
 antifraude.
+
+El [intento Esencial 42686246021](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42686246021)
+del 9 de noviembre falló también con Chromium visible bajo Xvfb: no demuestra una causa exclusiva
+de headless. Su captura privada de fallo muestra «Guardar mis datos para un proceso de compra
+más rápido» **marcada**, con el teléfono vacío. El helper reconoce también esa etiqueta española
+y su equivalente inglesa y deja que la accionabilidad normal de Playwright opere un checkbox
+estilizado cuyo input tiene opacidad cero. El filtro estricto de inputs de tarjeta/autofill se
+conserva; los frames invisibles siguen excluidos. No fuerza un clic, no introduce un teléfono ni
+inscribe al cliente en Link. Dos regresiones de navegador cubren las etiquetas, el opt-in
+estilizado, su reactivación tras país y la conservación de los proxies invisibles. La aceptación
+del proveedor sigue exigiendo otra corrida con guardado efectivo y validación autoritativa.
 
 La variante de entrada usa `fill("")`, `pressSequentially(text, {delay: 25})` y Tab para número,
 vencimiento, CVC y postal; el país conserva `selectOption("US")` y Tab. Esta es una hipótesis

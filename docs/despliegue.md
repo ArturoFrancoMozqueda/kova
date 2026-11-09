@@ -41,6 +41,9 @@ Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idén
       anterior ya sano, con SHA y marcador propios verificados, dentro de una concesión absoluta
       de hasta treinta minutos. No se reinicia esa imagen con la nueva configuración ni se
       presenta como versión nueva. Imágenes ajenas o mal arrancadas siguen bloqueadas.
+      Ante un reinicio reconocido durante esa concesión, [ADR-025](adr/ADR-025-native-pre-forward-startup-wait.md)
+      comparte una espera acotada antes de enviar los payloads. Cada solicitud se envía una sola
+      vez al proceso verificado; nunca se repite una escritura ya enviada.
    4. Espera a que el proceso nativo reporte el nuevo SHA (hasta 30 min por el drenado de
       Containers).
 4. **Verificar el candidato** contra el backend nuevo. El ejecutable de release también compara
