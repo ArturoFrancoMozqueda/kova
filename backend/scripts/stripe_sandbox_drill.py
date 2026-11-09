@@ -56,6 +56,7 @@ EXPECTED_ENVIRONMENT = "stripe-sandbox"
 # QA fixture amount in MXN minor units; not a universal Stripe minimum.
 RISK_REFUND_AMOUNT_MINOR = 100
 EVENT_TYPES = {
+    "customer.updated",
     "checkout.session.completed",
     "customer.subscription.created",
     "customer.subscription.updated",

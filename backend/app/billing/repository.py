@@ -47,6 +47,10 @@ def get_subscription_by_stripe_id(
     )
 
 
+def get_subscription_by_customer_id(db: Session, *, customer_id: str) -> Subscription | None:
+    return db.query(Subscription).filter(Subscription.stripe_customer_id == customer_id).first()
+
+
 def list_all_subscriptions(
     db: Session, *, offset: int = 0, limit: int = 100
 ) -> list[Subscription]:
