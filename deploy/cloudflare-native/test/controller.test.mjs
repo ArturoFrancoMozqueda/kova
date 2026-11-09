@@ -17,6 +17,30 @@ const healthyBoot = (env, release = env.KOVA_BUILD_SHA, boot = env.KOVA_BUILD_SH
   status: "ok", release_sha: release,
 }, { headers: boot === null ? {} : { [BOOT_CONTROLLER_HEADER]: boot } });
 
+test("native origin connection closure stays private while cookies and response bytes are preserved", async () => {
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { return new Response("unchanged", { status: 201, headers: [
+      ["Connection", "close"], ["Keep-Alive", "timeout=5"],
+      ["Set-Cookie", "session=synthetic; HttpOnly; Secure"],
+      ["Set-Cookie", "csrf=synthetic; Secure"],
+    ] }); }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const controller = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  const response = await controller.fetch(new Request("https://api.test/api/v1/auth/session"));
+  assert.equal(response.status, 201);
+  assert.equal(await response.text(), "unchanged");
+  assert.equal(response.headers.get("connection"), null);
+  assert.equal(response.headers.get("keep-alive"), null);
+  assert.deepEqual(response.headers.getSetCookie(), [
+    "session=synthetic; HttpOnly; Secure", "csrf=synthetic; Secure",
+  ]);
+});
+
 test("native controller preserves public raster caching only for the narrow versioned image route", async () => {
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }

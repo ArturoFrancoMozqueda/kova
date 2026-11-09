@@ -1,4 +1,4 @@
-"""Public runtime identity for verifying resident-process deployment behavior."""
+"""Native response identity and the private HTTP/1 connection policy."""
 
 import re
 from uuid import uuid4
@@ -27,6 +27,12 @@ class ResidentIdentityMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # This listener is reached only through the Container SDK. Explicitly
+        # close each private HTTP/1 hop after its response, so the proxy cannot
+        # reuse an origin socket across Uvicorn's idle keep-alive shutdown.
+        # This does not retry a dispatched request or change public sessions.
+        close_connection = scope.get("http_version") in ("1.0", "1.1")
+
         async def send_with_identity(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = [
@@ -35,7 +41,10 @@ class ResidentIdentityMiddleware:
                     if name.lower() not in (
                         b"x-kova-runtime", b"x-kova-process-id", b"x-kova-boot-controller-sha",
                     )
+                    and not (close_connection and name.lower() in (b"connection", b"keep-alive"))
                 ]
+                if close_connection:
+                    headers.append((b"connection", b"close"))
                 if (scope.get("path") == "/health" and message["status"] == 200
                         and self.boot_controller_sha is not None):
                     headers.append((b"x-kova-boot-controller-sha", self.boot_controller_sha))

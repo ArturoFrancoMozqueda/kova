@@ -267,6 +267,9 @@ export function residentContainerClass(Container, {
         const result = privateResponse(response, request);
         result.headers.delete(CONTROLLER_FAILURE_HEADER);
         result.headers.delete(ACTIVE_CONTROLLER_HEADER);
+        // Origin connection lifetime belongs only to the private SDK hop.
+        result.headers.delete("connection");
+        result.headers.delete("keep-alive");
         if (new URL(request.url).pathname === "/health") {
           result.headers.set(ACTIVE_CONTROLLER_HEADER, this.env.KOVA_BUILD_SHA);
         }
