@@ -1,7 +1,35 @@
 # Entregabilidad de correo — Kova
 
-Evidencia acumulada al 2 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
+Evidencia acumulada al 9 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
+
+## Avisos tras la compra live de aceptación
+
+La compra Esencial autorizada del 9 de noviembre aprobó factura pagada, activación y cancelación
+programada sin perder acceso. El buzón QA y Resend mostraron únicamente verificación; bienvenida
+y recibo no se enviaron. La fila de pago confirmó conciliación autoritativa de una factura con
+`billing_reason=subscription_create`. Los eventos iniciales llegaron en el mismo segundo y el
+handler omitía avisos en ese camino, aunque el pago y el plan se hubieran confirmado correctamente.
+
+La corrección conserva firma, modo, propietario, precedencia temporal, estado y capacidades.
+Un pago procesado emite su recibo también después de conciliación. Una factura inicial confirmada
+con estado activo puede emitir la bienvenida, aun si Checkout llega después de una marca temporal
+más reciente. El filtro de plan desconocido sigue bloqueándola. Una renovación ordinaria no crea
+esta bienvenida adicional. El recibo confirma el pago sin afirmar que el acceso siga activo cuando
+se lea posteriormente.
+
+El transporte añade una clave de idempotencia a los avisos de facturación, derivada del contenido
+exacto y destinatario mediante SHA-256; no exporta esos datos en la clave. Conciliación y webhook
+pueden confirmar el mismo mensaje sin duplicarlo dentro de la retención de idempotencia del
+proveedor. No equivale a un outbox durable ni a una garantía de entrega exactamente una vez.
+Los fallos del proveedor conservan su clasificación fija sin cuerpo, dirección ni credenciales.
+
+Las regresiones cubren los seis órdenes de los eventos iniciales, repetición del mismo evento,
+importe real del fixture e idempotencia separada por destinatario/contenido. Fallan contra la
+implementación anterior y pasan con la corrección. La publicación y la recepción real de estos
+avisos corregidos requieren su propia evidencia; el cobro previo no las acredita retroactivamente.
+
+## Evidencia histórica
 
 Comprobación de sólo lectura del 29 de octubre de 2026: Resend mantiene el dominio verificado y el
 envío habilitado. Las seis pruebas de plantillas del 27 de octubre a las 01:05 UTC, incluida

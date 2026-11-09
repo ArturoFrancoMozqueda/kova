@@ -444,3 +444,23 @@ no demuestra una tasa estable de conversión, soporte o contracargos.
 Antes de afirmar rentabilidad, completar costos pendientes, definir la remuneración elegida y
 separar implementación inicial, adquisición y operación recurrente. No reutilizar la estimación
 retirada de $9,600 mensuales ni el supuesto de equilibrio en 32 clientes como hechos del negocio.
+
+### Método efectivo de pago del Portal (9 de noviembre de 2026)
+
+El Portal básico permite guardar tarjetas y elegir la predeterminada del Customer. Checkout
+puede dejar `Subscription.default_payment_method` asignado: esa asignación tiene prioridad y
+el cambio visual del Portal por sí solo no demuestra qué tarjeta usará el siguiente cobro.
+
+El webhook firmado `customer.updated`, únicamente cuando cambió
+`invoice_settings.default_payment_method`, resuelve la suscripción vigente por el Customer
+único ya vinculado en Kova. Bajo el bloqueo del negocio consulta Customer, método expandido
+y suscripción actuales en Stripe, valida propietario/modo y quita solamente la asignación de
+método de esa suscripción para que herede la elección actual del cliente. No modifica planes,
+precios, cancelación, acceso, correos de inicio de sesión ni otras suscripciones. Eventos viejos
+usan el método autoritativo actual; fallos del proveedor permiten redelivery idempotente.
+
+Tras publicar este handler, habilitar `customer.updated` en el destino productivo existente
+conservando URL, secreto de firma, versión y todos los eventos anteriores. El listener aislado
+lo incluye también. La aceptación mantiene el oráculo de **método efectivo** (primero el de la
+suscripción, después el del Customer); no repara datos mediante API para pasar la prueba.
+Referencia: [integración del Portal](https://docs.stripe.com/customer-management/integrate-customer-portal).

@@ -1,6 +1,7 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from itertools import permutations
 from uuid import uuid4
 
 import pytest
@@ -280,6 +281,58 @@ def test_equal_cross_family_events_converge_to_authoritative_state(
     assert temporal_subscription.status == "active"
     assert temporal_subscription.past_due_at is None
     assert access.allowed is True
+
+
+@pytest.mark.parametrize("order", list(permutations(["created", "paid", "checkout"])))
+def test_initial_equal_timestamp_events_deliver_billing_notices_without_changing_temporal_rules(
+    db: Session, temporal_subscription: Subscription, monkeypatch, order: tuple[str, ...]
+) -> None:
+    import resend
+
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_temporal")
+    monkeypatch.setattr(settings, "resend_api_key", "re_synthetic_test_only")
+    monkeypatch.setattr(service, "_owner_email_for_tenant", lambda *_a, **_k: "qa@example.invalid")
+    live = _subscription_object(subscription_id, "active")
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **_kw: live)
+    attempts: list[tuple[dict, dict]] = []
+    delivered: dict[str, dict] = {}
+
+    def provider_send(message, options=None):
+        # Model provider idempotency only when the caller supplies a key.
+        # Unkeyed attempts remain separate deliveries, as they would externally.
+        attempts.append((message, options))
+        key = options["idempotency_key"] if options else f"unkeyed-{len(attempts)}"
+        delivered.setdefault(key, message)
+        return {"id": "synthetic-provider-receipt"}
+
+    monkeypatch.setattr(resend.Emails, "send", provider_send)
+    created = int(datetime.now(UTC).timestamp()) - 10
+    events = {
+        "created": _event("evt_notice_created", "customer.subscription.created", created, live),
+        "paid": _event("evt_notice_paid", "invoice.paid", created, {
+            "id": "in_notice_initial", "object": "invoice", "subscription": subscription_id,
+            "amount_paid": 39900, "currency": "mxn", "billing_reason": "subscription_create",
+        }),
+        "checkout": _event("evt_notice_checkout", "checkout.session.completed", created, {
+            "id": "cs_notice_initial", "subscription": subscription_id, "status": "active",
+            "metadata": {"tenant_id": str(temporal_subscription.tenant_id)},
+        }),
+    }
+    for name in order:
+        _process(db, events[name])
+    initial_attempts = len(attempts)
+    for name in order:
+        _process(db, events[name])
+    assert len(attempts) == initial_attempts, "duplicate Stripe events must not send again"
+    db.refresh(temporal_subscription)
+    assert temporal_subscription.status == "active"
+    assert {mail["subject"] for mail in delivered.values()} == {
+        "Tu plan Kova está activo", "Recibo de pago — Kova",
+    }
+    assert len(delivered) == 2
+    receipt = next(mail for mail in delivered.values() if mail["subject"] == "Recibo de pago — Kova")
+    assert "$399.00 MXN" in receipt["text"]
 
 
 def test_payment_without_timestamp_reconciles_to_authoritative_state(

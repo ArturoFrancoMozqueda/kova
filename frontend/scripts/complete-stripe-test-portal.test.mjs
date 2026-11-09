@@ -534,3 +534,28 @@ test("local keyboard-handled masked form commits all five fixtures without forci
     assert.doesNotMatch(JSON.stringify(fields), /4242|1230|10001|value|length/);
   } finally { await browser.close(); }
 });
+
+for (const language of ["es", "en"]) test(`local ${language} cancellation feedback precedes final confirmation`, {
+  skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+}, async () => {
+  const { chromium } = await import("playwright");
+  const { cancelAtPeriodEnd } = await import("./complete-stripe-test-portal.mjs");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const text = language === "es"
+      ? ["Cancelar suscripción", "Reason", "Otro motivo", "Otros comentarios", "Continuar con la cancelación", "Confirmar cancelación"]
+      : ["Cancel subscription", "Reason", "Other", "Comments", "Continue with cancellation", "Confirm cancellation"];
+    await page.setContent(`<button id="open">${text[0]}</button>
+      <section id="feedback" hidden><label>${text[1]}<select><option value="">Select</option><option value="other">${text[2]}</option></select></label>
+      <label>${text[3]}<textarea></textarea></label><button id="next">${text[4]}</button></section>
+      <button id="confirm" hidden>${text[5]}</button><output></output>
+      <script>
+      document.querySelector('#open').onclick=()=>{document.querySelector('#feedback').hidden=false;document.querySelector('#open').hidden=true};
+      document.querySelector('#next').onclick=()=>{if(document.querySelector('select').value==='other' && document.querySelector('textarea').value){document.querySelector('#feedback').hidden=true;document.querySelector('#confirm').hidden=false}};
+      document.querySelector('#confirm').onclick=()=>{document.querySelector('output').textContent='scheduled'};
+      </script>`);
+    await cancelAtPeriodEnd({ url: () => standard.portal_url, getByRole: (...args) => page.getByRole(...args) }, () => {});
+    assert.equal(await page.locator("output").textContent(), "scheduled");
+  } finally { await browser.close(); }
+});

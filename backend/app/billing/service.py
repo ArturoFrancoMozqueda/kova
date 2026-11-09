@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -35,6 +36,7 @@ from app.billing.schemas import BILLING_PERIOD_FRESHNESS_MAX_AGE
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
+    StripePaymentMethodClient,
     StripePortalClient,
     StripePortalError,
     StripePriceClient,
@@ -84,6 +86,7 @@ checkout_client = StripeCheckoutClient()
 price_client = StripePriceClient()
 subscription_client = StripeSubscriptionClient()
 portal_client = StripePortalClient()
+payment_method_client = StripePaymentMethodClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
 LIVE_MODE_CONFIGURATION_ERROR = "Stripe checkout is not configured for live mode"
 
@@ -1715,7 +1718,7 @@ def _process_temporal_event(
     if family == EVENT_FAMILY_LIFECYCLE:
         if event_type == "checkout.session.completed":
             action = "billing.subscription_activated"
-            if not reconciled and status_applied and subscription.status == "active":
+            if subscription.status == "active":
                 _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
         elif event_type == "customer.subscription.deleted":
             action = "billing.subscription_canceled"
@@ -1765,10 +1768,13 @@ def _process_temporal_event(
                 event_id=event_id,
                 event_type=event_type,
             )
-        if payment_succeeded and not reconciled:
+        if payment_succeeded:
             _send_payment_receipt_for_tenant(
                 db, tenant_id=tenant_id, invoice_object=stripe_object
             )
+            if (stripe_object.get("billing_reason") == "subscription_create"
+                    and subscription.status == "active"):
+                _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
         action = (
             "billing.payment_failed"
             if event_type == "invoice.payment_failed"
@@ -1783,6 +1789,110 @@ def _process_temporal_event(
         resource_id=subscription.id,
         changes={"status": subscription.status, "stripe_event_id": event_id},
     )
+    _mark_event(event, status="processed", tenant_id=tenant_id)
+    return {"status": "processed"}
+
+
+def _process_customer_default_payment(
+    db: Session,
+    *,
+    event: WebhookEvent,
+    event_payload: dict[str, Any],
+    stripe_object: dict[str, Any],
+) -> dict[str, str]:
+    """Apply the owner's Customer default only to this Kova subscription.
+
+    A Portal card save changes invoice_settings, while Checkout may have left a
+    subscription override. Read current provider state rather than replaying an
+    old webhook card. This handler never updates a login email or entitlements.
+    """
+    previous = (event_payload.get("data") or {}).get("previous_attributes") or {}
+    invoice_change = previous.get("invoice_settings") if isinstance(previous, dict) else None
+    customer_id = stripe_object.get("id")
+    if (
+        not isinstance(invoice_change, dict)
+        or "default_payment_method" not in invoice_change
+        or stripe_object.get("object") != "customer"
+        or not isinstance(customer_id, str)
+        or not re.fullmatch(r"cus_[A-Za-z0-9]+", customer_id)
+    ):
+        _mark_event(event, status="ignored", error_reason="No customer default payment change")
+        return {"status": "ignored"}
+    owned = repository.get_subscription_by_customer_id(db, customer_id=customer_id)
+    if owned is None:
+        _mark_event(event, status="ignored", error_reason="Unknown billing customer")
+        return {"status": "ignored"}
+    tenant_id = owned.tenant_id
+    repository.lock_billing_tenant(db, tenant_id=tenant_id)
+    owned = repository.lock_subscription_by_tenant(db, tenant_id=tenant_id)
+    if owned is None or owned.stripe_customer_id != customer_id or not owned.stripe_subscription_id:
+        raise forbidden("Billing customer mapping changed")
+    mode = event_payload.get("livemode")
+    if type(mode) is not bool or stripe_object.get("livemode") is not mode:
+        raise forbidden("Invalid billing customer mode")
+    secret_key = _stripe_secret_key()
+    customer = payment_method_client.retrieve_customer(
+        secret_key=secret_key, customer_id=customer_id
+    )
+    current = _retrieve_authoritative_subscription(owned.stripe_subscription_id)
+    if (
+        customer.get("object") != "customer"
+        or customer.get("id") != customer_id
+        or customer.get("livemode") is not mode
+        or customer.get("deleted") is True
+        or current.get("object") != "subscription"
+        or current.get("id") != owned.stripe_subscription_id
+        or current.get("customer") != customer_id
+        or current.get("livemode") is not mode
+        or (current.get("metadata") or {}).get("tenant_id") not in {None, str(tenant_id)}
+    ):
+        raise forbidden("Unverified billing payment method ownership")
+    method = (customer.get("invoice_settings") or {}).get("default_payment_method")
+    if method is None or current.get("status") not in LIVE_SUBSCRIPTION_STATUSES:
+        _mark_event(
+            event,
+            status="ignored",
+            tenant_id=tenant_id,
+            error_reason="No current billing payment change",
+        )
+        return {"status": "ignored"}
+    if (
+        not isinstance(method, dict)
+        or method.get("object") != "payment_method"
+        or not isinstance(method.get("id"), str)
+        or not re.fullmatch(r"pm_[A-Za-z0-9]+", method["id"])
+        or method.get("customer") != customer_id
+        or method.get("livemode") is not mode
+        or method.get("type") != "card"
+    ):
+        raise forbidden("Unverified customer default payment method")
+    if current.get("default_payment_method") not in (None, ""):
+        key = hashlib.sha256(
+            f"{customer_id}:{owned.stripe_subscription_id}:{method['id']}".encode()
+        ).hexdigest()
+        updated = payment_method_client.clear_subscription_override(
+            secret_key=secret_key,
+            subscription_id=owned.stripe_subscription_id,
+            idempotency_key=f"kova-portal-default-{key}",
+        )
+        if (
+            updated.get("object") != "subscription"
+            or updated.get("id") != owned.stripe_subscription_id
+            or updated.get("customer") != customer_id
+            or updated.get("livemode") is not mode
+            or updated.get("default_payment_method") not in (None, "")
+        ):
+            raise StripeSubscriptionError(
+                "Subscription did not adopt the verified customer default"
+            )
+        audit_service.log(
+            db,
+            action="billing.payment_method_updated",
+            tenant_id=tenant_id,
+            resource_type="subscription",
+            resource_id=owned.id,
+            changes={"source": "customer.updated", "inherits_customer_default": True},
+        )
     _mark_event(event, status="processed", tenant_id=tenant_id)
     return {"status": "processed"}
 
@@ -1846,6 +1956,15 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
         )
 
     try:
+        if event_type == "customer.updated":
+            # This path resolves ownership from the stored Customer mapping,
+            # never from Customer metadata or its billing email.
+            tenant_id = None
+            result = _process_customer_default_payment(
+                db, event=event, event_payload=event_payload, stripe_object=stripe_object,
+            )
+            db.commit()
+            return result
         family = _event_family(event_type)
         tenant_id, initial_subscription = _initial_paid_invoice_subscription(
             db, event_type=event_type, event_payload=event_payload,

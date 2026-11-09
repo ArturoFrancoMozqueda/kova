@@ -265,6 +265,55 @@ class StripeRiskError(Exception):
     """A read-only risk lookup failed; never retain Stripe response bodies."""
 
 
+class StripePaymentMethodClient:
+    """Billing-only operations; never changes a price, charge, or entitlement."""
+
+    def retrieve_customer(self, *, secret_key: str, customer_id: str) -> dict[str, Any]:
+        path = quote(customer_id, safe="")
+        return self._request(
+            Request(
+                f"https://api.stripe.com/v1/customers/{path}?expand[]=invoice_settings.default_payment_method",
+                headers={"Authorization": f"Bearer {secret_key}"},
+                method="GET",
+            )
+        )
+
+    def clear_subscription_override(
+        self,
+        *,
+        secret_key: str,
+        subscription_id: str,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        path = quote(subscription_id, safe="")
+        return self._request(
+            Request(
+                f"https://api.stripe.com/v1/subscriptions/{path}",
+                data=urlencode({"default_payment_method": ""}).encode(),
+                headers={
+                    "Authorization": f"Bearer {secret_key}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Idempotency-Key": idempotency_key,
+                },
+                method="POST",
+            )
+        )
+
+    @staticmethod
+    def _request(request: Request) -> dict[str, Any]:
+        try:
+            with urlopen(request, timeout=10) as response:
+                body = response.read(1_048_577)
+            if len(body) > 1_048_576:
+                raise StripeSubscriptionError("Stripe payment method response exceeds limit")
+            result = json.loads(body)
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError):
+            raise StripeSubscriptionError("Stripe payment method operation unavailable") from None
+        if not isinstance(result, dict):
+            raise StripeSubscriptionError("Unexpected Stripe payment method response")
+        return result
+
+
 class StripeRiskClient:
     # Isolated read contract (InvoicePayments object graph, Basil and later).
     API_VERSION = "2026-09-30.endive"

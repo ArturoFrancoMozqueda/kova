@@ -329,14 +329,21 @@ async function updatePaymentMethod(page, setStage) {
   await clickControl(page, /^(?:guardar|guardar cambios|guardar tarjeta|guardar método de pago|actualizar|actualizar tarjeta|actualizar método de pago|agregar|añadir|agregar tarjeta|añadir tarjeta|agregar método de pago|añadir método de pago|save|save changes|save card|save payment method|add|add card|add payment method|update|update card|update payment method)$/i);
 }
 
-async function cancelAtPeriodEnd(page, setStage) {
+export async function cancelAtPeriodEnd(page, setStage) {
   setStage("open_cancellation");
   const names = /^(?:cancelar suscripción|cancelar plan|cancel subscription|cancel plan)$/i;
   await clickControl(page, names);
   const reason = page.getByRole("radio", { name: /otro|other/i }).first();
   if (await reason.count() && await reason.isVisible()) await reason.check();
+  const select = page.getByRole("combobox", { name: /reason|motivo/i }).first();
+  if (await select.count() && await select.isVisible()) {
+    const other = select.getByRole("option", { name: /^(?:otro motivo|otro|other|other reason)$/i }).first();
+    if (await other.count()) await select.selectOption(await other.getAttribute("value"));
+  }
   const note = page.getByRole("textbox", { name: /comentario|comment|reason|motivo|detalle|detail/i }).first();
   if (await note.count() && await note.isVisible()) await note.fill("Kova sandbox acceptance");
+  const next = await visibleNamedControl(page, /^(?:continuar con la cancelación|continue cancellation|continue with cancellation)$/i);
+  if (next) await next.click();
   setStage("confirm_cancellation");
   await clickControl(page, /^(?:confirmar cancelación|confirmar|cancelar suscripción|cancelar plan|confirm cancellation|confirm|cancel subscription|cancel plan)$/i);
 }
