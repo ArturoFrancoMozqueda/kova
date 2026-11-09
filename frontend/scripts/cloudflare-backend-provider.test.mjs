@@ -9,7 +9,7 @@ import { nativeContainerIdentity } from "./cloudflare-container-provider.mjs";
 const version = "dcad4869-ba1d-43d4-865b-66349697bd7c";
 const versions = Object.fromEntries(backendWorkers.map(name => [name, version]));
 const sha = "a".repeat(40);
-const stagedHealth = () => Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+const stagedHealth = () => globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
   headers: { "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": "b".repeat(40) },
 });
 const env = { KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf",
@@ -32,7 +32,7 @@ test("controller staging waits for code adoption while preserving baseline image
       assert.equal(options.method, "GET");
       assert.equal(options.redirect, "error");
       reads++;
-      if (reads === 1) return Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+      if (reads === 1) return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
         headers: { "x-kova-boot-controller-sha": "b".repeat(40) },
       });
       return stagedHealth();
@@ -43,16 +43,16 @@ test("controller staging waits for code adoption while preserving baseline image
 
 test("controller staging rejects foreign images, relabeled boots, malformed health and HTTP failures", async () => {
   for (const response of [
-    Response.json({ status: "ok", release_sha: sha }, { headers: {
+    globalThis.Response.json({ status: "ok", release_sha: sha }, { headers: {
       "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha,
     } }),
-    Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
+    globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
       "x-kova-controller-sha": "c".repeat(40), "x-kova-boot-controller-sha": "b".repeat(40),
     } }),
-    Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
+    globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }, { headers: {
       "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha,
     } }),
-    new Response("malformed"), new Response(null, { status: 503 }),
+    new globalThis.Response("malformed"), new globalThis.Response(null, { status: 503 }),
   ]) {
     await assert.rejects(waitForNativeController({ sha, previousSha: "b".repeat(40),
       fetcher: async () => response }));
@@ -67,7 +67,7 @@ test("controller staging never extends the original handoff lease or accepts a l
       fetcher: async () => {
         reads++;
         if (lateSuccess) { elapsed = 1500; return stagedHealth(); }
-        return Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
+        return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }, {
           headers: { "x-kova-boot-controller-sha": "b".repeat(40) },
         });
       } }), /before the deadline/);
@@ -80,7 +80,7 @@ test("failed controller staging cannot replace the image or publish the gateway"
   const calls = [];
   const provider = cloudflareBackendProvider({ env: { ...env, KOVA_NATIVE_BACKEND: "1",
     CLOUDFLARE_ACCOUNT_ID: nativeContainerIdentity.accountId },
-    fetcher: async () => new Response(null, { status: 503 }),
+    fetcher: async () => new globalThis.Response(null, { status: 503 }),
     run: async (_command, args) => {
       calls.push(args);
       if (args.includes("secrets")) return JSON.stringify([

@@ -387,7 +387,7 @@ export async function cancelAtPeriodEnd(page, setStage) {
         // Read the new visible controls instead of forcing a background click.
       }
     } else if (reviewSubmitted) return;
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => globalThis.setTimeout(resolve, 100));
   }
   throw new PortalControlError("control_not_found");
 }
