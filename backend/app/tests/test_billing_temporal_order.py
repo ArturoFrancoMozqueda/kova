@@ -289,6 +289,9 @@ def test_initial_equal_timestamp_events_deliver_billing_notices_without_changing
 ) -> None:
     import resend
 
+    # Production SessionLocal disables autoflush. The shared test Session defaults
+    # to True, which would hide a pending watermark erased by a fresh plan read.
+    monkeypatch.setattr(db, "autoflush", False)
     subscription_id = temporal_subscription.stripe_subscription_id or ""
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_temporal")
     monkeypatch.setattr(settings, "resend_api_key", "re_synthetic_test_only")
@@ -327,6 +330,8 @@ def test_initial_equal_timestamp_events_deliver_billing_notices_without_changing
     assert len(attempts) == initial_attempts, "duplicate Stripe events must not send again"
     db.refresh(temporal_subscription)
     assert temporal_subscription.status == "active"
+    assert temporal_subscription.stripe_payment_watermark_at is not None
+    assert temporal_subscription.stripe_lifecycle_watermark_at is not None
     assert {mail["subject"] for mail in delivered.values()} == {
         "Tu plan Kova está activo", "Recibo de pago — Kova",
     }
@@ -540,3 +545,22 @@ def test_concurrent_replay_is_claimed_once(owner_engine, monkeypatch) -> None:
             cleanup.query(Subscription).filter_by(tenant_id=tenant_id).delete()
             cleanup.query(Tenant).filter_by(id=tenant_id).delete()
             cleanup.commit()
+
+
+def test_welcome_plan_read_preserves_pending_state_without_committing_the_webhook(
+    db, temporal_subscription, monkeypatch,
+):
+    monkeypatch.setattr(db, "autoflush", False)
+    monkeypatch.setattr(service, "_owner_email_for_tenant", lambda *_a, **_k: None)
+    original_status = temporal_subscription.status
+    temporal_subscription.status = "active"
+    marker = datetime.now(UTC)
+    temporal_subscription.stripe_payment_watermark_at = marker
+    temporal_subscription.stripe_payment_event_id = "evt_pending_notice"
+    service._send_welcome_email_for_tenant(db, tenant_id=temporal_subscription.tenant_id)
+    assert temporal_subscription.status == "active"
+    assert temporal_subscription.stripe_payment_watermark_at == marker
+    db.rollback()
+    db.refresh(temporal_subscription)
+    assert temporal_subscription.status == original_status
+    assert temporal_subscription.stripe_payment_watermark_at is None

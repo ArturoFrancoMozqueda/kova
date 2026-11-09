@@ -1195,7 +1195,10 @@ def _owner_email_for_tenant(db: Session, *, tenant_id: UUID) -> str | None:
 def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
     # Stripe active alone is insufficient for a tiered agreement. Do not claim
     # activation while the authoritative Price/payment evidence is unresolved.
-    # This snapshot is local and never refreshes or commits a webhook transaction.
+    # The snapshot refreshes the local subscription. Production disables
+    # autoflush: persist pending watermarks before that read can discard them.
+    # This stays inside the webhook transaction and never commits it.
+    db.flush()
     if build_plan_snapshot(db, tenant_id=tenant_id)["plan_code"] == "unknown":
         return
     email = _owner_email_for_tenant(db, tenant_id=tenant_id)
