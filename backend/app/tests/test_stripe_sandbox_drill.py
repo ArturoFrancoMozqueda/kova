@@ -25,6 +25,31 @@ def _environment(tmp_path: Path) -> dict[str, str]:
     }
 
 
+@pytest.mark.parametrize("reported,expected", [
+    ("field_unstable", "field_unstable"),
+    ("field_missing", "field_missing"),
+    ("private_bearer_value", "unknown"),
+])
+def test_checkout_failure_relays_only_fixed_reason_without_raw_provider_error(
+    tmp_path, monkeypatch, reported, expected,
+):
+    from types import SimpleNamespace
+
+    config = drill.validate_environment(_environment(tmp_path))
+    monkeypatch.setattr(drill.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        returncode=1, stderr=(
+            "KOV005_CHECKOUT_FAILURE_STAGE=fill_optional_billing\n"
+            f"KOV005_CHECKOUT_FAILURE_REASON={reported}\n"
+            "provider raw error https://checkout.stripe.com/private?token=do-not-log\n"
+        ),
+    ))
+    with pytest.raises(drill.DrillError) as caught:
+        drill._complete_hosted_checkout(config, tmp_path / "state.json")
+    assert str(caught.value) == (
+        f"Stripe hosted Checkout automation failed at fill_optional_billing ({expected})"
+    )
+
+
 @pytest.mark.parametrize("key", ["sk_live_forbidden", "rk_live_forbidden", "garbage"])
 def test_guard_rejects_non_test_stripe_keys(tmp_path: Path, key: str) -> None:
     environ = _environment(tmp_path)

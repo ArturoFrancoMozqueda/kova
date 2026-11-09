@@ -828,7 +828,13 @@ def _complete_hosted_checkout(config: DrillConfig, state_path: Path) -> None:
     if result.returncode != 0:
         match = re.search(r"KOV005_CHECKOUT_FAILURE_STAGE=([a-z_]+)", result.stderr)
         stage = match.group(1) if match else "unknown"
-        raise DrillError(f"Stripe hosted Checkout automation failed at {stage}")
+        reason_match = re.search(r"KOV005_CHECKOUT_FAILURE_REASON=([a-z_]+)", result.stderr)
+        reason = reason_match.group(1) if reason_match else "unknown"
+        if reason not in {
+            "field_missing", "field_unstable", "field_action_failed", "stage_timeout",
+        }:
+            reason = "unknown"
+        raise DrillError(f"Stripe hosted Checkout automation failed at {stage} ({reason})")
 
 
 def _wait_for_subscription_status(

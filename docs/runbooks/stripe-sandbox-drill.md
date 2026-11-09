@@ -112,6 +112,15 @@ local verification uses stubbed unit tests only.
 
 ## Optional integrated hosted Portal acceptance
 
+### Formulario de Checkout del runner
+
+El helper selecciona explícitamente Estados Unidos antes de usar el ZIP de prueba existente;
+no depende del país detectado por la IP del runner. Reconoce `billingPostalCode` y los tokens
+de `autocomplete`, omite coincidencias ocultas y vuelve a localizar campos si Stripe reemplaza
+un frame durante la interacción, dentro del mismo plazo acotado. No fuerza el envío ni cambia
+la configuración comercial. El diagnóstico conserva sólo etapa y motivo de un catálogo fijo;
+nunca copia el error crudo del navegador ni su enlace de sesión.
+
 ### Campo opcional de Link
 
 La reproducción interactiva del 9 de noviembre guardó una tarjeta de prueba como método
