@@ -27,6 +27,10 @@ export default defineConfig({
     compatibilityFlags: ["nodejs_compat"],
     workersDev: false,
     previewUrls: false,
+    // A resident controller never hibernates. Cloudflare's deferred default
+    // otherwise keeps its old boot environment for up to 300s while the image
+    // rollout is already running. Apply the controller before replacing images.
+    unsafe: { metadata: { code_update_strategy: { mode: "immediate" } } },
     limits: { cpuMs: 30_000 },
     exports: {
       KovaApi: exports.durableObject({ storage: "sqlite", container: api }),

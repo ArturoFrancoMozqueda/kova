@@ -281,15 +281,10 @@ async function declineLinkOptIn(page) {
         await checkbox.uncheck();
       }
     }
-    // The observed Optional Link form can expand with a prefilled QA email and
-    // no checkbox. Edit only that Link enrollment field, never Customer/billing
-    // email or optional phone/name; blur commits the normal user opt-out.
-    for (const email of await frame.locator('input[name="search-linkEmail"]').all()) {
-      if (await email.isVisible() && await email.evaluate(renderedPortalElement)) {
-        await email.fill("");
-        await email.press("Tab");
-      }
-    }
+    // A prefilled optional Link email is not consent. The hosted form permits
+    // saving the card without a phone/Link signup. Preserve its supplied identity
+    // fields instead of blanking a field Stripe still marks required. Only an
+    // actual checked opt-in control should be changed here.
   }
 }
 

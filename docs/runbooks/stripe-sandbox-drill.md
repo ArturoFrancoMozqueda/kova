@@ -112,6 +112,17 @@ local verification uses stubbed unit tests only.
 
 ## Optional integrated hosted Portal acceptance
 
+### Campo opcional de Link
+
+La reproducción interactiva del 9 de noviembre guardó una tarjeta de prueba como método
+predeterminado sin proporcionar teléfono ni registrar Link. Un correo precargado en el bloque
+opcional no es consentimiento para ese registro. El helper conserva esos campos y sólo desmarca
+un control de opt-in que realmente esté marcado; no vacía campos que Stripe mantiene como
+requeridos. El fixture local anterior asumía incorrectamente que el correo precargado activaba
+Link. Se corrigió ese supuesto y se comprueba que el helper conserva el correo suministrado.
+La aceptación alojada sigue exigiendo que cambie el método predeterminado efectivo del mismo
+Customer; el resultado local y la reproducción aislada no sustituyen el drill completo de Kova.
+
 `include_portal` is **false by default**. With explicit opt-in, `portal_mode=basic` is the default
 and supports Standard, Esencial and Gestión separately. Each artifact accepts only its selected
 plan. `portal_mode=transitions` is a separate opt-in gate; it remains blocked for the correct

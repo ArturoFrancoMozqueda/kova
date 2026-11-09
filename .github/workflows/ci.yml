@@ -218,7 +218,9 @@ jobs:
     name: frontend production build and browser (${{ matrix.shard }}/2)
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
-    timeout-minutes: 10
+    # The full second shard takes ~8 minutes; install/build and artifact cleanup
+    # must fit too. A passing 193-case run crossed the former 10-minute job cap.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     # Each shard owns its runner and preview server; more workers on one
     # runner were slower because they shared its CPU with the server.

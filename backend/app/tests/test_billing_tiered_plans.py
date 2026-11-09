@@ -331,6 +331,158 @@ def test_invoice_paid_converges_a_previously_pending_plan(client, db, monkeypatc
     assert row.plan_code == "gestion"
 
 
+@pytest.mark.parametrize("code", ["esencial", "gestion"])
+@pytest.mark.parametrize("parent_reference", [False, True], ids=["legacy", "dahlia"])
+def test_initial_paid_invoice_before_checkout_and_subscription_events_is_not_lost(
+    client, db, monkeypatch, new_owner, code, parent_reference,
+):
+    import json
+
+    from app.audit.models import AuditLog
+    from app.billing.models import WebhookEvent
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    assert db.query(Subscription).filter_by(tenant_id=tenant_id).first() is None
+    source = _source(tenant_id, code)
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **_: deepcopy(source))
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "synthetic-webhook")
+    monkeypatch.setattr(service, "_send_payment_receipt_for_tenant", lambda *_a, **_k: None)
+    invoice = {"id": "in_plan", "object": "invoice", "customer": "cus_plan", "livemode": False,
+               "amount_paid": PLANS[code].amount_minor_units, "currency": "mxn", "metadata": {}}
+    invoice.update({"parent": {"type": "subscription_details", "subscription_details": {
+        "subscription": "sub_plan"}}} if parent_reference else {"subscription": "sub_plan"})
+    created = int(datetime.now(UTC).timestamp())
+    event = {"id": "evt_first_paid", "type": "invoice.paid", "created": created,
+             "livemode": False, "data": {"object": invoice}}
+    payload = json.dumps(event).encode()
+    for _ in range(2):
+        response = client.post("/api/v1/billing/webhooks/stripe", content=payload,
+                               headers={"Stripe-Signature": _stripe_signature(payload, "synthetic-webhook")})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"status": "processed"}
+    row = db.query(Subscription).filter_by(tenant_id=tenant_id).one()
+    assert row.stripe_subscription_id == "sub_plan"
+    assert row.stripe_customer_id == "cus_plan"
+    assert row.plan_code == code and row.status == "active"
+    assert row.stripe_payment_watermark_at == datetime.fromtimestamp(created, UTC)
+    stored = db.query(WebhookEvent).filter_by(stripe_event_id="evt_first_paid").one()
+    assert stored.process_attempts == 1
+    assert db.query(AuditLog).filter_by(tenant_id=tenant_id, action="billing.payment_succeeded").count() == 1
+
+
+@pytest.mark.parametrize("mismatch", ["customer", "id", "object", "livemode", "tenant"])
+def test_initial_invoice_mapping_checks_authoritative_identity_before_creating_a_subscription(
+    db, monkeypatch, new_owner, mismatch,
+):
+    from fastapi import HTTPException
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    source = _source(tenant_id)
+    source[mismatch if mismatch != "tenant" else "metadata"] = (
+        {"tenant_id": str(uuid4())} if mismatch == "tenant"
+        else True if mismatch == "livemode" else "mismatched"
+    )
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **_: deepcopy(source))
+    kwargs = {"event_type": "invoice.paid", "event_payload": {"livemode": False},
+              "stripe_object": {"subscription": "sub_plan", "customer": "cus_plan", "livemode": False},
+              "tenant_id": tenant_id}
+    with pytest.raises(HTTPException):
+        service._initial_paid_invoice_subscription(db, **kwargs)
+    assert db.query(Subscription).filter_by(tenant_id=tenant_id).first() is None
+
+
+@pytest.mark.parametrize("metadata", [{}, {"tenant_id": "not-a-tenant"}])
+def test_first_invoice_cannot_use_an_unowned_provider_subscription(db, monkeypatch, new_owner, metadata):
+    tenant_id = UUID(new_owner["tenant_id"])
+    source = _source(tenant_id)
+    source["metadata"] = metadata
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **_: deepcopy(source))
+    owner, candidate = service._initial_paid_invoice_subscription(
+        db, event_type="invoice.paid", event_payload={"livemode": False},
+        stripe_object={"subscription": "sub_plan", "customer": "cus_plan", "livemode": False},
+        tenant_id=tenant_id,
+    )
+    assert owner is None and candidate is None
+    assert db.query(Subscription).filter_by(tenant_id=tenant_id).first() is None
+
+
+def test_initial_invoice_lookup_failure_remains_retryable_instead_of_permanently_ignored(
+    client, db, monkeypatch, new_owner,
+):
+    import json
+
+    from app.billing.models import WebhookEvent
+    from app.billing.stripe_client import StripeSubscriptionError
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "synthetic-webhook")
+    calls = []
+
+    def retrieve(**_):
+        calls.append(True)
+        if len(calls) == 1:
+            raise StripeSubscriptionError("Synthetic provider outage")
+        return _source(tenant_id)
+
+    monkeypatch.setattr(service.subscription_client, "retrieve", retrieve)
+    monkeypatch.setattr(service, "_send_payment_receipt_for_tenant", lambda *_a, **_k: None)
+    payload = json.dumps({"id": "evt_initial_retry", "type": "invoice.paid", "livemode": False,
+                          "created": int(datetime.now(UTC).timestamp()), "data": {"object": {
+                              "id": "in_plan", "subscription": "sub_plan", "customer": "cus_plan",
+                              "livemode": False, "metadata": {}}}}).encode()
+    headers = {"Stripe-Signature": _stripe_signature(payload, "synthetic-webhook")}
+    with pytest.raises(StripeSubscriptionError):
+        client.post("/api/v1/billing/webhooks/stripe", content=payload, headers=headers)
+    assert db.query(WebhookEvent).filter_by(stripe_event_id="evt_initial_retry").one().processing_status == "failed"
+    assert db.query(Subscription).filter_by(tenant_id=tenant_id).first() is None
+    assert client.post("/api/v1/billing/webhooks/stripe", content=payload,
+                       headers=headers).json() == {"status": "processed"}
+    assert db.query(Subscription).filter_by(tenant_id=tenant_id).one().stripe_payment_watermark_at is not None
+
+
+def test_early_invoice_cannot_replace_a_previously_bound_customer(client, db, monkeypatch, new_owner):
+    import json
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    row = Subscription(tenant_id=tenant_id, stripe_customer_id="cus_existing", status="incomplete")
+    db.add(row)
+    db.commit()
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **_: _source(tenant_id))
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "synthetic-webhook")
+    payload = json.dumps({"id": "evt_wrong_initial_customer", "type": "invoice.paid", "livemode": False,
+                          "created": int(datetime.now(UTC).timestamp()), "data": {"object": {
+                              "id": "in_plan", "subscription": "sub_plan", "customer": "cus_plan",
+                              "livemode": False, "metadata": {}}}}).encode()
+    response = client.post("/api/v1/billing/webhooks/stripe", content=payload,
+                           headers={"Stripe-Signature": _stripe_signature(payload, "synthetic-webhook")})
+    assert response.status_code == 403
+    db.refresh(row)
+    assert row.stripe_customer_id == "cus_existing" and row.stripe_subscription_id is None
+    assert row.status == "incomplete" and row.stripe_payment_watermark_at is None
+
+
+def test_old_invoice_fallback_cannot_replace_the_current_paid_agreement(client, db, monkeypatch, new_owner):
+    import json
+
+    tenant_id = UUID(new_owner["tenant_id"])
+    current = {**_source(tenant_id, "gestion"), "created": 200}
+    row = _apply(db, monkeypatch, new_owner, current)
+    old = {**_source(tenant_id), "id": "sub_old", "created": 100}
+    monkeypatch.setattr(service.subscription_client, "retrieve", lambda **kwargs: deepcopy(
+        old if kwargs["stripe_subscription_id"] == "sub_old" else current))
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "synthetic-webhook")
+    payload = json.dumps({"id": "evt_previous_agreement_paid", "type": "invoice.paid", "livemode": False,
+                          "created": int(datetime.now(UTC).timestamp()), "data": {"object": {
+                              "id": "in_old", "subscription": "sub_old", "customer": "cus_plan",
+                              "livemode": False, "metadata": {}}}}).encode()
+    response = client.post("/api/v1/billing/webhooks/stripe", content=payload,
+                           headers={"Stripe-Signature": _stripe_signature(payload, "synthetic-webhook")})
+    assert response.status_code == 200 and response.json() == {"status": "ignored"}
+    db.refresh(row)
+    assert row.stripe_subscription_id == "sub_plan" and row.plan_code == "gestion"
+    assert row.stripe_payment_watermark_at is None
+
+
 class FakePortal:
     def __init__(self, *, update=False, wrong_customer=False):
         self.calls = []

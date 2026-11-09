@@ -43,6 +43,12 @@ for (const project of ["cloudflare-native", "cloudflare-backend"]) {
         remote.vars.STRIPE_ESENCIAL_PRICE_ID = "price_Previous123";
         const original = structuredClone(remote);
         assert.equal(compareForTest(remote, local).diff, null);
+        if (project === "cloudflare-native" && worker === "kova-backend") {
+          const withPolicy = { ...local, unsafe: { ...local.unsafe,
+            metadata: { code_update_strategy: { mode: "immediate" } } } };
+          assert.equal(compareForTest(remote, withPolicy).nonDestructive, true,
+            "the write-only deployment strategy must not appear to replace sealed bindings");
+        }
         assert.deepEqual(remote, original);
         const added = structuredClone(remote);
         for (const field of Object.keys(ids)) delete added.vars[field];

@@ -307,7 +307,7 @@ test("local PaymentElement iframe commits CVC and required US postal by blur wit
 });
 
 
-test("local optional Link form with prefilled email and no checkbox opts out by edit and blur", {
+test("optional Link prefill is preserved without supplying phone or enrolling the customer", {
   skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
 }, async () => {
   const { chromium } = await import("playwright");
@@ -319,8 +319,11 @@ test("local optional Link form with prefilled email and no checkbox opts out by 
     await page.route("**/*", async route => { externalRequest = true; await route.abort(); });
     // Observed provider shape: Optional Link enrollment, QA email prefilled,
     // empty aria-required phone with native validity true, and no checkbox.
-    // Local event handlers model the documented optional enrollment contract;
-    // this fixture does not claim the hosted provider has accepted the change.
+    // The interactive sandbox permits a card save with the supplied email and
+    // an empty phone. The old fixture incorrectly treated any prefilled email
+    // as consent, then rewarded blanking the supplied email. Model the observed
+    // ability to save without a phone. Hosted acceptance
+    // still independently checks the customer's effective default PaymentMethod.
     const form = `<!doctype html><html><body><form>
       <input name="number" autocomplete="cc-number" required>
       <input name="expiry" autocomplete="cc-exp" required>
@@ -339,20 +342,18 @@ test("local optional Link form with prefilled email and no checkbox opts out by 
         const phone = document.querySelector('[name="linkMobilePhone"]');
         const cvc = document.querySelector('[name=cvc]');
         const postal = document.querySelector('[name=postalCode]');
-        let enrolled = true, cardCommitted = false, postalCommitted = false;
+        let cardCommitted = false, postalCommitted = false;
         function update() {
-          document.querySelector('#add').disabled = enrolled || !cardCommitted || !postalCommitted;
+          document.querySelector('#add').disabled = Boolean(phone.value)
+            || !cardCommitted || !postalCommitted;
         }
         cvc.addEventListener('blur', () => { cardCommitted = cvc.value.length === 3; update(); });
-        email.addEventListener('blur', () => {
-          enrolled = Boolean(email.value);
-          email.required = enrolled; phone.setAttribute('aria-required', String(enrolled)); update();
-        });
+        email.addEventListener('input', update);
         postal.addEventListener('blur', () => { postalCommitted = postal.value.length === 5; update(); });
-        // A billing rerender reintroduces the prefill, so the final opt-out matters.
+        // The billing rerender retains its prefill; it is not a Link opt-in.
         document.querySelector('[name=country]').addEventListener('change', () => {
           email.value = 'qa-only@example.invalid'; email.required = true;
-          phone.setAttribute('aria-required', 'true'); enrolled = true; update();
+          phone.setAttribute('aria-required', 'true'); update();
         });
       </script></form></body></html>`;
     await page.setContent('<iframe id="proxy" style="opacity:0"></iframe><iframe id="payment"></iframe>');
@@ -369,14 +370,14 @@ test("local optional Link form with prefilled email and no checkbox opts out by 
     assert.equal(before.some(field => field.kind === "link_opt_in"), false);
     assert.equal(await frame.getByRole("checkbox").count(), 0);
     await completeTestPaymentFields(page);
-    assert.equal(await frame.locator('[name="search-linkEmail"]').inputValue(), "");
+    assert.equal(await frame.locator('[name="search-linkEmail"]').inputValue(), "qa-only@example.invalid");
     assert.equal(await frame.locator('[name="linkMobilePhone"]').inputValue(), "");
     assert.equal(await frame.locator('[name="linkLegalName"]').inputValue(), "");
     assert.equal(await frame.locator('[name="billingEmail"]').inputValue(), "customer-kept@example.invalid");
     assert.equal(await page.frameLocator("#proxy").locator('[name="search-linkEmail"]').inputValue(), "qa-only@example.invalid");
     assert.equal(await frame.locator("#add").isEnabled(), true);
     const after = await portalFieldStateDiagnostics({ url: () => standard.portal_url, frames: () => page.frames() });
-    assert.equal(after.find(field => field.kind === "link_email").filled, false);
+    assert.equal(after.find(field => field.kind === "link_email").filled, true);
     assert.doesNotMatch(JSON.stringify(after), /example|qa-only|customer-kept|424242|10001/);
     assert.equal(externalRequest, false);
   } finally { await browser.close(); }
