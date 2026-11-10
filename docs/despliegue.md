@@ -212,11 +212,17 @@ puede repetir con el workflow manual `native-backend.yml` (`verify_public_images
 
 ## Protección de main
 
-Comprobada en GitHub el 29 de octubre de 2026: `main` exige un PR y el check `CI required`,
-con la rama actualizada antes de fusionar. La regla también aplica a administradores, exige
-resolver conversaciones y bloquea pushes forzados y borrados. No exige una aprobación humana
-adicional. Esta configuración vive en GitHub; verificarla de nuevo si se cambian las reglas o
-el plan del repositorio. Activarla no publica código ni cambia el entorno `production`.
+El corte del 29 de octubre registraba protección de ramas, pero no acredita el estado actual.
+El 9 de noviembre la API de protección devolvió HTTP 403 indicando que el repositorio privado
+necesita GitHub Pro o visibilidad pública para esa función. Auto-merge aceptó el PR #332 antes
+de terminar sus checks. No describir la protección para administradores como vigente.
+
+Antes de fusionar, esperar a que la ejecución completa de `CI and release` del SHA revisado
+termine con `success`, confirmar que no cambió el head y fusionar ese commit exacto. No confiar
+en `--auto` para esperar checks sin protección disponible ni saltar validaciones con `--admin`.
+La identidad del árbol debe coincidir para reutilizar una aceptación. El job de publicación sigue
+exigiendo `CI required` exitoso, sin fallos ignorados, y los cambios sólo de CI no publican la app.
+No se cambió el plan, la visibilidad ni los permisos del repositorio.
 
 
 ## Continuidad observada y pendiente
