@@ -43,8 +43,10 @@ Fly está retirado. [Arquitectura](claude/architecture-context.md).
 - El respaldo del 9 de noviembre posterior al pago/cancelación se restauró en un runner aislado;
   RLS, integridad, login, exportación y limpieza aprobaron. Su alcance se detalla abajo.
 
-Los merges sólo de Markdown no cambian el SHA desplegado. `main` exige `CI required`, también
-para administradores. [Publicación y recuperación](despliegue.md).
+Los merges sólo de Markdown no cambian el SHA desplegado. El job de publicación exige
+`CI required`; el plan privado actual no permite asumir protección del merge. Antes de fusionar,
+esperar al CI completo del SHA revisado sin confiar en auto-merge.
+[Publicación y recuperación](despliegue.md#protección-de-main).
 
 Publicado no significa activado. Siguen apagados o sin aceptación externa:
 
