@@ -52,6 +52,11 @@ for (const project of ["cloudflare-native", "cloudflare-backend"]) {
           process.env.KOVA_NATIVE_HANDOFF = handoff;
           const withHandoff = { ...local, vars: { ...local.vars, KOVA_NATIVE_HANDOFF: handoff } };
           assert.equal(compareForTest(remote, withHandoff).diff, null);
+          assert.equal(compareForTest(withHandoff, withHandoff).diff, null,
+            "publishing the image after the staged controller must retain the exact original lease");
+          const stagedResourceChange = { ...withHandoff,
+            hyperdrive: [{ binding: "DB_APP", id: "foreign-database" }] };
+          assert.equal(compareForTest(withHandoff, stagedResourceChange).nonDestructive, false);
           const oldLease = structuredClone(remote);
           oldLease.vars.KOVA_NATIVE_HANDOFF = JSON.stringify({ previousSha: "c".repeat(40), expiresAt: 1 });
           assert.equal(compareForTest(oldLease, withHandoff).diff, null, "only the previous public lease is replaced");

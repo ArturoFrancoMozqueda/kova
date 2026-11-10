@@ -72,7 +72,44 @@ export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, prev
     + (lastFailure ? ` ${lastFailure}` : ""));
 }
 
-export function cloudflareBackendProvider({ run, env }) {
+// Stage controller code while the baseline image is still serving. An upload
+// success is not evidence that an active resident object adopted the new code.
+export async function waitForNativeController({ sha, previousSha, expiresAt = Infinity,
+  backendUrl = "https://api.kovasuite.com", fetcher = globalThis.fetch,
+  wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
+  if (![sha, previousSha].every(value => /^[a-f0-9]{40}$/i.test(value ?? ""))) {
+    throw new Error("Controller staging requires complete captured release SHAs");
+  }
+  const deadline = Math.min(expiresAt, now() + 300_000);
+  for (let attempt = 0; attempt < 300 && now() < deadline; attempt++) {
+    let response;
+    try {
+      response = await fetchReadinessGet(new URL("/health", backendUrl), {
+        target: "direct", headers: {}, deadline, timeoutMs: 10_000, now, fetcher,
+      });
+    } catch (error) {
+      if (!(error instanceof ReadinessFetchError) || !error.retryable) throw error;
+    }
+    if (response) {
+      if (!response.ok) throw new Error(`Controller staging failed: HTTP ${response.status}`);
+      let body;
+      try { body = await response.json(); }
+      catch { throw new Error("Malformed controller staging response"); }
+      const controller = response.headers.get("x-kova-controller-sha");
+      if (body?.status !== "ok" || body.release_sha !== previousSha
+          || response.headers.get("x-kova-boot-controller-sha") !== previousSha
+          || (controller !== null && controller !== previousSha && controller !== sha)) {
+        throw new Error("Unexpected baseline identity during controller staging");
+      }
+      if (controller === sha && now() < deadline) return;
+    }
+    const remaining = deadline - now();
+    if (remaining > 0) await wait(Math.min(1000, remaining));
+  }
+  throw new Error("Native controller did not adopt the staged release before the deadline");
+}
+
+export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
   if (env.KOVA_CLOUDFLARE_BACKEND !== "1") return undefined;
   if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID) {
     throw new Error("Cloudflare backend requires deployment credentials");
@@ -180,7 +217,13 @@ export function cloudflareBackendProvider({ run, env }) {
       // Keep existing credential bindings sealed and preserve rollback checks.
       for (const name of backendWorkers) {
         const args = ["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)];
-        if (native && name === "kova-backend") await nativeCf(args, false, publicationEnv);
+        if (native && name === "kova-backend") {
+          await nativeCf([...args, "--containers-rollout", "none"], false, publicationEnv);
+          await waitForNativeController({ sha, previousSha, fetcher, wait, now,
+            expiresAt: publicationEnv.KOVA_NATIVE_HANDOFF
+              ? JSON.parse(publicationEnv.KOVA_NATIVE_HANDOFF).expiresAt : Infinity });
+          await nativeCf(args, false, publicationEnv);
+        }
         else await cf(args, false, publicationEnv);
       }
     },

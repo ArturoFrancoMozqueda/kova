@@ -17,6 +17,30 @@ const healthyBoot = (env, release = env.KOVA_BUILD_SHA, boot = env.KOVA_BUILD_SH
   status: "ok", release_sha: release,
 }, { headers: boot === null ? {} : { [BOOT_CONTROLLER_HEADER]: boot } });
 
+test("native origin connection closure stays private while cookies and response bytes are preserved", async () => {
+  class FakeContainer {
+    constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+    async containerFetch() { return healthyBoot(this.env); }
+    async getState() { return { status: "healthy" }; }
+    async fetch() { return new Response("unchanged", { status: 201, headers: [
+      ["Connection", "close"], ["Keep-Alive", "timeout=5"],
+      ["Set-Cookie", "session=synthetic; HttpOnly; Secure"],
+      ["Set-Cookie", "csrf=synthetic; Secure"],
+    ] }); }
+  }
+  const Resident = residentContainerClass(FakeContainer);
+  const env = { ...settings(), API: { idFromName: () => ({ toString: () => "resident" }) } };
+  const controller = new Resident({ id: { toString: () => "resident" }, container: { running: true } }, env);
+  const response = await controller.fetch(new Request("https://api.test/api/v1/auth/session"));
+  assert.equal(response.status, 201);
+  assert.equal(await response.text(), "unchanged");
+  assert.equal(response.headers.get("connection"), null);
+  assert.equal(response.headers.get("keep-alive"), null);
+  assert.deepEqual(response.headers.getSetCookie(), [
+    "session=synthetic; HttpOnly; Secure", "csrf=synthetic; Secure",
+  ]);
+});
+
 test("native controller preserves public raster caching only for the narrow versioned image route", async () => {
   class FakeContainer {
     constructor(ctx, env) { this.ctx = ctx; this.env = env; }
@@ -437,6 +461,11 @@ test("bounded handoff serves an already healthy captured image with its original
   const publicHealth = await controller.fetch(new Request("https://api.test/health"));
   assert.equal((await publicHealth.json()).release_sha, previous);
   assert.equal(publicHealth.headers.get(BOOT_CONTROLLER_HEADER), previous, "health never relabels the old process");
+  assert.equal(publicHealth.headers.get("x-kova-controller-sha"), target,
+    "controller adoption is separate from the image's immutable boot identity");
+  assert.equal((await controller.fetch(new Request("https://api.test/api/v1/orders", {
+    headers: { "x-kova-controller-sha": "caller-forgery" },
+  }))).headers.get("x-kova-controller-sha"), null);
   await assert.rejects(() => controller.ready(), /release identity mismatch/);
   assert.equal(fixture.counts.database, 0, "the old release cannot pass candidate acceptance");
   await controller.ensureReady();
@@ -756,7 +785,9 @@ test("SDK transport responses become redacted 503s and force the next port probe
     assert.equal(calls.length, 3, "a failed write is never automatically replayed");
   }
   assert.equal(logs.length, 3);
-  assert.ok(logs.every(value => value === JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded" })));
+  assert.deepEqual(logs, ["sdk_start", "sdk_disconnected", "sdk_proxy"].map(reason =>
+    JSON.stringify({ event: "native_backend_unavailable", phase: "forwarded", reason })));
+  assert.equal(logs.join("").includes("synthetic-private"), false);
 });
 
 test("real application errors and unrecognized 500 responses stay failures without being reclassified", async () => {

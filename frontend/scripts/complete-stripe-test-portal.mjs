@@ -340,19 +340,56 @@ export async function cancelAtPeriodEnd(page, setStage) {
   setStage("open_cancellation");
   const names = /^(?:cancelar suscripción|cancelar plan|cancel subscription|cancel plan)$/i;
   await clickControl(page, names);
-  const reason = page.getByRole("radio", { name: /otro|other/i }).first();
-  if (await reason.count() && await reason.isVisible()) await reason.check();
-  const select = page.getByRole("combobox", { name: /reason|motivo/i }).first();
-  if (await select.count() && await select.isVisible()) {
-    const other = select.getByRole("option", { name: /^(?:otro motivo|otro|other|other reason)$/i }).first();
-    if (await other.count()) await select.selectOption(await other.getAttribute("value"));
-  }
-  const note = page.getByRole("textbox", { name: /comentario|comment|reason|motivo|detalle|detail/i }).first();
-  if (await note.count() && await note.isVisible()) await note.fill("Kova sandbox acceptance");
-  const next = await visibleNamedControl(page, /^(?:continuar con la cancelación|continue cancellation|continue with cancellation)$/i);
-  if (next) await next.click();
   setStage("confirm_cancellation");
-  await clickControl(page, /^(?:confirmar cancelación|confirmar|cancelar suscripción|cancelar plan|confirm cancellation|confirm|cancel subscription|cancel plan)$/i);
+  const confirmNames = /^(?:confirmar cancelación|confirmar|confirm cancellation|confirm)$/i;
+  const deadline = Date.now() + 30_000;
+  let reviewSubmitted = false;
+  while (Date.now() < deadline) {
+    requirePortalOrigin(page);
+    const reason = page.getByRole("radio", { name: /otro|other/i }).first();
+    if (await reason.count() && await reason.isVisible()) await reason.check();
+    const select = page.getByRole("combobox", { name: /reason|motivo/i }).first();
+    if (await select.count() && await select.isVisible()) {
+      const other = select.getByRole("option", { name: /^(?:otro motivo|otro|other|other reason)$/i }).first();
+      if (await other.count()) await select.selectOption(await other.getAttribute("value"));
+    }
+    const note = page.getByRole("textbox", { name: /comentario|comment|reason|motivo|detalle|detail/i }).first();
+    if (await note.count() && await note.isVisible()) await note.fill("Kova sandbox acceptance");
+    const next = await visibleNamedControl(page, /^(?:continuar con la cancelación|continue cancellation|continue with cancellation)$/i);
+    if (next) {
+      await next.click();
+      // Current Stripe can submit from the feedback modal itself. Older
+      // layouts have an additional explicit confirmation. The provider oracle
+      // still requires cancel_at_period_end and retained paid access.
+      const final = page.getByRole("button", { name: confirmNames }).first();
+      try { await final.waitFor({ state: "visible", timeout: 2000 }); }
+      catch (error) {
+        if (error?.name !== "TimeoutError") throw error;
+        requirePortalOrigin(page);
+        return;
+      }
+      requirePortalOrigin(page);
+      await final.click();
+      return;
+    }
+    const final = await visibleNamedControl(page, confirmNames);
+    if (final) { await final.click(); return; }
+    const review = await visibleNamedControl(page, names);
+    if (review) {
+      try {
+        await review.click({ timeout: 1000 });
+        reviewSubmitted = true;
+        // A review page can open the feedback dialog after this action.
+        await select.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+      } catch (error) {
+        if (error?.name !== "TimeoutError") throw error;
+        // The modal can cover the background button between lookup and click.
+        // Read the new visible controls instead of forcing a background click.
+      }
+    } else if (reviewSubmitted) return;
+    await new Promise(resolve => globalThis.setTimeout(resolve, 100));
+  }
+  throw new PortalControlError("control_not_found");
 }
 
 export async function exercisePortal(page, state, setStage = () => {}) {

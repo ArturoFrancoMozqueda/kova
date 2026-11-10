@@ -112,6 +112,12 @@ local verification uses stubbed unit tests only.
 
 ## Optional integrated hosted Portal acceptance
 
+El helper admite la pantalla de revisión seguida del diálogo de motivo de cancelación. Selecciona
+el motivo de prueba sólo cuando está visible; «Continuar con la cancelación» puede enviar desde
+ese diálogo o abrir una confirmación explícita adicional. Nunca fuerza un botón del fondo. La
+aceptación sigue dependiendo de `cancel_at_period_end` en Stripe y del acceso pagado en Kova;
+terminar los clics del navegador no acredita la cancelación por sí solo.
+
 ### Formulario de Checkout del runner
 
 El helper selecciona explícitamente Estados Unidos antes de usar el ZIP de prueba existente;

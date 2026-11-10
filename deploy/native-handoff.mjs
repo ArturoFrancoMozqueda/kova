@@ -33,7 +33,9 @@ export function normalizeNativeHandoffDiff(remote, local, environment, now = Dat
   let handoff;
   try { handoff = JSON.parse(local.vars.KOVA_NATIVE_HANDOFF); } catch { /* fail below */ }
   if (!/^[a-f0-9]{40}$/i.test(previous ?? "") || !/^[a-f0-9]{40}$/i.test(target ?? "")
-      || previous === target || remote.vars?.KOVA_BUILD_SHA !== previous
+      || previous === target || (remote.vars?.KOVA_BUILD_SHA !== previous
+        && !(remote.vars?.KOVA_BUILD_SHA === target
+          && remote.vars?.KOVA_NATIVE_HANDOFF === local.vars.KOVA_NATIVE_HANDOFF))
       || local.vars?.KOVA_BUILD_SHA !== target
       || (remote.name !== undefined && remote.name !== local.name)
       || local.vars.KOVA_NATIVE_HANDOFF !== environment.KOVA_NATIVE_HANDOFF

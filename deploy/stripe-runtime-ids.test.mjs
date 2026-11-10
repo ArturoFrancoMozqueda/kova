@@ -59,6 +59,17 @@ test("comparison changes exactly the captured identity and four verified public 
   assert.deepEqual(normalizeStripeRuntimeIdDiff(rotation, local, release, STRIPE_RUNTIME_ID_RULES), local);
 });
 
+test("staged native image publication permits only the identical verified public identifiers", () => {
+  assert.deepEqual(normalizeStripeRuntimeIdDiff(local, local, release, STRIPE_RUNTIME_ID_RULES), local);
+  for (const name of Object.keys(ids)) {
+    const changed = structuredClone(local);
+    changed.vars[name] = name.includes("PRICE") ? "price_Different123" : "bpc_Different123";
+    assert.throws(() => normalizeStripeRuntimeIdDiff(changed, local, release, STRIPE_RUNTIME_ID_RULES), /captured release/);
+  }
+  assert.throws(() => normalizeStripeRuntimeIdDiff(local, local,
+    { ...release, STRIPE_ESENCIAL_PRICE_ID: "price_Unreviewed123" }, STRIPE_RUNTIME_ID_RULES), /Unverified/);
+});
+
 test("comparison requires the exact captured transition, complete desired values and matching release inputs", () => {
   for (const changes of [{ KOVA_NATIVE_PREVIOUS_SHA: undefined }, { KOVA_NATIVE_DEPLOY_SHA: "short" },
     { KOVA_NATIVE_PREVIOUS_SHA: "c".repeat(40) }, { KOVA_NATIVE_DEPLOY_SHA: "d".repeat(40) }]) {

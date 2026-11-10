@@ -36,3 +36,15 @@ test("comparator normalizes only the exact environment-verified handoff across t
     { KOVA_NATIVE_PREVIOUS_SHA: previousSha, KOVA_NATIVE_DEPLOY_SHA: previousSha }, now), unchanged);
   assert.equal(sameBuild.vars.KOVA_NATIVE_HANDOFF, encoded, "comparison never mutates captured metadata");
 });
+
+test("image publication accepts only the unchanged staged controller and original live lease", () => {
+  const local = { name: "kova-backend", vars: { KOVA_BUILD_SHA: targetSha, KOVA_NATIVE_HANDOFF: encoded } };
+  const env = { KOVA_NATIVE_PREVIOUS_SHA: previousSha, KOVA_NATIVE_DEPLOY_SHA: targetSha, KOVA_NATIVE_HANDOFF: encoded };
+  assert.deepEqual(normalizeNativeHandoffDiff(local, local, env, now), local);
+  for (const vars of [{ ...local.vars, KOVA_NATIVE_HANDOFF: undefined },
+    { ...local.vars, KOVA_NATIVE_HANDOFF: JSON.stringify({ ...lease, expiresAt: lease.expiresAt - 1 }) },
+    { ...local.vars, KOVA_BUILD_SHA: "c".repeat(40) }]) {
+    assert.throws(() => normalizeNativeHandoffDiff({ ...local, vars }, local, env, now), /bounded captured/);
+  }
+  assert.throws(() => normalizeNativeHandoffDiff(local, local, env, lease.expiresAt), /bounded captured/);
+});

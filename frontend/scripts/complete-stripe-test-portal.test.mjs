@@ -535,6 +535,29 @@ test("local keyboard-handled masked form commits all five fixtures without forci
   } finally { await browser.close(); }
 });
 
+test("local cancellation opens feedback from the review page and submits from its modal", {
+  skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
+}, async () => {
+  const { chromium } = await import("playwright");
+  const { cancelAtPeriodEnd } = await import("./complete-stripe-test-portal.mjs");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<button id="open">Cancelar suscripción</button>
+      <section id="review" hidden><button id="cancel">Cancelar suscripción</button></section>
+      <dialog><label>Reason<select><option value="">Elige una opción</option><option value="other">Otro motivo</option></select></label>
+      <button id="next">Continuar con la cancelación</button></dialog><output></output>
+      <script>
+      document.querySelector('#open').onclick=()=>{document.querySelector('#open').hidden=true;document.querySelector('#review').hidden=false};
+      document.querySelector('#cancel').onclick=()=>{setTimeout(()=>document.querySelector('dialog').showModal(),50)};
+      document.querySelector('#next').onclick=()=>{if(document.querySelector('select').value==='other'){
+        document.querySelector('dialog').close();document.querySelector('#review').hidden=true;document.querySelector('output').textContent='scheduled'}};
+      </script>`);
+    await cancelAtPeriodEnd({ url: () => standard.portal_url, getByRole: (...args) => page.getByRole(...args) }, () => {});
+    assert.equal(await page.locator('output').textContent(), 'scheduled');
+  } finally { await browser.close(); }
+});
+
 for (const language of ["es", "en"]) test(`local ${language} cancellation feedback precedes final confirmation`, {
   skip: process.env.KOV005_PORTAL_LOCAL_BROWSER_TEST !== "true",
 }, async () => {
