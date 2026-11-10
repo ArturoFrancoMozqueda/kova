@@ -19,9 +19,12 @@ que todavía no llegaron a producción. Se desactiva la detección de renames pa
 las rutas borradas. El árbol revisado debe coincidir con HEAD y no tener cambios tracked locales.
 
 Sólo un push automático cuyo diff completo pertenezca al frontend, su Worker de assets,
-Markdown documental o los archivos de CI explícitamente admitidos conserva el backend. Cambios
-en `backend/`, otros `deploy/`, rutas desconocidas, historia incompleta o diff vacío mantienen
-la publicación completa. Un dispatch manual también es completo. Los cambios de configuración
+Markdown documental o las pruebas/política de CI explícitamente admitidas conserva el backend.
+Los scripts de frontend se admiten por nombre: sus proveedores de publicación de backend y
+Container, scripts desconocidos y todos los workflows exigen publicación completa, porque pueden
+cambiar la configuración de arranque aunque no estén en `backend/`. Cambios en `backend/`, otros
+`deploy/`, rutas desconocidas, historia incompleta o diff vacío también mantienen la publicación
+completa. Un dispatch manual también es completo. Los cambios de configuración
 que deban llegar al proceso siguen requiriendo un SHA nuevo revisado según ADR-022; volver a
 publicar el mismo SHA no prueba que el proceso haya recibido una configuración nueva.
 
@@ -51,7 +54,9 @@ La regresión usa historial Git y un servidor HTTP locales: publica dos revision
 sobre un backend anterior, comprueba los seis contratos HTTP y envía una escritura una vez sin
 llamar a publicación/restauración del backend. Falla contra el ejecutable anterior. También se
 prueban recuperación tras fallos de frontend, identidades independientes, rutas desconocidas,
-renames, fuente sucia, historia ausente y preservación de la publicación manual completa.
+proveedores de backend dentro de frontend, workflows, renames, fuente sucia, historia ausente y
+preservación de la publicación manual completa. La instalación inicial modifica el workflow y
+requiere publicación completa; no se presenta como prueba de conservación del backend.
 
 Esto elimina una clase de cortes evitables; **no resuelve el corte cuando cambia realmente el
 backend**. La solución completa requiere arrancar y verificar un reemplazo independiente antes

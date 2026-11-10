@@ -8,17 +8,25 @@ const ciFiles = new Set([
   "scripts/ci_policy.py", "scripts/tests/test_ci_policy.py",
   "scripts/tests/test_ci_cost_workflows.py",
 ]);
+const frontendScripts = new Set([
+  "backend-release-plan", "capture-cloudflare", "capture-showcase", "check-bundle-secrets",
+  "check-e2e-imports", "check-openapi-contract", "cloudflare-provider",
+  "complete-stripe-test-checkout", "complete-stripe-test-portal", "optimize-og", "prerender",
+  "readiness-fetch", "release-billing-offer", "release-recovery", "release",
+  "stripe-test-checkout-fields", "verify-deployment",
+].flatMap(name => [`frontend/scripts/${name}.mjs`, `frontend/scripts/${name}.test.mjs`]));
 
 export function backendUnchanged(paths) {
   // A closed allowlist, relative to the ACTUALLY deployed backend, not the
   // previous commit/PR. Renames must include both deleted and added paths.
   return Array.isArray(paths) && paths.length > 0 && paths.every(path =>
     typeof path === "string" && !path.includes("\0") && !path.split("/").includes("..") && (
-      path.startsWith("frontend/")
+      (path.startsWith("frontend/") && !path.startsWith("frontend/scripts/"))
+      || frontendScripts.has(path)
+      || path.startsWith("frontend/scripts/film/")
       || (path.startsWith("deploy/cloudflare/") && !path.includes("/../"))
-      || ((path.startsWith("docs/") || ["README.md", "CHANGELOG.md"].includes(path))
+      || ((path.startsWith("docs/") || ["README.md", "CHANGELOG.md", "CLAUDE.md"].includes(path))
         && path.endsWith(".md"))
-      || (path.startsWith(".github/workflows/") && /\.ya?ml$/.test(path))
       || ciFiles.has(path)
     ));
 }

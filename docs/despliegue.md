@@ -21,7 +21,9 @@ Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idén
 
 La optimización de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md), pendiente de
 aceptación productiva, conserva la API cuando el diff completo desde su SHA publicado sólo afecta
-frontend, su Worker de assets, documentación o CI admitido. La comparación falla hacia publicación
+frontend admitido, su Worker de assets, documentación o pruebas/política de CI admitidas.
+Los workflows, los proveedores de backend/Container dentro de `frontend/scripts/` y scripts
+desconocidos exigen publicación completa. La comparación falla hacia publicación
 completa ante historia/rutas desconocidas. Un dispatch manual sigue siendo completo.
 Frontend y API conservan identidades exactas independientes; el artefacto de recuperación añade
 `frontendSha` y `releaseSha` sigue siendo el SHA del backend. La verificación exige cada identidad,

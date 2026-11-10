@@ -28,14 +28,30 @@ function repositoryFixture() {
   return { cwd, git, put, commit, previousSha, cleanup: () => rmSync(cwd, { recursive: true, force: true }) };
 }
 
-test("only known frontend, pipeline and Markdown changes can retain a backend", () => {
+test("only known frontend and Markdown changes can retain a backend", () => {
   assert.equal(backendUnchanged(["frontend/src/App.tsx", "frontend/scripts/release.mjs",
-    "deploy/cloudflare/worker.mjs", "docs/despliegue.md", ".github/workflows/ci.yml"]), true);
+    "deploy/cloudflare/worker.mjs", "docs/despliegue.md", "CLAUDE.md"]), true);
   for (const name of ["backend/app/main.py", "backend/alembic/versions/0102.py",
     "backend/uv.lock", "deploy/cloudflare-native/policy.mjs", "deploy/cloudflare-backend/jobs.py",
-    "deploy/public-images.mjs", "scripts/new-deployment-tool.py", "unrecognized", "docs/run.sh"])
+    "deploy/public-images.mjs", "scripts/new-deployment-tool.py", "unrecognized", "docs/run.sh",
+    ".github/workflows/ci.yml", ".github/workflows/other.yml",
+    "frontend/scripts/cloudflare-backend-provider.mjs", "frontend/scripts/cloudflare-container-provider.mjs",
+    "frontend/scripts/new-backend-builder.mjs"])
     assert.equal(backendUnchanged(["frontend/src/App.tsx", name]), false, name);
   for (const input of [null, [], [42]]) assert.equal(backendUnchanged(input), false);
+});
+
+test("backend publishing tools and workflow configuration require a full release", () => {
+  for (const name of ["frontend/scripts/cloudflare-backend-provider.mjs",
+    "frontend/scripts/cloudflare-container-provider.mjs", ".github/workflows/ci.yml"]) {
+    const repo = repositoryFixture();
+    try {
+      repo.put(name, "changed runtime publication configuration\n");
+      const sha = repo.commit();
+      assert.deepEqual(backendReleasePlan({ ...repo, sha, eventName: "push" }),
+        { publishBackend: true, backendSha: sha });
+    } finally { repo.cleanup(); }
+  }
 });
 
 test("the production baseline, rather than the previous commit, controls backend reuse", () => {
