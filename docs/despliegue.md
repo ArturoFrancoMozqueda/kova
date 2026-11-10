@@ -19,6 +19,31 @@ PR ──► CI (suites aplicables) ──► CI required ──► merge a main
 Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idéntico
 (`scripts/ci_policy.py`). Los releases se serializan; nunca se cancelan entre sí.
 
+### Uso de minutos de Actions
+
+- Un cambio limitado a workflows, `scripts/ci_policy.py`, sus pruebas de costo/política y Markdown
+  de documentación valida CI pero no publica otra imagen de la aplicación. Mezclar código o
+  tooling desconocido conserva la publicación; un dispatch explícito sin diff ejecuta el flujo
+  completo. Los cambios de CI siguen exigiendo todas las suites antes del merge.
+- Markdown conserva el análisis de secretos y contratos del repositorio; omite instalar y auditar
+  dependencias que no cambian. El mantenimiento semanal conserva las auditorías actualizadas.
+- El parser y antivirus se construyen cuando cambia su código, configuración, dependencias o
+  infraestructura. Un merge de código ajeno al parser no lo reconstruye sólo por llegar a `main`.
+- Cuando CI llama al mantenimiento para comprobar reproducibilidad/SBOM, omite los tres jobs de
+  auditoría que el mismo CI ya exige: dependencias e imágenes nativa/parser. La ejecución semanal
+  o manual del mantenimiento conserva esos jobs y no relaja umbrales de vulnerabilidades.
+- Stripe sandbox, restauración y mantenimiento de fotos siguen siendo manuales; aceptación del
+  backend también sirve como workflow reutilizable. No ejecutar nuevamente los drills sin un
+  cambio que afecte su alcance o una necesidad de recuperación verificable.
+- Respaldos, purga de cuentas, avisos de trial y preparación fiscal conservan su programación.
+  Los workflows históricos sin archivo `Prepare Café Cortés demo` y `Production verification`
+  quedaron deshabilitados en GitHub. Su historial se conserva; deshabilitarlos no recupera minutos
+  consumidos. La verificación de publicación vigente forma parte de `CI and release`.
+
+El número de ejecuciones no equivale a minutos facturados. La revisión del 9 de noviembre encontró
+153 ejecuciones desde el 3 de noviembre: 74 CI, 31 drills manuales de Stripe y 8 restauraciones,
+además de los jobs operativos. No atribuir un porcentaje de ahorro sin medir el consumo posterior.
+
 ## Pasos del job de release
 
 1. **Capturar producción actual.** Lee `release_sha` de `https://api.kovasuite.com/health`,

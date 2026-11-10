@@ -17,13 +17,21 @@ import tempfile
 from pathlib import Path
 
 
-KEYS = ("code", "backend", "frontend", "parser", "supply", "reused")
+KEYS = ("code", "release", "backend", "frontend", "parser", "supply", "reused")
 VERIFIED_TREE = "ci-verified-tree"
 
 
 def _docs(path: str) -> bool:
     return path in {"README.md", "CHANGELOG.md"} or (
         path.startswith("docs/") and path.endswith(".md"))
+
+
+def _ci_only(path: str) -> bool:
+    # These files validate/operate the repository; none is shipped to the app.
+    # Unknown tooling, provider config and application files still publish.
+    return (path.startswith(".github/workflows/") and path.endswith((".yml", ".yaml"))
+            or path in {"scripts/ci_policy.py", "scripts/tests/test_ci_policy.py",
+                        "scripts/tests/test_ci_cost_workflows.py"})
 
 
 def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
@@ -52,7 +60,7 @@ def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
     )
     backend = shared or any(path.startswith("backend/") for path in paths)
     frontend = shared or any(path.startswith("frontend/") for path in paths)
-    parser = main or infrastructure or dependencies or any(
+    parser = infrastructure or dependencies or any(
         path.startswith(("backend/app/assistant/", "backend/assistant-parser/",
                          "frontend/src/assistant/", "backend/app/tests/test_assistant"))
         or path == "backend/app/config.py"
@@ -60,7 +68,8 @@ def classify(paths: list[str] | None, *, main: bool = False) -> dict[str, str]:
     )
     supply = infrastructure or dependencies
     return {key: str(value and not docs_only).lower() for key, value in
-            {"code": True, "backend": backend, "frontend": frontend,
+            {"code": True, "release": not all(_docs(path) or _ci_only(path) for path in paths),
+             "backend": backend, "frontend": frontend,
              "parser": parser, "supply": supply}.items()} | {"reused": "false"}
 
 

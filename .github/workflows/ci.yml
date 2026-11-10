@@ -32,6 +32,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.policy.outputs.code }}
+      release: ${{ steps.policy.outputs.release }}
       backend: ${{ steps.policy.outputs.backend }}
       frontend: ${{ steps.policy.outputs.frontend }}
       parser: ${{ steps.policy.outputs.parser }}
@@ -364,6 +365,7 @@ jobs:
 
   security:
     name: secrets and dependency audit
+    needs: [changes]
     timeout-minutes: 10
     permissions:
       contents: read
@@ -374,27 +376,32 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        if: needs.changes.outputs.code == 'true'
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        if: needs.changes.outputs.code == 'true'
         with:
           version: "0.13.4"
       - name: Verify complete dependency inventory
+        if: needs.changes.outputs.code == 'true'
         run: python scripts/audit_dependencies.py inventory
       - name: Audit Python locks and direct parser dependencies
+        if: needs.changes.outputs.code == 'true'
         run: python scripts/audit_dependencies.py python
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        if: needs.changes.outputs.code == 'true'
         with:
           node-version: "24"
       - name: Audit all npm locks including build and test dependencies
-        if: success() || failure()
+        if: (success() || failure()) && needs.changes.outputs.code == 'true'
         run: python scripts/audit_dependencies.py npm
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         if: success() || failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload dependency advisory reports
-        if: always()
+        if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: security-dependencies-${{ github.run_attempt }}
@@ -441,6 +448,8 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.supply == 'true'
     uses: ./.github/workflows/ci-maintenance.yml
+    with:
+      supply_chain_only: true
 
 
   backend-native:
@@ -480,7 +489,7 @@ jobs:
     needs: [changes, required]
     # Planned optional skips must not suppress a successful aggregate gate.
     # Failed/cancelled/missing gates still block all production effects.
-    if: always() && !cancelled() && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    if: always() && !cancelled() && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true' && needs.changes.outputs.release == 'true'
     # Include provider tooling/build time, a native rollout and its recovery.
     timeout-minutes: 90
     runs-on: ubuntu-latest
