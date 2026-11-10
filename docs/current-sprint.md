@@ -105,11 +105,12 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    atendiendo mientras se prepara una instancia separada, verificar imagen/controlador/base antes
    de cambiar tráfico y conservar recuperación exacta sin repetir escrituras.
    [Evidencia y límite operativo](despliegue.md#continuidad-observada-y-pendiente).
-   Se preparó [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md) para conservar la API
-   en publicaciones exclusivas de frontend y no reiniciarla al recuperar un frontend fallido.
-   Las pruebas locales no sustituyen CI ni aceptación productiva; el intento de Actions de la
-   evidencia de bienvenida no pudo arrancar por facturación/límite de gasto. Los cambios reales de backend siguen
-   necesitando un reemplazo preparado antes de cambiar tráfico.
+   La mitigación de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md) ya está publicada
+   con CI aprobado: conserva la API en publicaciones exclusivas de frontend admitido y evita
+   reiniciarla al recuperar un frontend fallido. Esos casos automatizados aprobaron; su ensayo
+   productivo aún está pendiente. La instalación inicial exigió publicación completa y volvió a
+   registrar cuatro rondas de sondas con timeout antes de terminar saludable. Los cambios reales
+   de backend siguen necesitando un reemplazo preparado antes de cambiar tráfico.
 2. **Recuperación regional del respaldo.** El respaldo diario corre. La
    [restauración 42725832764](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42725832764)
    aprobó sobre fuente `1b41646cae8d`: revisión 0101, integridad, RLS, login, exportación, logout y
