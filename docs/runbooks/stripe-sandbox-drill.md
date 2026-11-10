@@ -113,8 +113,10 @@ local verification uses stubbed unit tests only.
 ## Optional integrated hosted Portal acceptance
 
 El helper admite la pantalla de revisión seguida del diálogo de motivo de cancelación. Selecciona
-el motivo de prueba sólo cuando está visible; «Continuar con la cancelación» puede enviar desde
-ese diálogo o abrir una confirmación explícita adicional. Nunca fuerza un botón del fondo. La
+el motivo de prueba sólo cuando está visible. En el flujo observado, «Continuar con la cancelación»
+guarda el motivo y cierra el diálogo; todavía hay que pulsar «Cancelar suscripción» en la revisión.
+También admite una confirmación explícita adicional. Nunca fuerza un botón del fondo. Conserva
+una captura privada del estado final para diagnosticar un fallo posterior del oracle de Python. La
 aceptación sigue dependiendo de `cancel_at_period_end` en Stripe y del acceso pagado en Kova;
 terminar los clics del navegador no acredita la cancelación por sí solo.
 
