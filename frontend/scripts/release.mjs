@@ -10,6 +10,7 @@ import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mj
 import { cloudflareProvider } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider } from "./cloudflare-backend-provider.mjs";
 import { RELEASE_BILLING_OFFER, verifyPublicBillingOffer } from "./release-billing-offer.mjs";
+import { backendReleasePlan } from "./backend-release-plan.mjs";
 
 export function candidateUrl(value) {
   const url = new URL(value);
@@ -23,7 +24,8 @@ export function candidateUrl(value) {
 /** Phase is set BEFORE a provider may partially change production. */
 export async function release({ artifact: rawArtifact, sha, provider,
   verify = verifyDeployment, recover = recoverRelease,
-  expectedBillingOffer, verifyOffer = verifyPublicBillingOffer }) {
+  expectedBillingOffer, verifyOffer = verifyPublicBillingOffer,
+  reuseBackend = false, planBackend = backendReleasePlan }) {
   const artifact = validateRollbackArtifact(rawArtifact);
   if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
     throw new Error("Resident release requires the captured Container image or explicit absence");
@@ -41,18 +43,32 @@ export async function release({ artifact: rawArtifact, sha, provider,
     throw new Error("Cloudflare backend publication requires readiness verification");
   }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
+  const plan = reuseBackend ? planBackend({ sha, previousSha: artifact.releaseSha })
+    : { publishBackend: true, backendSha: sha };
+  if (typeof plan?.publishBackend !== "boolean"
+      || plan.backendSha !== (plan.publishBackend ? sha : artifact.releaseSha)) {
+    throw new Error("Invalid backend publication plan");
+  }
+  const backendSha = plan.backendSha;
+  const previousFrontendSha = artifact.frontendSha ?? artifact.releaseSha;
+  const versions = { sha: backendSha, ...(backendSha === sha ? {} : { frontendSha: sha }) };
   let phase;
+  let backendChanged = false;
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
-    await provider.deployBackend(sha, artifact.releaseSha);
+    if (plan.publishBackend) {
+      // Set before a provider that can fail after partially publishing.
+      backendChanged = true;
+      await provider.deployBackend(sha, artifact.releaseSha);
+    }
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
-        sha, previousSha: artifact.releaseSha,
+        sha: backendSha, previousSha: artifact.releaseSha,
         requireControllerBootIdentity: true,
         frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
-    await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
+    await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, ...versions,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     if (expectedBillingOffer !== undefined) await verifyOffer({ frontendUrl: url,
       backendUrl: artifact.backendUrl, offer: expectedBillingOffer,
@@ -62,26 +78,27 @@ export async function release({ artifact: rawArtifact, sha, provider,
     phase = "acceptance";
     if (provider.requiresCloudflare) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl, sha,
-        previousSha: artifact.releaseSha });
+        previousSha: previousFrontendSha });
     }
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
-        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha,
+        backendUrl: artifact.backendUrl, sha: backendSha, previousSha: artifact.releaseSha,
         requireControllerBootIdentity: true });
     }
     if (provider.requiresCloudflare) {
       await verifyPublicDeployment({ frontendUrl: artifact.frontendUrl,
-        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha, verify });
+        backendUrl: artifact.backendUrl, ...versions, previousSha: artifact.releaseSha,
+        previousFrontendSha, verify });
     } else {
-      await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha });
+      await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, ...versions });
     }
     if (expectedBillingOffer !== undefined) await verifyOffer({ frontendUrl: artifact.frontendUrl,
       backendUrl: artifact.backendUrl, offer: expectedBillingOffer });
-    return { sha, url, phase, accepted: true };
+    return { sha, ...(backendSha === sha ? {} : { backendSha }), url, phase, accepted: true };
   } catch (error) {
     if (phase) {
       try {
-        await recover({ phase, artifact, provider, verify, failedSha: sha });
+        await recover({ phase, artifact, provider, verify, failedSha: sha, backendChanged });
       } catch (recoveryError) {
         throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
       }
@@ -142,6 +159,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       artifact: JSON.parse(fs.readFileSync(artifactPath, "utf8")), sha,
       provider: releaseProvider(globalConfig),
       expectedBillingOffer: RELEASE_BILLING_OFFER,
+      reuseBackend: true,
     });
     console.log(JSON.stringify(result));
   } finally {

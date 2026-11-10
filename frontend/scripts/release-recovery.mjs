@@ -46,6 +46,8 @@ export function validateRollbackArtifact(input) {
   if (!input || typeof input !== "object") throw new Error("rollback artifact is required");
   const releaseSha = String(input.releaseSha ?? "");
   if (!FULL_SHA.test(releaseSha)) throw new Error("rollback artifact has no valid release SHA");
+  const frontendSha = input.frontendSha === undefined ? releaseSha : input.frontendSha;
+  if (!FULL_SHA.test(frontendSha)) throw new Error("rollback artifact has no valid frontend SHA");
   if (input.cloudflareBackendVersions === undefined) {
     throw new Error("rollback artifact requires Cloudflare backend versions; legacy provider retired");
   }
@@ -58,6 +60,7 @@ export function validateRollbackArtifact(input) {
     ...(input.cloudflareVersion !== undefined
       ? { cloudflareVersion: validateCloudflareVersion(input.cloudflareVersion) } : {}),
     releaseSha,
+    ...(input.frontendSha === undefined ? {} : { frontendSha }),
     vercelDeployment: requireHttpsUrl(
       String(input.vercelDeployment ?? ""),
       "rollback Vercel deployment",
@@ -67,11 +70,14 @@ export function validateRollbackArtifact(input) {
   };
 }
 
-export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment, failedSha }) {
+export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment, failedSha,
+  backendChanged = true }) {
   if (!RECOVERY_PHASES.has(phase)) throw new Error(`unknown release phase: ${phase}`);
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (typeof backendChanged !== "boolean") throw new Error("Invalid backend recovery mutation state");
+  const previousFrontendSha = artifact.frontendSha ?? artifact.releaseSha;
   if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
     throw new Error("Resident recovery requires the captured Container image or explicit absence");
   }
@@ -103,25 +109,29 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
-    await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions, artifact.cloudflareNativeContainer);
-    restored.push("cloudflare-backend");
+    if (backendChanged) {
+      await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions, artifact.cloudflareNativeContainer);
+      restored.push("cloudflare-backend");
+    }
     if (restored.includes("cloudflare")) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl,
-        sha: artifact.releaseSha, previousSha: failedSha ?? artifact.releaseSha });
+        sha: previousFrontendSha, previousSha: failedSha ?? previousFrontendSha });
     }
     if (artifact.cloudflareBackendVersions) {
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
         backendUrl: artifact.backendUrl, sha: artifact.releaseSha,
-        previousSha: failedSha ?? artifact.releaseSha,
+        previousSha: backendChanged ? failedSha ?? artifact.releaseSha : artifact.releaseSha,
         ...(artifact.cloudflareNativeContainer ? {
           nativeRuntime: artifact.cloudflareNativeContainer.applicationId !== null,
         } : {}) });
     }
     const publicInput = { frontendUrl: artifact.frontendUrl,
-      backendUrl: artifact.backendUrl, sha: artifact.releaseSha };
+      backendUrl: artifact.backendUrl, sha: artifact.releaseSha,
+      ...(previousFrontendSha === artifact.releaseSha ? {} : { frontendSha: previousFrontendSha }) };
     const verification = artifact.cloudflareVersion
       ? await verifyPublicDeployment({ ...publicInput,
-        previousSha: failedSha ?? artifact.releaseSha, verify })
+        previousSha: failedSha ?? artifact.releaseSha,
+        previousFrontendSha: failedSha ?? previousFrontendSha, verify })
       : await verify(publicInput);
     return { phase, restored, releaseSha: artifact.releaseSha, verification };
   } catch (error) {

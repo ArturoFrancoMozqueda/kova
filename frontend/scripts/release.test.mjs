@@ -27,6 +27,50 @@ function fixture(fail) {
     : input.frontendUrl === artifact.frontendUrl ? "acceptance" : "verify") };
 }
 
+for (const failure of [undefined, "verify", "promote", "acceptance"]) {
+  test(`frontend-only ${failure ?? "success"} never publishes or restores the backend`, async () => {
+    const fake = fixture();
+    const previousFrontendSha = "c".repeat(40);
+    const captured = { ...artifact, frontendSha: previousFrontendSha };
+    const versions = [];
+    fake.provider.deployBackend = () => assert.fail("Backend should remain serving");
+    fake.provider.restoreCloudflareBackend = () => assert.fail("No backend mutation to recover");
+    fake.verify = async input => {
+      versions.push([input.sha, input.frontendSha]);
+      assert.equal(input.sha, artifact.releaseSha);
+      if (input.frontendSha === sha && (failure === "verify" && input.frontendUrl !== artifact.frontendUrl
+          || failure === "acceptance" && input.frontendUrl === artifact.frontendUrl)) {
+        throw new Error("frontend verification failed");
+      }
+      return { commit: input.sha, frontendCommit: input.frontendSha };
+    };
+    fake.provider.promote = async () => {
+      fake.calls.push("promote");
+      if (failure === "promote") throw new Error("partial frontend promotion");
+    };
+    const operation = release({ artifact: captured, sha, ...fake, reuseBackend: true,
+      planBackend: () => ({ publishBackend: false, backendSha: artifact.releaseSha }) });
+    if (failure) {
+      await assert.rejects(operation, /RELEASE_FAILED_RECOVERED/);
+      assert.deepEqual(versions.at(-1), [artifact.releaseSha, previousFrontendSha]);
+      assert.equal(fake.calls.includes("restore-vercel"), failure !== "verify");
+    } else {
+      assert.equal((await operation).backendSha, artifact.releaseSha);
+      assert.deepEqual(versions, [[artifact.releaseSha, sha], [artifact.releaseSha, sha]]);
+    }
+  });
+}
+
+test("backend planning failures and invalid identities fail before candidate creation", async () => {
+  for (const planBackend of [() => { throw new Error("source uncertain"); },
+    () => ({ publishBackend: false, backendSha: "f".repeat(40) }),
+    () => ({ publishBackend: "false", backendSha: artifact.releaseSha })]) {
+    const fake = fixture();
+    await assert.rejects(release({ artifact, sha, ...fake, reuseBackend: true, planBackend }));
+    assert.deepEqual(fake.calls, []);
+  }
+});
+
 test("successful release verifies candidate before promotion and public site after", async () => {
   const fake = fixture();
   assert.equal((await release({ artifact, sha, ...fake })).accepted, true);

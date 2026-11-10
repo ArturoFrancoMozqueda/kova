@@ -110,6 +110,89 @@ test("rejects a frontend whose API proxy does not reach the release", async () =
   }
 });
 
+test("independent frontend identity still requires the exact backend and database contracts", async () => {
+  const frontendSha = "b".repeat(40);
+  const originalFetch = globalThis.fetch;
+  for (const failure of [undefined, "backend", "proxy", "database"]) {
+    globalThis.fetch = async (input, init) => {
+      const pathname = new URL(input).pathname;
+      if (pathname === "/version.json") return globalThis.Response.json({ hash: frontendSha.slice(0, 12) });
+      if (failure === "backend" && pathname === "/health"
+          || failure === "proxy" && pathname === "/api/health")
+        return globalThis.Response.json({ status: "ok", release_sha: frontendSha });
+      if (failure === "database" && pathname === "/health/db")
+        return globalThis.Response.json({ status: "ok", db: "unreachable" });
+      return originalFetch(input, init);
+    };
+    try {
+      const operation = verifyDeployment({ frontendUrl: origin, backendUrl: origin, sha, frontendSha });
+      if (failure) await assert.rejects(operation, /contract failed|commit mismatch/);
+      else assert.equal((await operation).frontendCommit, frontendSha);
+    } finally { globalThis.fetch = originalFetch; }
+  }
+});
+
+test("partial or malformed component identities never start acceptance HTTP requests", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = assert.fail;
+  try {
+    for (const frontendSha of ["a".repeat(12), "private-invalid-value", null])
+      await assert.rejects(verifyDeployment({ frontendUrl: origin, backendUrl: origin,
+        sha, frontendSha }), /complete frontend and backend SHAs/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("retaining a native backend rejects a staged controller or stale boot identity", async () => {
+  const originalFetch = globalThis.fetch;
+  const frontendSha = "b".repeat(40);
+  for (const controller of [sha, frontendSha, null]) {
+    for (const boot of [sha, frontendSha, null]) {
+      globalThis.fetch = async (input, init) => {
+        const pathname = new URL(input).pathname;
+        if (pathname === "/version.json") return globalThis.Response.json({ hash: frontendSha.slice(0, 12) });
+        const original = await originalFetch(input, init);
+        if (pathname === "/health" || pathname === "/api/health") {
+          const response = new globalThis.Response(original.body, original);
+          response.headers.set("x-kova-runtime", "native-resident");
+          if (controller) response.headers.set("x-kova-controller-sha", controller);
+          if (boot) response.headers.set("x-kova-boot-controller-sha", boot);
+          return response;
+        }
+        return original;
+      };
+      try {
+        const operation = verifyDeployment({ frontendUrl: origin, backendUrl: origin, sha, frontendSha });
+        if (controller === sha && boot === sha) assert.equal((await operation).commit, sha);
+        else await assert.rejects(operation, /Retained native backend controller/);
+      } finally { globalThis.fetch = originalFetch; }
+    }
+  }
+});
+
+test("public acceptance retries only the captured frontend identity when backend identity differs", async () => {
+  const { verifyPublicDeployment, FrontendCommitMismatch } = await import("./verify-deployment.mjs");
+  const frontendSha = "b".repeat(40);
+  const previousFrontendSha = "c".repeat(40);
+  let calls = 0;
+  let clock = 0;
+  const result = await verifyPublicDeployment({ frontendUrl: origin, backendUrl: origin,
+    sha, previousSha: sha, frontendSha, previousFrontendSha,
+    now: () => clock, wait: async ms => { clock += ms; }, verify: async input => {
+      assert.equal(input.sha, sha);
+      assert.equal(input.frontendSha, frontendSha);
+      calls++;
+      if (calls === 1) throw new FrontendCommitMismatch(frontendSha, previousFrontendSha.slice(0, 12));
+      return { commit: sha, frontendCommit: frontendSha };
+    } });
+  assert.equal(result.commit, sha);
+  assert.equal(calls, 2);
+  assert.equal(clock, 2000);
+  await assert.rejects(verifyPublicDeployment({ frontendUrl: origin, backendUrl: origin,
+    sha, previousSha: sha, frontendSha, previousFrontendSha, wait: assert.fail,
+    verify: async () => { throw new FrontendCommitMismatch(frontendSha, sha.slice(0, 12)); },
+  }), FrontendCommitMismatch);
+});
+
 test("public acceptance revalidates all six contracts after a captured previous frontend", async () => {
   const { verifyPublicDeployment } = await import("./verify-deployment.mjs");
   const previousSha = "a".repeat(40);

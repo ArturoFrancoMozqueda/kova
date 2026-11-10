@@ -11,6 +11,7 @@ import {
   recoverRelease,
   resolveNpxCommand,
   runProviderCommand,
+  validateRollbackArtifact,
 } from "./release-recovery.mjs";
 
 const artifact = {
@@ -20,6 +21,15 @@ const artifact = {
   frontendUrl: "https://kovasuite.example",
   backendUrl: "https://api.kovasuite.example",
 };
+
+test("capture keeps independent exact frontend and backend identities and rejects malformed frontend metadata", () => {
+  const frontendSha = "e".repeat(40);
+  const captured = validateRollbackArtifact({ ...artifact, frontendSha });
+  assert.equal(captured.releaseSha, artifact.releaseSha);
+  assert.equal(captured.frontendSha, frontendSha);
+  for (const frontendSha of [null, "short", "e".repeat(12)])
+    assert.throws(() => validateRollbackArtifact({ ...artifact, frontendSha }), /frontend SHA/);
+});
 
 test("the disposable recovery fixture imports with its staged scripts and no Cloudflare installation", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kova-recovery-fixture-"));
