@@ -358,10 +358,12 @@ export async function cancelAtPeriodEnd(page, setStage) {
     const next = await visibleNamedControl(page, /^(?:continuar con la cancelación|continue cancellation|continue with cancellation)$/i);
     if (next) {
       await next.click();
-      // Current Stripe can submit from the feedback modal itself. Older
-      // layouts have an additional explicit confirmation. The provider oracle
-      // still requires cancel_at_period_end and retained paid access.
-      const final = page.getByRole("button", { name: confirmNames }).first();
+      // Feedback can close without submitting. The observed review page still
+      // requires "Cancelar suscripción"; other layouts use explicit Confirm.
+      // Provider cancellation and retained paid access remain the final oracle.
+      const final = page.getByRole("button", {
+        name: /^(?:confirmar cancelación|confirmar|cancelar suscripción|cancelar plan|confirm cancellation|confirm|cancel subscription|cancel plan)$/i,
+      }).first();
       try { await final.waitFor({ state: "visible", timeout: 2000 }); }
       catch (error) {
         if (error?.name !== "TimeoutError") throw error;
@@ -468,6 +470,11 @@ async function main() {
     browser = await chromium.launch(portalBrowserOptions(process.env.KOV005_PORTAL_BROWSER));
     page = await browser.newPage();
     const outcome = await exercisePortal(page, state, (value) => { stage = value; });
+    // Keep the terminal test UI when Python's provider/Kova convergence oracle
+    // subsequently fails. The workflow uploads it privately only on failure.
+    if (state.action === "cancel") {
+      await savePortalDiagnostic(page, process.env.KOV005_PORTAL_DIAGNOSTIC_PATH);
+    }
     process.stdout.write(JSON.stringify(outcome));
   } catch (error) {
     // Only fixed enums survive; never serialize Playwright errors, URLs or arbitrary DOM labels.
