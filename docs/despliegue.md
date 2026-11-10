@@ -19,6 +19,17 @@ PR ──► CI (suites aplicables) ──► CI required ──► merge a main
 Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idéntico
 (`scripts/ci_policy.py`). Los releases se serializan; nunca se cancelan entre sí.
 
+La optimización de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md), pendiente de
+aceptación productiva, conserva la API cuando el diff completo desde su SHA publicado sólo afecta
+frontend admitido, su Worker de assets, documentación o pruebas/política de CI admitidas.
+Los workflows, los proveedores de backend/Container dentro de `frontend/scripts/` y scripts
+desconocidos exigen publicación completa. La comparación falla hacia publicación
+completa ante historia/rutas desconocidas. Un dispatch manual sigue siendo completo.
+Frontend y API conservan identidades exactas independientes; el artefacto de recuperación añade
+`frontendSha` y `releaseSha` sigue siendo el SHA del backend. La verificación exige cada identidad,
+salud/base/proxy y oferta comercial antes y después. Un fallo del frontend no restaura un backend
+que este intento no modificó. Los cambios reales de backend siguen usando la ruta completa de abajo.
+
 ### Uso de minutos de Actions
 
 - Un cambio limitado a workflows, `scripts/ci_policy.py`, sus pruebas de costo/política y Markdown
@@ -235,6 +246,8 @@ imagen/controlador nuevos se completó a las 01:01:49 UTC del 10 de noviembre de
 final de los 25 contratos no acredita continuidad durante el rollout.
 
 La espera de ADR-027 y el cierre HTTP privado de ADR-028 no preparan una segunda instancia.
+ADR-029 evita reiniciar el backend por cambios exclusivos de frontend; no acredita continuidad
+de un rollout que cambie la imagen de backend. Su código y pruebas locales están bajo revisión.
 Para cerrar este gate hace falta mantener la versión anterior disponible mientras se prepara y
 verifica una instancia separada, cambiar tráfico después de comprobar imagen/controlador/base y
 drenar la anterior. Deben preservarse roles/RLS, límites compartidos, credenciales selladas,

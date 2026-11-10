@@ -43,11 +43,14 @@ async function getText(url, extraHeaders = {}, deadline, now) {
   return { body: await response.text(), headers: response.headers };
 }
 
-export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendBypassSecret,
+export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendSha = sha, frontendBypassSecret,
   deadline, now = Date.now }) {
+  if (![sha, frontendSha].every(value => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value))) {
+    throw new Error("Deployment acceptance requires complete frontend and backend SHAs");
+  }
   const normalizedFrontend = frontendUrl.replace(/\/$/, "");
   const normalizedBackend = backendUrl.replace(/\/$/, "");
-  const expectedFrontendHash = sha.slice(0, 12);
+  const expectedFrontendHash = frontendSha.slice(0, 12);
   const frontendHeaders = frontendBypassSecret
     ? { "x-vercel-protection-bypass": frontendBypassSecret }
     : {};
@@ -86,14 +89,25 @@ export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendB
     throw new Error("Frontend API proxy health contract failed");
   }
 
+  if (frontendSha !== sha) {
+    for (const target of [backend, proxyBackend]) {
+      if (target.headers.get("x-kova-runtime") === "native-resident"
+          && (target.headers.get("x-kova-controller-sha") !== sha
+            || target.headers.get("x-kova-boot-controller-sha") !== sha)) {
+        throw new Error("Retained native backend controller identity contract failed");
+      }
+    }
+  }
+
   // Only classify frontend propagation after every other contract is valid.
   // An old frontend must never hide a broken backend, DB, proxy or site.
   if (frontend.body?.hash !== expectedFrontendHash) {
-    throw new FrontendCommitMismatch(sha, frontend.body?.hash);
+    throw new FrontendCommitMismatch(frontendSha, frontend.body?.hash);
   }
 
   return {
     commit: sha,
+    ...(frontendSha === sha ? {} : { frontendCommit: frontendSha }),
     frontend: normalizedFrontend,
     backend: normalizedBackend,
     site: "reachable",
@@ -104,20 +118,22 @@ export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendB
 
 /** Recheck all public contracts after a known previous frontend is observed. */
 export async function verifyPublicDeployment({ frontendUrl, backendUrl, sha, previousSha,
+  frontendSha = sha, previousFrontendSha = previousSha,
   verify = verifyDeployment, now = Date.now,
   wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)) }) {
-  if (![sha, previousSha].every(value => /^[a-f0-9]{40}$/i.test(value ?? ""))) {
+  if (![sha, previousSha, frontendSha, previousFrontendSha].every(value => /^[a-f0-9]{40}$/i.test(value ?? ""))) {
     throw new Error("Public acceptance requires current and captured previous complete SHAs");
   }
   const deadline = now() + 20_000;
   for (let attempt = 0; attempt < 10 && now() < deadline; attempt++) {
     try {
-      const result = await verify({ frontendUrl, backendUrl, sha, deadline, now });
+      const result = await verify({ frontendUrl, backendUrl, sha, deadline, now,
+        ...(frontendSha === sha ? {} : { frontendSha }) });
       if (now() >= deadline) throw new Error("Public deployment acceptance deadline exceeded");
       return result;
     } catch (error) {
-      if (!(error instanceof FrontendCommitMismatch) || error.expectedSha !== sha
-          || error.observedHash !== previousSha.slice(0, 12)) throw error;
+      if (!(error instanceof FrontendCommitMismatch) || error.expectedSha !== frontendSha
+          || error.observedHash !== previousFrontendSha.slice(0, 12)) throw error;
       const remaining = deadline - now();
       if (remaining <= 0) break;
       await wait(Math.min(2000, remaining));
@@ -131,6 +147,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     frontendUrl: requireArg("frontend"),
     backendUrl: requireArg("backend"),
     sha: requireArg("sha"),
+    ...(process.argv.includes("--frontend-sha") ? { frontendSha: requireArg("frontend-sha") } : {}),
     frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   });
   console.log(JSON.stringify(result));

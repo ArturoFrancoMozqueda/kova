@@ -101,7 +101,9 @@ a `main` que no sea solo Markdown de `docs/` o `README.md` publica a producción
 `AGENTS.md`, `CLAUDE.md` y `.claude/`.
 
 - Fusiona de uno en uno y espera a que termine el release de cada PR. Si un release se cancela o
-  expira, confirma que frontend y backend en producción reporten el mismo SHA antes de fusionar otro.
+  expira, verifica las identidades exactas de frontend y backend contra el resultado aceptado o
+  el artefacto de recuperación antes de fusionar otro. Pueden diferir cuando se conserva un backend
+  sin cambios; no aceptes cualquier versión saludable. Detalle en ADR-029 y `docs/despliegue.md`.
 - No hagas deploy de preview del Worker del frontend sin `KOVA_CLOUDFLARE_FRONTEND=1`: quita las
   rutas de producción. Usa siempre el workflow.
 - Un release fallido y recuperado deja CI en rojo; `RECOVERY_BLOCKED` es un incidente, no lo
