@@ -19,8 +19,10 @@ PR ──► CI (suites aplicables) ──► CI required ──► merge a main
 Un push a `main` reutiliza el resultado del PR si el árbol de archivos es idéntico
 (`scripts/ci_policy.py`). Los releases se serializan; nunca se cancelan entre sí.
 
-La optimización de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md), pendiente de
-aceptación productiva, conserva la API cuando el diff completo desde su SHA publicado sólo afecta
+La optimización de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md) está publicada
+mediante [PR #335](https://github.com/ArturoFrancoMozqueda/kova/pull/335). Su retención de API y
+recuperación por componente siguen pendientes de ensayo productivo; los casos automatizados sí
+aprobaron. Conserva la API cuando el diff completo desde su SHA publicado sólo afecta
 frontend admitido, su Worker de assets, documentación o pruebas/política de CI admitidas.
 Los workflows, los proveedores de backend/Container dentro de `frontend/scripts/` y scripts
 desconocidos exigen publicación completa. La comparación falla hacia publicación
@@ -247,7 +249,20 @@ final de los 25 contratos no acredita continuidad durante el rollout.
 
 La espera de ADR-027 y el cierre HTTP privado de ADR-028 no preparan una segunda instancia.
 ADR-029 evita reiniciar el backend por cambios exclusivos de frontend; no acredita continuidad
-de un rollout que cambie la imagen de backend. Su código y pruebas locales están bajo revisión.
+de un rollout que cambie la imagen de backend. El [CI del PR #335](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42920385016)
+aprobó, además de 223 pruebas locales de release y 101 del repositorio. El árbol fusionado coincide
+con el árbol verificado por ese CI.
+
+La [instalación inicial](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42921604525)
+terminó con aceptación exitosa sobre `1909753ef501`. Como cambió el workflow, el plan exigió
+publicación completa. En las sondas de API directa y proxy, iniciadas cada diez segundos, hubo
+cuatro rondas consecutivas con timeout de ocho segundos entre las 23:24:21 y 23:24:51 UTC del
+10 de noviembre. Una sonda de `/health/db` también agotó su espera durante el reemplazo; eso no
+demuestra una caída independiente de Supabase. La API volvió a responder con imagen/controlador
+y proceso nuevos en la muestra de las 23:25:01 UTC. El frontend publicó su identidad nueva y
+la base volvió a verificarse accesible. Esta instalación confirma el corte pendiente; no es un
+ensayo productivo de publicación exclusiva de frontend ni de su recuperación sin reinicio.
+
 Para cerrar este gate hace falta mantener la versión anterior disponible mientras se prepara y
 verifica una instancia separada, cambiar tráfico después de comprobar imagen/controlador/base y
 drenar la anterior. Deben preservarse roles/RLS, límites compartidos, credenciales selladas,
