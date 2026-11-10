@@ -2,6 +2,11 @@ name: CI maintenance
 
 on:
   workflow_call:
+    inputs:
+      supply_chain_only:
+        description: Reproducibility only; caller already audits dependencies and both images
+        type: boolean
+        default: false
   workflow_dispatch:
   schedule:
     - cron: "41 8 * * 1"
@@ -15,6 +20,7 @@ concurrency:
 
 jobs:
   dependency-advisories:
+    if: ${{ !inputs.supply_chain_only }}
     name: refresh advisory coverage for all lockfiles
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -43,6 +49,7 @@ jobs:
           retention-days: 14
 
   image-advisories:
+    if: ${{ !inputs.supply_chain_only }}
     name: current image advisories (${{ matrix.name }})
     timeout-minutes: 30
     runs-on: ubuntu-latest

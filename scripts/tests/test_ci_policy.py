@@ -14,7 +14,7 @@ SPEC.loader.exec_module(POLICY)
 class PolicyTests(unittest.TestCase):
     def test_docs_only_skip_suites_even_on_main(self):
         self.assertEqual(POLICY.classify(["docs/deployment.md", "README.md"], main=True),
-                         dict(code="false", backend="false", frontend="false",
+                         dict(code="false", release="false", backend="false", frontend="false",
                               parser="false", supply="false", reused="false"))
 
     def test_unknown_paths_and_missing_diff_run_suites(self):
@@ -22,14 +22,39 @@ class PolicyTests(unittest.TestCase):
             self.assertEqual(POLICY.classify(paths)["code"], "true")
         for paths in [None, ["new-runtime"], ["deploy/cloudflare/worker.mjs"]]:
             self.assertEqual(POLICY.classify(paths),
-                             dict(code="true", backend="true", frontend="true",
+                             dict(code="true", release="true", backend="true", frontend="true",
                                   parser="true", supply="true", reused="false"))
 
-    def test_code_keeps_full_suites_and_main_parser(self):
+    def test_unrelated_code_does_not_rebuild_parser_on_main(self):
         for path in ["frontend/src/App.tsx", "backend/app/orders/service.py",
                      "backend/alembic/versions/0080.py"]:
             self.assertEqual(POLICY.classify([path])["code"], "true")
-            self.assertEqual(POLICY.classify([path], main=True)["parser"], "true")
+            self.assertEqual(POLICY.classify([path], main=True)["parser"], "false")
+
+    def test_ci_only_changes_validate_fully_without_deploying_application(self):
+        paths = [".github/workflows/ci.yml", ".github/workflows/ci-maintenance.yml",
+                 "scripts/ci_policy.py", "scripts/tests/test_ci_policy.py",
+                 "scripts/tests/test_ci_cost_workflows.py", "docs/despliegue.md"]
+        for main in (False, True):
+            policy = POLICY.classify(paths, main=main)
+            self.assertEqual(policy["release"], "false")
+            for key in ("code", "backend", "frontend", "parser", "supply"):
+                self.assertEqual(policy[key], "true", key)
+            self.assertEqual(POLICY.reuse(policy)["release"], "false")
+
+    def test_ci_mixed_with_application_or_unknown_tooling_still_deploys(self):
+        for path in ["frontend/src/App.tsx", "backend/app/main.py",
+                     "backend/alembic/versions/0102.py", "scripts/another-tool.py",
+                     "deploy/cloudflare/wrangler.jsonc", ".github/unrecognized-config"]:
+            self.assertEqual(POLICY.classify([".github/workflows/ci.yml", path])["release"],
+                             "true", path)
+
+    def test_parser_changes_still_validate_on_pr_and_main(self):
+        for main in (False, True):
+            for path in ["backend/app/assistant/worker.py", "backend/assistant-parser/Dockerfile",
+                         "backend/app/config.py", "backend/uv.lock", "frontend/package-lock.json",
+                         "scripts/check_parser_runtime.py", ".github/workflows/ci.yml"]:
+                self.assertEqual(POLICY.classify([path], main=main)["parser"], "true", path)
 
     def test_one_sided_changes_skip_only_the_other_side(self):
         frontend = POLICY.classify(["frontend/src/App.tsx", "docs/ux.md"])
@@ -138,18 +163,20 @@ class PolicyTests(unittest.TestCase):
             dict(code="true", backend="true", frontend="true", parser="true", supply="true"),
             needs))
 
-    def test_reused_main_push_still_requires_security_and_parser(self):
+    def test_reused_main_push_still_requires_security_and_affected_parser(self):
         policy = POLICY.reuse(POLICY.classify(["frontend/src/App.tsx"], main=True))
         self.assertEqual((policy["code"], policy["backend"], policy["frontend"],
                           policy["parser"], policy["reused"]),
-                         ("true", "false", "false", "true", "true"))
+                         ("true", "false", "false", "false", "true"))
+        self.assertEqual(POLICY.reuse(POLICY.classify(
+            ["backend/app/assistant/worker.py"], main=True))["parser"], "true")
         needs = {job: {"result": "success"} for job in
-                 ["changes", "repository", "security", "assistant-parser"]}
+                 ["changes", "repository", "security"]}
         needs |= {job: {"result": "skipped"} for job in
                   ["backend-integration", "backend-workers", "backend-native", "migrations",
-                   "frontend", "frontend-unit", "integration", "supply-chain"]}
+                   "frontend", "frontend-unit", "integration", "supply-chain", "assistant-parser"]}
         self.assertEqual(POLICY.gate_errors(policy, needs), [])
-        for job in ["security", "assistant-parser", "repository"]:
+        for job in ["security", "repository"]:
             self.assertTrue(POLICY.gate_errors(policy, needs | {job: {"result": "skipped"}}), job)
 
     def test_reuse_never_turns_docs_only_into_a_release(self):
