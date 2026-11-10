@@ -26,8 +26,34 @@ Los fallos del proveedor conservan su clasificación fija sin cuerpo, dirección
 
 Las regresiones cubren los seis órdenes de los eventos iniciales, repetición del mismo evento,
 importe real del fixture e idempotencia separada por destinatario/contenido. Fallan contra la
-implementación anterior y pasan con la corrección. La publicación y la recepción real de estos
-avisos corregidos requieren su propia evidencia; el cobro previo no las acredita retroactivamente.
+implementación anterior y pasan con la corrección. Esas regresiones no acreditan por sí solas
+la recepción real; el alcance comprobado en producción se registra a continuación.
+
+## Bienvenida verificada en producción
+
+El 9 de noviembre de 2026 a las 21:13 CDMX (10 de noviembre 03:13:42 UTC), el backend publicado
+`4aeaa973044d` generó la bienvenida del negocio QA mediante
+`POST /api/v1/billing/checkout/reconcile`, usando el Checkout live que el dueño ya había pagado.
+La consulta previa confirmó que faltaba su referencia local de Checkout y que no había un envío
+reciente de bienvenida. Se autenticó al propietario verificado por las rutas normales de Kova,
+con cookies y CSRF; la sesión temporal se cerró al terminar.
+
+- Dos confirmaciones consecutivas del mismo Checkout respondieron HTTP 200 y generaron un solo
+  envío. Resend registró un único `POST /emails` HTTP 200 del SDK del backend y estado `delivered`.
+  No se envió una plantilla manual con el conector ni se reinyectaron eventos fabricados.
+- Gmail web mostró «Tu plan Kova está activo» en Inbox, recibido aproximadamente un segundo
+  después. Se revisaron el remitente de Kova, logo, texto en español y destinos visibles de
+  «Ir al panel», «Suscripción» y soporte; la versión de texto contiene las mismas acciones.
+- «Mostrar original» confirmó SPF, DKIM para `mail.kovasuite.com` y DMARC en PASS.
+- La suscripción conservó Esencial, MXN 399.00, acceso activo y renovación cancelada al cierre
+  del período del 9 de diciembre de 2026 a las 13:40 CDMX. La referencia de Checkout quedó
+  registrada. No se creó otra suscripción, Checkout ni cargo y no se reactivó la renovación.
+
+Esto verifica transporte y entrega real de la bienvenida disparada por recuperación de Checkout
+en la versión publicada. No acredita una compra nueva posterior a la corrección, el primer
+webhook de esa compra, un recibo corregido, ni Gmail móvil/oscuro u otros proveedores de buzón.
+La repetición de esta confirmación no equivale a entrega exactamente una vez fuera de esa ventana.
+No hizo falta modificar código, desplegar ni ejecutar drills de Stripe/restauración.
 
 ## Evidencia histórica
 
