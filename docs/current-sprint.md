@@ -20,8 +20,10 @@ Fly está retirado. [Arquitectura](claude/architecture-context.md).
   conserva destino y versión `2026-04-22.dahlia`. La nueva elección de método predeterminado del
   Customer se verifica y aplica solamente a la suscripción vinculada del negocio.
 - Los avisos de bienvenida/recibo ya no se suprimen por la reconciliación autoritativa inicial;
-  usan idempotencia en Resend. La entrega de ambos disparadores corregidos aún no se ha probado
-  con otro evento live. [Alcance del correo](email-deliverability.md).
+  usan idempotencia en Resend. La bienvenida se verificó el 9 de noviembre a las 21:13 CDMX mediante
+  recuperación del Checkout ya pagado: un correo entregado en Gmail Inbox tras dos confirmaciones,
+  con SPF/DKIM/DMARC PASS y sin otro cargo ni cambio de cancelación. El recibo corregido y una compra
+  nueva posterior a la corrección siguen sin aceptación live. [Alcance del correo](email-deliverability.md).
 - El registro de pagos conserva sus marcas de eventos antes de la lectura de bienvenida, incluso
   con `autoflush=False` como en producción, dentro de la misma transacción. También se corrigió la
   carrera de propiedad del mapeo entre consultas; no se relajan firma, modo ni aislamiento.
@@ -117,8 +119,10 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    en la consulta del 2 de noviembre y el dominio sigue verificado. Seis muestras QA del diseño
    editorial enviadas ese día con el conector Resend también llegaron a Inbox, con revisión
    visual en Gmail web y SPF/DKIM/DMARC PASS observados en la muestra de reset. No prueban
-   los disparadores del backend. Faltan enlaces reales, clientes móviles/oscuro, Outlook/Hotmail y
-   disparadores actuales de las otras plantillas. [Evidencia y límites](email-deliverability.md).
+   los disparadores del backend. La bienvenida actual sí llegó a Inbox desde la recuperación de
+   Checkout del backend publicado el 9 de noviembre; se revisaron contenido, destinos y autenticación.
+   Faltan recibo corregido, enlaces de las otras plantillas, clientes móviles/oscuro, Outlook/Hotmail y
+   otros disparadores actuales. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
    La revisión autenticada del 9 de noviembre comprobó Caja y catálogo con datos reales a
    390/820/1440 px, sin desbordamiento horizontal, con menú y resumen móvil operables. No creó

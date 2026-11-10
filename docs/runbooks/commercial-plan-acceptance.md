@@ -28,8 +28,10 @@ la revisión Ops persistida del runner no reemplaza el recorrido de fundador con
 El dueño completó un pago live de Esencial por $399 MXN y canceló su renovación desde el Portal.
 La consulta productiva posterior confirmó acceso activo, sin cortesía, hasta el 9 de diciembre de
 2026 a las 13:40 CDMX. El webhook live está activo con diez eventos, incluido `customer.updated`.
-No hubo otro cargo live durante este corte. La entrega real de bienvenida/recibo después de la
-corrección sigue pendiente de evidencia; [correo](../email-deliverability.md).
+No hubo otro cargo live durante este corte. La bienvenida corregida llegó a Gmail Inbox desde la
+recuperación del Checkout ya pagado el 9 de noviembre a las 21:13 CDMX: dos confirmaciones, un envío,
+SPF/DKIM/DMARC PASS y acceso/cancelación conservados. No acredita una nueva compra ni su primer
+webhook. El recibo corregido sigue pendiente de aceptación live; [correo](../email-deliverability.md).
 
 La fuente está publicada con [release 42729913216 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729913216).
 La continuidad durante su sustitución sigue sin aceptar; [estado actual](../current-sprint.md).
