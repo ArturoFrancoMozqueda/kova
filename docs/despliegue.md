@@ -192,3 +192,20 @@ con la rama actualizada antes de fusionar. La regla también aplica a administra
 resolver conversaciones y bloquea pushes forzados y borrados. No exige una aprobación humana
 adicional. Esta configuración vive en GitHub; verificarla de nuevo si se cambian las reglas o
 el plan del repositorio. Activarla no publica código ni cambia el entorno `production`.
+
+
+## Continuidad observada y pendiente
+
+El [release 42729913216](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729913216)
+terminó saludable sobre `4aeaa973044d`. La observación confirmó el controlador nuevo atendiendo
+con la imagen anterior y sus marcadores originales antes del cambio. Aun así, durante la
+sustitución hubo 503 y solicitudes que excedieron treinta segundos. La primera respuesta con
+imagen/controlador nuevos se completó a las 01:01:49 UTC del 10 de noviembre de 2026. La aceptación
+final de los 25 contratos no acredita continuidad durante el rollout.
+
+La espera de ADR-027 y el cierre HTTP privado de ADR-028 no preparan una segunda instancia.
+Para cerrar este gate hace falta mantener la versión anterior disponible mientras se prepara y
+verifica una instancia separada, cambiar tráfico después de comprobar imagen/controlador/base y
+drenar la anterior. Deben preservarse roles/RLS, límites compartidos, credenciales selladas,
+compatibilidad de migraciones, recuperación exacta e idempotencia; no se autoriza un replay de
+escrituras para esconder fallos. Esta capacidad todavía no está implementada.

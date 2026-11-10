@@ -33,13 +33,11 @@ described as active unless GitHub shows them on the environment.
 
 ## Run
 
-Preflight del 29 de octubre de 2026: el environment conserva el Price y la variable de cuenta del
-sandbox, pero no el secreto `KOV005_STRIPE_SECRET_KEY` (se retiró tras la evidencia anterior, según
-el paso 6). La conexión Stripe disponible sólo permite la cuenta live. El último simulacro aprobado
-es del 8 de septiembre, anterior a la corrección de acceso por facturación; no acredita el checkout
-de la versión actual. Reinstalar una clave test directamente en el Secret store antes de ejecutar;
-no pegarla en chat, logs o archivos, ni sustituirla por una clave live. La aceptación controlada de
-checkout/cancelación live continúa como gate separado en [estado actual](../current-sprint.md).
+El environment conserva el Price y las variables del sandbox. `KOV005_STRIPE_SECRET_KEY` se instala
+sólo para las corridas autorizadas y se retira al cerrarlas. No pegar claves en chat, logs o archivos,
+ni sustituirlas por una clave live. La aceptación actual por plan está en
+[planes comerciales](commercial-plan-acceptance.md#evidencia-vigente); los registros siguientes son
+históricos y no acreditan por sí solos la versión vigente.
 
 Aceptación del 3 de noviembre de 2026, sobre `1a181853162b92f5d9a0c4d6432416c3dd157ed6`:
 
@@ -60,8 +58,9 @@ store, sin valores en archivos ni logs. La copia `KOV005_STRIPE_SECRET_KEY` ya s
 de comitear la evidencia. No se crearon claves ni se cambiaron permisos en Stripe. Para repetir,
 instalar otra vez la clave únicamente en el mismo entorno aislado; nunca usar una clave live.
 
-Estas ejecuciones no cierran Portal, upgrades, aplicación efectiva de downgrades, vencimiento de
-gracia según el reloj real de Kova ni aceptación fiscal/live. La oferta nueva permanece apagada.
+Estas ejecuciones históricas no cerraban Portal, upgrades, aplicación efectiva de downgrades,
+vencimiento de gracia según el reloj real de Kova ni aceptación fiscal/live. En ese corte la oferta
+nueva permanecía apagada; el estado vigente está en la matriz enlazada al inicio de esta sección.
 
 1. Merge the runner into `main` and select **Actions → KOV-005 Stripe sandbox drill**.
 2. Choose `main`, select `plan_code` (`standard` by default, `esencial`, or `gestion`), and enter
@@ -72,9 +71,10 @@ gracia según el reloj real de Kova ni aceptación fiscal/live. La oferta nueva 
    reviewers are configured, approve the deployment after that check.
 4. Download `kov-005-stripe-sandbox-<plan_code>-<sha>` only after the workflow succeeds. Portal
    opt-in artifacts include `-portal-<portal_mode>` between the plan code and SHA.
-5. Review the Markdown artifact. Commit it under
-   `docs/audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-<plan_code>-YYYY-MM-DD.md` without adding screenshots,
-   raw exports or secrets.
+5. Review the redacted Markdown artifact. Record the source commit, run links, verified outcomes,
+   cleanup and limits in [commercial acceptance](commercial-plan-acceptance.md#evidencia-vigente)
+   and the current state document. Preserve conclusions in these base documents instead of adding
+   a temporary dated audit. Never commit screenshots, raw exports or secrets.
 6. After the evidence is committed, delete `KOV005_STRIPE_SECRET_KEY` from the GitHub environment.
    Repeating the drill requires an explicit new installation of a sandbox key.
 

@@ -1,19 +1,46 @@
 # Aceptación y medición de los planes comerciales
 
-Guía de aceptación de Esencial/Gestión y su activación productiva autorizada en
+Guía de Esencial/Gestión y de su activación productiva autorizada en
 [ADR-021](../adr/ADR-021-commercial-production-activation.md), conservando Standard y cortesías.
-El diseño original está en [ADR-019](../adr/ADR-019-commercial-plan-design.md). Una lista revisada
-no acredita publicación, aceptación del Portal, cobro live, validación fiscal ni rentabilidad.
-La aceptación interactiva sandbox de los tres planes ya está
-[registrada](../audits/evidence/KOV-005-STRIPE-INTERACTIVE-PORTAL-2026-11-03.md), con fuentes por
-etapa y limpieza completa. El release de activación #316 se recuperó por discrepancia del catálogo.
-[ADR-022](../adr/ADR-022-native-controller-boot-policy.md) exige ahora una baseline preparatoria OFF
-con verificación del controlador al arrancar, seguida por una activación ON separada. La baseline
-OFF del PR #317 es `d4d81d6a4fe67c9e12b3dc0cbb272698c50bb770`, con
-[release 41860220621 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41860220621)
-y verificación externa de las seis rutas, catálogo Standard/OFF, marcadores de API/proxy e identidad
-de proceso. Esta entrega contiene la activación ON con gate `tiered` y conserva el protocolo;
-su publicación necesita su propio release y verificación externa registrada.
+El diseño está en [ADR-019](../adr/ADR-019-commercial-plan-design.md) y la identidad de arranque en
+[ADR-022](../adr/ADR-022-native-controller-boot-policy.md). La oferta está ON; los cortes locales e
+interactivos antiguos que se conservan abajo no reemplazan esta evidencia vigente.
+
+## Evidencia vigente
+
+El corte del 9 de noviembre CDMX usa fuente `4aeaa973044d8e377706b2df449842d949e8dd7e`.
+La aceptación integrada se ejecuta en un sandbox dedicado y una base efímera del runner; los
+resultados del proveedor no se fabrican mediante cambios directos en tenants o permisos.
+
+| Plan | Ejecución | Resultado actual |
+|---|---|---|
+| Esencial, MXN 399.00/mes | [42729937892](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729937892) | Aprobó Checkout, Portal básico, riesgo, ciclo, orden, duplicados y limpieza. |
+| Gestión, MXN 699.00/mes | [42730735842](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42730735842) | Aprobó el mismo alcance y limpieza. |
+| Standard anterior, MXN 299.00/mes | [42731428800](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42731428800) | Aprobó el mismo alcance y limpieza, conservando el acuerdo anterior. |
+
+El Portal se abre desde la API de Kova para un dueño verificado, guarda un método de pago efectivo
+diferente en Stripe y programa la cancelación conservando plan, funciones e importe hasta el fin
+pagado. No se aceptan upgrades/downgrades autónomos ni un retorno por el frontend de Kova por estos
+resultados. Test Clocks avanzan sólo Stripe: no demuestran que haya transcurrido la gracia en Kova.
+Los reembolsos parciales, disputas y alertas de fraude se reciben con firma y conservan idempotencia;
+la revisión Ops persistida del runner no reemplaza el recorrido de fundador con MFA en producción.
+
+El dueño completó un pago live de Esencial por $399 MXN y canceló su renovación desde el Portal.
+La consulta productiva posterior confirmó acceso activo, sin cortesía, hasta el 9 de diciembre de
+2026 a las 13:40 CDMX. El webhook live está activo con diez eventos, incluido `customer.updated`.
+No hubo otro cargo live durante este corte. La entrega real de bienvenida/recibo después de la
+corrección sigue pendiente de evidencia; [correo](../email-deliverability.md).
+
+La fuente está publicada con [release 42729913216 aprobado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729913216).
+La continuidad durante su sustitución sigue sin aceptar; [estado actual](../current-sprint.md).
+Cada simulacro eliminó tres Test Clocks y tres clientes QA independientes; detuvo listener y backend.
+Los cargos y su historial de riesgo de prueba permanecen como registros del proveedor. No hubo fondos reales.
+Al cerrar estas corridas se retiró `KOV005_STRIPE_SECRET_KEY` del environment `stripe-sandbox`;
+la lista de nombres confirmó que sólo permanece el Price preexistente.
+El respaldo lógico se restauró con RLS, login, exportación, logout y limpieza sobre fuente `1b41646cae8d`;
+no prueba recuperación regional ni bindings de producción. La revisión de Caja autenticada a
+390/820/1440 px comprobó catálogo, menú y resumen móvil sin desbordamiento, sin crear ventas ni
+alterar turnos. Los equipos e impresoras físicos siguen sin definir/aceptar.
 
 ## Evidencia y entorno
 
