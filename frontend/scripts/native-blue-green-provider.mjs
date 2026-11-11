@@ -17,7 +17,7 @@ const coreFiles = ["deploy/cloudflare-native/entry.mjs", "deploy/cloudflare-nati
   "deploy/cloudflare-native/policy.mjs", "deploy/cloudflare-native/rate-limit.mjs",
   "deploy/cloudflare-native/settings-keys.json", "deploy/cloudflare-native/cloudflare.config.ts",
   "deploy/cloudflare-native/package.json", "deploy/cloudflare-native/package-lock.json",
-  "deploy/public-images.mjs", "deploy/native-handoff.mjs",
+  "deploy/public-images.mjs", "deploy/native-handoff.mjs", "deploy/controller-update-recovery.mjs",
   "deploy/stripe-runtime-ids.mjs", "deploy/native-gateway-transition.mjs"];
 const readinessHeaders = { "Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 KovaResidentAcceptance/1.0" };
 async function readinessJson(response) {
