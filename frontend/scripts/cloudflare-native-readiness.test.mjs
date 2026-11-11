@@ -13,6 +13,32 @@ const ready = (release = sha, headers = {}) => globalThis.Response.json({ status
 });
 const options = { backendUrl: "https://api.example.test", sha, previousSha };
 
+test("same-SHA slot publication waits for the exact warmed process on both public hops", async () => {
+  const expectedProcessId = "d".repeat(32);
+  let calls = 0, clock = 0;
+  await waitForNativeBackendRelease({ ...options, previousSha: sha,
+    expectedProcessId, previousProcessId: process, frontendUrl: "https://candidate.example.test",
+    requireControllerBootIdentity: true, now: () => clock, wait: async ms => { clock += ms; },
+    fetcher: async () => {
+      calls++;
+      return ready(sha, { "x-kova-boot-controller-sha": sha,
+        "x-kova-process-id": calls <= 2 ? process : expectedProcessId });
+    },
+  });
+  assert.equal(calls, 5);
+  assert.equal(clock, 2000);
+});
+
+test("uncaptured or malformed process identities cannot satisfy independent publication", async () => {
+  await assert.rejects(waitForNativeBackendRelease({ ...options,
+    expectedProcessId: "d".repeat(32), previousProcessId: process,
+    fetcher: async () => ready(sha, { "x-kova-process-id": "e".repeat(32) }),
+  }), /Unexpected native process/);
+  await assert.rejects(waitForNativeBackendRelease({ ...options, expectedProcessId: "short",
+    fetcher: assert.fail,
+  }), /exact process identities/);
+});
+
 test("new publication requires matching boot controller identity on both hops", async () => {
   const targets = [];
   await waitForNativeBackendRelease({ ...options, requireControllerBootIdentity: true,

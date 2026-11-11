@@ -46,7 +46,7 @@ test("first cutover captures explicit absence instead of inventing an image", as
   assert.deepEqual(await result.capture(), absent);
 });
 
-test("expanded live lite resources capture canonically and restore only the image and named size", async () => {
+test("expanded resources capture canonically and an unchanged image is not restarted by recovery", async () => {
   const expanded = application({ configuration: { image: oldImage, vcpu: 0.0625,
     memory_mib: 256, memory: "256MiB", disk: { size_mb: 2000, size: "2GB" },
     environment_variables: [{ name: "DO_NOT_CAPTURE", value: "synthetic-secret-value" }] } });
@@ -55,10 +55,9 @@ test("expanded live lite resources capture canonically and restore only the imag
   assert.deepEqual(captured, snapshot);
   await result.restore(captured, { workersRestored: true });
   const rollout = calls.find(args => args[0] === "rollouts");
-  assert.deepEqual(JSON.parse(rollout[4]).target_configuration,
-    { image: oldImage, instance_type: "lite" });
+  assert.equal(rollout, undefined, "restoring unchanged configuration must preserve the running process");
   assert.equal(JSON.stringify(captured).includes("synthetic-secret"), false);
-  assert.equal(JSON.stringify(rollout).includes("environment"), false);
+  assert.equal(JSON.stringify(calls).includes("environment"), false);
   for (const resources of [
     { vcpu: 0.0625, memory_mib: 256, disk: { size_mb: 2000 } },
     { ...expanded.configuration, instance_type: "lite" },

@@ -60,34 +60,33 @@ además de los jobs operativos. No atribuir un porcentaje de ahorro sin medir el
 ## Pasos del job de release
 
 1. **Capturar producción actual.** Lee `release_sha` de `https://api.kovasuite.com/health`,
-   verifica el sitio, el backend, la base y el proxy contra ese SHA, y guarda en el artefacto
-   `release-rollback-<sha>` (7 días):
+   verifica las identidades exactas e independientes del sitio/API, base y proxy, y guarda
+   el rollback original antes de la preparación y `release-rollback-<sha>` después (7 días):
    - el deployment de Vercel que está sirviendo,
    - la versión exacta del Worker `kova-frontend`,
    - las versiones de `kova-backend-jobs`, `kova-backend` y `kova-backend-gateway`,
    - la imagen del Container nativo.
+   - los slots independientes, sus versiones/imágenes, SHA/proceso activo y fuente del holder,
+     cuando se usa [ADR-030](adr/ADR-030-independent-native-api-slots.md).
 
-   Si algo falta o es incoherente, el release se detiene antes de tocar nada.
+   Si algo falta o es incoherente, el release se detiene. La preparación inicial de ADR-030
+   añade sólo entrypoints privados y conserva la imagen/proceso legado; se captura su estado
+   estable antes de publicar una API candidata. Su aceptación productiva sigue pendiente.
 2. **Candidato.** Construye el frontend en Vercel como deployment inmutable (`*.vercel.app`) sin
    asignar dominios.
 3. **Backend** (fase `candidate`):
    1. `alembic upgrade head` con `SUPABASE_DB_URL`.
-   2. Construye la imagen nativa `kova-native:<sha>` (linux/amd64).
-   3. Publica en orden: `kova-backend-jobs` → controlador `kova-backend` sin rollout de imagen →
-      comprobación externa del controlador → `kova-backend` con rollout → `kova-backend-gateway`.
-      La configuración pide actualización inmediata y [ADR-027](adr/ADR-027-native-controller-before-image.md)
-      comprueba su adopción antes de sustituir la imagen. La baseline debe conservar su SHA y
-      marcador de arranque; sólo `x-kova-controller-sha` debe identificar al controlador nuevo.
-      Un fallo impide iniciar el cambio de imagen. Durante el rollout independiente de imagen,
-      [ADR-024](adr/ADR-024-bounded-native-image-handoff.md) permite continuar únicamente al proceso
-      anterior ya sano, con SHA y marcador propios verificados, dentro de una concesión absoluta
-      de hasta treinta minutos. No se reinicia esa imagen con la nueva configuración ni se
-      presenta como versión nueva. Imágenes ajenas o mal arrancadas siguen bloqueadas.
-      Ante un reinicio reconocido durante esa concesión, [ADR-025](adr/ADR-025-native-pre-forward-startup-wait.md)
-      comparte una espera acotada antes de enviar los payloads. Cada solicitud se envía una sola
-      vez al proceso verificado; nunca se repite una escritura ya enviada.
-   4. Espera a que el proceso nativo reporte el nuevo SHA (hasta 30 min por el drenado de
-      Containers).
+   2. Publica jobs y elige el slot inactivo blue/green. Antes de reutilizarlo, exige su lease
+      de cinco minutos y cero respuestas abiertas, sin cambiar la instancia que atiende.
+   3. Construye la imagen nativa (linux/amd64) y publica sólo el Worker/aplicación de ese slot.
+      El gateway conserva la ruta anterior mientras su sonda fija comprueba arranque, SHA,
+      base y oferta comercial. No se transmiten credenciales/cookies de callers a la sonda.
+   4. Comprueba que la API anterior conserva versión y proceso; cambia sólo el binding del
+      gateway. La aceptación directa/proxy exige el proceso preparado, incluso si ambos slots
+      llevan el mismo SHA. Ante fallo, la recuperación vuelve al slot anterior sin rollout
+      de su imagen/controlador y lo prepara antes de mover tráfico si estaba apagado. El
+      slot anterior se conserva treinta minutos y después puede apagarse sin afectar al activo.
+      ADR-024–ADR-027 permanecen para la recuperación histórica.
 4. **Verificar el candidato** contra el backend nuevo. El ejecutable de release también compara
    `/api/v1/billing/plans` por API directa y proxy del candidato con la oferta revisada en
    `frontend/scripts/release-billing-offer.mjs`: revisión coincidente, planes exactos, importe,
@@ -108,7 +107,7 @@ Si algo falla después de empezar a modificar producción, `release-recovery.mjs
 
 | Fase | Qué restaura |
 |---|---|
-| `candidate` | Solo el backend: los tres Workers y la imagen del Container capturados |
+| `candidate` | Slots: gateway exacto y jobs, preparando antes la API anterior; artefactos históricos: tres Workers e imagen capturados |
 | `promotion` / `acceptance` | Primero el frontend (Worker Cloudflare, luego Vercel) y después el backend |
 
 Después vuelve a verificar todo contra el SHA anterior. Reglas:

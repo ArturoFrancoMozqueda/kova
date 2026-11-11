@@ -16,7 +16,6 @@ const revisions = {
 export async function verifyPublicBillingOffer({ frontendUrl, backendUrl, offer,
   frontendBypassSecret, fetch = globalThis.fetch }) {
   if (!["standard", "tiered"].includes(offer)) throw new Error("Unknown release billing offer");
-  const expected = offer === "tiered" ? { esencial: plans.esencial, gestion: plans.gestion } : { standard: plans.standard };
   const read = async (base, headers) => {
     const response = await fetch(`${base.replace(/\/$/, "")}/api/v1/billing/plans`, {
       headers: { "cache-control": "no-cache", ...headers }, cache: "no-store",
@@ -24,24 +23,7 @@ export async function verifyPublicBillingOffer({ frontendUrl, backendUrl, offer,
     });
     if (!response.ok) throw new Error("Public billing offer is unavailable");
     const body = await response.json();
-    const plans = body.available_plans;
-    if (body.tiered_pricing_enabled !== (offer === "tiered")
-        || body.offer_revision !== revisions[offer]
-        || !Array.isArray(plans) || plans.length !== Object.keys(expected).length
-        || new Set(plans.map(plan => plan.code)).size !== plans.length
-        || plans.some(plan => !Object.hasOwn(expected, plan.code)
-          || plan.name !== expected[plan.code].name
-          || plan.amount_minor_units !== expected[plan.code].amount
-          || plan.currency !== "MXN" || plan.interval !== "month"
-          || plan.tax_inclusive !== (offer === "tiered" ? true : null)
-          || !Array.isArray(plan.features)
-          || [...plan.features].sort().join(",") !== [...expected[plan.code].features].sort().join(",")
-          || plan.limits?.product_image_bytes !== expected[plan.code].bytes
-          || plan.limits?.branches !== expected[plan.code].branches
-          || Object.keys(plan.limits).sort().join(",") !== "branches,product_image_bytes")) {
-      throw new Error("Public billing offer differs from the reviewed release");
-    }
-    return body.offer_revision;
+    return verifyBillingOfferBody(body, offer);
   };
   const [direct, proxy] = await Promise.all([
     read(backendUrl, {}),
@@ -49,4 +31,29 @@ export async function verifyPublicBillingOffer({ frontendUrl, backendUrl, offer,
   ]);
   if (direct !== proxy) throw new Error("API and frontend proxy disagree on the public billing offer");
   return { offer, verified: true };
+}
+
+// Shared by the public release gate and the private candidate controller.
+// Return only the reviewed revision; never serialize arbitrary origin fields.
+export function verifyBillingOfferBody(body, offer) {
+  if (!["standard", "tiered"].includes(offer)) throw new Error("Unknown release billing offer");
+  const expected = offer === "tiered" ? { esencial: plans.esencial, gestion: plans.gestion } : { standard: plans.standard };
+  const available = body?.available_plans;
+  if (!body || body.tiered_pricing_enabled !== (offer === "tiered")
+      || body.offer_revision !== revisions[offer]
+      || !Array.isArray(available) || available.length !== Object.keys(expected).length
+      || new Set(available.map(plan => plan.code)).size !== available.length
+      || available.some(plan => !Object.hasOwn(expected, plan.code)
+        || plan.name !== expected[plan.code].name
+        || plan.amount_minor_units !== expected[plan.code].amount
+        || plan.currency !== "MXN" || plan.interval !== "month"
+        || plan.tax_inclusive !== (offer === "tiered" ? true : null)
+        || !Array.isArray(plan.features)
+        || [...plan.features].sort().join(",") !== [...expected[plan.code].features].sort().join(",")
+        || plan.limits?.product_image_bytes !== expected[plan.code].bytes
+        || plan.limits?.branches !== expected[plan.code].branches
+        || Object.keys(plan.limits).sort().join(",") !== "branches,product_image_bytes")) {
+    throw new Error("Public billing offer differs from the reviewed release");
+  }
+  return body.offer_revision;
 }

@@ -83,6 +83,7 @@ test("all pinned patches validate before writing and registry diagnostics are id
     writeFileSync(join(project, "patch-cf.mjs"), readFileSync(patch));
     writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
     writeFileSync(join(scratch, "native-handoff.mjs"), readFileSync(new URL("../../native-handoff.mjs", import.meta.url)));
+    writeFileSync(join(scratch, "native-gateway-transition.mjs"), readFileSync(new URL("../../native-gateway-transition.mjs", import.meta.url)));
     const originalContext = readFileSync(new URL(moduleName, dist), "utf8");
     const patchedStart = originalContext.indexOf('if(!t.ok){let n=e.method');
     const patchedEnd = originalContext.indexOf('},`catchErrorCodes`)', patchedStart);
@@ -95,7 +96,7 @@ test("all pinned patches validate before writing and registry diagnostics are id
     const inputs = [
       ["containers-BtcOgwm5.mjs", 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);'],
       ["deploy-input-fixture.mjs", 'm.push({name:`./${o}`,filePath:l'],
-      ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1` bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`'],
+      ["dist-DZRTPMMA.mjs", 'script_name:t.script_name,environment:t.environment}]};break;case`d1` bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret` service:t.service,environment:t.environment,entrypoint:t.entrypoint}];break;case`analytics_engine`'],
       [moduleName, baseline],
     ];
     const script = join(project, "patch-cf.mjs");

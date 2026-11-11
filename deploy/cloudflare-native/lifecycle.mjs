@@ -52,6 +52,8 @@ async function sdkTransportFailure(response) {
 // process was started. Actual image/runtime checks remain a release gate.
 export function residentContainerClass(Container, {
   now = Date.now, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), readinessWaitMs = 30_000,
+  environment = nativeEnvironment,
+  retirement = false,
 } = {}) {
   return class extends Container {
     defaultPort = 8000;
@@ -65,10 +67,13 @@ export function residentContainerClass(Container, {
     requestReadinessPromise;
     reconfigurationRequested = false;
     reconfigurationAttempted = false;
+    retirementGeneration = 0;
 
     constructor(ctx, env) {
       super(ctx, env);
-      this.envVars = nativeEnvironment(env);
+      this.environmentProvider = environment;
+      this.needsEnvironment = environment !== nativeEnvironment;
+      if (!this.needsEnvironment) this.envVars = environment(env);
     }
 
     isResident() {
@@ -96,6 +101,14 @@ export function residentContainerClass(Container, {
     }
 
     async ensureReady() {
+      if (this.needsEnvironment) {
+        this.environmentReady ??= Promise.resolve().then(() => this.environmentProvider(this.env))
+          .then(values => { this.envVars = values; this.needsEnvironment = false; return true; }, () => false);
+        if (!await this.environmentReady) {
+          this.environmentReady = undefined;
+          throw new Error("Native runtime configuration unavailable");
+        }
+      }
       if (!this.isResident()) return await this.env.API.getByName(NATIVE_INSTANCE).ensureReady();
       // Coalesce application checks without holding a DO input gate across I/O.
       if (!this.readinessPromise) {
@@ -234,6 +247,13 @@ export function residentContainerClass(Container, {
         if (!this.isResident()) {
           return await this.env.API.getByName(NATIVE_INSTANCE).fetch(request);
         }
+        if (retirement) {
+          // Only a real request routed back to the legacy API cancels its
+          // retirement. Read-only candidate probes do not renew this lease.
+          this.retirementGeneration++;
+          await this.ctx.storage.delete("native_retire_after");
+          this.retired = false;
+        }
         diagnostic = this.acceptanceDiagnostic(request);
         diagnostic("ensure_ready");
         // Only the gateway reaches this DO binding. It already sets the
@@ -292,6 +312,32 @@ export function residentContainerClass(Container, {
     async onActivityExpired() {
       // Intentional always-on lifecycle. SDK 0.3.7 renews the inactivity timer
       // when this hook returns without stop()/destroy(); no HTTP warming cron.
+      if (retirement) {
+        try { await this.retireIfUnused(); }
+        catch { /* Keep the rollback process if routing cannot be proved. */ }
+      }
+    }
+
+    async retireIfUnused() {
+      if (!retirement || !this.isResident() || !this.env.GATEWAY_STATUS) return;
+      const generation = this.retirementGeneration;
+      const active = await this.env.GATEWAY_STATUS.getActiveSlot();
+      if (generation !== this.retirementGeneration) return;
+      if (active === "legacy") {
+        await this.ctx.storage.delete("native_retire_after");
+        this.retired = false;
+        return;
+      }
+      if (active !== "blue" && active !== "green") throw new Error("Unknown serving API slot");
+      const deadline = await this.ctx.storage.get("native_retire_after");
+      if (generation !== this.retirementGeneration) return;
+      if (deadline === undefined) {
+        await this.ctx.storage.put("native_retire_after", now() + 1_800_000);
+        await this.schedule(1800, "retireIfUnused");
+      } else if (Number.isSafeInteger(deadline) && now() >= deadline) {
+        this.retired = true;
+        await this.stop();
+      }
     }
 
     async onStop() {
@@ -299,11 +345,15 @@ export function residentContainerClass(Container, {
       this.portProbeRequired = true;
       // Run after SDK stop bookkeeping; do not restart recursively inside its
       // shutdown promise or replace the SDK-owned alarm handler.
-      if (this.isResident()) await this.schedule(5, "ensureRunning");
+      if (this.isResident() && !(retirement && (this.retired
+          || await this.ctx.storage.get("native_retire_after") !== undefined))) {
+        await this.schedule(5, "ensureRunning");
+      }
     }
 
     async ensureRunning() {
       if (!this.isResident()) return;
+      if (retirement && await this.ctx.storage.get("native_retire_after") !== undefined) return;
       try {
         await this.ensureReady();
       } catch {

@@ -598,7 +598,24 @@ jobs:
         run: node frontend/scripts/capture-cloudflare.mjs "$RUNNER_TEMP/release-rollback.json"
         env:
           KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_NATIVE_BLUE_GREEN: "1"
           KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
+          KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Persist exact rollback before native preparation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-rollback-before-preparation-${{ github.sha }}
+          path: ${{ runner.temp }}/release-rollback.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Prepare independent native API publication
+        if: vars.KOVA_NATIVE_BACKEND == '1'
+        run: node frontend/scripts/prepare-native-release.mjs "$RUNNER_TEMP/release-rollback.json"
+        env:
+          KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_NATIVE_BLUE_GREEN: "1"
           KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -618,6 +635,7 @@ jobs:
           KOVA_HYPERDRIVE_APP_ID: ${{ vars.KOVA_HYPERDRIVE_APP_ID }}
           KOVA_HYPERDRIVE_PRIVILEGED_ID: ${{ vars.KOVA_HYPERDRIVE_PRIVILEGED_ID }}
           KOVA_NATIVE_BACKEND: ${{ vars.KOVA_NATIVE_BACKEND }}
+          KOVA_NATIVE_BLUE_GREEN: "1"
           KOVA_WORKERS_PACKAGES: /tmp/kova-release-pyodide/lib/python3.14/site-packages
           STRIPE_ESENCIAL_PRICE_ID: ${{ vars.STRIPE_ESENCIAL_PRICE_ID }}
           STRIPE_GESTION_PRICE_ID: ${{ vars.STRIPE_GESTION_PRICE_ID }}

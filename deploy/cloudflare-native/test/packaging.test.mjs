@@ -48,6 +48,8 @@ test("real cf strict comparator accepts equivalent unset DO environment and R2 j
   const after = 'script_name:t.script_name,...t.environment!==void 0?{environment:t.environment}:{}}]};break;case`d1`';
   const r2Before = 'bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`';
   const r2After = 'bucket_name:t.bucket_name,...t.jurisdiction!==void 0?{jurisdiction:t.jurisdiction}:{}}];break;case`secrets_store_secret`';
+  const serviceBefore = 'service:t.service,environment:t.environment,entrypoint:t.entrypoint}];break;case`analytics_engine`';
+  const serviceAfter = 'service:t.service,...t.environment!==void 0?{environment:t.environment}:{},...t.entrypoint!==void 0?{entrypoint:t.entrypoint}:{}}];break;case`analytics_engine`';
   const names = readdirSync(directory);
   const comparatorName = "containers-BtcOgwm5.mjs";
   const mapperName = "dist-DZRTPMMA.mjs";
@@ -62,7 +64,7 @@ test("real cf strict comparator accepts equivalent unset DO environment and R2 j
       for (const name of names) {
         const destination = join(folder, name);
         if (name === mapperName) {
-          const source = patched ? mapper : mapper.replace(after, before).replace(r2After, r2Before);
+          const source = patched ? mapper : mapper.replace(after, before).replace(r2After, r2Before).replace(serviceAfter, serviceBefore);
           writeFileSync(destination, source + '\nexport { fE as mapBindingsForTest };\n');
         } else if (name === comparatorName) {
           writeFileSync(destination, readFileSync(new URL(name, directory), "utf8") + '\nexport { xE as remoteDiffForTest };\n');
@@ -107,6 +109,22 @@ test("real cf strict comparator accepts equivalent unset DO environment and R2 j
     const european = { ...r2Local, r2_buckets: [{ ...r2Local.r2_buckets[0], jurisdiction: "eu" }] };
     assert.equal(variants[1].remoteDiffForTest({ ...structuredClone(european),
       ...variants[1].mapBindingsForTest([{ ...r2, jurisdiction: "eu" }]) }, european).diff, null);
+
+    const service = { type: "service", name: "SETTINGS", service: "kova-backend", entrypoint: "NativeSettings" };
+    const serviceLocal = { name: "slot-test", workers_dev: false, preview_urls: false,
+      services: [{ binding: "SETTINGS", service: "kova-backend", entrypoint: "NativeSettings" }] };
+    const compareService = (variant, binding = service) => variant.remoteDiffForTest(
+      { ...structuredClone(serviceLocal), ...variant.mapBindingsForTest([binding]) }, serviceLocal);
+    assert.equal(compareService(variants[0]).nonDestructive, false);
+    assert.equal(compareService(variants[1]).diff, null);
+    assert.equal(Object.hasOwn(variants[1].mapBindingsForTest([service]).services[0], "environment"), false);
+    for (const change of [{ environment: null }, { environment: "" }, { environment: "production" },
+      { entrypoint: null }, { entrypoint: "Other" }, { service: "another-worker" }]) {
+      assert.equal(compareService(variants[1], { ...service, ...change }).nonDestructive, false);
+    }
+    const defaultService = { ...serviceLocal, services: [{ binding: "SETTINGS", service: "kova-backend" }] };
+    assert.equal(variants[1].remoteDiffForTest({ ...defaultService,
+      ...variants[1].mapBindingsForTest([{ type: "service", name: "SETTINGS", service: "kova-backend" }]) }, defaultService).diff, null);
 
     // Dashboard saves omit the current Worker's name on its local namespaces.
     // Binding order is incidental; namespace identity and environment are not.
@@ -168,6 +186,7 @@ test("pinned cf workaround refuses version, missing marker and duplicate drift b
     writeFileSync(patch, readFileSync(new URL("../patch-cf.mjs", import.meta.url), "utf8"));
     writeFileSync(join(scratch, "stripe-runtime-ids.mjs"), readFileSync(new URL("../../stripe-runtime-ids.mjs", import.meta.url)));
     writeFileSync(join(scratch, "native-handoff.mjs"), readFileSync(new URL("../../native-handoff.mjs", import.meta.url)));
+    writeFileSync(join(scratch, "native-gateway-transition.mjs"), readFileSync(new URL("../../native-gateway-transition.mjs", import.meta.url)));
     writeFileSync(join(dist, "containers-BtcOgwm5.mjs"), 'function xE(e,t){let n=SE(t),r=_E(DE(e,n),n);');
     const packageFile = join(project, "node_modules/cf/package.json");
     const adapterFile = join(dist, "deploy-input-test.mjs");

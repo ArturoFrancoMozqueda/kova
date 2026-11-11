@@ -4,6 +4,7 @@ import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
 import { waitForNativeBackendRelease } from "./cloudflare-native-readiness.mjs";
 import { cloudflareContainerProvider, validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
 import { fetchReadinessGet, ReadinessFetchError } from "./readiness-fetch.mjs";
+import { nativeBlueGreenProvider, validateNativeSlots } from "./native-blue-green-provider.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare-backend");
@@ -118,16 +119,24 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
     [path.join(directory, "node_modules/cf/bin/cf"), ...args],
     { cwd: directory, env: commandEnv, capture, label: "Cloudflare backend" });
   const native = env.KOVA_NATIVE_BACKEND === "1";
+  const blueGreen = native && env.KOVA_NATIVE_BLUE_GREEN === "1";
+  let nativePublication;
+  const slots = native ? nativeBlueGreenProvider({ run, env, fetcher, wait, now,
+    onCandidateReady: value => { nativePublication = value; } }) : undefined;
   const containers = native ? cloudflareContainerProvider({ run, env }) : undefined;
   const nativeCf = (args, capture = false, commandEnv = env) => run(process.execPath,
     [path.join(nativeDirectory, "node_modules/cf/bin/cf"), ...args],
     { cwd: nativeDirectory, env: commandEnv, capture, label: "Cloudflare resident backend" });
   return {
     requiresNativeContainer: native,
+    requiresBlueGreen: blueGreen,
+    ...(blueGreen ? { prepareSlots: slots.prepare, captureSlots: slots.capture } : {}),
     ...(containers ? { captureNative: containers.capture } : {}),
     async waitForPublicBackend(input) {
       const nativeRuntime = native && input.nativeRuntime !== false;
-      if (nativeRuntime) await waitForNativeBackendRelease({ ...input, rollout: true });
+      if (nativeRuntime) await waitForNativeBackendRelease({ ...input, rollout: true,
+        ...(nativePublication ? { expectedProcessId: nativePublication.processId,
+          previousProcessId: nativePublication.previousProcessId } : {}) });
       else await waitForBackendRelease(input);
       if (nativeRuntime) {
         // A Python and a native publication can share the same commit. Prove
@@ -150,7 +159,8 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
       }
       return validateBackendVersions(captured);
     },
-    async publish(sha, previousSha) {
+    async publish(sha, previousSha, slotSnapshot) {
+      if (blueGreen) validateNativeSlots(slotSnapshot);
       // Recovery/capture also import this module in a disposable standalone bundle.
       // Only publication needs repository-owned commercial configuration.
       const { stripeRuntimeIds } = await import("../../deploy/stripe-runtime-ids.mjs");
@@ -203,6 +213,15 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
       delete artifactEnv.SUPABASE_DB_URL;
       await run(process.execPath, [path.join(directory, "build.mjs")],
         { cwd: directory, env: artifactEnv, label: "Cloudflare backend artifact" });
+      if (blueGreen) {
+        // The existing settings/rate-limit holder and the serving API Worker
+        // are untouched. Publish jobs, then warm the independent inactive API.
+        const jobArgs = ["deploy", "--prebuilt", "--worker", "kova-backend-jobs"];
+        await cf([...jobArgs, "--dry-run"], false, publicationEnv);
+        await cf(jobArgs, false, publicationEnv);
+        nativePublication = await slots.publish(sha, previousSha, slotSnapshot);
+        return;
+      }
       if (native) {
         await run(process.execPath, [path.join(nativeDirectory, "build.mjs")], {
           cwd: nativeDirectory, env: artifactEnv, label: "Cloudflare resident artifact",
@@ -227,9 +246,22 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
         else await cf(args, false, publicationEnv);
       }
     },
-    async restore(input, nativeSnapshot) {
+    async restore(input, nativeSnapshot, slotSnapshot) {
       const versions = validateBackendVersions(input);
       if (native) validateNativeContainerSnapshot(nativeSnapshot);
+      if (slotSnapshot !== undefined) {
+        if (!native) throw new Error("Native slot recovery requires the native runtime");
+        if (slotSnapshot.activeSlot === "legacy"
+            && JSON.stringify(await containers.capture()) !== JSON.stringify(validateNativeContainerSnapshot(nativeSnapshot))) {
+          throw new Error("Captured legacy image changed; recovery must not restart an unknown serving process");
+        }
+        const restored = await slots.restore(versions, slotSnapshot);
+        nativePublication = { processId: restored.processId,
+          previousProcessId: restored.previousProcessId ?? nativePublication?.processId ?? slotSnapshot.activeProcessId };
+        await cf(["workers", "deployments", "create", "--script-name", "kova-backend-jobs",
+          "--strategy", "percentage", "--versions", JSON.stringify([{ version_id: versions["kova-backend-jobs"], percentage: 100 }])]);
+        return;
+      }
       for (const name of ["kova-backend", "kova-backend-jobs", "kova-backend-gateway"]) {
         if (native && name === "kova-backend") {
           // This write-only API setting is per deployment, not a property of

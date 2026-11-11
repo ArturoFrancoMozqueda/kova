@@ -56,8 +56,8 @@ await writeWorkerConfig({ root, directoryName: "jobs", config: jobs.worker,
 const publicBundle = getWorkerBundleDir(root, "gateway");
 await mkdir(publicBundle, { recursive: true });
 await build({
-  entryPoints: [resolve(root, "gateway.mjs")], outfile: resolve(publicBundle, "gateway.mjs"),
-  bundle: true, format: "esm", platform: "neutral", target: "es2022", external: ["node:*"],
+  entryPoints: [resolve(root, "gateway-entry.mjs")], outfile: resolve(publicBundle, "gateway.mjs"),
+  bundle: true, format: "esm", platform: "neutral", target: "es2022", external: ["node:*", "cloudflare:workers"],
 });
 await writeWorkerConfig({ root, directoryName: "gateway", config: gateway.worker,
   manifest: { type: "complete", mainModule: "gateway.mjs", modules: {

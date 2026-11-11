@@ -80,10 +80,15 @@ function describeDiagnostic({ target, content, runtime, process, signature, read
  * text with no native identity; application/foreign/malformed errors fail closed.
  */
 export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
+  expectedProcessId, previousProcessId,
   frontendBypassSecret, rollout = false, requireControllerBootIdentity = false, fetcher = globalThis.fetch,
   wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
   if (typeof requireControllerBootIdentity !== "boolean") {
     throw new Error("Native boot identity requirement must be boolean");
+  }
+  if ((expectedProcessId !== undefined && !/^[a-f0-9]{32}$/.test(expectedProcessId))
+      || (previousProcessId !== undefined && !/^[a-f0-9]{32}$/.test(previousProcessId))) {
+    throw new Error("Native process handoff requires exact process identities");
   }
   if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
       || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
@@ -154,6 +159,10 @@ export async function waitForNativeBackendRelease({ backendUrl, frontendUrl, sha
       if (runtime !== "native-resident") throw new Error("Unexpected native runtime identity");
       const process = response.headers.get("x-kova-process-id") || "";
       if (!/^[a-f0-9]{32}$/.test(process)) throw new Error("Invalid native process identity");
+      if (expectedProcessId !== undefined && process !== expectedProcessId) {
+        if (process === previousProcessId) return null;
+        throw new Error("Unexpected native process during independent API publication");
+      }
       if (requireControllerBootIdentity) {
         const controller = response.headers.get("x-kova-boot-controller-sha");
         // New images can briefly run under the captured controller, which

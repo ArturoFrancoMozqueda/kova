@@ -6,6 +6,7 @@ import { verifyDeployment, verifyPublicDeployment } from "./verify-deployment.mj
 import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
 import { validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
+import { validateNativeSlots } from "./native-blue-green-provider.mjs";
 
 const RECOVERY_PHASES = new Set(["candidate", "promotion", "acceptance"]);
 const FULL_SHA = /^[0-9a-f]{40}$/i;
@@ -48,11 +49,19 @@ export function validateRollbackArtifact(input) {
   if (!FULL_SHA.test(releaseSha)) throw new Error("rollback artifact has no valid release SHA");
   const frontendSha = input.frontendSha === undefined ? releaseSha : input.frontendSha;
   if (!FULL_SHA.test(frontendSha)) throw new Error("rollback artifact has no valid frontend SHA");
+  const nativeSlots = input.cloudflareNativeSlots === undefined ? undefined
+    : validateNativeSlots(input.cloudflareNativeSlots);
+  if (nativeSlots && (nativeSlots.activeReleaseSha !== releaseSha || !input.cloudflareNativeContainer)) {
+    throw new Error("Native slot capture does not match the rollback API identity");
+  }
   if (input.cloudflareBackendVersions === undefined) {
     throw new Error("rollback artifact requires Cloudflare backend versions; legacy provider retired");
   }
   productionHostname(String(input.frontendUrl ?? ""));
   return {
+    ...(nativeSlots === undefined ? {} : {
+      cloudflareNativeSlots: nativeSlots,
+    }),
     ...(input.cloudflareNativeContainer !== undefined
       ? { cloudflareNativeContainer: validateNativeContainerSnapshot(input.cloudflareNativeContainer) } : {}),
     ...(input.cloudflareBackendVersions !== undefined
@@ -110,7 +119,8 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       restored.push("vercel");
     }
     if (backendChanged) {
-      await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions, artifact.cloudflareNativeContainer);
+      await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions, artifact.cloudflareNativeContainer,
+        ...(artifact.cloudflareNativeSlots === undefined ? [] : [artifact.cloudflareNativeSlots]));
       restored.push("cloudflare-backend");
     }
     if (restored.includes("cloudflare")) {

@@ -1,21 +1,25 @@
 # Resident FastAPI on Cloudflare
 
-This directory builds the native FastAPI API image and a JavaScript Container
-controller. It keeps the existing `kova-backend` Worker, `KovaApi` namespace,
-`KovaRateLimit` SQLite buckets, public gateway, domain, frontend and private job
-Worker. It does not expose a new HTTP hostname or a public container port.
+This directory builds the native FastAPI image and private Container controllers.
+The independent-slot release in [ADR-030](../../docs/adr/ADR-030-independent-native-api-slots.md)
+uses `kova-api-blue` and `kova-api-green` while preserving the gateway/domain,
+`KovaRateLimit` SQLite buckets, database, sessions and private job Worker. Its
+production acceptance is pending; the existing legacy recovery remains supported.
+It does not expose a new HTTP hostname or public container port.
 
-Only the existing `api-0` object starts a process. Other API shard names forward
-to it. `maxInstances: 1` and `instanceType: basic` pin one process to the smallest
-instance above lite: 1/4 vCPU, 1 GiB RAM and 4 GB disk. The SDK's idle hook deliberately returns
-without `stop()`/`destroy()` so the Linux process remains resident through idle
-periods. Stops schedule recovery with the SDK scheduler, without replacing its
-alarm handler. Platform maintenance and releases can still restart a process.
+Only `api-0` starts a process in each controller namespace. Other shard names forward
+to it. `maxInstances: 1` and `instanceType: basic` pin each process to the smallest
+instance above lite: 1/4 vCPU, 1 GiB RAM and 4 GB disk. The active process remains
+resident through idle periods. A slot confirmed inactive keeps a thirty-minute
+rollback window, then parks after its responses drain; recovery warms it before
+changing the route. Scheduling uses the SDK's own scheduler and alarm handler.
+Platform maintenance can still restart a process.
 
-Native environment values are projected from the checked-in Settings allowlist
-inside the Worker runtime. Existing sealed configuration remains in the same
-Worker; no secret-export endpoint or serialized binding exists. Native runtime
-and privileged database URLs must be separately provisioned before activation.
+Native environment values are projected from the checked-in Settings allowlist.
+Sealed configuration stays in `kova-backend`; new slots receive that projection
+only through its private `NativeSettings` service binding at startup. Resource
+bindings are not serialized. No credentials reach HTTP, frontend, CLI, artifacts
+or logs. Runtime and privileged URLs remain separate and retain their roles.
 The runtime role must pass the application's existing RLS/ownership guards.
 Retired Fly configuration and document ingestion remain disabled.
 
