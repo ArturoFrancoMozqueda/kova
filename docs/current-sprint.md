@@ -7,8 +7,10 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La baseline publicada y verificada es `4aeaa973044d8e377706b2df449842d949e8dd7e`,
-[release 42729913216](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729913216).
+La baseline publicada y verificada es `b68d921a4b313720c7ba62d8df09be166d2f9e8a`,
+[release 42940889466, intentos 1 y 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42940889466).
+La recuperación controlada del gateway dejó activo el slot green y el mismo proceso preparado
+en el intento 1. API, frontend, proxy, base, oferta y 25 contratos nativos aprobaron después.
 Esencial $399/Gestión $699 MXN mensuales y el Portal básico están ON; los acuerdos Standard de
 $299 se conservan. API/frontend se alojan en Cloudflare y la base PostgreSQL está en Supabase.
 Fly está retirado. [Arquitectura](claude/architecture-context.md).
@@ -27,18 +29,20 @@ Fly está retirado. [Arquitectura](claude/architecture-context.md).
 - El registro de pagos conserva sus marcas de eventos antes de la lectura de bienvenida, incluso
   con `autoflush=False` como en producción, dentro de la misma transacción. También se corrigió la
   carrera de propiedad del mapeo entre consultas; no se relajan firma, modo ni aislamiento.
-- Esencial, Gestión y Standard aprobaron el simulacro completo de Checkout, Portal básico, riesgo,
-  renovación/fallo/recuperación, cancelación, orden, duplicados y limpieza sobre esta fuente.
+- Esencial, Gestión y Standard aprobaron los simulacros previos de Checkout, Portal básico, riesgo,
+  renovación/fallo/recuperación, cancelación, orden, duplicados y limpieza sobre las fuentes allí
+  registradas. Este cambio de infraestructura no repitió cobros ni simulacros de Stripe.
   [Ejecuciones y alcance](runbooks/commercial-plan-acceptance.md#evidencia-vigente).
 - Se comprueba el controlador antes del rollout de imagen (ADR-027) y se cierra cada conexión HTTP
   privada al terminar la respuesta (ADR-028). La comparación a 3/5/7 segundos pasó de 10 errores
   en 158 lecturas a cero en otras 158, con el mismo protocolo de observación y sin otro despliegue
   en esas ventanas. La consulta de Cloudflare tampoco devolvió errores del controlador en la
   ventana posterior. Es una mitigación del patrón observado, no una causa histórica exclusiva.
-- La continuidad del despliegue **no está aceptada**: la publicación final terminó saludable pero
-  hubo 503 y vencimientos de treinta segundos durante la sustitución. La primera respuesta con
-  el SHA nuevo se completó a las 01:01:49 UTC del 10 de noviembre. Se necesita preparar un reemplazo
-  antes de mover tráfico; ordenar el controlador no elimina el corte de una sola instancia.
+- El reemplazo independiente de ADR-030 está publicado: legacy → green, green → blue y recuperación
+  exacta a green. Desde la primera respuesta nueva hubo 147 sondas sin errores, con el proceso
+  anterior conservado durante la preparación y recuperación. En el bootstrap inicial hubo dos
+  timeouts de transporte sin HTTP, todavía sin atribuir. No se declara continuidad absoluta de
+  esa migración ni una garantía global. [Evidencia](despliegue.md#continuidad-observada-y-pendiente).
 - El error de Sentry que envolvía repetidamente excepciones se corrigió con la actualización del
   SDK; la causa histórica de conexión externa con Supabase no está demostrada. La consulta de
   Sentry del 9 de noviembre no mostró incidencias del backend en su ventana de 24 horas.
@@ -99,21 +103,15 @@ siguen configurados. Próxima renovación, fin de prueba y débito bancario cons
 
 Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 
-1. **Continuidad durante el despliegue.** El release final aprobó sus 25 contratos y los tres
-   simulacros de Stripe están aceptados. Sin embargo, la sustitución productiva todavía causó 503
-   y esperas que superaron treinta segundos. Criterio pendiente: mantener la versión anterior
-   atendiendo mientras se prepara una instancia separada, verificar imagen/controlador/base antes
-   de cambiar tráfico y conservar recuperación exacta sin repetir escrituras.
-   [Evidencia y límite operativo](despliegue.md#continuidad-observada-y-pendiente).
-   La mitigación de [ADR-029](adr/ADR-029-frontend-release-without-backend-rollout.md) ya está publicada
-   con CI aprobado: conserva la API en publicaciones exclusivas de frontend admitido y evita
-   reiniciarla al recuperar un frontend fallido. Esos casos automatizados aprobaron; su ensayo
-   productivo aún está pendiente. La instalación inicial exigió publicación completa y volvió a
-   registrar cuatro rondas de sondas con timeout antes de terminar saludable. Los cambios reales
-   de backend siguen necesitando un reemplazo preparado antes de cambiar tráfico.
-   [ADR-030](adr/ADR-030-independent-native-api-slots.md) implementa dos controladores independientes,
-   verificación antes de mover tráfico y recuperación hacia la instancia anterior. Está bajo revisión;
-   este gate exige todavía CI y aceptación productiva de ambos slots y recuperación caliente.
+1. **Continuidad durante el despliegue: mecanismo independiente verificado.**
+   [ADR-030](adr/ADR-030-independent-native-api-slots.md) ya pasó CI completo, publicación de ambos
+   slots y recuperación caliente de la API usando la versión exacta del gateway capturado.
+   Se verificaron base, oferta, proceso y los 25 contratos nativos sin repetir escrituras.
+   El corte conocido por sustituir la única instancia ya tiene un reemplazo independiente
+   validado. Permanecen sin atribuir dos timeouts de transporte durante el bootstrap legado;
+   no se certifica disponibilidad global, apagado automático en producción ni una recuperación
+   de un proceso ya frío. La retención/recuperación de frontend de ADR-029 conserva pruebas
+   automatizadas; este ensayo cambió backend. [Alcance y límites](despliegue.md#continuidad-observada-y-pendiente).
 2. **Recuperación regional del respaldo.** El respaldo diario corre. La
    [restauración 42725832764](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42725832764)
    aprobó sobre fuente `1b41646cae8d`: revisión 0101, integridad, RLS, login, exportación, logout y
