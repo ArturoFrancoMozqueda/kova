@@ -1,4 +1,5 @@
 import { normalizeNativeHandoffDiff } from "./native-handoff.mjs";
+import { normalizeNativeGatewayDiff } from "./native-gateway-transition.mjs";
 
 // Public identifiers only. Credentials, URLs and rollout flags never enter this map.
 export const STRIPE_RUNTIME_ID_RULES = Object.freeze({
@@ -33,13 +34,18 @@ export function normalizeStripeRuntimeIdDiff(remote, local, environment, rules) 
   const copy = structuredClone(remote);
   const names = Object.keys(rules);
   const desired = names.filter(name => Object.hasOwn(local.vars ?? {}, name));
-  if (!desired.length || !["kova-backend", "kova-backend-jobs"].includes(local.name)) return copy;
+  const slots = { blue: "kova-api-blue", green: "kova-api-green" };
+  const slot = Object.keys(slots).find(key => slots[key] === local.name);
+  if (!desired.length || (!slot && !["kova-backend", "kova-backend-jobs"].includes(local.name))) return copy;
+  if (slot && environment.KOVA_NATIVE_TARGET_SLOT !== slot) {
+    throw new Error("Unverified native slot configuration");
+  }
   if (desired.length !== 4) throw new Error("Incomplete public Stripe configuration in release artifact");
-  const previous = environment.KOVA_NATIVE_PREVIOUS_SHA;
+  const previous = slot ? environment.KOVA_NATIVE_TARGET_PREVIOUS_SHA : environment.KOVA_NATIVE_PREVIOUS_SHA;
   const target = environment.KOVA_NATIVE_DEPLOY_SHA;
   if (!/^[a-f0-9]{40}$/i.test(previous ?? "") || !/^[a-f0-9]{40}$/i.test(target ?? "")
       || (remote.vars?.KOVA_BUILD_SHA !== previous
-        && !(local.name === "kova-backend" && remote.vars?.KOVA_BUILD_SHA === target
+        && !((local.name === "kova-backend" || slot) && remote.vars?.KOVA_BUILD_SHA === target
           && names.every(name => remote.vars?.[name] === local.vars[name])))
       || local.vars?.KOVA_BUILD_SHA !== target
       || (remote.name !== undefined && remote.name !== local.name)) {
@@ -68,11 +74,12 @@ export function commercialComparatorPrefix({ native = false } = {}) {
   // existing commercial comparator normalizes its build identity.
   const handoff = native ? `e=(${normalizeNativeHandoffDiff.toString()})(e,n,process.env);` : "";
   const normalize = `(${normalizeStripeRuntimeIdDiff.toString()})(e,n,process.env,${JSON.stringify(STRIPE_RUNTIME_ID_RULES)})`;
+  const gateway = `e=(${normalizeNativeGatewayDiff.toString()})(e,n,process.env);`;
   const ownNamespaces = native
     ? "for(let r of e.durable_objects?.bindings??[])if(r.script_name===void 0&&n.durable_objects?.bindings?.some(t=>t.name===r.name&&t.class_name===r.class_name&&t.script_name===n.name))r.script_name=n.name;"
     : "";
   const previousIdentity = native
     ? "let i=process.env.KOVA_NATIVE_PREVIOUS_SHA,a=process.env.KOVA_NATIVE_DEPLOY_SHA;if(n.name===`kova-backend`&&/^[a-f0-9]{40}$/i.test(i??``)&&/^[a-f0-9]{40}$/i.test(a??``)&&e.vars?.KOVA_BUILD_SHA===i&&n.vars?.KOVA_BUILD_SHA===a)e.vars.KOVA_BUILD_SHA=a;"
     : "";
-  return `function xE(e,t){let n=SE(t);${handoff}e=${normalize};${ownNamespaces}${previousIdentity}let r=_E(DE(e,n),n);`;
+  return `function xE(e,t){let n=SE(t);${handoff}${gateway}e=${normalize};${ownNamespaces}${previousIdentity}let r=_E(DE(e,n),n);`;
 }

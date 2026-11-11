@@ -38,7 +38,7 @@ test("the disposable recovery fixture imports with its staged scripts and no Clo
     // isolated import check without a Cloudflare installation.
     const staged = ["release-recovery.mjs", "verify-deployment.mjs", "cloudflare-provider.mjs",
       "cloudflare-backend-provider.mjs", "cloudflare-native-readiness.mjs", "cloudflare-container-provider.mjs",
-      "readiness-fetch.mjs"];
+      "readiness-fetch.mjs", "native-blue-green-provider.mjs", "native-slots.mjs"];
     for (const file of staged) {
       fs.copyFileSync(fileURLToPath(new URL(file, import.meta.url)), path.join(directory, file));
     }

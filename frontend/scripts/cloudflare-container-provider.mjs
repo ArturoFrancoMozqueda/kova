@@ -40,7 +40,7 @@ function absentSnapshot() {
     image: null, instanceType: "lite", maxInstances: 1 });
 }
 
-function exactResourceType(configuration) {
+export function exactResourceType(configuration) {
   if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) return undefined;
   const declared = configuration.instance_type;
   if (declared !== undefined && !Object.hasOwn(approvedResources, declared)) return undefined;
@@ -135,7 +135,9 @@ export function cloudflareContainerProvider({ run, env }) {
         }
         return;
       }
-      await get(previous.applicationId);
+      const current = await get(previous.applicationId);
+      if (current.image === previous.image && current.instanceType === previous.instanceType
+          && current.maxInstances === previous.maxInstances) return;
       // Cloudflare's verified API applies image changes through rollouts,
       // not an application PATCH. Pass only the captured image plus the same
       // size; never replay unreviewed environment/entrypoint configuration.

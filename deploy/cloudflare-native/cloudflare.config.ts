@@ -10,10 +10,18 @@ const handoff = process.env.KOVA_NATIVE_HANDOFF;
 if (handoff !== undefined && !nativeHandoff(handoff, release)) {
   throw new Error("Invalid native release handoff");
 }
+const coreImage = process.env.KOVA_NATIVE_CORE_IMAGE;
+if (process.env.KOVA_NATIVE_CORE_SOURCE_SHA !== undefined
+    && !/^[a-f0-9]{40}$/i.test(process.env.KOVA_NATIVE_CORE_SOURCE_SHA)) {
+  throw new Error("Full private settings source SHA is required");
+}
+if (coreImage !== undefined && !/^registry\.cloudflare\.com\/47d850c847503be3597dc7165cfea177\/kova-native-api(?:@sha256:[a-f0-9]{64}|:[a-f0-9]{8,64})$/.test(coreImage)) {
+  throw new Error("Core bootstrap requires the captured approved image");
+}
 
 const api = defineContainer({
   name: "kova-native-api",
-  image: {
+  image: coreImage ? { reference: coreImage } : {
     dockerfile: "../../backend/Dockerfile.api",
     buildContext: "../../backend",
     buildVars: { KOVA_RELEASE_SHA: release },
@@ -36,15 +44,20 @@ export default defineConfig({
     // otherwise keeps its old boot environment for up to 300s while the image
     // rollout is already running. The bounded handoff preserves the already
     // running, verified previous process until the platform replaces its image.
-    unsafe: { metadata: { code_update_strategy: { mode: "immediate" } } },
+    unsafe: { metadata: { code_update_strategy: coreImage
+      ? { mode: "deferred", max_delay: 86400 } : { mode: "immediate" } } },
     limits: { cpuMs: 30_000 },
     exports: {
       KovaApi: exports.durableObject({ storage: "sqlite", container: api }),
       KovaRateLimit: exports.durableObject({ storage: "sqlite" }),
       ContainerProxy: exports.worker(),
+      NativeSettings: exports.worker(),
     },
     env: {
       KOVA_BUILD_SHA: bindings.text(release),
+      ...(process.env.KOVA_NATIVE_CORE_SOURCE_SHA === undefined ? {} : {
+        KOVA_NATIVE_CORE_SOURCE_SHA: bindings.text(process.env.KOVA_NATIVE_CORE_SOURCE_SHA),
+      }),
       ...(handoff === undefined ? {} : { KOVA_NATIVE_HANDOFF: bindings.text(handoff) }),
       ...Object.fromEntries(Object.entries(stripeRuntimeIds(process.env))
         .map(([name, value]) => [name, bindings.text(value)])),
@@ -55,6 +68,7 @@ export default defineConfig({
         DB_PRIVILEGED: bindings.hyperdrive({ id: process.env.KOVA_HYPERDRIVE_PRIVILEGED_ID }),
       } : {}),
       API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }),
+      GATEWAY_STATUS: bindings.worker({ worker: "kova-backend-gateway", exportName: "NativeReleaseStatus" }),
       RATE_LIMITS: bindings.durableObject({ worker: "kova-backend", exportName: "KovaRateLimit" }),
       JOBS: bindings.durableObject({ worker: "kova-backend-jobs", exportName: "KovaJobs" }),
       ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),

@@ -47,7 +47,64 @@ function publicImageTimings(value) {
 
 export default {
   async fetch(request, env, ctx) {
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
+    if (path === "/health/candidate" || path === "/health/candidate/drain") {
+      // Operational readiness only: no caller-chosen slot, path, cookies or
+      // body reaches the candidate. It never forwards a business request.
+      if (request.method !== "GET" || url.search || !env.CANDIDATE_API) {
+        return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+      }
+      try {
+        const stub = env.CANDIDATE_API.getByName("api-0");
+        if (path.endsWith("/drain")) {
+          if (env.KOVA_NATIVE_CANDIDATE_SLOT === "legacy") {
+            return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+          }
+          const state = await stub.drainState();
+          if (!/^[a-f0-9]{40}$/i.test(state?.release_sha ?? "") || typeof state?.replaceable !== "boolean") {
+            throw new Error("Invalid candidate drain state");
+          }
+          return Response.json({ release_sha: state.release_sha, replaceable: state.replaceable }, {
+            headers: { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" },
+          });
+        }
+        let probe;
+        if (env.KOVA_NATIVE_CANDIDATE_SLOT === "legacy") {
+          // The first migration retains a legacy controller that may still
+          // be running its original class code. Its fixed public health
+          // contract is sufficient; no new RPC is required to keep rollback.
+          const response = await stub.fetch(new Request("https://api.kovasuite.com/health"));
+          const database = await stub.fetch(new Request("https://api.kovasuite.com/health/db"));
+          const body = await response.json();
+          const db = await database.json();
+          if (!response.ok || !database.ok || db?.status !== "ok" || db?.db !== "reachable") {
+            throw new Error("Legacy rollback API is unavailable");
+          }
+          probe = { ...body, processId: response.headers.get("x-kova-process-id"),
+            boot: response.headers.get("x-kova-boot-controller-sha"),
+            controller: response.headers.get("x-kova-controller-sha"), replaceable: false };
+        } else probe = await stub.probe();
+        if (probe?.status !== "ok" || !/^[a-f0-9]{40}$/i.test(probe.release_sha ?? "")
+            || !/^[a-f0-9]{32}$/.test(probe.processId ?? "")
+            || probe.boot !== probe.release_sha || probe.controller !== probe.release_sha
+            || typeof probe.replaceable !== "boolean"
+            || (env.KOVA_NATIVE_CANDIDATE_SLOT !== "legacy" && (probe.offerVerified !== true
+              || !/^offer-v1-[a-f0-9]{64}$/.test(probe.offerRevision ?? "")))) throw new Error("Invalid candidate probe");
+        return Response.json({ status: "ok", release_sha: probe.release_sha,
+          db: "reachable", replaceable: probe.replaceable,
+          offer_verified: probe.offerVerified === true,
+          ...(probe.offerVerified ? { offer_revision: probe.offerRevision } : {}) }, { headers: {
+          "Cache-Control": "private, no-store, max-age=0", "CDN-Cache-Control": "no-store",
+          "x-kova-runtime": "native-resident", "x-kova-process-id": probe.processId,
+          "x-kova-boot-controller-sha": probe.boot, "x-kova-controller-sha": probe.controller,
+        } });
+      } catch {
+        return Response.json({ detail: "Candidato no disponible." }, {
+          status: 503, headers: { "Cache-Control": "no-store" },
+        });
+      }
+    }
     if (path !== "/" && !path.startsWith("/api/v1/")
         && path !== "/health" && path !== "/health/"
         && path !== "/health/db" && path !== "/health/db/") {

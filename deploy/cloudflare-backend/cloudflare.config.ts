@@ -1,5 +1,6 @@
 import { bindings, defineConfig, exports, triggers } from "cf/config";
 import { stripeRuntimeIds } from "../stripe-runtime-ids.mjs";
+import { slotWorker } from "../cloudflare-native/slots.mjs";
 
 const database = process.env.KOVA_HYPERDRIVE_APP_ID;
 const privileged = process.env.KOVA_HYPERDRIVE_PRIVILEGED_ID;
@@ -9,6 +10,13 @@ const metadata = release ? { KOVA_BUILD_SHA: bindings.text(release) } : {};
 const databaseBindings = database ? { DB_APP: bindings.hyperdrive({ id: database }) } : {};
 const commercialBindings = Object.fromEntries(Object.entries(stripeRuntimeIds(process.env))
   .map(([name, value]) => [name, bindings.text(value)]));
+const activeSlot = process.env.KOVA_NATIVE_ACTIVE_SLOT;
+const candidateSlot = process.env.KOVA_NATIVE_CANDIDATE_SLOT;
+if (activeSlot !== undefined) slotWorker(activeSlot);
+if (candidateSlot !== undefined) slotWorker(candidateSlot);
+if (candidateSlot !== undefined && (activeSlot === undefined || activeSlot === candidateSlot)) {
+  throw new Error("Candidate API must be independent of the active slot");
+}
 export const observability = {
   enabled: true, redactQueryString: true,
   logs: { enabled: true, invocationLogs: false },
@@ -34,16 +42,22 @@ export const jobs = defineConfig({ worker: {
 } });
 
 export const gateway = defineConfig({ worker: {
-  name: "kova-backend-gateway", entrypoint: "./gateway.mjs",
+  name: "kova-backend-gateway", entrypoint: "./gateway-entry.mjs",
   // Preserve the existing remote ceiling so strict uploads do not erase it.
   // This metadata does not activate or change an account subscription.
   limits: { cpuMs: 100 },
   compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
   workersDev: false,
+  exports: { NativeReleaseStatus: exports.worker() },
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"
     ? ["api-preview.kovasuite.com", "api.kovasuite.com"] : ["api-preview.kovasuite.com"],
   env: {
-    API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }),
+    API: bindings.durableObject({ worker: activeSlot === undefined ? "kova-backend" : slotWorker(activeSlot), exportName: "KovaApi" }),
+    ...(activeSlot === undefined ? {} : { KOVA_NATIVE_ACTIVE_SLOT: bindings.text(activeSlot) }),
+    ...(candidateSlot === undefined ? {} : {
+      CANDIDATE_API: bindings.durableObject({ worker: slotWorker(candidateSlot), exportName: "KovaApi" }),
+      KOVA_NATIVE_CANDIDATE_SLOT: bindings.text(candidateSlot),
+    }),
     ...(process.env.KOVA_NATIVE_BACKEND === "1" ? { KOVA_NATIVE_BACKEND: bindings.text("1") } : {}),
   },
   observability,

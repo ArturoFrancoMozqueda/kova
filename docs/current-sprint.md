@@ -111,6 +111,9 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    productivo aún está pendiente. La instalación inicial exigió publicación completa y volvió a
    registrar cuatro rondas de sondas con timeout antes de terminar saludable. Los cambios reales
    de backend siguen necesitando un reemplazo preparado antes de cambiar tráfico.
+   [ADR-030](adr/ADR-030-independent-native-api-slots.md) implementa dos controladores independientes,
+   verificación antes de mover tráfico y recuperación hacia la instancia anterior. Está bajo revisión;
+   este gate exige todavía CI y aceptación productiva de ambos slots y recuperación caliente.
 2. **Recuperación regional del respaldo.** El respaldo diario corre. La
    [restauración 42725832764](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42725832764)
    aprobó sobre fuente `1b41646cae8d`: revisión 0101, integridad, RLS, login, exportación, logout y

@@ -5,7 +5,8 @@ import { build } from "esbuild";
 import { resolveAndParseConfig } from "@cloudflare/config";
 import { cleanBuildOutputDir, getWorkerBundleDir, normalizeDirectoryName,
   writeRootConfig, writeWorkerConfig, writeContainerConfig, readBuildOutput } from "@cloudflare/build-output-utils";
-import config from "./cloudflare.config.ts";
+const slot = process.env.KOVA_NATIVE_TARGET_SLOT;
+const { default: config } = await import(slot ? "./slot.config.ts" : "./cloudflare.config.ts");
 
 const root = import.meta.dirname;
 const context = { isPreview: false, mode: undefined };
@@ -21,7 +22,11 @@ const localImage = process.env.KOVA_NATIVE_IMAGE || `kova-native:${release}`;
 if (!/^[a-z0-9][a-z0-9./:_-]*$/.test(localImage)) {
   throw new Error("Invalid native image reference");
 }
-if (!process.env.KOVA_NATIVE_IMAGE) {
+const coreImage = process.env.KOVA_NATIVE_CORE_IMAGE;
+if (coreImage && !/^registry\.cloudflare\.com\/47d850c847503be3597dc7165cfea177\/kova-native-api(?:@sha256:[a-f0-9]{64}|:[a-f0-9]{8,64})$/.test(coreImage)) {
+  throw new Error("Core bootstrap must pin the captured native image");
+}
+if (!coreImage && !process.env.KOVA_NATIVE_IMAGE) {
   execFileSync("docker", ["build", "--platform", "linux/amd64", "--tag", localImage,
     "--build-arg", `KOVA_RELEASE_SHA=${release}`,
     "--file", resolve(root, container.image.dockerfile),
@@ -29,7 +34,7 @@ if (!process.env.KOVA_NATIVE_IMAGE) {
 }
 // A supplied prebuilt image still must be present in this runner's Docker
 // daemon. Container image identity is separately proved by runtime acceptance.
-const architecture = execFileSync("docker", ["image", "inspect", "--format", "{{.Os}}/{{.Architecture}}", localImage], {
+const architecture = coreImage ? "linux/amd64" : execFileSync("docker", ["image", "inspect", "--format", "{{.Os}}/{{.Architecture}}", localImage], {
   encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
 }).trim();
 if (architecture !== "linux/amd64") throw new Error("Native image must be linux/amd64");
@@ -38,7 +43,7 @@ await writeRootConfig(root, settings, context);
 const bundle = getWorkerBundleDir(root);
 await mkdir(bundle, { recursive: true });
 await build({
-  entryPoints: [resolve(root, "entry.mjs")],
+  entryPoints: [resolve(root, slot ? "slot-entry.mjs" : "entry.mjs")],
   outfile: resolve(bundle, "entry.mjs"),
   bundle: true, format: "esm", platform: "neutral", target: "es2022",
   external: ["cloudflare:workers", "node:*"],
@@ -48,7 +53,7 @@ await writeWorkerConfig({ root, config: worker, manifest: {
   type: "complete", mainModule: "entry.mjs", modules: { "entry.mjs": { type: "esm" } },
 } });
 await writeContainerConfig({ root, directoryName: normalizeDirectoryName(container.name),
-  config: { ...container, image: { localReference: localImage } },
+  config: { ...container, image: coreImage ? { reference: coreImage } : { localReference: localImage } },
 });
 await readBuildOutput(root);
-console.log("Packaged resident API controller and one basic Container; production routes unchanged.");
+console.log("Packaged one private native API slot; production routes unchanged.");

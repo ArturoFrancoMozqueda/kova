@@ -3,6 +3,61 @@ import assert from "node:assert/strict";
 import { convertToWranglerConfig, resolveAndParseConfig } from "@cloudflare/config";
 import { stripeRuntimeIds } from "../../stripe-runtime-ids.mjs";
 
+test("replacement slots have independent private namespaces and share the original settings and limiters", async () => {
+  const ids = { STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
+    STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Portal123", STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Portal123" };
+  const fields = ["KOVA_NATIVE_TARGET_SLOT", "KOVA_BUILD_SHA", ...Object.keys(ids)];
+  const saved = Object.fromEntries(fields.map(name => [name, process.env[name]]));
+  try {
+    Object.assign(process.env, ids, { KOVA_BUILD_SHA: "a".repeat(40) });
+    for (const slot of ["blue", "green"]) {
+      process.env.KOVA_NATIVE_TARGET_SLOT = slot;
+      const { default: config } = await import(`../slot.config.ts?test-${slot}`);
+      const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
+      assert.equal(parsed.success, true);
+      const { worker, containers } = parsed.data;
+      assert.equal(worker.name, `kova-api-${slot}`);
+      assert.equal(worker.workersDev, false); assert.equal(worker.previewUrls, false);
+      assert.equal(worker.domains, undefined);
+      assert.equal(worker.env.API.worker, worker.name);
+      assert.deepEqual(worker.env.SETTINGS, { type: "worker", worker: "kova-backend", exportName: "NativeSettings" });
+      assert.equal(worker.env.RATE_LIMITS.worker, "kova-backend");
+      assert.equal(worker.env.RATE_LIMITS.exportName, "KovaRateLimit");
+      assert.equal(worker.env.JOBS.worker, "kova-backend-jobs");
+      assert.equal(worker.env.APP_DATABASE_URL, undefined);
+      assert.equal(worker.env.MIGRATION_DATABASE_URL, undefined);
+      assert.equal(worker.env.SECRET_KEY, undefined);
+      assert.equal(containers.length, 1);
+      assert.equal(containers[0].name, `kova-api-${slot}`);
+      assert.equal(containers[0].instanceType, "basic");
+      assert.equal(containers[0].maxInstances, 1);
+      assert.equal(containers[0].ssh.enabled, false);
+    }
+  } finally {
+    for (const field of fields) { if (saved[field] === undefined) delete process.env[field]; else process.env[field] = saved[field]; }
+  }
+});
+
+test("private bootstrap pins the original image and build while recording its separate reviewed settings source", async () => {
+  const fields = ["KOVA_BUILD_SHA", "KOVA_NATIVE_CORE_SOURCE_SHA", "KOVA_NATIVE_CORE_IMAGE"];
+  const saved = Object.fromEntries(fields.map(name => [name, process.env[name]]));
+  try {
+    Object.assign(process.env, { KOVA_BUILD_SHA: "b".repeat(40), KOVA_NATIVE_CORE_SOURCE_SHA: "a".repeat(40),
+      KOVA_NATIVE_CORE_IMAGE: `registry.cloudflare.com/47d850c847503be3597dc7165cfea177/kova-native-api:${"c".repeat(12)}` });
+    const { default: config } = await import("../cloudflare.config.ts?test-bootstrap");
+    const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
+    assert.equal(parsed.success, true);
+    assert.deepEqual(parsed.data.containers[0].image, { reference: process.env.KOVA_NATIVE_CORE_IMAGE });
+    assert.equal(parsed.data.worker.env.KOVA_BUILD_SHA.value, "b".repeat(40));
+    assert.equal(parsed.data.worker.env.KOVA_NATIVE_CORE_SOURCE_SHA.value, "a".repeat(40));
+    assert.deepEqual(parsed.data.worker.unsafe.metadata.code_update_strategy, { mode: "deferred", max_delay: 86400 });
+    assert.deepEqual(Object.entries(parsed.data.worker.exports).filter(([, value]) => value.type === "durable-object")
+      .map(([name]) => name).sort(), ["KovaApi", "KovaRateLimit"]);
+  } finally {
+    for (const field of fields) { if (saved[field] === undefined) delete process.env[field]; else process.env[field] = saved[field]; }
+  }
+});
+
 test("candidate retains existing namespace contracts and permits exactly one basic process", async () => {
   process.env.KOVA_BUILD_SHA = "a".repeat(40);
   const { default: config } = await import("../cloudflare.config.ts");
@@ -14,7 +69,7 @@ test("candidate retains existing namespace contracts and permits exactly one bas
   assert.equal(worker.previewUrls, false);
   assert.deepEqual(worker.unsafe.metadata.code_update_strategy, { mode: "immediate" });
   assert.equal(worker.domains, undefined);
-  assert.deepEqual(Object.keys(worker.exports).sort(), ["ContainerProxy", "KovaApi", "KovaRateLimit"]);
+  assert.deepEqual(Object.keys(worker.exports).sort(), ["ContainerProxy", "KovaApi", "KovaRateLimit", "NativeSettings"]);
   assert.equal(worker.exports.KovaApi.container, "kova-native-api");
   assert.equal(worker.exports.KovaApi.storage, "sqlite");
   assert.equal(worker.exports.KovaRateLimit.storage, "sqlite");

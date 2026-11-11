@@ -27,6 +27,9 @@ export async function release({ artifact: rawArtifact, sha, provider,
   expectedBillingOffer, verifyOffer = verifyPublicBillingOffer,
   reuseBackend = false, planBackend = backendReleasePlan }) {
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresBlueGreen && !artifact.cloudflareNativeSlots) {
+    throw new Error("Independent native publication requires captured serving slots");
+  }
   if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
     throw new Error("Resident release requires the captured Container image or explicit absence");
   }
@@ -60,7 +63,8 @@ export async function release({ artifact: rawArtifact, sha, provider,
     if (plan.publishBackend) {
       // Set before a provider that can fail after partially publishing.
       backendChanged = true;
-      await provider.deployBackend(sha, artifact.releaseSha);
+      await provider.deployBackend(sha, artifact.releaseSha,
+        ...(provider.requiresBlueGreen ? [artifact.cloudflareNativeSlots] : []));
     }
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
@@ -126,14 +130,15 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
     ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),
     requiresNativeContainer: Boolean(backend?.requiresNativeContainer),
+    requiresBlueGreen: Boolean(backend?.requiresBlueGreen),
     ...(backend ? { waitForPublicBackend: backend.waitForPublicBackend } : {}),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);
       return vercel(["deploy", "--prebuilt", "--prod", "--skip-domain", "--yes"], true);
     },
-    async deployBackend(sha, previousSha) {
-      return backend.publish(sha, previousSha);
+    async deployBackend(sha, previousSha, slotSnapshot) {
+      return backend.publish(sha, previousSha, slotSnapshot);
     },
     async promote(url, frontendUrl) {
       const hostname = productionHostname(frontendUrl);

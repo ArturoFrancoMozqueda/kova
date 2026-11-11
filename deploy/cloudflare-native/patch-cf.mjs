@@ -60,11 +60,13 @@ const fixes = [
     [
       'script_name:t.script_name,environment:t.environment}]};break;case`d1`',
       'bucket_name:t.bucket_name,jurisdiction:t.jurisdiction}];break;case`secrets_store_secret`',
+      'service:t.service,environment:t.environment,entrypoint:t.entrypoint}];break;case`analytics_engine`',
     ],
     [
       'script_name:t.script_name,...t.environment!==void 0?{environment:t.environment}:{}}]};break;case`d1`',
       'bucket_name:t.bucket_name,...t.jurisdiction!==void 0?{jurisdiction:t.jurisdiction}:{}}];break;case`secrets_store_secret`',
-    ], "remote optional DO environment and R2 jurisdiction"),
+      'service:t.service,...t.environment!==void 0?{environment:t.environment}:{},...t.entrypoint!==void 0?{entrypoint:t.entrypoint}:{}}];break;case`analytics_engine`',
+    ], "remote optional DO/R2/service binding fields"),
 ];
 for (const fix of fixes) if (fix.changed) writeFileSync(fix.file, fix.source);
 if (fixes.some(fix => fix.changed)) console.log("Applied pinned cf compatibility and safe registry diagnostic fixes.");

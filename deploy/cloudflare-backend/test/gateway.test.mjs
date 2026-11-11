@@ -4,6 +4,50 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import gateway, { coordinatorShard } from "../gateway.mjs";
 
+test("candidate readiness and drain routes expose fixed metadata without forwarding caller credentials or paths", async () => {
+  const names = [];
+  let probes = 0;
+  let drains = 0;
+  const env = { KOVA_NATIVE_CANDIDATE_SLOT: "green", CANDIDATE_API: { getByName(name) {
+    names.push(name);
+    return {
+      async probe(...args) {
+        assert.deepEqual(args, []);
+        probes++;
+        return { status: "ok", release_sha: "a".repeat(40), processId: "b".repeat(32),
+          boot: "a".repeat(40), controller: "a".repeat(40), replaceable: false,
+          offerVerified: true, offerRevision: "offer-v1-" + "f".repeat(64) };
+      },
+      async drainState(...args) { assert.deepEqual(args, []); drains++;
+        return { release_sha: "a".repeat(40), replaceable: true }; },
+      fetch() { assert.fail("A caller-controlled request reached the staged API"); },
+    };
+  } } };
+  const headers = { Cookie: "synthetic-private-cookie", Authorization: "synthetic-private-auth",
+    "x-kova-native-slot": "unreviewed" };
+  const ready = await gateway.fetch(new Request("https://api.test/health/candidate", { headers }), env);
+  assert.equal(ready.status, 200);
+  assert.equal((await ready.json()).replaceable, false);
+  const drained = await gateway.fetch(new Request("https://api.test/health/candidate/drain", { headers }), env);
+  assert.deepEqual(await drained.json(), { release_sha: "a".repeat(40), replaceable: true });
+  assert.match(drained.headers.get("cache-control"), /no-store/);
+  for (const [path, method] of [["/health/candidate?path=/api/v1/sales", "GET"],
+    ["/health/candidate", "POST"], ["/health/candidate/drain", "POST"]]) {
+    const response = await gateway.fetch(new Request("https://api.test" + path, { method, headers }), env);
+    assert.equal(response.status, 404);
+  }
+  assert.deepEqual(names, ["api-0", "api-0"]);
+  assert.equal(probes, 1); assert.equal(drains, 1);
+});
+
+test("candidate probe failures remain private and never become successful health", async () => {
+  const env = { CANDIDATE_API: { getByName: () => ({ probe() { throw new Error("synthetic-private-details"); } }) } };
+  const response = await gateway.fetch(new Request("https://api.test/health/candidate"), env);
+  assert.equal(response.status, 503);
+  assert.doesNotMatch(await response.text(), /synthetic-private/);
+  assert.match(response.headers.get("cache-control"), /no-store/);
+});
+
 test("dependent dashboard reads reuse the session coordinator with at most four lanes per cookie", () => {
   const groups = new Set();
   const chain = ["/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout",
