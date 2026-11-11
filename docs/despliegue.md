@@ -72,7 +72,8 @@ además de los jobs operativos. No atribuir un porcentaje de ahorro sin medir el
 
    Si algo falta o es incoherente, el release se detiene. La preparación inicial de ADR-030
    añade sólo entrypoints privados y conserva la imagen/proceso legado; se captura su estado
-   estable antes de publicar una API candidata. Su aceptación productiva sigue pendiente.
+   estable antes de publicar una API candidata. El ensayo productivo y sus límites están
+   registrados en [continuidad observada](#continuidad-observada-y-pendiente).
 2. **Candidato.** Construye el frontend en Vercel como deployment inmutable (`*.vercel.app`) sin
    asignar dominios.
 3. **Backend** (fase `candidate`):
@@ -264,8 +265,50 @@ y proceso nuevos en la muestra de las 23:25:01 UTC. El frontend publicó su iden
 la base volvió a verificarse accesible. Esta instalación confirma el corte pendiente; no es un
 ensayo productivo de publicación exclusiva de frontend ni de su recuperación sin reinicio.
 
-Para cerrar este gate hace falta mantener la versión anterior disponible mientras se prepara y
-verifica una instancia separada, cambiar tráfico después de comprobar imagen/controlador/base y
-drenar la anterior. Deben preservarse roles/RLS, límites compartidos, credenciales selladas,
-compatibilidad de migraciones, recuperación exacta e idempotencia; no se autoriza un replay de
-escrituras para esconder fallos. Esta capacidad todavía no está implementada.
+### Reemplazo independiente publicado
+
+[PR #337](https://github.com/ArturoFrancoMozqueda/kova/pull/337) implementó ADR-030 sobre
+`b68d921a4b313720c7ba62d8df09be166d2f9e8a`. El [CI del head revisado](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42939865900)
+aprobó antes del merge. Validación local: 343 comprobaciones JavaScript aprobadas, 13 omisiones
+opcionales existentes, 101 pruebas Python del repositorio, OPS, ESLint, actionlint, RPC real en
+workerd, comparadores reales del CLI, bundles y dry runs sin publicación.
+
+El [release 42940889466](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42940889466)
+aprobó dos veces el 11 de noviembre UTC (10 de noviembre CDMX):
+
+- Intento 1, 01:49:46–01:55:45 UTC: conservó el proceso legado `eddb29da…`, instaló los entrypoints
+  privados con la imagen original y preparó green antes de promoverlo. Primera sonda nueva a las
+  01:55:22 UTC, proceso `a8c66e05…`.
+- Intento 2, 01:56:19–02:01:26 UTC: se repitió sólo el job de publicación, conservando los gates de
+  CI aprobados y capturas distintas por intento. Green siguió atendiendo mientras se preparó blue.
+  El SHA era el mismo; la aceptación exigió el proceso nuevo `b600b6de…`, observado a las 02:01:03 UTC.
+- Recuperación caliente: se validó el artefacto del intento 2, la versión intacta del holder y la
+  identidad exacta de green. Se preparó su sonda y se restauró exclusivamente la versión capturada
+  del gateway. El ejecutor rechazaba cualquier build/upload, otra mutación o versión no capturada.
+  A las 02:03:32 UTC la aceptación directa/proxy confirmó el mismo proceso green `a8c66e05…`.
+  La operación completa, incluida propagación/verificación, tardó 36,160 ms; blue siguió atendiendo
+  hasta el cambio. No hubo rollout de imágenes ni restauración de jobs/frontend en este drill de API.
+
+La observación externa, con límite de ocho segundos e intervalos de diez segundos (base cada
+treinta), reunió 343 sondas entre 01:41:08 y 02:05:43 UTC. Desde la primera respuesta nueva hubo
+147 sondas sin errores, incluyendo green → blue y el regreso a green. Se conservan dos fallos
+anteriores del bootstrap: `/health/db` a las 01:52:09 y `/health` a las 01:52:29 UTC agotaron ocho
+segundos con `URLError`, sin estado HTTP. Las sondas de proxy de esas rondas respondieron y el
+proceso legado no cambió. Una consulta agregada de la aplicación legada en Cloudflare, limitada a
+`/health` y `/health/db` entre 01:51 y 01:54 UTC, encontró 46 respuestas HTTP 200 y un máximo interno
+de 63.31 ms. Esto no identifica ni descarta una incidencia del trayecto de red/edge; esos dos
+timeouts siguen sin causa demostrada y no se presentan como lecturas exitosas.
+
+Después de recuperar green aprobaron de nuevo sitio, proxy, base, identidades y oferta tiered;
+los 25 contratos nativos conservaron proceso (mediana 431 ms, máximo 751 ms). Supabase mostró
+9 conexiones de cliente durante la primera coexistencia y 14 después, con máximo 60 y tres
+reservadas, sin otras sesiones activas ni transacciones idle abiertas en esas muestras. No se
+cambiaron pools, roles, RLS, base, secretos, precios o suscripciones. No se hizo otro cobro ni envío
+de correo. Las cifras son muestras de capacidad, no una medición del límite de clientes del pooler.
+
+Queda aceptado el reemplazo independiente y la recuperación caliente de API en esta ventana.
+El apagado por inactividad y la recuperación desde frío tienen cobertura automatizada; este
+ensayo no esperó treinta minutos para acreditarlos en producción. Tampoco prueba recuperación
+regional, futuras migraciones DDL, hardware, retención exclusiva de frontend ni disponibilidad
+global sin fallos. Los dos timeouts iniciales quedan como observación sin atribuir, no como prueba
+de una caída de Supabase ni de un reinicio del backend.
