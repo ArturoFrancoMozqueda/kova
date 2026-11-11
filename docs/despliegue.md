@@ -61,7 +61,8 @@ además de los jobs operativos. No atribuir un porcentaje de ahorro sin medir el
 
 1. **Capturar producción actual.** Lee `release_sha` de `https://api.kovasuite.com/health`,
    verifica las identidades exactas e independientes del sitio/API, base y proxy, y guarda
-   el rollback original antes de la preparación y `release-rollback-<sha>` después (7 días):
+   el rollback original antes de la preparación y `release-rollback-<sha>-attempt-<n>` después
+   (7 días). Cada intento conserva su captura sin sobrescribir la anterior:
    - el deployment de Vercel que está sirviendo,
    - la versión exacta del Worker `kova-frontend`,
    - las versiones de `kova-backend-jobs`, `kova-backend` y `kova-backend-gateway`,
@@ -120,8 +121,9 @@ Después vuelve a verificar todo contra el SHA anterior. Reglas:
   reenvía a otro origen. La aceptación pública no utiliza bypass.
 - Un release recuperado deja CI en rojo (`RELEASE_FAILED_RECOVERED`).
 - `RECOVERY_BLOCKED` es un incidente: no reintentes a ciegas. Revisa el estado en Cloudflare
-  (incluido un rollout de Container en curso) y usa el artefacto `release-rollback-<sha>` exacto de
-  ese run. Nunca elijas versiones "por la más reciente".
+  (incluido un rollout de Container en curso) y usa el artefacto `release-rollback-<sha>-attempt-<n>`
+  exacto de ese intento (los históricos pueden no incluir el sufijo). Nunca elijas versiones
+  "por la más reciente".
 
 ## Configuración del entorno `production` en GitHub
 

@@ -32,7 +32,7 @@ See [`../despliegue.md`](../despliegue.md) for the full flow.
 
 - Migrations are reversible and work with the previous app version (rollback never downgrades
   the database).
-- The release job captured a `release-rollback-<sha>` artifact and finished without
+- The release job captured its exact `release-rollback-<sha>-attempt-<n>` artifact and finished without
   `RELEASE_FAILED_RECOVERED` or `RECOVERY_BLOCKED`.
 - `https://api.kovasuite.com/health` reports the new `release_sha` and `/health/db` succeeds.
 - Authenticated manual QA follows [`manual-qa-checklist.md`](manual-qa-checklist.md).

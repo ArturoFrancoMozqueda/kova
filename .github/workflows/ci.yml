@@ -606,7 +606,7 @@ jobs:
       - name: Persist exact rollback before native preparation
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: release-rollback-before-preparation-${{ github.sha }}
+          name: release-rollback-before-preparation-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-rollback.json
           if-no-files-found: error
           retention-days: 7
@@ -622,7 +622,7 @@ jobs:
       - name: Persist exact rollback artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: release-rollback-${{ github.sha }}
+          name: release-rollback-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-rollback.json
           if-no-files-found: error
           retention-days: 7
