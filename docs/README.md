@@ -59,6 +59,9 @@ panel interno de operación, Sentry del navegador, higiene de turnos, cuarentena
 plataforma, autorización por comercio y revisión de efectos externos inciertos. Estado y límites
 en el [contrato](../specs/integrations/whatsapp-embedded-signup.md).
 
+[Revisión de la app de WhatsApp](runbooks/whatsapp-meta-app-review.md): configuración preparada,
+justificación de permisos y recorrido de video, con bloqueos de Meta y evidencia aún pendiente.
+
 [Aceptación de equipos](runbooks/pos-hardware-acceptance.md): equipo de prueba, impresión térmica,
 lector, cajón y pruebas offline en los dispositivos reales de cada negocio.
 
