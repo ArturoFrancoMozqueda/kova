@@ -81,8 +81,9 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
 - Facebook Login for Business agregado, ajustes HTTPS/SDK y URLs públicas guardados. Se creó la
   configuración `1478484207472135` desde la plantilla oficial de WhatsApp con token de 60 días y
   sólo los dos permisos de WhatsApp. Los cuatro ajustes del delegado privado ya están sellados,
-  con el gate apagado. Los botones de acceso avanzado y de envío de revisión siguen deshabilitados.
-  El panel exige además acceso avanzado a `public_profile` para Login for Business. Véanse el
+  con el gate apagado. Los botones de acceso avanzado de WhatsApp y de envío de revisión siguen
+  deshabilitados. `public_profile` ya muestra **Advanced access**, tras las declaraciones autorizadas
+  y la reautenticación del titular; la verificación del negocio sigue pendiente. Véanse el
   [expediente y las evidencias pendientes](whatsapp-meta-app-review.md), incluidos video real y
   revisión del aviso de privacidad antes de enviar.
 

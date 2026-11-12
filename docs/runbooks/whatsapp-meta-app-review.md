@@ -94,13 +94,12 @@ El Centro de seguridad muestra **En revisión**. En Permisos y funciones, los bo
 acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
 también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
 controles. La app permanece en desarrollo y el alta comercial apagada.
-El botón de `public_profile` se muestra habilitado. La primera lectura mostró un aviso de
-verificación obligatoria; después terminó de cargar el diálogo **Confirmar acceso avanzado para
-public_profile**, con pasos de comprobación de uso y tratamiento de datos. El titular autorizó
-expresamente la declaración de uso permitido y el primer paso quedó completado. El formulario de
-tratamiento de datos se completó y se pulsó Enviar con autorización expresa. Meta solicitó volver a
-autenticar al titular antes de continuar; el envío final y el acceso avanzado aún no están
-confirmados. No inferir el resultado final de esta confirmación a partir del aviso inicial.
+`public_profile` muestra **Advanced access** tras completar la declaración de uso permitido,
+el formulario de tratamiento de datos y la reautenticación directa del titular, con su autorización
+expresa. Se comprobó la fila del permiso y la acción **Volver al acceso estándar** en el panel real.
+La fila conserva **Verificación obligatoria**; el Centro de seguridad sigue **En revisión**.
+Este nivel de acceso no acredita la aprobación del negocio ni la de los dos permisos de WhatsApp,
+que conservan **Standard access** y sus botones de solicitud deshabilitados.
 
 Para preparar los proveedores se comprobó la región real del proyecto de producción de Supabase
 (`us-west-1`) mediante metadatos del proyecto, sin consultar datos ni credenciales. Se declararon
@@ -116,8 +115,8 @@ Fuentes de los proveedores consultadas el 12 de noviembre de 2026:
 [residencia y transferencias de Supabase](https://supabase.com/legal/privacy-resources/data-residency-and-transfers-faq)
 y [subencargados de Supabase](https://supabase.com/legal/subprocessor-list/October-12-2026.pdf).
 
-Tras la resolución, comprobar nuevamente estos controles, completar el requisito de `public_profile`
-del SDK y el acceso avanzado de WhatsApp. Antes de enviar, verificar privacidad, eliminación de datos,
+Tras la resolución, comprobar nuevamente estos controles y solicitar el acceso avanzado de los dos
+permisos de WhatsApp. Antes de enviar, verificar privacidad, eliminación de datos,
 acceso del revisor, video real y respuestas del formulario con el comportamiento publicado. La
 verificación del negocio por sí sola no acredita esos requisitos ni permite activar comercios.
 
