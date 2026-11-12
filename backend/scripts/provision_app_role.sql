@@ -142,6 +142,8 @@ BEGIN
             ('crm_followup_policies', 'SELECT, INSERT'),
             ('crm_followup_tasks', 'SELECT, INSERT'),
             ('messaging_channel_bindings', 'SELECT'),
+            ('messaging_channel_connections', 'SELECT'),
+            ('messaging_signup_sessions', 'SELECT'),
             ('messaging_conversations', 'SELECT, INSERT'),
             ('messaging_messages', 'SELECT, INSERT'),
             ('messaging_channel_events', 'SELECT, INSERT'),

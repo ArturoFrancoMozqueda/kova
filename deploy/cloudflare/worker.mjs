@@ -41,10 +41,12 @@ async function proxy(request, path, fetcher, trustedClientIP) {
     body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
     redirect: "manual",
     duplex: "half",
+    signal: request.signal,
   });
   try {
     const response = secure(await fetcher(upstream, {
       cf: { cacheEverything: false, cacheTtl: 0 },
+      signal: request.signal,
     }), { api: true, request });
     const location = response.headers.get("Location");
     if (location) {

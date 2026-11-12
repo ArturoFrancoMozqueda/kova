@@ -1,10 +1,11 @@
-"""Server-owned pilot registry. Runtime cannot provision or enable DB bindings.
+"""Verified server-owned connections; ordinary runtime cannot provision bindings.
 
-The secret-store registry is deliberately bounded. Self-service Embedded Signup
-is a separate rollout; a phone/account supplied by a browser never establishes scope.
+The bounded pilot registry coexists with encrypted Embedded Signup credentials.
+A phone/account supplied by a browser never establishes scope.
 """
 
 import sys
+from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
@@ -12,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, TypeAdapter, Valid
 
 from app.branches.scope import active_branch_id
 from app.config import settings
-from app.messaging.models import ChannelBinding
+from app.messaging.models import ChannelBinding, ChannelConnection
 from app.messaging.whatsapp import ChannelError, WhatsAppCloudAdapter
 
 
@@ -70,10 +71,12 @@ def platform_ready() -> bool:
     )
 
 
-def resolve_connection(db, tenant_id) -> PilotConnection | None:
+def resolve_connection(db, tenant_id, *, branch_id=None) -> PilotConnection | None:
     if not platform_ready():
         return None
-    branch = active_branch_id(db, tenant_id)
+    # Optional scope is for server-authorized report projections, never a
+    # browser body. HTTP messaging routes always use the authenticated branch.
+    branch = branch_id or active_branch_id(db, tenant_id)
     connection = next(
         (
             row
@@ -83,7 +86,7 @@ def resolve_connection(db, tenant_id) -> PilotConnection | None:
         None,
     )
     if connection is None:
-        return None
+        return stored_connection(db, tenant_id, branch)
     binding = (
         db.query(ChannelBinding)
         .filter_by(
@@ -99,9 +102,46 @@ def resolve_connection(db, tenant_id) -> PilotConnection | None:
     return connection if binding is not None and binding.verified_at is not None else None
 
 
-def connection_status(db, tenant_id):
+def stored_connection(db, tenant, branch):
+    from app.messaging import credentials
+
+    row = db.query(ChannelConnection).filter_by(tenant_id=tenant, branch_id=branch).first()
+    if row is None:
+        return None
+    binding = (
+        db.query(ChannelBinding)
+        .filter_by(id=row.binding_id, tenant_id=tenant, branch_id=branch, enabled=True)
+        .first()
+    )
+    if binding is None or binding.verified_at is None:
+        return None
+    if row.token_expires_at and row.token_expires_at <= datetime.now(UTC):
+        raise ChannelError("channel_configuration_invalid")
+    token, _pin = credentials.decrypt(
+        tenant=tenant,
+        branch=branch,
+        waba=binding.waba_id,
+        phone=binding.phone_number_id,
+        encrypted=row.encrypted_credentials,
+    )
+    return PilotConnection(
+        tenant_id=tenant,
+        branch_id=branch,
+        binding_id=binding.id,
+        waba_id=binding.waba_id,
+        phone_number_id=binding.phone_number_id,
+        access_token=token,
+        send_enabled=row.send_enabled,
+    )
+
+
+def connection_status(db, tenant_id, *, branch_id=None):
     try:
-        connection = resolve_connection(db, tenant_id)
+        connection = (
+            resolve_connection(db, tenant_id, branch_id=branch_id)
+            if branch_id
+            else resolve_connection(db, tenant_id)
+        )
     except ChannelError:
         return {"status": "configuration_error", "send_enabled": False, "receive_enabled": False}
     if connection is None:

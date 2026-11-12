@@ -34,7 +34,7 @@ export type ContactConsent = {
 export type CrmData = {
   opportunities: Opportunity[];
   consents: ContactConsent[];
-  capabilities: { whatsapp: "not_connected"; email: "not_connected" };
+  capabilities: { whatsapp: "not_connected" | "connected" | "configuration_error"; email: "not_connected" };
   opportunities_has_more: boolean;
   consents_has_more: boolean;
 };

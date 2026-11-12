@@ -43,6 +43,8 @@ TENANT_SCOPED_TABLES = (
     "crm_followup_policies",
     "crm_followup_tasks",
     "messaging_channel_bindings",
+    "messaging_channel_connections",
+    "messaging_signup_sessions",
     "messaging_conversations",
     "messaging_messages",
     "messaging_channel_events",
@@ -323,6 +325,10 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # reads (product image / receipt logo served cross-tenant by id), unauthenticated
 # invitation preview/accept, and pre-session auth (signup/login/refresh). Tenant
 # isolation on these paths is enforced at the application layer, as it is today.
+# WhatsApp onboarding is another explicit privileged path: only after ordinary
+# session/RBAC/billing/branch checks and upstream verification may it establish
+# an immutable binding. Signed ingress may look up those verified bindings by
+# their exact account/number before returning to ordinary tenant RLS sessions.
 # Kept small — it is not a general-purpose connection.
 privileged_engine = create_engine(
     _engine_database_url(settings.effective_migration_database_url),

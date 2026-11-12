@@ -1,5 +1,10 @@
 # Bandeja privada y outbox de comunicación
 
+Actualización local 2026-11-11: [Embedded Signup v4](whatsapp-embedded-signup.md) agrega alta del
+dueño con credenciales cifradas, detrás de un gate separado desactivado. Conserva el piloto
+asistido y runtime con acceso de sólo lectura a bindings; el nuevo aprovisionamiento usa una
+ruta privilegiada explícita después de autorización y verificación upstream. Falta aceptación real.
+
 Actualización 2026-10-23: el [piloto asistido](../../docs/runbooks/whatsapp-assisted-pilot.md)
 agrega ingreso HTTPS firmado y envío humano explícito, desactivados por defecto. La descripción
 del 18 de octubre que sigue documenta el corte anterior; ya no describe toda la superficie HTTP.

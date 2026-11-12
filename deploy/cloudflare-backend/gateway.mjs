@@ -65,7 +65,10 @@ export default {
           if (!/^[a-f0-9]{40}$/i.test(state?.release_sha ?? "") || typeof state?.replaceable !== "boolean") {
             throw new Error("Invalid candidate drain state");
           }
-          return Response.json({ release_sha: state.release_sha, replaceable: state.replaceable }, {
+          const diagnostics = Number.isSafeInteger(state.active_responses) && state.active_responses >= 0
+            && (state.idle_ms === null || (Number.isSafeInteger(state.idle_ms) && state.idle_ms >= 0))
+            ? { active_responses: state.active_responses, idle_ms: state.idle_ms } : {};
+          return Response.json({ release_sha: state.release_sha, replaceable: state.replaceable, ...diagnostics }, {
             headers: { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" },
           });
         }
@@ -128,7 +131,7 @@ export default {
       const shard = env.KOVA_NATIVE_BACKEND === "1" ? 0 : coordinatorShard(headers.get("cookie"), path);
       try {
         const started = performance.now();
-        const upstream = new Request(anonymousRequest, { headers });
+        const upstream = new Request(anonymousRequest, { headers, signal: request.signal });
         const getStub = () => env.API.getByName(`api-${shard}`);
         const response = env.KOVA_NATIVE_BACKEND === "1"
           ? await fetchWithControllerUpdateRecovery(upstream, getStub)

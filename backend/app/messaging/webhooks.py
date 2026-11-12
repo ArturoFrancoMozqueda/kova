@@ -86,6 +86,39 @@ def _constant(_value):
     raise ValueError("invalid_json_constant")
 
 
+def routing_accounts(raw_body: bytes) -> set[tuple[str, str]]:
+    """Bounded lookup keys after HMAC verification, never tenant authorization.
+
+    Exact bindings are resolved by the platform and every matched envelope is
+    then validated by parse_verified_webhook before ordinary tenant RLS writes.
+    """
+    try:
+        payload = json.loads(raw_body, object_pairs_hook=_object, parse_constant=_constant)
+        if not isinstance(payload, dict) or payload.get("object") != "whatsapp_business_account":
+            raise ValueError
+        pairs = set()
+        count = 0
+        for entry in _list(payload.get("entry")):
+            if not isinstance(entry, dict) or not _ID.fullmatch(entry.get("id", "")):
+                raise ValueError
+            for change in _list(entry.get("changes")):
+                count += 1
+                if count > MAX_EVENTS or not isinstance(change, dict):
+                    raise ValueError
+                if change.get("field") != "messages":
+                    continue
+                value = change.get("value")
+                if not isinstance(value, dict) or not isinstance(value.get("metadata"), dict):
+                    raise ValueError
+                phone = value["metadata"].get("phone_number_id", "")
+                if not isinstance(phone, str) or not _ID.fullmatch(phone):
+                    raise ValueError
+                pairs.add((entry["id"], phone))
+        return pairs
+    except (ValueError, TypeError, AttributeError):
+        raise ChannelError("webhook_payload_invalid") from None
+
+
 def _list(value, *, limit=100):
     if not isinstance(value, list) or len(value) > limit:
         raise ValueError("invalid_array")

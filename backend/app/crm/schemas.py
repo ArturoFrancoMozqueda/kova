@@ -99,7 +99,7 @@ class ConsentResponse(BaseModel):
 
 
 class Capabilities(BaseModel):
-    whatsapp: Literal["not_connected"] = "not_connected"
+    whatsapp: Literal["not_connected", "connected", "configuration_error"] = "not_connected"
     email: Literal["not_connected"] = "not_connected"
 
 

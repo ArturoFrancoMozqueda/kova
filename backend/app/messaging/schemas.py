@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.shared.validation import StrictModel, reject_html
 
@@ -65,6 +65,36 @@ class InboxConnectionStatus(BaseModel):
     status: Literal["not_connected", "connected", "configuration_error"]
     send_enabled: bool
     receive_enabled: bool
+
+
+class SignupAvailability(BaseModel):
+    available: bool
+    can_manage: bool
+    app_id: str | None = None
+    config_id: str | None = None
+    graph_version: str | None = None
+    state: Literal["not_started", "pending", "processing", "connected", "review_required", "failed"]
+
+
+class SendingSettings(StrictModel):
+    enabled: bool
+
+
+class SignupStart(BaseModel):
+    session_id: UUID
+    nonce: str
+    expires_at: datetime
+
+
+class SignupFinish(StrictModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    session_id: UUID
+    nonce: SecretStr = Field(min_length=32, max_length=128, repr=False)
+    code: SecretStr = Field(min_length=1, max_length=8192, repr=False)
+    waba_id: str = Field(pattern=r"^[1-9][0-9]{0,31}$")
+    phone_number_id: str = Field(pattern=r"^[1-9][0-9]{0,31}$")
+    # This implementation does not migrate numbers or enable coexistence.
+    event: Literal["FINISH"]
 
 
 class InboxConversationResponse(BaseModel):

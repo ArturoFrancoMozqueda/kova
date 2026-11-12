@@ -10038,6 +10038,11 @@
             "title": "Setup Status",
             "type": "string"
           },
+          "signup_available": {
+            "default": false,
+            "title": "Signup Available",
+            "type": "boolean"
+          },
           "status": {
             "default": "not_connected",
             "enum": [
@@ -16106,6 +16111,20 @@
         "title": "ScheduleDeletionRequest",
         "type": "object"
       },
+      "SendingSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SendingSettings",
+        "type": "object"
+      },
       "ServiceCaseAssigneeList": {
         "properties": {
           "has_more": {
@@ -16960,6 +16979,121 @@
         "title": "ShiftOpenCreate",
         "type": "object"
       },
+      "SignupAvailability": {
+        "properties": {
+          "app_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Id"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Id"
+          },
+          "graph_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph Version"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "pending",
+              "processing",
+              "connected",
+              "review_required",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "can_manage",
+          "state"
+        ],
+        "title": "SignupAvailability",
+        "type": "object"
+      },
+      "SignupFinish": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "format": "password",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string",
+            "writeOnly": true
+          },
+          "event": {
+            "const": "FINISH",
+            "title": "Event",
+            "type": "string"
+          },
+          "nonce": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 32,
+            "title": "Nonce",
+            "type": "string",
+            "writeOnly": true
+          },
+          "phone_number_id": {
+            "pattern": "^[1-9][0-9]{0,31}$",
+            "title": "Phone Number Id",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "waba_id": {
+            "pattern": "^[1-9][0-9]{0,31}$",
+            "title": "Waba Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "nonce",
+          "code",
+          "waba_id",
+          "phone_number_id",
+          "event"
+        ],
+        "title": "SignupFinish",
+        "type": "object"
+      },
       "SignupRequest": {
         "additionalProperties": false,
         "properties": {
@@ -17058,6 +17192,31 @@
           "reason"
         ],
         "title": "SignupResponse",
+        "type": "object"
+      },
+      "SignupStart": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "nonce": {
+            "title": "Nonce",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "nonce",
+          "expires_at"
+        ],
+        "title": "SignupStart",
         "type": "object"
       },
       "SourceHealth": {
@@ -18873,8 +19032,12 @@
             "type": "string"
           },
           "whatsapp": {
-            "const": "not_connected",
             "default": "not_connected",
+            "enum": [
+              "not_connected",
+              "connected",
+              "configuration_error"
+            ],
             "title": "Whatsapp",
             "type": "string"
           }
@@ -29709,6 +29872,47 @@
         ]
       }
     },
+    "/api/v1/messaging/connection/sending": {
+      "patch": {
+        "operationId": "configure_sending_api_v1_messaging_connection_sending_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendingSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConnectionStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure Sending",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/api/v1/messaging/conversations": {
       "get": {
         "operationId": "list_conversations_api_v1_messaging_conversations_get",
@@ -30295,6 +30499,89 @@
           }
         },
         "summary": "Transition Message",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/onboarding": {
+      "get": {
+        "operationId": "signup_status_api_v1_messaging_onboarding_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupAvailability"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Signup Status",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/onboarding/finish": {
+      "post": {
+        "operationId": "signup_finish_api_v1_messaging_onboarding_finish_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupFinish"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConnectionStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signup Finish",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/onboarding/start": {
+      "post": {
+        "operationId": "signup_start_api_v1_messaging_onboarding_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Signup Start",
         "tags": [
           "messaging"
         ]

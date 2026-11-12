@@ -111,15 +111,21 @@ def _commit(db, tenant_id, user_id, key, fingerprint, row, result, action, statu
 
 
 def get_opportunity(db: Session, tenant_id: UUID, opportunity_id: UUID):
-    row = db.query(Opportunity).filter_by(
-        tenant_id=tenant_id, branch_id=active_branch_id(db, tenant_id), id=opportunity_id
-    ).first()
+    row = (
+        db.query(Opportunity)
+        .filter_by(
+            tenant_id=tenant_id, branch_id=active_branch_id(db, tenant_id), id=opportunity_id
+        )
+        .first()
+    )
     if row is None:
         raise not_found("Oportunidad no encontrada")
     return _serialize_opportunity(db, row)
 
 
 def overview(db: Session, tenant_id: UUID, *, limit=100, offset=0, customer_id=None):
+    from app.messaging.connections import connection_status
+
     branch_id = active_branch_id(db, tenant_id)
     if customer_id is not None:
         _customer(db, tenant_id, customer_id)
@@ -158,7 +164,10 @@ def overview(db: Session, tenant_id: UUID, *, limit=100, offset=0, customer_id=N
         "consents": [
             _serialize_consent(db, row, customers.get(row.customer_id)) for row in consents[:limit]
         ],
-        "capabilities": {"whatsapp": "not_connected", "email": "not_connected"},
+        "capabilities": {
+            "whatsapp": connection_status(db, tenant_id)["status"],
+            "email": "not_connected",
+        },
         "opportunities_has_more": len(rows) > limit,
         "consents_has_more": len(consents) > limit,
     }

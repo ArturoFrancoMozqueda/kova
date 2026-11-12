@@ -3,24 +3,25 @@ import assert from "node:assert/strict";
 import { convertToWranglerConfig, resolveAndParseConfig } from "@cloudflare/config";
 import { stripeRuntimeIds } from "../../stripe-runtime-ids.mjs";
 
-test("replacement slots have independent private namespaces and share the original settings and limiters", async () => {
+test("three bounded replacement slots use private delegated settings and the original limiters", async () => {
   const ids = { STRIPE_ESENCIAL_PRICE_ID: "price_Esencial123", STRIPE_GESTION_PRICE_ID: "price_Gestion123",
     STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Portal123", STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Portal123" };
   const fields = ["KOVA_NATIVE_TARGET_SLOT", "KOVA_BUILD_SHA", ...Object.keys(ids)];
   const saved = Object.fromEntries(fields.map(name => [name, process.env[name]]));
   try {
     Object.assign(process.env, ids, { KOVA_BUILD_SHA: "a".repeat(40) });
-    for (const slot of ["blue", "green"]) {
+    for (const slot of ["blue", "green", "recovery"]) {
       process.env.KOVA_NATIVE_TARGET_SLOT = slot;
       const { default: config } = await import(`../slot.config.ts?test-${slot}`);
       const parsed = await resolveAndParseConfig(config, { isPreview: false, mode: undefined });
       assert.equal(parsed.success, true);
       const { worker, containers } = parsed.data;
       assert.equal(worker.name, `kova-api-${slot}`);
+      assert.ok(worker.compatibilityFlags.includes("enable_request_signal"));
       assert.equal(worker.workersDev, false); assert.equal(worker.previewUrls, false);
       assert.equal(worker.domains, undefined);
       assert.equal(worker.env.API.worker, worker.name);
-      assert.deepEqual(worker.env.SETTINGS, { type: "worker", worker: "kova-backend", exportName: "NativeSettings" });
+      assert.deepEqual(worker.env.SETTINGS, { type: "worker", worker: "kova-native-signup-settings", exportName: "SignupSettings" });
       assert.equal(worker.env.RATE_LIMITS.worker, "kova-backend");
       assert.equal(worker.env.RATE_LIMITS.exportName, "KovaRateLimit");
       assert.equal(worker.env.JOBS.worker, "kova-backend-jobs");

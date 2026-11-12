@@ -55,6 +55,10 @@ Modelo de amenazas de cookies/CSRF y diseño de rate limiting.
 Procedimientos paso a paso para operar producción: restore de backup, drill de Stripe, uptime,
 panel interno de operación, Sentry del navegador, higiene de turnos, cuarentena offline y pilotos.
 
+[Alta de WhatsApp desde Kova](runbooks/whatsapp-embedded-signup.md): preparación única de la
+plataforma, autorización por comercio y revisión de efectos externos inciertos. Estado y límites
+en el [contrato](../specs/integrations/whatsapp-embedded-signup.md).
+
 [Aceptación de equipos](runbooks/pos-hardware-acceptance.md): equipo de prueba, impresión térmica,
 lector, cajón y pruebas offline en los dispositivos reales de cada negocio.
 

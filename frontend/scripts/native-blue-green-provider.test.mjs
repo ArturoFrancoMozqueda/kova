@@ -246,15 +246,21 @@ test("first bootstrap preserves the legacy image, process, public offer and data
   const image = `registry.cloudflare.com/47d850c847503be3597dc7165cfea177/kova-native-api:${previous.slice(0, 12)}`;
   const ids = { STRIPE_ESENCIAL_PRICE_ID: "price_Esencial", STRIPE_GESTION_PRICE_ID: "price_Gestion",
     STRIPE_STANDARD_PORTAL_CONFIGURATION_ID: "bpc_Standard", STRIPE_TIERED_PORTAL_CONFIGURATION_ID: "bpc_Tiered" };
-  const commands = []; let installed = false;
+  const commands = []; let installed = false, signupInstalled = false;
   const run = async (_command, args, options) => {
     if (!args[0].endsWith("/cf")) { commands.push({ args, env: options.env }); return ""; }
     const command = args.slice(1);
+    if (command.slice(0, 2).join(" ") === "workers list") {
+      return JSON.stringify(["kova-backend", ...(signupInstalled ? ["kova-native-signup-settings"] : [])]
+        .map(name => ({ name })));
+    }
     if (command.slice(0, 3).join(" ") === "workers deployments list") {
       return JSON.stringify({ deployments: [{ versions: [{ version_id: version, percentage: 100 }] }] });
     }
     if (command.slice(0, 3).join(" ") === "workers versions get") {
       const worker = command[command.indexOf("--worker-id") + 1];
+      if (worker === "kova-native-signup-settings") return JSON.stringify({ id: version,
+        env: { KOVA_NATIVE_SIGNUP_SOURCE_SHA: { type: "plain_text", text: target } } });
       return JSON.stringify({ id: version, ...(installed && worker === "kova-backend"
         ? { exports: { NativeSettings: { type: "worker" } } } : {}), env: {
         API: { type: "durable_object_namespace", class_name: "KovaApi", script_name: "kova-backend" },
@@ -267,6 +273,7 @@ test("first bootstrap preserves the legacy image, process, public offer and data
     }
     commands.push({ args: command, env: options.env });
     if (command[command.indexOf("--worker") + 1] === "kova-backend" && !command.includes("--dry-run")) installed = true;
+    if (command[command.indexOf("--worker") + 1] === "kova-native-signup-settings" && !command.includes("--dry-run")) signupInstalled = true;
     return "";
   };
   const fetcher = async () => Response.json({ status: "ok", release_sha: previous }, { headers: {
@@ -294,3 +301,73 @@ test("first bootstrap preserves the legacy image, process, public offer and data
   await assert.rejects(changed.prepare({}), /separate control-plane migration/);
   assert.equal(commands.length, before);
 });
+
+for (const scenario of ["fresh", "already_present", "appeared", "foreign_identity", "unavailable"]) {
+  test(`a blocked inactive slot uses only a captured-absent bounded spare: ${scenario}`, async () => {
+    const record = slot => ({ workerVersion: version, applicationId: version,
+      namespaceId: "f".repeat(32), releaseSha: previous,
+      image: `registry.cloudflare.com/47d850c847503be3597dc7165cfea177/kova-api-${slot}:${previous.slice(0, 12)}` });
+    const snapshot = { ...baseline(), version: 2, activeSlot: "blue",
+      slots: { blue: record("blue"), green: record("green"),
+        recovery: scenario === "already_present" ? record("recovery") : null } };
+    let route = "blue", candidate = "green", clock = 0, warmed = false;
+    const mutations = [];
+    const run = async (_command, args, options) => {
+      if (!args[0].endsWith("/cf")) return "";
+      const command = args.slice(1);
+      if (command.slice(0, 3).join(" ") === "workers deployments list") {
+        return JSON.stringify({ deployments: [{ versions: [{ version_id: version, percentage: 100 }] }] });
+      }
+      if (command.slice(0, 3).join(" ") === "workers versions get") {
+        return JSON.stringify({ id: version, env: {
+          API: { type: "durable_object_namespace", class_name: "KovaApi", script_name: slotWorker(route) },
+          KOVA_NATIVE_ACTIVE_SLOT: { type: "plain_text", text: route } } });
+      }
+      if (command.slice(0, 2).join(" ") === "workers list") {
+        return JSON.stringify(["kova-api-blue", "kova-api-green",
+          ...(scenario === "appeared" ? ["kova-api-recovery"] : [])].map(name => ({ name })));
+      }
+      if (command.slice(0, 3).join(" ") === "containers applications list") return "[]";
+      assert.equal(command[0], "deploy");
+      if (command.includes("--dry-run")) return "";
+      const worker = command[command.indexOf("--worker") + 1];
+      mutations.push(worker);
+      assert.ok(!["kova-api-blue", "kova-api-green", "kova-backend"].includes(worker));
+      if (worker === "kova-api-recovery") { assert.equal(route, "blue"); warmed = true; }
+      else {
+        assert.equal(worker, "kova-backend-gateway");
+        route = options.env.KOVA_NATIVE_ACTIVE_SLOT;
+        candidate = options.env.KOVA_NATIVE_CANDIDATE_SLOT;
+        if (route === "recovery") assert.equal(warmed, true);
+      }
+      return "";
+    };
+    const fetcher = async url => {
+      const path = new URL(url).pathname;
+      if (path.endsWith("/drain")) {
+        assert.equal(route, "blue"); assert.equal(candidate, "green");
+        return Response.json({ release_sha: scenario === "foreign_identity" ? "f".repeat(40) : previous,
+          replaceable: false }, { status: scenario === "unavailable" ? 503 : 200 });
+      }
+      const serving = path === "/health/candidate" ? candidate : route;
+      const sha = serving === "recovery" ? target : previous;
+      return Response.json({ status: "ok", release_sha: sha, db: "reachable", offer_verified: true },
+        { headers: { "x-kova-process-id": (serving === "recovery" ? "b" : "a").repeat(32),
+          "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha } });
+    };
+    const provider = nativeBlueGreenProvider({ run, env: {}, fetcher, now: () => clock,
+      wait: async () => { clock += 900_000; } });
+    if (scenario === "fresh") {
+      const result = await provider.publish(target, previous, snapshot);
+      assert.equal(result.slot, "recovery");
+      assert.equal(result.previousProcessId, "a".repeat(32));
+      assert.equal(result.processId, "b".repeat(32));
+      assert.equal(route, "recovery");
+      assert.equal(mutations.filter(worker => worker === "kova-api-recovery").length, 1);
+    } else {
+      await assert.rejects(provider.publish(target, previous, snapshot));
+      assert.equal(route, "blue");
+      assert.deepEqual(mutations, ["kova-backend-gateway"]);
+    }
+  });
+}

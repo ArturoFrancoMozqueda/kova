@@ -1,8 +1,9 @@
 export const SLOT_WORKERS = Object.freeze({
   blue: "kova-api-blue",
   green: "kova-api-green",
+  recovery: "kova-api-recovery",
 });
-export const SLOT_APPLICATIONS = Object.freeze({ blue: "kova-api-blue", green: "kova-api-green" });
+export const SLOT_APPLICATIONS = Object.freeze({ ...SLOT_WORKERS });
 export const LEGACY_WORKER = "kova-backend";
 export const SLOT_DRAIN_MS = 300_000;
 
@@ -14,5 +15,5 @@ export function slotWorker(slot) {
 
 export function nextSlot(active) {
   slotWorker(active);
-  return active === "green" ? "blue" : "green";
+  return active === "green" || active === "recovery" ? "blue" : "green";
 }

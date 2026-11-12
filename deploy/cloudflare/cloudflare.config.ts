@@ -6,6 +6,7 @@ export default defineConfig({
   worker: {
     name: "kova-frontend",
     compatibilityDate: "2026-10-17",
+    compatibilityFlags: ["enable_request_signal"],
     entrypoint: "./worker.mjs",
     workersDev: false,
     // CPU only; network wait does not consume this allowance. Not a billing cap.

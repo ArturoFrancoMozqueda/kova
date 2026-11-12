@@ -23,8 +23,8 @@ from app.customer_orders.models import CustomerOrder, InventoryReservation
 from app.customers.models import Customer
 from app.inventory.models import InventoryLot, InventoryLotAllocation, InventoryLotReservation
 from app.loyalty.models import LoyaltyPolicyRevision
+from app.messaging.connections import connection_status, platform_ready
 from app.messaging.models import Conversation, Message
-from app.messaging.readiness import readiness
 from app.orders.models import InventoryMovement, Order, Payment
 from app.pricing.calculator import money as round_money
 from app.purchasing.models import PurchaseOrder
@@ -781,6 +781,13 @@ def read_control(
         return rows
 
     def business():
+        whatsapp = (
+            connection_status(db, tenant, branch_id=next(iter(branches)))["status"]
+            if len(branches) == 1
+            else "not_connected"
+            if not platform_ready()
+            else None
+        )
         values.update(
             _counts(
                 db,
@@ -817,8 +824,12 @@ def read_control(
             ),
             metric(
                 "whatsapp",
-                "WhatsApp externo",
-                "Sin conexión" if readiness().status == "not_connected" else "Consultar",
+                "WhatsApp",
+                {
+                    "not_connected": "Sin conexión",
+                    "connected": "Configurado",
+                    "configuration_error": "Requiere revisión",
+                }.get(whatsapp, "Consultar por sucursal"),
                 "channels",
                 fmt="text",
                 basis="business",

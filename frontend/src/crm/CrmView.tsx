@@ -492,7 +492,7 @@ function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; ca
                 WhatsApp:{" "}
                 {data.capabilities.whatsapp === "not_connected"
                   ? "sin conectar"
-                  : "consulta la conexión"}
+                  : data.capabilities.whatsapp === "connected" ? "conexión configurada" : "requiere revisión"}
               </span>
               <span className="rounded-full bg-muted px-3 py-1.5">
                 Correo:{" "}
