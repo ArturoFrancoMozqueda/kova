@@ -175,21 +175,27 @@ test("catalog owns the desktop product search without a global command bar", asy
   await expect(page.locator("#catalog-product-search")).toBeVisible();
 });
 
-test("public landing explains the single Standard Plan", async ({ page }) => {
+test("public landing presents the Esencial and Gestión plans", async ({ page }) => {
   await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({ json: { authenticated: false } });
   });
+  const core = ["pos", "inventory", "sales_reports", "public_catalog"];
+  await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: { offer_revision: "tiered", tiered_pricing_enabled: true, available_plans: [
+    { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: core, limits: { product_image_bytes: 250_000_000, branches: 1 } },
+    { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: [...core, "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"], limits: { product_image_bytes: 1_073_741_824, branches: 1 } },
+  ] } }));
 
   await page.goto("/");
 
   await expect(
     page.getByRole("heading", {
-      name: /vende con orden\. conoce tu negocio\./i,
+      name: /cobra una vez\. kova cuadra el resto\./i,
     }),
   ).toBeVisible();
-  await expect(page.getByText(/299/).first()).toBeVisible();
-  await expect(page.getByText(/199/)).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: /un solo plan/i })).toBeVisible();
+  await expect(page.locator(".lp-hero-pricing")).toContainText("Desde $399 MXN/mes");
+  await expect(page.getByText(/299/)).toHaveCount(0);
+  await expect(page.locator("#precio").getByRole("heading", { name: "Esencial" })).toBeAttached();
+  await expect(page.locator("#precio").getByRole("heading", { name: "Gestión" })).toBeAttached();
 });
 
 test("protected routes redirect unauthenticated users to login", async ({ page }) => {

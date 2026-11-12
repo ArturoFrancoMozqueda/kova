@@ -61,7 +61,7 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Vende con orden. Conoce tu negocio.",
+    assert: "Cobra una vez. Kova cuadra el resto.",
     moduleKey: "src/routes/Home.tsx",
     // HeroProductFrame's capture is the LCP on every viewport: it is the only
     // image in the first fold and renders eagerly at a single source (no

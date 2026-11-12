@@ -1,5 +1,23 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
+> **Actualización 11 de noviembre de 2026 (landing de venta y planes por nivel):**
+> la landing se reorganiza para vender y refleja la oferta Esencial/Gestión.
+> Orden vigente: **Navbar → Hero → Prueba social → Lo que Kova reemplaza
+> (Herramientas sueltas / En Kova) → Video → Funciones por pilar → Reportes → Planes → FAQ →
+> CTA final → Footer**. El tono y los mensajes siguen `docs/KOVA_BRAND_CONTEXT.md`. El hero promete un resultado concreto con tres
+> beneficios verificables y no muestra precio hasta que el servidor confirma la
+> oferta. Las funciones se agrupan en cinco pilares (cobrar, inventario, vender
+> fuera del mostrador, clientes que regresan, entender el negocio) con una
+> mini-interfaz de Sweet Home cada uno; la etiqueta "Plan …" se deriva del
+> catálogo público, solo para funciones que no vienen en el plan de entrada.
+> Las tarjetas de plan dicen para quién es cada nivel y el plan superior se
+> destaca porque es el que se prueba durante el periodo gratis. La landing ya
+> no tiene modo de plan único: si el catálogo público no confirma Esencial y
+> Gestión, Planes queda en carga o reintento y no anuncia ningún precio (el
+> recibo del Plan Standard se retiró). Siguen vigentes
+> las prohibiciones: sin WhatsApp, CFDI, terminal ni asistente como
+> disponibles, sin cifras de tracción y sin precios de terceros.
+
 > **Actualización 5 de septiembre de 2026 (película de producto):** el recorrido
 > interactivo de cuatro pasos fue sustituido por el video narrado de Kova. La
 > landing sirve una edición 16:9 en escritorio y una edición 9:16 en móvil; el

@@ -93,7 +93,8 @@ test("landing, login, session refresh, and billing read are healthy", async ({ p
   await page.goto("/");
   const landingText = await page.locator("body").innerText();
   expect(landingText).toMatch(/kova|tu negocio|crear cuenta|create account/i);
-  expect(landingText).toContain("299");
+  expect(landingText).toContain("$399");
+  expect(landingText).not.toContain("299");
   expect(landingText).not.toContain("199");
 
   await login(page);

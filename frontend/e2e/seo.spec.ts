@@ -14,7 +14,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/");
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Vende con orden. Conoce tu negocio.");
+    expect(html).toContain("Cobra una vez. Kova cuadra el resto.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
     expect(html).not.toContain('<meta name="robots" content="noindex"');
@@ -173,7 +173,7 @@ test.describe("technical SEO (prerendered build only)", () => {
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
     const res = await request.get("/dashboard");
     const html = await res.text();
-    expect(html).not.toContain("Vende con orden. Conoce tu negocio.");
+    expect(html).not.toContain("Cobra una vez. Kova cuadra el resto.");
     expect(html).toContain('<script type="module"');
     expect(html).toContain('<meta name="robots" content="noindex"');
     expect(html).not.toContain('src="/hydrate-prerender.js"');

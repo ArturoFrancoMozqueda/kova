@@ -1,27 +1,71 @@
-import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
 import {
   BarChart3,
-  Calculator,
-  CreditCard,
+  Check,
+  Heart,
   PackageSearch,
-  UsersRound,
-  WifiOff,
+  QrCode,
+  ShoppingBag,
+  X,
 } from "lucide-react";
+import type { PublicPlansState } from "@/billing/publicPlans";
+import type { PlanFeature } from "@/billing/entitlements";
+import type { CommercialPlan } from "@/billing/types";
+import { formatMoney } from "@/orders/format";
 import { copy } from "@/i18n/messages";
+import {
+  SWEET_HOME_ACTIVE_SALE,
+  SWEET_HOME_INVENTORY,
+  SWEET_HOME_PRODUCTS,
+  SWEET_HOME_REPORTS,
+  SWEET_HOME_SALE_TOTAL,
+} from "./demo/sweetHome";
 import { TESTIMONIALS } from "./testimonials.data";
 import styles from "./LandingSections.module.css";
 
 const t = copy.landing;
-const CAPABILITY_ICONS = [
-  CreditCard,
-  WifiOff,
-  Calculator,
-  PackageSearch,
-  UsersRound,
-  BarChart3,
-] as const;
+
+type PillarId = (typeof t.capabilities.pillars)[number]["id"];
+
+const PILLAR_ICONS: Record<PillarId, typeof ShoppingBag> = {
+  cobra: ShoppingBag,
+  controla: PackageSearch,
+  vende: QrCode,
+  regresan: Heart,
+  entiende: BarChart3,
+};
+
+const productName = (id: string) =>
+  SWEET_HOME_PRODUCTS.find((product) => product.id === id)?.name ?? "";
+const productPrice = (id: string) =>
+  SWEET_HOME_PRODUCTS.find((product) => product.id === id)?.price ?? 0;
+
+/**
+ * Planes de la oferta vigente (Esencial/Gestión), de menor a mayor precio,
+ * solo cuando el catálogo público del servidor la confirma. Cualquier otro
+ * estado (cargando, error u otra oferta) devuelve null y no se anuncia precio.
+ */
+export function offeredPlans(offer: PublicPlansState): CommercialPlan[] | null {
+  if (offer.status !== "ready" || !offer.catalog.tiered_pricing_enabled) return null;
+  return [...offer.catalog.available_plans].sort(
+    (a, b) => a.amount_minor_units - b.amount_minor_units,
+  );
+}
+
+/** Plan que hace falta para una función que no viene en el plan de entrada. */
+export function requiredPlanName(
+  offer: PublicPlansState,
+  feature: string | null,
+): string | null {
+  const plans = offeredPlans(offer);
+  if (!feature || !plans) return null;
+  const first = plans.find((plan) => plan.features.includes(feature as PlanFeature));
+  if (!first || first === plans[0]) return null;
+  return first.name;
+}
 
 export function ProblemSection() {
+  const p = t.problem;
   return (
     <section
       id="problema"
@@ -32,77 +76,133 @@ export function ProblemSection() {
         <div className={styles.problemHeading} data-lp-stagger-group>
           <div>
             <span className={styles.eyebrow} data-lp-stagger-item>
-              {t.problem.eyebrow}
+              {p.eyebrow}
             </span>
-            <h2
-              id="problem-title"
-              className={styles.title}
-              data-lp-stagger-item
-            >
-              {t.problem.title}
+            <h2 id="problem-title" className={styles.title} data-lp-stagger-item>
+              {p.title}
             </h2>
           </div>
-          <div data-lp-stagger-item>
-            <p className={styles.lead}>{t.problem.body}</p>
-          </div>
+          <p className={styles.lead} data-lp-stagger-item>
+            {p.body}
+          </p>
         </div>
 
-        <div className={styles.problemNarrative} data-lp-stagger-group>
-          <div className={styles.problemScenario} data-lp-stagger-item>
-            <span>{t.problem.scenarioLabel}</span>
-            <strong>{t.problem.scenarioAmount}</strong>
-            <p>{t.problem.scenarioBody}</p>
-            <div className={styles.problemRoute} aria-hidden="true">
-              {t.problem.steps.map((step) => (
-                <span key={step.number}>{step.tools}</span>
-              ))}
-            </div>
+        <div className={styles.mirror} data-lp-reveal-opt>
+          <div className={styles.mirrorHead} aria-hidden="true">
+            <span>{p.beforeLabel}</span>
+            <span>{p.afterLabel}</span>
           </div>
-
-          <ol
-            className={styles.problemSteps}
-            aria-label="Tres tareas manuales provocadas por la misma venta"
-          >
-            {t.problem.steps.map((step) => (
-              <li
-                key={step.number}
-                className={styles.problemStep}
-                data-lp-stagger-item
-              >
-                <span className={styles.problemStepNumber} aria-hidden="true">
-                  {step.number}
+          <ul className={styles.mirrorRows}>
+            {p.rows.map((row) => (
+              <li key={row.before} className={styles.mirrorRow}>
+                <span className={styles.mirrorBefore}>
+                  <X size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>
+                    <span className={styles.srOnly}>{p.beforeLabel}: </span>
+                    {row.before}
+                  </span>
                 </span>
-                <div>
-                  <h3>{step.title}</h3>
-                  <strong className={styles.problemStepDetail}>
-                    {step.detail}
-                  </strong>
-                </div>
-                <span className={styles.problemStepTools}>{step.tools}</span>
+                <span className={styles.mirrorAfter}>
+                  <Check size={14} strokeWidth={2.2} aria-hidden="true" />
+                  <span>
+                    <span className={styles.srOnly}>{p.afterLabel}: </span>
+                    {row.after}
+                  </span>
+                </span>
               </li>
             ))}
-          </ol>
-        </div>
-
-        <div className={styles.problemOutcome} data-lp-stagger-group>
-          <p className={styles.problemPrompt} data-lp-stagger-item>
-            {t.problem.prompt}
-          </p>
-          <ul className={styles.problemQuestions} data-lp-stagger-item>
-            {t.problem.questions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
           </ul>
-          <p className={styles.problemClosing} data-lp-stagger-item>
-            {t.problem.closing}
-          </p>
         </div>
+        <p className={styles.problemClosing}>{p.closing}</p>
       </div>
     </section>
   );
 }
 
-export function CapabilitiesSection() {
+/* Mini-interfaces decorativas por pilar: mismos datos de Sweet Home que el
+   resto de la landing. El contenido real de cada pilar es la lista de texto. */
+function PillarPreview({ id }: { id: PillarId }): ReactNode {
+  if (id === "cobra") {
+    return (
+      <div className={styles.preview}>
+        <span className={styles.previewLabel}>{t.sweetHome.currentSale}</span>
+        {SWEET_HOME_ACTIVE_SALE.lines.map((line) => (
+          <div key={line.productId} className={styles.previewRow}>
+            <span>{line.qty} × {productName(line.productId)}</span>
+            <strong>{formatMoney(productPrice(line.productId) * line.qty)}</strong>
+          </div>
+        ))}
+        <div className={styles.previewChips}>
+          <span data-active="true">{t.sweetHome.paymentCash}</span>
+          <span>{t.sweetHome.paymentTransfer}</span>
+          <span>{t.sweetHome.paymentCard}</span>
+        </div>
+        <span className={styles.previewAction}>
+          {t.sweetHome.charge(formatMoney(SWEET_HOME_SALE_TOTAL))}
+        </span>
+      </div>
+    );
+  }
+  if (id === "controla") {
+    return (
+      <div className={styles.preview}>
+        <span className={styles.previewLabel}>
+          {t.sweetHome.lowStockCount(SWEET_HOME_INVENTORY.lowStockCount)}
+        </span>
+        {SWEET_HOME_INVENTORY.items.slice(0, 3).map((item) => (
+          <div key={item.productId} className={styles.previewRow} data-warn={item.low ? "true" : undefined}>
+            <span>{productName(item.productId)}</span>
+            <strong>{item.stockAfter}</strong>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (id === "vende") {
+    return (
+      <div className={`${styles.preview} ${styles.previewMenu}`}>
+        <div>
+          <span className={styles.previewLabel}>{t.sweetHome.shopName}</span>
+          {["latte-vainilla", "concha", "brownie"].map((productId) => (
+            <div key={productId} className={styles.previewRow}>
+              <span>{productName(productId)}</span>
+              <strong>{formatMoney(productPrice(productId))}</strong>
+            </div>
+          ))}
+        </div>
+        <span className={styles.previewQr}>
+          <QrCode size={44} strokeWidth={1.4} />
+        </span>
+      </div>
+    );
+  }
+  if (id === "regresan") {
+    return (
+      <div className={`${styles.preview} ${styles.previewCard}`}>
+        <span className={styles.previewLabel}>{t.sweetHome.shopName}</span>
+        <strong className={styles.previewBig}>120 pts</strong>
+        <span className={styles.previewMeter}><span style={{ width: "80%" }} /></span>
+        <QrCode size={28} strokeWidth={1.4} className={styles.previewCardQr} />
+      </div>
+    );
+  }
+  return (
+    <div className={styles.preview}>
+      <span className={styles.previewLabel}>
+        {t.sweetHome.bestHoursSummary(SWEET_HOME_REPORTS.bestHoursLabel)}
+      </span>
+      <strong className={styles.previewBig}>{formatMoney(SWEET_HOME_REPORTS.netSales)}</strong>
+      <div className={styles.previewBars}>
+        {SWEET_HOME_REPORTS.hourly.map((bar) => (
+          <span key={bar.label} data-best={bar.best ? "true" : undefined} style={{ height: `${bar.pct}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CapabilitiesSection({ offer }: { offer: PublicPlansState }) {
+  const c = t.capabilities;
   return (
     <section
       id="incluye"
@@ -113,46 +213,59 @@ export function CapabilitiesSection() {
         <div className={styles.capabilitiesHeading} data-lp-stagger-group>
           <div>
             <span className={styles.eyebrow} data-lp-stagger-item>
-              {t.capabilities.eyebrow}
+              {c.eyebrow}
             </span>
-            <h2
-              id="capabilities-title"
-              className={styles.title}
-              data-lp-stagger-item
-            >
-              {t.capabilities.title}
+            <h2 id="capabilities-title" className={styles.title} data-lp-stagger-item>
+              {c.title}
             </h2>
           </div>
           <p className={styles.lead} data-lp-stagger-item>
-            {t.capabilities.body}
+            {c.body}
           </p>
         </div>
-        <ol className={styles.capabilityList} data-lp-stagger-group>
-          {t.capabilities.items.map((item, index) => {
-            const CapabilityIcon = CAPABILITY_ICONS[index];
+
+        <div className={styles.pillars}>
+          {c.pillars.map((pillar) => {
+            const Icon = PILLAR_ICONS[pillar.id];
             return (
-              <li
-                key={item.title}
-                className={styles.capability}
-                data-lp-stagger-item
+              <article
+                key={pillar.id}
+                className={styles.pillar}
+                aria-labelledby={`pillar-${pillar.id}`}
+                data-lp-reveal-opt
               >
-                <div className={styles.capabilityTop} aria-hidden="true">
-                  <span className={styles.capabilityIcon}>
-                    <CapabilityIcon size={18} strokeWidth={1.8} />
+                <div className={styles.pillarIntro}>
+                  <span className={styles.capabilityIcon} aria-hidden="true">
+                    <Icon size={18} strokeWidth={1.8} />
                   </span>
-                  <span className={styles.capabilityIndex}>
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
+                  <h3 id={`pillar-${pillar.id}`}>{pillar.title}</h3>
+                  <p>{pillar.line}</p>
+                  <div aria-hidden="true">
+                    <PillarPreview id={pillar.id} />
+                  </div>
                 </div>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.body}</p>
-                  <span className={styles.capabilityProof}>{item.proof}</span>
-                </div>
-              </li>
+                <ul className={styles.pillarItems}>
+                  {pillar.items.map((item) => {
+                    const plan = requiredPlanName(offer, item.feature);
+                    return (
+                      <li key={item.title}>
+                        <div className={styles.pillarItemTop}>
+                          <h4>{item.title}</h4>
+                          {plan && (
+                            <span className={styles.planBadge}>
+                              {c.planBadgePrefix} {plan}
+                            </span>
+                          )}
+                        </div>
+                        <p>{item.body}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </article>
             );
           })}
-        </ol>
+        </div>
       </div>
     </section>
   );
@@ -220,56 +333,29 @@ export function ReportsSpotlight() {
   );
 }
 
-export function TestimonialsSection({
-  primaryTarget,
-  onCtaClick,
-}: {
-  primaryTarget: string;
-  onCtaClick: () => void;
-}) {
+/* Prueba social inmediatamente después del hero: citas reales, compactas. */
+export function TestimonialsSection() {
+  if (TESTIMONIALS.length === 0) return null;
   return (
     <section
       id="clientes"
       className={`${styles.section} ${styles.testimonials}`}
-      aria-labelledby="testimonials-title"
+      aria-label={t.testimonials.stripAria}
     >
       <div className={styles.inner}>
-        <div data-lp-stagger-group>
-          <span className={styles.eyebrow} data-lp-stagger-item>
-            {t.testimonials.eyebrow}
-          </span>
-          <h2
-            id="testimonials-title"
-            className={styles.title}
-            data-lp-stagger-item
-          >
-            {t.testimonials.title}
-          </h2>
-          <p className={styles.testimonialNote} data-lp-stagger-item>
-            {t.testimonials.note}
-          </p>
-        </div>
-        <div className={styles.quotes} data-lp-stagger-group>
-          {TESTIMONIALS.map((item, index) => (
-            <blockquote
-              key={item.business}
-              className={styles.quote}
-              data-lp-stagger-item
-            >
-              <div className={styles.quoteTop}>
-                <span className={styles.quoteNumber} aria-hidden="true">
-                  0{index + 1}
-                </span>
-                <span className={styles.quoteOutcome}>{item.outcome}</span>
-              </div>
+        <span className={styles.eyebrow}>{t.testimonials.eyebrow}</span>
+        <div className={styles.quotes}>
+          {TESTIMONIALS.map((item) => (
+            <blockquote key={item.business} className={styles.quote}>
+              <span className={styles.quoteOutcome}>{item.outcome}</span>
               <p>“{item.quote}”</p>
-              <footer>{item.business}</footer>
+              <footer>
+                {item.business}
+                {item.city ? ` · ${item.city}` : ""}
+              </footer>
             </blockquote>
           ))}
         </div>
-        <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
-          {t.testimonials.cta}
-        </Link>
       </div>
     </section>
   );
