@@ -78,6 +78,13 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
   El titular completó el código directamente. [Alcance del correo](../email-deliverability.md).
 - El saludo de prueba de Meta llegó al celular autorizado. Eso acredita ese envío desde el panel,
   no ingreso firmado ni respuestas desde la bandeja de Kova, ni disponibilidad para otros negocios.
+- Facebook Login for Business agregado, ajustes HTTPS/SDK y URLs públicas guardados. Se creó la
+  configuración `1478484207472135` desde la plantilla oficial de WhatsApp con token de 60 días y
+  sólo los dos permisos de WhatsApp. Los cuatro ajustes del delegado privado ya están sellados,
+  con el gate apagado. Los botones de acceso avanzado y de envío de revisión siguen deshabilitados.
+  El panel exige además acceso avanzado a `public_profile` para Login for Business. Véanse el
+  [expediente y las evidencias pendientes](whatsapp-meta-app-review.md), incluidos video real y
+  revisión del aviso de privacidad antes de enviar.
 
 ## Publicación aceptada el 12 de noviembre de 2026
 
