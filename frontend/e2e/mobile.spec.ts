@@ -965,7 +965,7 @@ test.describe("owner task discovery without waiting for analytics", () => {
     return search;
   }
 
-  test("dashboard actions survive a pending and failed overview and open the chosen section", async ({ page }, testInfo) => {
+  test("dashboard reserves its layout while pending and offers working task actions after a failure", async ({ page }, testInfo) => {
     await markFirstUseToursSeen(page);
     await mockCommon(page, { viewport: testInfo.project.name.includes("mobile")
       ? { width: 390, height: 844 } : { width: 1366, height: 900 } });
@@ -980,7 +980,17 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await page.route(/\/api\/v1\/shifts(\?|$)/, route => route.fulfill({ json: [] }));
     await page.goto("/dashboard");
     await expect.poll(() => requested).toBe(true);
+    const loading = page.getByRole("status", { name: "Cargando centro de control", exact: true });
     const actions = page.getByRole("navigation", { name: "Acciones rápidas", exact: true });
+    await expect(loading).toBeVisible();
+    await expect(actions).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Tu operación, de un vistazo" })).toHaveAttribute("aria-busy", "true");
+    await expect(page.getByRole("radio", { name: "7 días", exact: true })).toBeEnabled();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath("dashboard-owner-loading.png"), animations: "disabled" });
+    releaseOverview();
+    await expect(page.getByText("No se pudo cargar el panel", { exact: true })).toBeVisible();
+    await expect(loading).toHaveCount(0);
     await expect(actions).toBeVisible();
     const destinations = ["/operations-queue", "/settings/public-catalog", "/shifts", "/reports"];
     await expect(actions.getByRole("link")).toHaveCount(4);
@@ -990,9 +1000,6 @@ test.describe("owner task discovery without waiting for analytics", () => {
     await expect(actions.getByRole("link", { name: /Ver pendientes/ })).toBeInViewport();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath("dashboard-owner-actions.png"), animations: "disabled" });
-    releaseOverview();
-    await expect(page.getByText("No se pudo cargar el panel", { exact: true })).toBeVisible();
-    await expect(actions).toBeVisible();
     await actions.getByRole("link", { name: /Revisar turnos/ }).click();
     await expect(page).toHaveURL(/\/shifts$/);
     await expect(page.getByRole("heading", { name: "Turnos", exact: true })).toBeVisible();
