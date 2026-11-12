@@ -78,15 +78,12 @@ beforeEach(() => {
 });
 
 describe("owner dashboard journey", () => {
-  it("keeps one set of task actions available while sales data is loading", async () => {
+  it("keeps the period control available without flashing temporary task actions while loading", async () => {
     vi.mocked(getDashboardOverview).mockReturnValue(new Promise(() => {}));
     host();
-    const actions = screen.getByRole("navigation", { name: copy.dashboard.quickActions });
-    expect(within(actions).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual([
-      "/operations-queue", "/settings/public-catalog", "/shifts", "/reports",
-    ]);
-    expect(within(actions).getByRole("link", { name: /Ver análisis/ })).toBeVisible();
-    expect(screen.getAllByRole("navigation", { name: copy.dashboard.quickActions })).toHaveLength(1);
+    expect(screen.getByRole("radiogroup", { name: copy.dashboard.periodLabel })).toBeVisible();
+    expect(screen.getByRole("status", { name: "Cargando centro de control" })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: copy.dashboard.quickActions })).not.toBeInTheDocument();
     expect(screen.queryByTestId("net-sales")).not.toBeInTheDocument();
     await waitFor(() => expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all"));
   });
@@ -354,11 +351,10 @@ function hostControlCenter() {
 }
 
 describe("owner control center", () => {
-  it.each(["loading", "error"])("keeps area navigation available during %s without fabricated metrics", async status => {
-    vi.mocked(getDashboardOverview).mockImplementation(() => status === "loading"
-      ? new Promise(() => {}) : Promise.reject(new Error("unavailable")));
+  it("keeps area navigation available after an error without fabricated metrics", async () => {
+    vi.mocked(getDashboardOverview).mockRejectedValue(new Error("unavailable"));
     hostControlCenter();
-    if (status === "error") await screen.findByText(copy.dashboard.loadError);
+    await screen.findByText(copy.dashboard.loadError);
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
     expect(within(control).getByRole("link", { name: "Inventario" })).toHaveAttribute("href", "/inventory");
     expect(within(control).getByText("Consulta tus existencias")).toBeVisible();

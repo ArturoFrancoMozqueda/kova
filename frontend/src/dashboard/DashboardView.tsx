@@ -30,13 +30,13 @@ import { BusinessHealthCard } from "./BusinessHealthCard";
 import { BusinessActivityRecap } from "./BusinessActivityRecap";
 import { BusinessControlCenter } from "./BusinessControlCenter";
 import { DashboardVisualOverview, DashboardSalesMix } from "./DashboardVisualOverview";
+import { DashboardSkeleton } from "./DashboardSkeleton";
 import { DashboardBranches, DashboardDeviceStatus, DashboardScopeToolbar, DashboardViewLink } from "./DashboardSupervision";
 import type { DashboardControl, DashboardScope, ControlBranch } from "./controlTypes";
 import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { DeltaChip } from "@/components/ui/stat-tile";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
@@ -651,6 +651,10 @@ function AdvancedDashboardView() {
           timezone={tenantTimezone} onScope={setSelectedScope} onRefresh={() => void load(period)}
         />
       )}
+      {loadState.status === "loading" && <DashboardSkeleton
+        scopePending={canManageBusiness && canUseTaskActions && !choices}
+        branchCount={selectedScope === "all" ? choices?.branches.length || 2 : 1}
+      />}
       {loadState.status === "ready" && liveControl && loadState.story && <>
         <DashboardVisualOverview story={loadState.story} hourly={loadState.hourly} previous={loadState.yesterday}
           compareLabel={loadState.compareLabel} byHour={period === "day"} control={liveControl} destinations={navigation?.destinations ?? []} />
@@ -723,7 +727,7 @@ function AdvancedDashboardView() {
         </div>
       )}
 
-      {canUseTaskActions && !liveControl && (
+      {canUseTaskActions && loadState.status !== "loading" && !liveControl && (
         <section className="mb-6 border-y border-kova-border py-3">
           <h2 className="sr-only">{copy.dashboard.quickActions}</h2>
           <div>
@@ -764,6 +768,7 @@ function AdvancedDashboardView() {
       {canManageBusiness && canUseTaskActions && (
         <BusinessControlCenter
           control={liveControl}
+          loading={loadState.status === "loading"}
           destinations={navigation?.destinations ?? []}
           snapshot={loadState.status === "ready" && loadState.activitySnapshotAvailable ? {
             orderCount: loadState.summary.order_count,
@@ -774,46 +779,6 @@ function AdvancedDashboardView() {
       )}
 
       {liveControl && <DashboardDeviceStatus />}
-      {loadState.status === "loading" && (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
-                <CardContent><Skeleton className="h-8 w-32" /></CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader><Skeleton className="h-4 w-32" /></CardHeader>
-                <CardContent className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, j) => (
-                    <div key={j} className="flex items-center gap-3">
-                      <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-                      <Skeleton className="h-2 flex-1 rounded-full" />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardHeader><Skeleton className="h-4 w-32" /></CardHeader>
-            <CardContent className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-4 w-16 shrink-0" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {loadState.status === "error" && (
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">

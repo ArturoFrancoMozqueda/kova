@@ -5,7 +5,7 @@ import { makeStory } from "../src/reports/__fixtures__/story";
 import { summaryFromStory } from "../src/dashboard/storyAdapters";
 import { makeControl, northId, principalId } from "../src/dashboard/__fixtures__/control";
 
-async function workspace(page: Page, unavailable = false) {
+async function workspace(page: Page, unavailable = false, pending?: Promise<void>) {
   await markFirstUseToursSeen(page, principalId);
   await page.route("**/api/v1/auth/session", route => route.fulfill({ json: {
     authenticated: true, tenant_id: principalId, tenant_name: "Negocio de control",
@@ -13,7 +13,8 @@ async function workspace(page: Page, unavailable = false) {
     feature_flags: { customer_orders: true, margin_reports: true },
   } }));
   await page.route("**/api/v1/branches", route => route.fulfill({ json: makeControl().branches }));
-  await page.route("**/api/v1/reports/dashboard?*", route => {
+  await page.route("**/api/v1/reports/dashboard?*", async route => {
+    await pending;
     const scope = new URL(route.request().url()).searchParams.get("branch_id");
     const control = makeControl();
     const story = makeStory();
@@ -39,6 +40,49 @@ async function workspace(page: Page, unavailable = false) {
       closed_shift_count: 4, billing: null,
       onboarding: { tenant_id: principalId, steps: [], completed_count: 0, total_count: 0 }, control_center: control,
     } });
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`loading reserves the final dashboard layout at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    let release!: () => void;
+    await workspace(page, false, new Promise<void>(resolve => { release = resolve; }));
+    await page.goto("/dashboard");
+    const loading = page.getByRole("status", { name: "Cargando centro de control", exact: true });
+    await expect(loading).toBeVisible();
+    const areas = page.getByRole("region", { name: "Tu operación, de un vistazo" });
+    await expect(areas).toHaveAttribute("aria-busy", "true");
+    await expect(areas.getByRole("heading", { level: 3 })).toHaveCount(6);
+    await expect(page.getByText("Cada área, a la vista", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Consulta tus existencias", { exact: true })).toHaveCount(0);
+    const initialLabel = await loading.getByText("Ventas netas", { exact: true }).boundingBox();
+    const initialChart = await loading.getByText("Ritmo de ventas", { exact: true }).boundingBox();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const animations = await loading.locator('[aria-hidden="true"]').evaluateAll(elements => elements.map(el => getComputedStyle(el).animationName));
+    expect(animations.every(name => name === "none")).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`dashboard-loading-${width}.png`), fullPage: true });
+    release();
+    await expect(loading).toHaveCount(0);
+    const readyLabel = await page.getByRole("region", { name: "Tu día", exact: true }).getByText("Ventas netas", { exact: true }).boundingBox();
+    const readyChart = await page.getByRole("heading", { name: "Ritmo de ventas", exact: true }).boundingBox();
+    expect(Math.abs(initialLabel!.y - readyLabel!.y)).toBeLessThan(8);
+    expect(Math.abs(initialChart!.y - readyChart!.y)).toBeLessThan(16);
+    await expect(areas).not.toHaveAttribute("aria-busy", "true");
+    const inventory = page.getByRole("article", { name: "Productos e inventario" });
+    await expect(inventory.locator('dl svg[aria-hidden="true"]')).toHaveCount(2);
+    await areas.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`dashboard-areas-${width}.png`) });
+    for (const card of await areas.getByRole("article").all()) {
+      expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    }
+    await inventory.getByText("Ver detalle y herramientas", { exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(inventory.getByText("Compras con recepción parcial", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("heading", { name: "Centro de control", exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`dashboard-loaded-${width}.png`), fullPage: true });
   });
 }
 

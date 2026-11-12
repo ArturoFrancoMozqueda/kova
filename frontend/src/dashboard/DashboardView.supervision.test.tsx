@@ -40,6 +40,43 @@ beforeEach(() => {
 });
 
 describe("dashboard supervision", () => {
+  it("loads the overview before area cards and replaces placeholders with the confirmed report", async () => {
+    let resolve!: (value: DashboardOverview) => void;
+    vi.mocked(getDashboardOverview).mockImplementation(() => new Promise(done => { resolve = done; }));
+    const { container } = host();
+    const loading = screen.getByRole("status", { name: "Cargando centro de control" });
+    const areas = screen.getByRole("region", { name: "Tu operación, de un vistazo" });
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading.compareDocumentPosition(areas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const title of ["Ritmo de ventas", "Necesita tu atención", "Resultados por sucursal", "Productos más vendidos", "Horas con más venta", "Cómo te pagaron"]) {
+      expect(within(loading).getByText(title)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("navigation", { name: "Acciones rápidas" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Consulta tus existencias")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sin señales prioritarias.")).not.toBeInTheDocument();
+    expect((await axe(container, { runOnly: ["heading-order", "aria-valid-attr-value"] })).violations).toEqual([]);
+    await act(async () => resolve(overview()));
+    expect(screen.queryByRole("status", { name: "Cargando centro de control" })).not.toBeInTheDocument();
+    expect(areas).not.toHaveAttribute("aria-busy");
+    expect(screen.getByRole("img", { name: "Gráfica de ventas netas por hora" }).compareDocumentPosition(areas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const products = screen.getByRole("article", { name: "Productos e inventario" });
+    for (const label of ["Stock bajo", "Sin existencias disponibles"]) {
+      const metric = within(products).getByText(label).closest("div")!;
+      expect(metric.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    }
+  });
+
+  it("hides the previous branch's figures and keeps its scope control while refreshing", async () => {
+    host();
+    const selector = await screen.findByLabelText("Consultar");
+    vi.mocked(getDashboardOverview).mockImplementation(() => new Promise(() => {}));
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar centro de control" }));
+    expect(screen.getByRole("status", { name: "Cargando centro de control" })).toBeVisible();
+    expect(selector).toBeDisabled();
+    expect(screen.queryByLabelText("Ventas netas del periodo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Stock bajo", { exact: true })).not.toBeInTheDocument();
+  });
+
   it("leads with a chart before operational lists and exposes exact values by keyboard", async () => {
     host();
     const chart = await screen.findByRole("img", { name: "Gráfica de ventas netas por hora" });

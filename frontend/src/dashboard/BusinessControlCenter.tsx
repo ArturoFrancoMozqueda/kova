@@ -1,5 +1,11 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, ChartNoAxesCombined, Package, Settings2, ShoppingBag, Users } from "lucide-react";
+import {
+  ArrowUpRight, CalendarClock, CalendarDays, ChartNoAxesCombined, CircleDollarSign,
+  ClipboardCheck, Handshake, LifeBuoy, ListTodo, MessageCircle, Package,
+  PackageCheck, PackageMinus, PackageX, Settings2, ShoppingBag, Users, Wallet,
+  Workflow, type LucideIcon,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/orders/format";
@@ -51,10 +57,19 @@ const areas = [
   },
 ] as const;
 
+const metricIcons: Record<string, LucideIcon> = {
+  orders_ready: PackageCheck, open_shifts: Wallet,
+  low_stock: PackageMinus, out_of_stock: PackageX,
+  opportunities: Handshake, followups: ListTodo,
+  appointments_today: CalendarClock, cases_open: LifeBuoy,
+  gross_profit: ChartNoAxesCombined, unmatched_amount: CircleDollarSign, unmatched: ClipboardCheck,
+  automation_pending: ListTodo, automation_rules: Workflow, whatsapp: MessageCircle,
+};
+
 /** Navigation reuses the shell's allowed destinations. Counts are shown only
  * for a verified overview; linked modules never imply zero pending work. */
-export function BusinessControlCenter({ destinations, snapshot, control = null }: WorkspaceNavigationContext & {
-  snapshot: Snapshot | null; control?: DashboardControl | null;
+export function BusinessControlCenter({ destinations, snapshot, control = null, loading = false }: WorkspaceNavigationContext & {
+  snapshot: Snapshot | null; control?: DashboardControl | null; loading?: boolean;
 }) {
   const allowed = new Set(destinations.map(destination => destination.to));
   const metricRow = (metric: ControlMetric) => <div key={metric.key} className="border-b border-kova-border/60 py-2 last:border-0">
@@ -77,14 +92,15 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
   if (visibleAreas.length === 0) return null;
 
   return (
-    <section aria-labelledby="business-control-title" className="mb-8 scroll-mt-4" id="business-control">
+    <section aria-labelledby="business-control-title" aria-busy={loading || undefined} className="mb-8 scroll-mt-4" id="business-control">
+      {loading && <span role="status" className="sr-only">Cargando áreas del negocio</span>}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-kova-blue">Todo tu negocio</p>
-          <h2 id="business-control-title" className="text-xl font-semibold tracking-tight text-kova-ink">{control ? "Tu operación, de un vistazo" : "Cada área, a la vista"}</h2>
-          {!control && <p className="mt-1 max-w-2xl text-sm text-kova-muted">Entra a cada área para consultar su estado y dar el siguiente paso.</p>}
+          <h2 id="business-control-title" className="text-xl font-semibold tracking-tight text-kova-ink">{control || loading ? "Tu operación, de un vistazo" : "Cada área, a la vista"}</h2>
+          {!control && !loading && <p className="mt-1 max-w-2xl text-sm text-kova-muted">Entra a cada área para consultar su estado y dar el siguiente paso.</p>}
         </div>
-        <p className="text-xs text-kova-muted">{control ? control.scope.label : "Los pendientes y conexiones se consultan en su sección."}</p>
+        {loading ? <Skeleton className="h-3 w-36" /> : <p className="text-xs text-kova-muted">{control ? control.scope.label : "Los pendientes y conexiones se consultan en su sección."}</p>}
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visibleAreas.map(area => {
@@ -95,7 +111,7 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
           const primary = [...preferred, ...liveMetrics.filter(metric => !preferred.includes(metric))].slice(0, 2);
           const secondary = liveMetrics.filter(metric => !primary.includes(metric));
           const needsStock = area.id === "products" && (control
-            ? Number(liveMetrics.find(metric => metric.key === "low_stock")?.value ?? 0) > 0
+            ? liveMetrics.some(metric => ["low_stock", "out_of_stock"].includes(metric.key) && Number(metric.value) > 0)
             : snapshot !== null && snapshot.lowStockCount > 0);
           const hasMetric = snapshot !== null && (area.id === "sales" || area.id === "products");
           return (
@@ -106,18 +122,28 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
                   <span className={cn("flex h-10 w-10 items-center justify-center rounded-kova-lg", needsStock ? "bg-warning/10 text-warning-strong" : "bg-kova-mist text-kova-blue")}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", needsStock ? "bg-warning/10 text-warning-foreground" : "bg-kova-mist text-kova-muted")}>
+                  {loading ? <Skeleton className="h-6 w-28 rounded-full" /> : <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", needsStock ? "bg-warning/10 text-warning-foreground" : "bg-kova-mist text-kova-muted")}>
                     {live ? live.status === "unavailable" ? "Sin actualizar" : "Estado del área" : hasMetric ? area.id === "sales" ? "Periodo seleccionado" : "Inventario actual" : "Consultar"}
-                  </span>
+                  </span>}
                 </div>
                 <h3 id={`control-${area.id}`} className="text-base font-semibold tracking-tight">{area.title}</h3>
-                {!control && <p className="mt-1 text-sm leading-relaxed text-kova-muted">{area.description}</p>}
-                {live ? live.status === "unavailable" ? (
+                {!control && !loading && <p className="mt-1 text-sm leading-relaxed text-kova-muted">{area.description}</p>}
+                {loading ? <div className="my-4 grid grid-cols-2 gap-3" aria-hidden="true">{[0, 1].map(index => <div key={index} className="min-w-0 rounded-kova-lg bg-kova-mist/60 p-3">
+                  <Skeleton className="h-7 w-16" />
+                  <div className="mt-2 flex items-start gap-1.5"><Skeleton className="h-4 w-4 shrink-0" /><Skeleton className="h-8 w-full" /></div>
+                </div>)}</div> : live ? live.status === "unavailable" ? (
                   <p role="status" className="my-4 rounded-kova-md bg-warning/10 p-3 text-sm text-warning-foreground">No pudimos consultar esta área. Actualiza el panel para intentarlo de nuevo.</p>
-                ) : <dl className="my-4 grid grid-cols-2 gap-4">{primary.map(metric => <div key={metric.key} className="flex flex-col">
-                  <dt className="order-2 mt-1 text-xs leading-snug text-kova-muted">{metric.label}</dt>
-                  <dd className="order-1 break-words text-xl font-semibold tracking-tight tabular-nums">{metric.value === null ? <span className="text-sm text-kova-muted">Sin datos suficientes</span> : metric.format === "money" ? formatMoney(metric.value) : metric.format === "count" ? Number(metric.value).toLocaleString("es-MX") : <span className="text-sm">{metric.value}</span>}</dd>
-                </div>)}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
+                ) : <dl className="my-4 grid grid-cols-2 gap-3">{primary.map(metric => {
+                  const MetricIcon = metricIcons[metric.key] ?? Icon;
+                  const stockWarning = needsStock && ["low_stock", "out_of_stock"].includes(metric.key) && Number(metric.value) > 0;
+                  return <div key={metric.key} className={cn("flex min-w-0 flex-col rounded-kova-lg p-3", stockWarning ? "bg-warning/10" : "bg-kova-mist/60")}>
+                    <dt className="order-2 mt-2 flex min-h-8 items-start gap-1.5 text-xs leading-snug text-kova-muted">
+                      <MetricIcon className={cn("h-4 w-4 shrink-0", stockWarning ? "text-warning-strong" : "text-kova-blue")} aria-hidden="true" />
+                      <span>{metric.label}</span>
+                    </dt>
+                    <dd className="order-1 min-w-0 break-words text-xl font-semibold tracking-tight tabular-nums">{metric.value === null ? <span className="text-sm text-kova-muted">Sin datos suficientes</span> : metric.format === "money" ? formatMoney(metric.value) : metric.format === "count" ? Number(metric.value).toLocaleString("es-MX") : <span className="text-sm">{metric.value}</span>}</dd>
+                  </div>;
+                })}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
                   {snapshot && area.id === "sales"
                     ? `${snapshot.orderCount} ${snapshot.orderCount === 1 ? "orden completada" : "órdenes completadas"}`
                     : snapshot && area.id === "products"
@@ -126,7 +152,7 @@ export function BusinessControlCenter({ destinations, snapshot, control = null }
                         : `${snapshot.activeCatalogCount} ${snapshot.activeCatalogCount === 1 ? "producto activo" : "productos activos"}`
                       : area.prompt}
                 </p>}
-                {control ? <details className="mt-auto border-t border-kova-border pt-2">
+                {loading ? <div className="mt-auto border-t border-kova-border pt-2" aria-hidden="true"><Skeleton className="my-3 h-5 w-48 max-w-full" /></div> : control ? <details className="mt-auto border-t border-kova-border pt-2">
                   <summary className="min-h-11 cursor-pointer rounded-kova-md py-3 text-sm font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">Ver detalle y herramientas</summary>
                   {secondary.length > 0 && <dl className="mb-3">{secondary.map(metricRow)}</dl>}
                   <nav aria-label={area.title} className="grid grid-cols-2 gap-x-2">{area.links.map(link => (

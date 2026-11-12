@@ -72,3 +72,16 @@ permite expandir el resto. Los tres primeros grupos de pendientes se muestran
 inicialmente y el resto se puede expandir sin alterar el límite ni los totales
 backend. Análisis conserva rangos personalizados y lectura profunda, con
 navegación hacia rentabilidad, operación, reposición/productos y plan de acción.
+
+La carga conserva esa misma jerarquía: alcance, cuatro cifras, gráfica con
+atención, sucursales, desgloses y áreas. Los placeholders reservan la forma del
+contenido final; no se muestra el menú alternativo de áreas antes del reporte.
+Al cambiar periodo o alcance se retiran las cifras anteriores y se conserva el
+selector de sucursal, deshabilitado mientras carga. Las regiones pendientes usan
+`aria-busy`, anuncian la carga y respetan movimiento reducido. Un error conserva
+los accesos autorizados a las áreas sin inventar métricas.
+
+Las dos señales principales de cada área conservan su etiqueta y añaden iconos
+decorativos por significado (entrega, caja, inventario, seguimiento, cita o
+conciliación). Los faltantes confirmados se distinguen también con texto e icono;
+el color no sustituye la etiqueta ni comunica que una fuente pendiente esté sana.
