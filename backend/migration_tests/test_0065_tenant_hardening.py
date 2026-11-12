@@ -60,6 +60,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "crm_followup_policies": {"SELECT", "INSERT"},
     "crm_followup_tasks": {"SELECT", "INSERT"},
     "messaging_channel_bindings": {"SELECT"},
+    "messaging_channel_connections": {"SELECT"},
+    "messaging_signup_sessions": {"SELECT"},
     "messaging_conversations": {"SELECT", "INSERT"},
     "messaging_messages": {"SELECT", "INSERT"},
     "messaging_channel_events": {"SELECT", "INSERT"},
@@ -348,6 +350,8 @@ _SEMANTIC_INSERT_ORDER = (
     "crm_followup_policies",
     "crm_followup_tasks",
     "messaging_channel_bindings",
+    "messaging_channel_connections",
+    "messaging_signup_sessions",
     "messaging_conversations",
     "messaging_messages",
     "messaging_channel_events",
@@ -481,7 +485,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
         "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured",
-                   "messaging_messages": "draft"}
+                   "messaging_messages": "draft", "messaging_signup_sessions": "pending"}
                   .get(table.name, "active")),
         "status": {
             "account_deletion_requests": "pending",
