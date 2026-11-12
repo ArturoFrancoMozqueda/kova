@@ -12,6 +12,16 @@ const destinations = [
 ];
 
 describe("BusinessControlCenter", () => {
+  it("reserves the area cards while loading without displaying fallback navigation or zeroes", () => {
+    render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} loading /></MemoryRouter>);
+    const control = screen.getByRole("region", { name: "Tu operación, de un vistazo" });
+    expect(control).toHaveAttribute("aria-busy", "true");
+    expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(6);
+    expect(within(control).getByRole("status")).toHaveTextContent("Cargando áreas del negocio");
+    expect(within(control).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(control).queryByText(/Consulta tus existencias|Consultar|0 productos|0 órdenes/)).not.toBeInTheDocument();
+  });
+
   it("groups the allowed destinations into six areas without fetching additional data", async () => {
     const { container } = render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} /></MemoryRouter>);
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
