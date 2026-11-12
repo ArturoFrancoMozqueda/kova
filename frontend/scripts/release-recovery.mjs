@@ -188,11 +188,12 @@ export function runProviderCommand(command, args, options = {}) {
   });
 }
 
-export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env } = {}) {
+export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env,
+  backend: suppliedBackend } = {}) {
   if (!env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
   const cloudflare = cloudflareProvider({ run, env });
-  const backend = cloudflareBackendProvider({ run, env });
+  const backend = suppliedBackend ?? cloudflareBackendProvider({ run, env });
   if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
   return {
     requiresCloudflareBackend: Boolean(backend),
