@@ -253,6 +253,34 @@ No se cambió el plan, la visibilidad ni los permisos del repositorio.
 
 ## Continuidad observada y pendiente
 
+### Recuperación verificada el 12 de noviembre de 2026
+
+El [intento 43271461099](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43271461099)
+del PR #343 superó el bloqueo previo de drenado y preparó el slot green, pero rechazó la identidad
+durante la aceptación nativa. Restauró gateway y jobs; el monitor terminó en `RECOVERY_BLOCKED`
+porque el proveedor que esperaba el proceso conservaba el candidato en memoria, mientras otra
+instancia había efectuado la restauración. No se reintentó ese workflow ni se forzó un drenado.
+
+Antes del PR #344 se comprobó el artefacto exacto de ese intento: coincidieron versiones de
+gateway, jobs, holder y frontend, además de versión, imagen y namespace del slot blue activo.
+API, sitio, proxy y base aprobaron con `9cceaf24cad3800934e072fba4b608e34f865e04`; los 25 contratos
+nativos aceptaron el proceso original. Dos barridos independientes no observaron cambios de proceso
+y el último midió 309 ms de mediana y 605 ms de máximo. El incidente quedó resuelto por estas
+comprobaciones; el workflow fallido conserva su resultado rojo.
+
+El [PR #344](https://github.com/ArturoFrancoMozqueda/kova/pull/344) comparte la instancia de backend
+entre publicación, restauración y espera, y acota el tratamiento del proceso anterior durante
+propagación. Las regresiones incluyen la composición real del proveedor y el rechazo de identidades
+ajenas, errores de contrato y reintentos POST. Aprobaron 160 pruebas enfocadas de publicación
+(una omitida por plataforma), 108 pruebas Python de scripts y el CI completo del SHA revisado.
+
+El [release 43279827960](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43279827960)
+terminó en éxito y aceptó `3be0dac411e4f3de85fa55e228d616b13140b2fb` a las 18:40:45 UTC. Durante
+la propagación detectó cuatro veces el proceso anterior capturado y repitió sólo lecturas;
+después aceptó los 25 contratos completos del proceso nuevo. El barrido público final midió
+308 ms de mediana y 556 ms de máximo. La comprobación independiente posterior confirmó el mismo
+SHA en API/frontend y acceso a sitio, proxy y base. No hubo recuperación en este intento.
+
 El [release 42729913216](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42729913216)
 terminó saludable sobre `4aeaa973044d`. La observación confirmó el controlador nuevo atendiendo
 con la imagen anterior y sus marcadores originales antes del cambio. Aun así, durante la

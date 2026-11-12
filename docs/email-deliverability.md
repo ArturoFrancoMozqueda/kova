@@ -1,7 +1,19 @@
 # Entregabilidad de correo — Kova
 
-Evidencia acumulada al 9 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
+Evidencia acumulada al 12 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
+
+## Recepción para la verificación de Meta
+
+El 12 de noviembre se habilitó en Cloudflare Email Routing la regla exacta
+`verificacion@kovasuite.com` → `posprojectsupport@gmail.com`, cuyo destino ya estaba verificado.
+La consulta posterior confirmó la regla habilitada. Se conserva la ruta de DMARC y no se habilitó
+un catch-all ni se creó un buzón de pago. Este alias recibe y reenvía; no configura correo saliente.
+
+El dueño completó directamente el código y el envío de documentos en Meta. El Centro de seguridad
+mostró **En revisión**, con un plazo estimado de dos días laborables. No se copiaron códigos ni
+documentos fiscales al repositorio. Esta evidencia corresponde al trámite de Meta; no sustituye
+las comprobaciones de entregabilidad de los avisos transaccionales descritas abajo.
 
 ## Avisos tras la compra live de aceptación
 
