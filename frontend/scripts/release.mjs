@@ -112,11 +112,12 @@ export async function release({ artifact: rawArtifact, sha, provider,
   }
 }
 
-export function releaseProvider(globalConfig, { run = runProviderCommand, env = process.env } = {}) {
+export function releaseProvider(globalConfig, { run = runProviderCommand, env = process.env,
+  backend: suppliedBackend } = {}) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const npx = resolveNpxCommand();
   const cloudflare = cloudflareProvider({ run, env });
-  const backend = cloudflareBackendProvider({ run, env });
+  const backend = suppliedBackend ?? cloudflareBackendProvider({ run, env });
   if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
   const buildEnv = { ...env, ...(cloudflare ? { VITE_HOSTING_PROVIDER: "cloudflare" } : {}) };
   // The owner connection belongs only to the backend migration subprocess.
@@ -125,7 +126,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
     [...npx.prefixArgs, "--yes", "vercel@59.0.0", ...args,
       "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env: buildEnv });
   return {
-    ...cliProvider({ globalConfig, run, env }),
+    ...cliProvider({ globalConfig, run, env, backend }),
     requiresCloudflare: Boolean(cloudflare),
     ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),

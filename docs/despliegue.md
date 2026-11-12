@@ -102,6 +102,17 @@ además de los jobs operativos. No atribuir un porcentaje de ahorro sin medir el
 
 El job tiene un timeout de 90 minutos.
 
+La publicación y la recuperación comparten la misma instancia del proveedor de backend para
+conservar el proceso esperado después de restaurar el gateway. Un proveedor de recuperación
+independiente dejaría al verificador esperando el proceso candidato que acaba de retirarse.
+
+Después de la primera sonda, la aceptación nativa vuelve a comprobar todos los contratos. Si
+durante la propagación aparece exactamente el proceso anterior capturado, puede repetir todo el
+barrido de lecturas: hasta 60 segundos y 15 barridos, con cada request limitado por el presupuesto
+restante. Su salud debe acreditar también SHA y controlador anteriores. Sólo un barrido completo
+del proceso objetivo permite aceptar. Procesos ajenos, SHA inesperados, errores de contrato,
+transporte o latencia siguen fallando; la sonda POST inválida de login nunca se repite.
+
 ## Recuperación automática
 
 Si algo falla después de empezar a modificar producción, `release-recovery.mjs` restaura según la

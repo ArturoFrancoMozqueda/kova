@@ -142,7 +142,10 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
         // A Python and a native publication can share the same commit. Prove
         // the runtime as well as the SHA before accepting/promoting the site.
         await run("python3", [path.join(root, "scripts/check_native_resident.py"),
-          "--base", input.backendUrl, "--sha", input.sha, "--check-private-bindings"], {
+          "--base", input.backendUrl, "--sha", input.sha, "--check-private-bindings",
+          ...(nativePublication ? ["--expected-process-id", nativePublication.processId,
+            "--previous-process-id", nativePublication.previousProcessId,
+            "--previous-sha", input.previousSha] : [])], {
           cwd: root, env: { PATH: env.PATH }, label: "Resident runtime acceptance",
         });
       }

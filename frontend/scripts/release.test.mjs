@@ -11,6 +11,33 @@ const artifact = {
 };
 const sha = "b".repeat(40);
 
+test("publication and recovery share the same captured native process state", async () => {
+  const events = [];
+  let current = artifact.releaseSha;
+  const backend = {
+    requiresNativeContainer: true,
+    async publish(target) { current = target; events.push("publish"); },
+    async restore(versions) {
+      assert.deepEqual(versions, artifact.cloudflareBackendVersions);
+      current = artifact.releaseSha; events.push("restore");
+    },
+    async waitForPublicBackend(input) {
+      assert.equal(input.sha, current, "readiness must observe the restored provider's process state");
+      events.push(input.sha === sha ? "candidate-ready" : "recovery-ready");
+    },
+  };
+  const provider = releaseProvider("/synthetic-auth", {
+    env: { VERCEL_TOKEN: "synthetic-only", KOVA_CLOUDFLARE_BACKEND: "1",
+      CLOUDFLARE_API_TOKEN: "synthetic-only", CLOUDFLARE_ACCOUNT_ID: "synthetic-account" },
+    backend, run: assert.fail,
+  });
+  await provider.deployBackend(sha, artifact.releaseSha);
+  await provider.waitForPublicBackend({ sha });
+  await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
+  await provider.waitForPublicBackend({ sha: artifact.releaseSha });
+  assert.deepEqual(events, ["publish", "candidate-ready", "restore", "recovery-ready"]);
+});
+
 function fixture(fail) {
   const calls = [];
   const call = async (name, value) => {
