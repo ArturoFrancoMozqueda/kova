@@ -352,72 +352,55 @@ test("public landing uses one continuous Kova ink canvas", async ({ page }) => {
   expect(backgrounds.navigation).not.toBe("rgb(255, 255, 255)");
 });
 
-test("mobile landing uses the vertical product film without overflow", async ({ page }) => {
+test("mobile product tour keeps every step reachable without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
-  const story = page.locator("#producto");
-  await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
-  await expect(video).toBeVisible();
-  await expect(video).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
-  await expect
-    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
-    .toBe("/film/kova-demo-vertical.mp4");
-  await expect
-    .poll(() => video.evaluate((element: HTMLVideoElement) => element.videoHeight > element.videoWidth))
-    .toBe(true);
-  await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
-  await expect(story.getByRole("button", { name: "Activar sonido" })).toBeVisible();
+  const tour = page.locator("#producto");
+  await tour.scrollIntoViewIfNeeded();
+  const tabs = tour.getByRole("tab");
+  await expect(tabs).toHaveCount(4);
+  await expect(tour.getByRole("tabpanel")).toContainText("Carrito");
+  await tabs.nth(3).click();
+  await expect(tabs.nth(3)).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.nth(3)).toBeInViewport();
+  await expect(tour.getByRole("tabpanel")).toContainText("Ventas netas");
   await expectNoHorizontalOverflow(page);
 });
 
-test("landing switches the active film when the viewport becomes mobile", async ({ page }) => {
+test("desktop product tour steps stay keyboard navigable", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/v1/auth/session", (route) =>
-    route.fulfill({ json: { authenticated: false } }),
-  );
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
-  const video = page
-    .locator("#producto")
-    .getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
-  await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
-
-  await page.setViewportSize({ width: 390, height: 844 });
-
-  await expect(video).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
-  await expect
-    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
-    .toBe("/film/kova-demo-vertical.mp4");
+  const tour = page.locator("#producto");
+  await tour.scrollIntoViewIfNeeded();
+  const first = tour.getByRole("tab", { name: /Cobras/ });
+  await first.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(tour.getByRole("tab", { name: /Baja el inventario/ })).toBeFocused();
+  await expect(tour.getByRole("tabpanel")).toContainText("Stock bajo");
+  await page.keyboard.press("ArrowDown");
+  await expect(tour.getByRole("tabpanel")).toContainText("Efectivo esperado");
+  await expectNoHorizontalOverflow(page);
 });
 
-test("desktop product film controls stay navigable without horizontal overlap", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test("product tour does not advance on its own under reduced motion", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
-  const story = page.locator("#producto");
-  await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
-  await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
-  await expect
-    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
-    .toBe("/film/kova-demo-horizontal.mp4");
-  await expect
-    .poll(() => video.evaluate((element: HTMLVideoElement) => element.videoWidth > element.videoHeight))
-    .toBe(true);
-  const controls = story.getByRole("group", { name: "Controles del video" }).getByRole("button");
-  await expect(controls).toHaveCount(2);
-  await controls.nth(1).focus();
-  await expect(controls.nth(1)).toBeFocused();
-  await expectNoHorizontalOverflow(page);
+  const tour = page.locator("#producto");
+  await tour.scrollIntoViewIfNeeded();
+  await expect(tour.getByRole("button", { name: "Pausar recorrido" })).toHaveCount(0);
+  await page.waitForTimeout(8000);
+  await expect(tour.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
 });
 
 test("mobile hero and story share the signup destination", async ({ page }) => {
@@ -463,27 +446,6 @@ test("mobile product and pricing CTAs remain reachable without horizontal overfl
     await expect(cta).toBeVisible();
   }
   await expectNoHorizontalOverflow(page);
-});
-
-test("landing product film waits for manual playback under reduced motion", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/v1/auth/session", (route) =>
-    route.fulfill({ json: { authenticated: false } }),
-  );
-  await page.goto("/");
-  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
-
-  // El hero y la demostración conservan sus pósteres y no arrancan movimiento
-  // hasta que la persona lo solicita explícitamente.
-  await expect(page.locator(".lp-hero-frame")).toBeVisible();
-  const story = page.locator("#producto");
-  await story.scrollIntoViewIfNeeded();
-  const video = story.getByLabel("Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis");
-  await expect(video).toBeVisible();
-  await expect(story.locator("picture img")).toBeVisible();
-  await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
-  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

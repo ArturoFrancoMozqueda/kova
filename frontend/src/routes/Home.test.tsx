@@ -176,11 +176,8 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       "cta-final",
     ]);
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
-    expect(
-      screen.getByText(
-        /Gestión comercial y punto de venta para tu negocio/i,
-      ),
-    ).toBeVisible();
+    // Sin kickers en versalitas sobre los titulares.
+    expect(container.querySelector(".lp-hero-eyebrow, .lp-section-label")).toBeNull();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
       /Cada venta descuenta tu inventario, entra a tu corte de caja/i,
     );
@@ -210,6 +207,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
     expect(screen.getByText("Decidir con datos")).toBeVisible();
     expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
+    const clientes = container.querySelector("#clientes");
+    expect(clientes?.querySelector('img[src="/customers/sweet-home.png"]')).not.toBeNull();
+    expect(clientes).toHaveTextContent("CC");
     expect(screen.getByText("Ventas sin internet")).toBeVisible();
     expect(screen.getByText("Turnos y corte")).toBeVisible();
     expect(screen.getByText("Menú digital con QR")).toBeVisible();

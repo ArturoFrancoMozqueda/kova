@@ -9,28 +9,6 @@
   margin: 0 auto;
 }
 
-/* Mismo kicker que .lp-section-label: guión de acento + versalita. */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.eyebrow::before {
-  content: "";
-  width: 22px;
-  height: 1px;
-  flex-shrink: 0;
-  background: currentColor;
-  opacity: 0.55;
-}
-
 .title {
   max-width: 760px;
   margin: 0;
@@ -55,10 +33,6 @@
    separación la carga la línea de corte. */
 .problem {
   border-bottom: 1px solid var(--hairline-color);
-}
-
-.problem .eyebrow::before {
-  content: none;
 }
 
 .problemHeading,
@@ -105,10 +79,8 @@
 .mirrorHead span {
   padding: 14px 24px;
   color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .mirrorHead span + span,
@@ -295,10 +267,8 @@
 
 .previewLabel {
   color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .previewRow {
@@ -423,9 +393,6 @@
   background: var(--lp-blue-bg);
 }
 
-.reports .eyebrow {
-  color: var(--lp-blue-tertiary);
-}
 .reports .title {
   color: var(--lp-blue-display);
 }
@@ -526,14 +493,6 @@
   background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
-.quoteOutcome {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .quote p {
   margin: 0 0 0 -0.42em;
   color: var(--page-fg);
@@ -544,11 +503,127 @@
   text-wrap: pretty;
 }
 
-.quote footer {
+.quoteAuthor {
   margin-top: auto;
+  padding-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quoteAuthor > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quoteAuthor strong {
+  color: var(--page-fg);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.quoteAuthor > span > span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.quoteLogo,
+.quoteInitials {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.quoteLogo {
+  display: block;
+  box-shadow: 0 0 0 1px var(--hairline-strong);
+}
+
+.quoteInitials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
   color: var(--accent);
   font-size: 14px;
   font-weight: 700;
+}
+
+/* ── Movimiento: one-shot al entrar en pantalla (data-lp-visible lo pone
+   useLandingRevealMotion). Sin loops; reduce-motion lo omite. ── */
+@media (prefers-reduced-motion: no-preference) {
+  .mirrorRow[data-lp-visible="true"] .mirrorBefore > span {
+    background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0 1px;
+    animation: lp-strike 520ms var(--kova-ease-entrance) calc(var(--lp-reveal-delay, 0ms) + 260ms) forwards;
+  }
+  .mirrorRow[data-lp-visible="true"] .mirrorAfter svg {
+    animation: lp-check-pop 420ms var(--kova-ease-spring, var(--kova-ease-entrance)) calc(var(--lp-reveal-delay, 0ms) + 520ms) both;
+  }
+  .pillar[data-lp-visible="true"] .previewRow,
+  .pillar[data-lp-visible="true"] .previewChips,
+  .pillar[data-lp-visible="true"] .previewAction {
+    animation: lp-preview-row 420ms var(--kova-ease-entrance) both;
+  }
+  .pillar[data-lp-visible="true"] .previewRow:nth-of-type(2) { animation-delay: 120ms; }
+  .pillar[data-lp-visible="true"] .previewRow:nth-of-type(3) { animation-delay: 200ms; }
+  .pillar[data-lp-visible="true"] .previewRow:nth-of-type(4) { animation-delay: 280ms; }
+  .pillar[data-lp-visible="true"] .previewChips { animation-delay: 360ms; }
+  .pillar[data-lp-visible="true"] .previewAction { animation-delay: 440ms; }
+  .pillar[data-lp-visible="true"] .previewBars span {
+    transform-origin: bottom;
+    animation: lp-bar 640ms var(--kova-ease-entrance) both;
+  }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(2) { animation-delay: 60ms; }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(3) { animation-delay: 120ms; }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(4) { animation-delay: 180ms; }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(5) { animation-delay: 240ms; }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(6) { animation-delay: 300ms; }
+  .pillar[data-lp-visible="true"] .previewBars span:nth-child(7) { animation-delay: 360ms; }
+  .pillar[data-lp-visible="true"] .previewMeter span {
+    transform-origin: left;
+    animation: lp-meter 900ms var(--kova-ease-entrance) 300ms both;
+  }
+  .pillar[data-lp-visible="true"] .previewQr {
+    animation: lp-check-pop 520ms var(--kova-ease-spring, var(--kova-ease-entrance)) 380ms both;
+  }
+  .pillar[data-lp-visible="true"] .previewRow[data-warn] strong {
+    animation: lp-warn 1200ms ease-out 600ms both;
+  }
+  .pillar {
+    transition: border-color 220ms var(--kova-ease-entrance), transform 220ms var(--kova-ease-entrance);
+  }
+}
+
+@keyframes lp-strike {
+  to { background-size: 100% 1px; }
+}
+
+@keyframes lp-check-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  70% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lp-preview-row {
+  from { opacity: 0; transform: translate3d(-6px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes lp-bar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes lp-meter {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes lp-warn {
+  0%, 40% { text-shadow: 0 0 12px color-mix(in srgb, var(--kova-danger) 70%, transparent); }
+  100% { text-shadow: none; }
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
@@ -615,8 +690,6 @@
   .mirrorBefore {
     padding-bottom: 6px;
     font-size: 14px;
-    text-decoration: line-through;
-    text-decoration-color: var(--text-tertiary);
   }
   .mirrorAfter {
     padding-top: 6px;

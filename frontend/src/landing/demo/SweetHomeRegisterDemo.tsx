@@ -16,37 +16,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "@/register/RegisterPresentation";
 import { formatMoney } from "@/orders/format";
 import { copy } from "@/i18n/messages";
+import { REGISTER_DEMO_CART, REGISTER_DEMO_PRODUCTS, type ShowcaseCategory } from "./registerDemoCatalog";
 
 type PaymentMethod = "cash" | "transfer" | "card";
-type CategoryFilter = "all" | "hot" | "cold" | "bakery" | "food";
+type CategoryFilter = "all" | ShowcaseCategory;
 
-type ShowcaseProduct = {
-  id: string;
-  name: string;
-  price: number;
-  category: Exclude<CategoryFilter, "all">;
-  image?: string;
-};
-
-const PRODUCTS: readonly ShowcaseProduct[] = [
-  { id: "agua", name: "Agua mineral", price: 32, category: "cold", image: "/showcase/products/agua-mineral.png" },
-  { id: "alfajores", name: "Alfajores", price: 32, category: "bakery", image: "/showcase/products/alfajores.png" },
-  { id: "capuchino", name: "Capuchino mediano", price: 56, category: "hot", image: "/showcase/products/capuchino-mediano.png" },
-  { id: "chocolate", name: "Chocolate frío", price: 55, category: "cold", image: "/showcase/products/chocolate-frio.png" },
-  { id: "cold-brew", name: "Cold brew", price: 62, category: "cold", image: "/showcase/products/cold-brew.png" },
-  { id: "concha", name: "Concha vainilla", price: 24, category: "bakery", image: "/showcase/products/concha-vainilla.png" },
-  { id: "croissant", name: "Croissant mantequilla", price: 42, category: "bakery", image: "/showcase/products/croissant-mantequilla.png" },
-  { id: "yogurt", name: "Yogurt con granola", price: 68, category: "food" },
-];
-
-const COMPLETE_CART: Record<string, number> = { "cold-brew": 1, capuchino: 1, yogurt: 1 };
+const PRODUCTS = REGISTER_DEMO_PRODUCTS;
+const COMPLETE_CART = REGISTER_DEMO_CART;
 
 export default function SweetHomeRegisterDemo({
   interactive = true,
   autoPlay = false,
+  dense = false,
 }: {
   interactive?: boolean;
   autoPlay?: boolean;
+  /** Mosaico compacto para el recorrido de la landing (ver ProductTour). */
+  dense?: boolean;
 }) {
   const [cart, setCart] = useState<Record<string, number>>(() => autoPlay
     ? { "cold-brew": 1, capuchino: 1 }
@@ -108,7 +94,7 @@ export default function SweetHomeRegisterDemo({
   };
 
   return (
-    <div className="lp-pos-container h-full min-h-0">
+    <div className="lp-pos-container h-full min-h-0" data-dense={dense ? "true" : undefined}>
       <div className="lp-pos-preview h-full min-h-0 bg-background p-3 text-foreground">
         <Card className="lp-pos-main min-w-0 overflow-hidden">
           <CardHeader className="border-b p-3 pb-3">
@@ -161,8 +147,11 @@ export default function SweetHomeRegisterDemo({
                     quantity={cart[product.id]}
                     ariaLabel={`Agregar ${product.name}`}
                     onAdd={() => updateQuantity(product.id, 1)}
+                    gridTile={dense}
                     image={
-                      <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full">
+                      <div className={dense
+                        ? "aspect-[4/3] w-full shrink-0 overflow-hidden rounded-lg bg-muted/50"
+                        : "aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full"}>
                         {product.image ? (
                           <img src={product.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                         ) : (
