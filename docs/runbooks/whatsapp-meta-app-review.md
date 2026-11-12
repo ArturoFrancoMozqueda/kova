@@ -94,8 +94,27 @@ El Centro de seguridad muestra **En revisión**. En Permisos y funciones, los bo
 acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
 también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
 controles. La app permanece en desarrollo y el alta comercial apagada.
-El botón de `public_profile` se muestra habilitado, pero al pulsarlo Meta indica que la verificación
-del negocio es obligatoria para obtener acceso avanzado. No abrió un formulario ni concedió acceso.
+El botón de `public_profile` se muestra habilitado. La primera lectura mostró un aviso de
+verificación obligatoria; después terminó de cargar el diálogo **Confirmar acceso avanzado para
+public_profile**, con pasos de comprobación de uso y tratamiento de datos. El titular autorizó
+expresamente la declaración de uso permitido y el primer paso quedó completado. El formulario de
+tratamiento de datos se completó y se pulsó Enviar con autorización expresa. Meta solicitó volver a
+autenticar al titular antes de continuar; el envío final y el acceso avanzado aún no están
+confirmados. No inferir el resultado final de esta confirmación a partir del aviso inicial.
+
+Para preparar los proveedores se comprobó la región real del proyecto de producción de Supabase
+(`us-west-1`) mediante metadatos del proyecto, sin consultar datos ni credenciales. Se declararon
+Estados Unidos y Singapur para alojamiento y operaciones de Supabase. Para Cloudflare se usó la
+cobertura de 132 países y territorios de su red global publicada, excluyendo China continental:
+es el alcance posible de la red sin restricciones regionales, no evidencia de que una solicitud
+haya pasado por cada ubicación. Las respuestas sobre prácticas del titular se obtuvieron de éste;
+no se declararon procesos que todavía no aplica.
+
+Fuentes de los proveedores consultadas el 12 de noviembre de 2026:
+[red de Cloudflare](https://www.cloudflare.com/network/),
+[tratamiento global y separación de China](https://www.cloudflare.com/en-gb/trust-hub/appi/),
+[residencia y transferencias de Supabase](https://supabase.com/legal/privacy-resources/data-residency-and-transfers-faq)
+y [subencargados de Supabase](https://supabase.com/legal/subprocessor-list/October-12-2026.pdf).
 
 Tras la resolución, comprobar nuevamente estos controles, completar el requisito de `public_profile`
 del SDK y el acceso avanzado de WhatsApp. Antes de enviar, verificar privacidad, eliminación de datos,
