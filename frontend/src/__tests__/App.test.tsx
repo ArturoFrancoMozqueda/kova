@@ -170,18 +170,20 @@ describe("App shell", () => {
   it("renders the public landing page for unauthenticated users", async () => {
     setupFetchMock({
       "/api/v1/auth/session": [{ authenticated: false }],
-      "/api/v1/billing/plans": [{ tiered_pricing_enabled: false, available_plans: [{
-        code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month",
-        tax_inclusive: null, features: [], limits: { product_image_bytes: null },
-      }] }],
+      "/api/v1/billing/plans": [{ offer_revision: "tiered", tiered_pricing_enabled: true, available_plans: [
+        { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month",
+          tax_inclusive: true, features: ["pos"], limits: { product_image_bytes: 250_000_000, branches: 1 } },
+        { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month",
+          tax_inclusive: true, features: ["pos", "quotes"], limits: { product_image_bytes: 1_073_741_824, branches: 1 } },
+      ] }],
     });
     render(<App />);
     expect(
       await screen.findByRole("heading", {
-        name: /vende con orden\. conoce tu negocio\./i,
+        name: /cobra una vez\. kova cuadra el resto\./i,
       }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Plan Standard")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Gestión" })).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {

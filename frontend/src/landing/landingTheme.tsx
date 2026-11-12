@@ -483,6 +483,158 @@ export const LANDING_STYLES = `
     color: var(--lp-blue-fg);
     font-weight: 700;
   }
+  .lp-hero-bullets {
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+  .lp-hero-bullets li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--lp-blue-fg);
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .lp-hero-bullets svg {
+    margin-top: 3px;
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+
+  /* Planes por niveles: el plan más completo se destaca porque es el que se
+     prueba durante el periodo gratis. */
+  .lp-plans {
+    max-width: 920px;
+    margin: 40px auto 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+  }
+  .lp-plan {
+    min-width: 0;
+    padding: clamp(24px, 3vw, 32px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--hairline-strong);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+  .lp-plan[data-featured] {
+    border-color: color-mix(in srgb, var(--accent) 60%, var(--hairline-strong));
+    box-shadow: 0 30px 70px -50px rgba(79, 126, 247, 0.8);
+  }
+  .lp-plan-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+  }
+  .lp-plan-top h3 {
+    margin: 0;
+    color: var(--page-fg);
+    font-family: var(--lp-font-display);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .lp-plan-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .lp-plan-audience {
+    margin: 10px 0 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .lp-plan-price {
+    margin: 22px 0 0;
+    color: var(--page-fg);
+    font-family: var(--lp-font-display);
+    font-size: clamp(30px, 3.4vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .lp-plan-note {
+    margin: 4px 0 0;
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+  .lp-plan-inherits {
+    margin: 22px 0 0;
+    color: var(--page-fg);
+    font-size: 14px;
+    font-weight: 650;
+  }
+  .lp-plan-features,
+  .lp-plan-limits {
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .lp-plan-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--page-fg);
+  }
+  .lp-plan-features svg {
+    margin-top: 4px;
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+  .lp-plan-limits {
+    margin-top: 20px;
+    margin-bottom: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--hairline-color);
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .lp-plan-cta {
+    min-height: 48px;
+    margin-top: auto;
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hairline-strong);
+    border-radius: 10px;
+    color: var(--page-fg);
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+  }
+  .lp-plan-cta[data-featured] {
+    border-color: transparent;
+    background: var(--cta-blue, var(--kova-blue));
+    color: #fff;
+  }
+  .lp-plans-note {
+    max-width: 640px;
+    margin: 22px auto 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+    text-align: center;
+  }
+  @media (max-width: 760px) {
+    .lp-plans { grid-template-columns: 1fr; }
+  }
   .lp-hero-section .lp-hero-title { color: var(--lp-blue-display) !important; }
   .lp-hero-section .lp-hero-copy { color: var(--lp-blue-muted) !important; }
   .lp-hero-section .lp-hero-actions .lp-cta-fill:first-child {

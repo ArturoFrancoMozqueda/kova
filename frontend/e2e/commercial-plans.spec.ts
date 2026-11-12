@@ -149,7 +149,9 @@ for (const width of [390, 1440]) {
       available_plans: [{ ...plans[1], code: "standard", name: "Plan Standard", amount_minor_units: 29900 }] };
     await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: catalog }));
     await page.goto("/");
-    await expect(page.locator(".lp-hero-pricing")).toContainText("$299 MXN/mes");
+    // La landing no anuncia un catálogo de plan único: espera la oferta vigente.
+    await expect(page.locator(".lp-hero-pricing")).toHaveText("7 días gratis · Sin tarjeta");
+    await expect(page.locator("body")).not.toContainText("299");
     catalog = { offer_revision: "tiered-after-rollout", tiered_pricing_enabled: true, available_plans: plans };
     await page.evaluate(() => { window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); });
     await expect(page.locator(".lp-hero-pricing")).toContainText("Desde $399 MXN/mes");

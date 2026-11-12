@@ -16,20 +16,15 @@ import {
   trackAnonymousEvent,
   trackAnonymousEventOnce,
 } from "@/telemetry/funnel";
-import {
-  STANDARD_PLAN_AMOUNT,
-  STANDARD_PLAN_PRICE_CADENCE_ES,
-} from "@/billing/standardPlan";
 import Logo from "@/components/brand/Logo";
-import { LogoMark } from "@/components/brand/Logo";
 import FinalCta from "@/landing/FinalCta";
 import {
   CapabilitiesSection,
+  offeredPlans,
   ProblemSection,
   ReportsSpotlight,
   TestimonialsSection,
 } from "@/landing/LandingSections";
-import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
 import SaleFlowStory, {
   type LandingStoryStepId,
@@ -49,8 +44,8 @@ const t = copy.landing;
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 const NAV_LINKS = [
+  { label: t.nav.features, href: "#incluye" },
   { label: t.nav.howItWorks, href: "#producto" },
-  { label: t.nav.customers, href: "#clientes" },
   { label: t.nav.price, href: "#precio" },
   { label: t.nav.questions, href: "#faq" },
 ];
@@ -213,6 +208,7 @@ function Hero({
   onCtaClick: (cta: string) => void;
   offer: PublicPlansState;
 }) {
+  const heroPlans = offeredPlans(offer);
   return (
     <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
       <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
@@ -248,6 +244,17 @@ function Hero({
               {t.hero.subtitle}
             </p>
 
+            <ul className="lp-hero-bullets">
+              {t.hero.bullets.map((bullet) => (
+                <li key={bullet}>
+                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+
             <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
               <Link
                 to={primaryTarget}
@@ -279,9 +286,15 @@ function Hero({
               </a>
             </div>
 
+            {/* El HTML prerenderizado no anuncia precio (lo confirma el servidor en
+                runtime); mientras tanto la línea solo ofrece la prueba. */}
             <p className="lp-hero-pricing">
-              <strong>{offer.status === "ready" ? `${offer.catalog.tiered_pricing_enabled ? "Desde " : ""}${formatCommercialPrice(offer.catalog.available_plans[0])}` : "Consulta nuestros planes"}</strong>
-              <span aria-hidden="true">·</span>
+              {heroPlans && (
+                <>
+                  <strong>{`${t.hero.pricingFrom} ${formatCommercialPrice(heroPlans[0])}`}</strong>
+                  <span aria-hidden="true">·</span>
+                </>
+              )}
               <span>{t.hero.trialBadge}</span>
             </p>
           </div>
@@ -311,13 +324,9 @@ function FAQ({
   offer: PublicPlansState;
 }) {
   const [open, setOpen] = useState<number | null>(null);
-  const items = t.faq.items.map((item) => {
-    if (offer.status === "ready" && !offer.catalog.tiered_pricing_enabled) return item;
-    if (item.q.startsWith("¿Qué incluye el plan") && offer.status !== "ready") return { q: "¿Qué incluyen los planes?", a: "Consulta los planes disponibles para confirmar sus funciones, precios y límites antes de contratar." };
-    if (item.q.startsWith("¿Qué incluye el plan")) return { q: "¿Qué incluyen los planes?", a: "Esencial reúne caja, inventario, resumen de ventas y catálogo público. Gestión añade compras, análisis avanzado, lealtad, pedidos y cotizaciones. Consulta los precios y límites en la sección de planes." };
-    if (item.q === "¿Qué pasa cuando termina la prueba?") return { ...item, a: "Elige un plan disponible para seguir usando las funciones operativas. La suscripción es mensual y Kova confirma la activación después del pago en Stripe." };
-    return item;
-  });
+  const items = offeredPlans(offer) ? t.faq.items : t.faq.items.map((item) => (
+    item.q === t.faq.plansQuestion ? { q: item.q, a: t.faq.plansUnconfirmed } : item
+  ));
 
   return (
     <section id="faq" className="lp-section">
@@ -424,9 +433,13 @@ function FAQ({
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-/** Índice de línea del recibo → delay de impresión (var CSS --tkt-i). */
-const tktLine = (i: number): CSSProperties => ({ ["--tkt-i" as string]: String(i) });
+function formatImageLimit(bytes: number): string {
+  return bytes >= 1_073_741_824 ? `${bytes / 1_073_741_824} GiB` : `${bytes / 1_000_000} MB`;
+}
 
+// La landing solo anuncia la oferta vigente Esencial/Gestión. Nombres, precios,
+// funciones y límites salen del catálogo público del servidor; si no confirma
+// esa oferta, la sección queda en carga o error y nunca muestra otro plan.
 function Pricing({
   primaryTarget,
   onCtaClick,
@@ -438,126 +451,71 @@ function Pricing({
   offer: PublicPlansState;
   onRetry: () => void;
 }) {
-  if (offer.status !== "ready") return <section id="precio" className="lp-section"><div className="lp-section-inner">
-    <h2 className="lp-section-title">Planes para tu negocio</h2>
-    {offer.status === "loading" ? <div role="status" aria-label="Consultando planes"><Skeleton className="mx-auto mt-6 h-64 max-w-xl" /></div>
-      : <div role="alert" className="mt-6 text-center"><p>No pudimos consultar los precios actuales.</p><button className="lp-cta-fill mt-4 min-h-11 px-5" onClick={onRetry}>Consultar planes de nuevo</button></div>}
-  </div></section>;
-  if (offer.catalog.tiered_pricing_enabled) return <section id="precio" className="lp-section lp-reveal-block"><div className="lp-section-inner">
-    <h2 className="lp-section-title text-center">Elige cómo operar tu negocio</h2>
-    <p className="lp-section-copy mx-auto mt-4 max-w-2xl text-center">Prueba las funciones de Gestión sin tarjeta. Al terminar, elige el plan que necesitas. Los acuerdos de clientes actuales se conservan.</p>
-    <div className="mx-auto mt-8 grid max-w-4xl gap-6 md:grid-cols-2">{offer.catalog.available_plans.map((plan) => <TicketPaper key={plan.code} className="flex h-full flex-col [&>.lp-tkt-body]:flex [&>.lp-tkt-body]:flex-1 [&>.lp-tkt-body]:flex-col">
-      <h3 className="text-xl font-semibold">{plan.name}</h3><p className="mt-3 text-3xl font-semibold tracking-tight">{formatCommercialPrice(plan)}</p>
-      {plan.tax_inclusive && <p className="mt-2 text-sm">IVA incluido</p>}
-      <ul className="my-6 space-y-3 text-sm">{plan.features.map((feature) => PLAN_FEATURE_LABELS[feature] ? <li key={feature}>✓ {PLAN_FEATURE_LABELS[feature]}</li> : null)}</ul>
-      {plan.limits.branches != null && <p className="mb-3 text-sm">Incluye {plan.limits.branches} sucursal{plan.limits.branches === 1 ? "" : "es"}.</p>}
-      {plan.limits.product_image_bytes !== null && <p className="mb-5 text-sm">Fotos de productos: {plan.limits.product_image_bytes >= 1_073_741_824 ? `${plan.limits.product_image_bytes / 1_073_741_824} GiB` : `${plan.limits.product_image_bytes / 1_000_000} MB`} de archivos originales.</p>}
-      <p className="mb-5 text-sm">Ventas offline en dispositivos preparados. Sin comisiones por venta de Kova.</p>
-      <Link className="lp-cta-fill mt-auto inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-3" style={{ background: "var(--cta-blue, var(--kova-blue))", color: "#fff" }} to={primaryTarget} onClick={() => onCtaClick("pricing")}>Probar Kova</Link>
-    </TicketPaper>)}</div>
-  </div></section>;
-  const feats = t.pricing.features;
+  const tp = t.pricing.tiered;
+  const plans = offeredPlans(offer);
+  if (!plans) return (
+    <section id="precio" className="lp-section">
+      <div className="lp-section-inner">
+        <h2 className="lp-section-title" style={{ textAlign: "center" }}>{tp.errorTitle}</h2>
+        {offer.status === "loading"
+          ? <div role="status" aria-label={tp.loadingLabel}><Skeleton className="mx-auto mt-6 h-64 max-w-xl" /></div>
+          : <div role="alert" className="mt-6 text-center"><p>{tp.errorBody}</p><button type="button" className="lp-cta-fill mt-4 min-h-11 px-5" onClick={onRetry}>{tp.retry}</button></div>}
+      </div>
+    </section>
+  );
   return (
     <section id="precio" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
-          <span className="lp-section-label">{t.pricing.eyebrow}</span>
-        </div>
-        <h2 className="lp-section-title" style={{ textAlign: "center" }}>
-          {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
-        </h2>
-        <p className="lp-section-copy" style={{ maxWidth: 620, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
-          {t.pricing.leadStart}
-          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>{t.pricing.leadEmphasis}</strong>
-          {t.pricing.leadEnd}
-        </p>
-
-        <p style={{ marginTop: 30, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
-          {t.pricing.bridge}
-        </p>
-        <div className="lp-ticket-print" style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
-          {/* El ticket vivo: el plan enunciado como recibo térmico. Las líneas
-              se "imprimen" en orden al entrar en viewport (lp-tkt-print). */}
-          <TicketPaper>
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              <div className="lp-tkt-line" style={tktLine(0)}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <div className="lp-tkt-label" style={{ fontSize: 13 }}>{t.pricing.planName}</div>
-                    <div style={{ fontSize: 13, marginTop: 6, color: "var(--ticket-muted)", lineHeight: 1.45 }}>{t.pricing.planSubtitle}</div>
-                  </div>
-                  <LogoMark size={26} circuitColor="var(--ticket-muted)" coreColor="var(--kova-blue)" />
-                </div>
+      <div style={{ textAlign: "center" }}>
+        <span className="lp-section-label">{tp.eyebrow}</span>
+      </div>
+      <h2 className="lp-section-title" style={{ textAlign: "center", marginTop: 16 }}>{tp.title}</h2>
+      <p className="lp-section-copy" style={{ maxWidth: 640, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>{tp.lead}</p>
+      <div className="lp-plans">
+        {plans.map((plan, index) => {
+          const previous = index > 0 ? plans[index - 1] : undefined;
+          const isTop = index === plans.length - 1 && plans.length > 1;
+          const features = plan.features.filter((feature) => !previous?.features.includes(feature) && PLAN_FEATURE_LABELS[feature]);
+          return (
+            <article key={plan.code} className="lp-plan" data-featured={isTop ? "true" : undefined} aria-labelledby={`lp-plan-${plan.code}`}>
+              <div className="lp-plan-top">
+                <h3 id={`lp-plan-${plan.code}`}>{plan.name}</h3>
+                {isTop && <span className="lp-plan-badge">{tp.trialBadge}</span>}
               </div>
-
-              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(1)} />
-
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                {feats.map((f, i) => (
-                  <li key={f} className="lp-tkt-line lp-tkt-feature" style={tktLine(2 + i)}>
-                    <span>{f}</span>
-                    <span className="lp-tkt-leader" aria-hidden="true" />
+              {tp.audience[plan.code] && <p className="lp-plan-audience">{tp.audience[plan.code]}</p>}
+              <p className="lp-plan-price tabular">{formatCommercialPrice(plan)}</p>
+              {plan.tax_inclusive && <p className="lp-plan-note">{tp.taxIncluded}</p>}
+              {previous && <p className="lp-plan-inherits">{tp.includesAll(previous.name)}</p>}
+              <ul className="lp-plan-features">
+                {features.map((feature) => (
+                  <li key={feature}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path d="M2 6L5 9L10 3" stroke="var(--ticket-ok)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
+                    <span>{PLAN_FEATURE_LABELS[feature]}</span>
                   </li>
                 ))}
               </ul>
-
-              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(2 + feats.length)} />
-
-              <div className="lp-tkt-line" style={tktLine(3 + feats.length)}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <span className="lp-tkt-label">{t.pricing.receiptTotalLabel}</span>
-                  <span className="tabular" style={{ display: "inline-flex", alignItems: "baseline", gap: 5, color: "var(--ticket-ink)" }}>
-                    <span style={{ fontSize: 16, color: "var(--ticket-muted)" }}>$</span>
-                    <span className="lp-tkt-money lp-tkt-total-num" style={{ fontSize: 64 }}>{STANDARD_PLAN_AMOUNT}</span>
-                    <span style={{ fontSize: 14, color: "var(--ticket-muted)" }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </TicketPaper>
-
-          {/* Pestaña desprendible: el CTA como talón cortado del recibo. */}
-          <TicketPaper className="lp-tkt-tab" style={tktLine(4 + feats.length)}>
-            <Link
-              to={primaryTarget}
-              onClick={() => onCtaClick("pricing")}
-              className="lp-cta-fill"
-              style={{
-                width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
-                padding: "14px 16px", borderRadius: 10, border: "none",
-                fontWeight: 600, fontSize: 14, fontFamily: "inherit",
-                textAlign: "center", textDecoration: "none", display: "block",
-              }}
-            >
-              <span>{t.pricing.ctaButton}</span>
-            </Link>
-            <div style={{ textAlign: "center", fontSize: 12, color: "var(--ticket-muted)", marginTop: 10 }}>
-              {t.pricing.ctaFineprint}
-            </div>
-          </TicketPaper>
-
-          <div
-            style={{
-              marginTop: 18, display: "flex", flexWrap: "wrap", justifyContent: "center",
-              alignItems: "center", gap: "6px 18px", fontSize: 12, color: "var(--text-muted)",
-            }}
-          >
-            {t.pricing.trustItems.map((item) => (
-              <span key={item} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {item}
-              </span>
-            ))}
-            <Link
-              to="/seguridad"
-              style={{ color: "var(--text-muted)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
-            >
-              {t.pricing.trustSecurityLink}
-            </Link>
-          </div>
-        </div>
+              <ul className="lp-plan-limits">
+                {plan.limits.branches != null && <li>{tp.branches(plan.limits.branches)}</li>}
+                {plan.limits.product_image_bytes != null && <li>{tp.photos(formatImageLimit(plan.limits.product_image_bytes))}</li>}
+                <li>{tp.offline}</li>
+                <li>{tp.noCommission}</li>
+              </ul>
+              <Link
+                className="lp-cta-fill lp-plan-cta"
+                data-featured={isTop ? "true" : undefined}
+                to={primaryTarget}
+                onClick={() => onCtaClick("pricing")}
+              >
+                {tp.cta}
+              </Link>
+            </article>
+          );
+        })}
+      </div>
+      <p className="lp-plans-note">{tp.trialNote}</p>
+      <p className="lp-plans-note" style={{ marginTop: 6 }}>{tp.existingCustomers}</p>
       </div>
     </section>
   );
@@ -755,21 +713,22 @@ export default function Home(): ReactNode {
           onCtaClick={onCtaClick}
           offer={offer}
         />
+        <TestimonialsSection />
         <ProblemSection />
         <SaleFlowStory
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("story")}
           onStepView={onStoryStepView}
         />
-        <CapabilitiesSection />
+        <CapabilitiesSection offer={offer} />
         <ReportsSpotlight />
-        <TestimonialsSection
-          primaryTarget={primaryTarget}
-          onCtaClick={() => onCtaClick("testimonials")}
-        />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} offer={offer} onRetry={offer.retry} />
         <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} offer={offer} />
-        <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
+        <FinalCta
+          primaryTarget={primaryTarget}
+          onCtaClick={() => onCtaClick("final")}
+          onWhatsAppClick={() => onWhatsAppClick("final")}
+        />
       </main>
       <Footer onLoginClick={onLoginClick} onWhatsAppClick={onWhatsAppClick} />
     </div>

@@ -2,15 +2,18 @@
 // mini-fila de 4 pasos. Banda de acento sobre fondo ink.
 import { Link } from "react-router-dom";
 import { copy } from "@/i18n/messages";
+import { SUPPORT_WHATSAPP } from "@/lib/support";
 
 const t = copy.landing.finalCta;
 
 export default function FinalCta({
   primaryTarget,
   onCtaClick,
+  onWhatsAppClick,
 }: {
   primaryTarget: string;
   onCtaClick?: () => void;
+  onWhatsAppClick?: () => void;
 }) {
   return (
     <section id="cta-final" className="lp-section lp-reveal-block">
@@ -54,6 +57,17 @@ export default function FinalCta({
               </svg>
             </Link>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.fineprint}</span>
+            <p style={{ margin: "12px 0 0", fontSize: 14, color: "var(--text-muted)", textAlign: "center", maxWidth: 560 }}>
+              {t.helpPrefix}
+              <a
+                href={SUPPORT_WHATSAPP}
+                onClick={onWhatsAppClick}
+                style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
+              >
+                {t.helpLink}
+              </a>
+              {t.helpSuffix}
+            </p>
           </div>
         </div>
       </div>

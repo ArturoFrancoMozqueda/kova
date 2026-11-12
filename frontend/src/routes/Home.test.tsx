@@ -3,8 +3,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const publicOffer = vi.hoisted(() => ({ state: { status: "ready", catalog: { tiered_pricing_enabled: false,
-  available_plans: [{ code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", features: [], limits: { product_image_bytes: null }, tax_inclusive: null }] } } as PublicPlansState }));
+// Oferta vigente del catálogo público (backend/app/billing/plans.py).
+const CURRENT_OFFER = vi.hoisted(() => {
+  const core = ["pos", "inventory", "sales_reports", "public_catalog"];
+  return { status: "ready", catalog: { offer_revision: "tiered", tiered_pricing_enabled: true, available_plans: [
+    { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: core, limits: { product_image_bytes: 250_000_000, branches: 1 } },
+    { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: [...core, "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"], limits: { product_image_bytes: 1_073_741_824, branches: 1 } },
+  ] } } as PublicPlansState;
+});
+const publicOffer = vi.hoisted(() => ({ state: null as unknown as PublicPlansState }));
 vi.mock("@/billing/publicPlans", async (importOriginal) => ({ ...await importOriginal<typeof import("@/billing/publicPlans")>(), usePublicPlans: () => ({ ...publicOffer.state, retry: vi.fn() }) }));
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
@@ -32,7 +39,7 @@ function renderHome() {
 
 describe("landing telemetry (PLAN-UX-03)", () => {
   beforeEach(() => {
-    publicOffer.state = { status: "ready", catalog: { tiered_pricing_enabled: false, available_plans: [{ code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", tax_inclusive: null, features: [], limits: { product_image_bytes: null } }] } };
+    publicOffer.state = CURRENT_OFFER;
     trackAnonymousEvent.mockClear();
     trackAnonymousEventOnce.mockClear();
   });
@@ -82,6 +89,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       .map(([, , props]) => (props as { section: string }).section);
     expect(viewedSections).toEqual(
       expect.arrayContaining([
+        "clientes",
         "problema",
         "producto",
         "incluye",
@@ -155,14 +163,14 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Vende con orden. Conoce tu negocio.",
+      "Cobra una vez. Kova cuadra el resto.",
     );
     expect(sectionIds).toEqual([
+      "clientes",
       "problema",
       "producto",
       "incluye",
       "reportes",
-      "clientes",
       "precio",
       "faq",
       "cta-final",
@@ -170,28 +178,26 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
     expect(
       screen.getByText(
-        /Ventas, inventario y análisis en un solo lugar\./i,
+        /Punto de venta para negocios de mostrador en México/i,
       ),
     ).toBeVisible();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
-      /Cada venta actualiza inventario, caja y reportes/i,
+      /Cada venta descuenta tu inventario, entra a tu corte de caja/i,
     );
+    expect(container.querySelectorAll(".lp-hero-bullets li")).toHaveLength(3);
   });
 
-  it("turns the manual-work pain into a grounded three-step sequence", () => {
+  it("contrasts each loose tool with the part of Kova that replaces it", () => {
     const { container } = renderHome();
     const problem = container.querySelector("#problema");
-    const steps = problem?.querySelectorAll("ol > li");
+    const rows = problem?.querySelectorAll("ul > li");
 
-    expect(steps).toHaveLength(3);
-    expect(problem).toHaveTextContent("Cobras");
-    expect(problem).toHaveTextContent("La vuelves a registrar");
-    expect(problem).toHaveTextContent("La vuelves a cuadrar");
-    expect(problem).toHaveTextContent("Venta · $186");
-    expect(problem).toHaveTextContent("La misma venta · $186");
-    expect(problem).toHaveTextContent(
-      "Una sola venta, capturada tres veces. Y todavía quedan dudas.",
-    );
+    expect(rows).toHaveLength(6);
+    expect(problem).toHaveTextContent("Libreta de ventas");
+    expect(problem).toHaveTextContent("Calculadora al cierre");
+    expect(problem).toHaveTextContent("Menú digital con QR y precios al día");
+    // Sin precios de terceros inventados en el contraste.
+    expect(problem?.textContent).not.toMatch(/\$\d/);
   });
 
   it("keeps social proof and capabilities inside verified product behavior", () => {
@@ -205,14 +211,12 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(screen.getByText("Decidir con datos")).toBeVisible();
     expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
     expect(screen.getByText("Ventas sin internet")).toBeVisible();
-    expect(screen.getByText("Turnos y cuadre")).toBeVisible();
-    expect(
-      screen.getByText(
-        "Cada método queda identificado en el corte; Kova no procesa el dinero.",
-      ),
-    ).toBeVisible();
-    expect(screen.getByText("Plan Standard")).toBeInTheDocument();
-    expect(landingText).toContain("299");
+    expect(screen.getByText("Turnos y corte")).toBeVisible();
+    expect(screen.getByText("Menú digital con QR")).toBeVisible();
+    expect(screen.getByText("Puntos y recompensas")).toBeVisible();
+    // Proveedores externos que no están disponibles no se anuncian.
+    expect(landingText).not.toMatch(/CFDI automático|timbra|terminal integrada|WhatsApp automático/i);
+    expect(landingText).not.toMatch(/Plan Standard|299/);
     expect(landingText).not.toMatch(/≈\s*\$10/);
     expect(
       screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" }),
@@ -225,7 +229,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(landingText).not.toContain("Beta privada controlada");
     expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent(
-      /\$299 MXN\/mes\s*·\s*7 días gratis · Sin tarjeta/,
+      /Desde \$399 MXN\/mes\s*·\s*7 días gratis · Sin tarjeta/,
     );
     expect(container.querySelector("#cta-final")).toHaveTextContent(
       "7 días gratis · Sin tarjeta · Cancela cuando quieras",
@@ -263,7 +267,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   it("frames reports around grounded owner questions", () => {
     renderHome();
 
-    expect(screen.getAllByText("¿Cuánto vendí?")).toHaveLength(2);
+    expect(screen.getAllByText("¿Cuánto vendí?")).toHaveLength(1);
     expect(screen.getByText("¿Qué producto se mueve?")).toBeInTheDocument();
     expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
@@ -307,21 +311,40 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     publicOffer.state = { status: "error" };
     const { container } = renderHome();
     expect(container.textContent).not.toContain("299");
+    expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent(/^7 días gratis · Sin tarjeta$/);
+    expect(container.querySelector("#incluye")?.textContent).not.toMatch(/Plan Gestión/);
     expect(screen.getByRole("button", { name: "Consultar planes de nuevo" })).toBeInTheDocument();
   });
 
-  it("shows only the server-authorized tiered offer with prices, features and photo limits", () => {
-    publicOffer.state = { status: "ready", catalog: { tiered_pricing_enabled: true, available_plans: [
-      { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "sales_reports"], limits: { product_image_bytes: 250_000_000 } },
-      { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "advanced_reports", "purchasing"], limits: { product_image_bytes: 1_073_741_824 } },
+  it("never advertises a single-plan catalog, even if the server returns one", () => {
+    publicOffer.state = { status: "ready", catalog: { tiered_pricing_enabled: false, available_plans: [
+      { code: "standard", name: "Plan Standard", amount_minor_units: 29900, currency: "MXN", interval: "month", tax_inclusive: null, features: [], limits: { product_image_bytes: null } },
     ] } };
+    const { container } = renderHome();
+    expect(container.textContent).not.toMatch(/Plan Standard|299/);
+    expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent(/^7 días gratis · Sin tarjeta$/);
+    expect(container.querySelector("#incluye")?.textContent).not.toMatch(/Plan Gestión/);
+    expect(screen.getByRole("button", { name: "Consultar planes de nuevo" })).toBeInTheDocument();
+  });
+
+  it("shows the Esencial and Gestión offer with prices, features and limits from the server", () => {
     const { container } = renderHome();
     expect(container.textContent).not.toContain("299");
     expect(screen.getByRole("heading", { name: "Esencial" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Gestión" })).toBeVisible();
-    expect(screen.getByText(/Fotos de productos: 250 MB/)).toBeVisible();
-    expect(screen.getByText(/Fotos de productos: 1 GiB/)).toBeVisible();
+    expect(screen.getByText("250 MB para fotos de productos")).toBeVisible();
+    expect(screen.getByText("1 GiB para fotos de productos")).toBeVisible();
     expect(screen.getByText("$699 MXN/mes")).toBeVisible();
+    expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent("Desde $399 MXN/mes");
+    expect(screen.getByText("Todo lo de Esencial, más:")).toBeVisible();
+    expect(screen.getByText("Incluido en tu prueba")).toBeVisible();
+    // Funciones que el plan de entrada no trae se etiquetan con el plan del servidor.
+    const capabilities = container.querySelector("#incluye");
+    expect(capabilities?.textContent).toContain("Plan Gestión");
+    const reports = Array.from(capabilities?.querySelectorAll("li") ?? []).find((li) => li.textContent?.includes("Resumen de ventas"));
+    expect(reports?.textContent).not.toContain("Plan Gestión");
+    const analysis = Array.from(capabilities?.querySelectorAll("li") ?? []).find((li) => li.textContent?.includes("Análisis del negocio"));
+    expect(analysis?.textContent).toContain("Plan Gestión");
   });
 
 });

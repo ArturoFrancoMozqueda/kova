@@ -321,7 +321,7 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
       expect(contentBox!.y).toBeLessThan(visualBox!.y);
       expect(ctaBox!.y + ctaBox!.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByRole("link", { name: "Producto" })).toBeHidden();
-      await expect(page.getByRole("link", { name: "Precio" })).toBeHidden();
+      await expect(page.getByRole("link", { name: "Planes" })).toBeHidden();
     }
   }
 });
@@ -442,6 +442,12 @@ test("mobile product and pricing CTAs remain reachable without horizontal overfl
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: { authenticated: false } }),
   );
+  // Planes solo se anuncian con la oferta vigente Esencial/Gestión.
+  const core = ["pos", "inventory", "sales_reports", "public_catalog"];
+  await page.route("**/api/v1/billing/plans", (route) => route.fulfill({ json: { offer_revision: "tiered", tiered_pricing_enabled: true, available_plans: [
+    { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: core, limits: { product_image_bytes: 250_000_000, branches: 1 } },
+    { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: [...core, "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"], limits: { product_image_bytes: 1_073_741_824, branches: 1 } },
+  ] } }));
   await page.goto("/");
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
@@ -449,9 +455,13 @@ test("mobile product and pricing CTAs remain reachable without horizontal overfl
   await storyCta.scrollIntoViewIfNeeded();
   await expect(storyCta).toBeVisible();
 
-  const pricingCta = page.locator('#precio a[href="/signup"]');
-  await pricingCta.scrollIntoViewIfNeeded();
-  await expect(pricingCta).toBeVisible();
+  // Una tarjeta por plan, cada una con su CTA.
+  const pricingCtas = page.locator('#precio a[href="/signup"]');
+  await expect(pricingCtas).toHaveCount(2);
+  for (const cta of await pricingCtas.all()) {
+    await cta.scrollIntoViewIfNeeded();
+    await expect(cta).toBeVisible();
+  }
   await expectNoHorizontalOverflow(page);
 });
 
