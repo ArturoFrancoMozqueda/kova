@@ -3,8 +3,8 @@
 > **Actualización 11 de noviembre de 2026 (landing de venta y planes por nivel):**
 > la landing se reorganiza para vender y refleja la oferta Esencial/Gestión.
 > Orden vigente: **Navbar → Hero → Prueba social → Lo que Kova reemplaza
-> (Hoy / Con Kova) → Video → Funciones por pilar → Reportes → Planes → FAQ →
-> CTA final → Footer**. El hero promete un resultado concreto con tres
+> (Herramientas sueltas / En Kova) → Video → Funciones por pilar → Reportes → Planes → FAQ →
+> CTA final → Footer**. El tono y los mensajes siguen `docs/KOVA_BRAND_CONTEXT.md`. El hero promete un resultado concreto con tres
 > beneficios verificables y no muestra precio hasta que el servidor confirma la
 > oferta. Las funciones se agrupan en cinco pilares (cobrar, inventario, vender
 > fuera del mostrador, clientes que regresan, entender el negocio) con una

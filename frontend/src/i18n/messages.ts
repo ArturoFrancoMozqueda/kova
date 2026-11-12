@@ -30,7 +30,7 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      eyebrow: "Punto de venta para negocios de mostrador en México",
+      eyebrow: "Gestión comercial y punto de venta para tu negocio",
       title: "Cobra una vez. Kova cuadra el resto.",
       subtitle: "Cada venta descuenta tu inventario, entra a tu corte de caja y aparece en tus reportes. Sin capturar nada dos veces.",
       bullets: [
@@ -114,8 +114,8 @@ export const copy = {
         },
         {
           id: "regresan",
-          title: "Haz que regresen",
-          line: "Conoce a tus clientes y dales una razón para volver.",
+          title: "Recompensa a quienes vuelven",
+          line: "Conoce a tus clientes y dales una razón para regresar.",
           items: [
             { title: "Clientes con historial", body: "Liga cada venta a un cliente y consulta qué compra y cada cuánto.", feature: null },
             { title: "Puntos y recompensas", body: "Tus clientes acumulan puntos y los canjean en caja con su tarjeta digital por QR.", feature: "loyalty" },
@@ -125,7 +125,7 @@ export const copy = {
         {
           id: "entiende",
           title: "Entiende tu negocio",
-          line: "Respuestas claras para decidir, no hojas de cálculo.",
+          line: "Descubre qué está moviendo tus ventas y decide dónde enfocarte.",
           items: [
             { title: "Resumen de ventas", body: "Cuánto vendiste hoy, esta semana o este mes, y cómo te pagaron.", feature: "sales_reports" },
             { title: "Análisis del negocio", body: "Tus mejores horas, productos que mueven el negocio, ventas por empleado y devoluciones.", feature: "advanced_reports" },
@@ -196,16 +196,16 @@ export const copy = {
     // terceros: el contraste es de trabajo manual, no de costo inventado.
     problem: {
       eyebrow: "Lo que Kova reemplaza",
-      title: "Deja de operar tu negocio en pedazos.",
-      body: "Una venta no debería anotarse en la libreta, descontarse en Excel y cuadrarse con calculadora. Con Kova se registra una vez y todo lo demás se acomoda.",
-      beforeLabel: "Hoy",
-      afterLabel: "Con Kova",
+      title: "Lo que vive disperso, en un solo lugar.",
+      body: "Si tu operación se reparte entre libreta, hojas de cálculo, calculadora y menú impreso, Kova la reúne. Cada venta se registra una vez y lo demás se acomoda.",
+      beforeLabel: "Herramientas sueltas",
+      afterLabel: "En Kova",
       rows: [
         { before: "Libreta de ventas", after: "Cada cobro queda registrado con su método de pago" },
         { before: "Excel de inventario", after: "El stock baja solo y te avisa qué se acaba" },
         { before: "Calculadora al cierre", after: "El efectivo esperado ya está calculado en tu turno" },
         { before: "Menú impreso que se desactualiza", after: "Menú digital con QR y precios al día" },
-        { before: "Pedidos anotados en papel o en el chat", after: "Pedidos con estado, apartado y seguimiento" },
+        { before: "Pedidos anotados a mano", after: "Pedidos con estado, apartado y seguimiento" },
         { before: "Tarjeta de sellos de cartón", after: "Puntos y recompensas en una tarjeta digital" },
       ],
       closing: "Un solo lugar para cobrar, controlar y entender tu negocio.",

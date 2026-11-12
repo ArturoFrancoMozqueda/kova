@@ -178,7 +178,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
     expect(
       screen.getByText(
-        /Punto de venta para negocios de mostrador en México/i,
+        /Gestión comercial y punto de venta para tu negocio/i,
       ),
     ).toBeVisible();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
