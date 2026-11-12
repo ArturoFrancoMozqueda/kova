@@ -1,16 +1,17 @@
 # Estado actual
 
-Última actualización: 2026-11-10.
+Última actualización: 2026-11-12.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
 
 ## En producción
 
-La baseline publicada y verificada es `b68d921a4b313720c7ba62d8df09be166d2f9e8a`,
-[release 42940889466, intentos 1 y 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42940889466).
-La recuperación controlada del gateway dejó activo el slot green y el mismo proceso preparado
-en el intento 1. API, frontend, proxy, base, oferta y 25 contratos nativos aprobaron después.
+La baseline publicada y verificada es `3be0dac411e4f3de85fa55e228d616b13140b2fb`,
+[release 43279827960](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43279827960).
+API y frontend sirven ese mismo SHA; proxy, base, oferta y 25 contratos nativos aprobaron.
+La corrección del drenado y del monitor de recuperación permitió publicar el alta de WhatsApp
+con su gate comercial apagado. [Evidencia e incidente anterior](despliegue.md#recuperación-verificada-el-12-de-noviembre-de-2026).
 Esencial $399/Gestión $699 MXN mensuales y el Portal básico están ON; los acuerdos Standard de
 $299 se conservan. API/frontend se alojan en Cloudflare y la base PostgreSQL está en Supabase.
 Fly está retirado. [Arquitectura](claude/architecture-context.md).
@@ -59,7 +60,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Función | Estado |
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
-| WhatsApp | El proceso productivo sigue sin activar el piloto; el intento 43157159134 se recuperó por bloqueo de drenado. Piloto asistido y alta v4 desde Kova preparados en código, esta última detrás de `WHATSAPP_SIGNUP_ENABLED=false` ([alta](runbooks/whatsapp-embedded-signup.md), [piloto](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). Falta publicar y aceptar con Meta. |
+| WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el challenge del callback. Verificación del titular en revisión; faltan permisos de la app, configuración de Login for Business y aceptación de entrada/respuesta/entrega con un número autorizado ([alta](runbooks/whatsapp-embedded-signup.md), [piloto](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
 | Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-017](adr/ADR-017-asistente-respuestas-ancladas.md)). |
