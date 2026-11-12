@@ -31,7 +31,7 @@ def health_response(sha, process):
 class ResidentAcceptanceTests(unittest.TestCase):
     def test_incomplete_or_ambiguous_process_capture_fails_before_network(self):
         for extra in [
-            {"expected_process_id": TARGET_PROCESS},
+            {"expected_process_id": "not-a-captured-process"},
             {"expected_process_id": TARGET_PROCESS, "previous_process_id": TARGET_PROCESS,
              "previous_sha": PREVIOUS_SHA},
             {"previous_sha": PREVIOUS_SHA},
@@ -41,6 +41,19 @@ class ResidentAcceptanceTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "convergence requires"):
                     resident.verify("https://example.invalid", sha=TARGET_SHA, **extra)
                 fetch.assert_not_called()
+
+    def test_unchanged_rollback_process_is_checked_strictly_without_previous_transition(self):
+        kwargs = dict(sha=TARGET_SHA, expected_process_id=TARGET_PROCESS)
+        with patch.object(resident, "observe", return_value=(TARGET_PROCESS, 10)), \
+                patch.object(resident.time, "sleep") as sleep, patch("builtins.print"):
+            result = resident.verify("https://example.invalid", **kwargs)
+        self.assertEqual(result["contracts"], 24)
+        sleep.assert_not_called()
+        with patch.object(resident.urllib.request, "urlopen",
+                          return_value=health_response(PREVIOUS_SHA, PREVIOUS_PROCESS)):
+            with self.assertRaisesRegex(RuntimeError, "Unexpected resident process") as caught:
+                resident.observe("https://example.invalid", "/health", 200, **kwargs)
+        self.assertIs(type(caught.exception), RuntimeError)
 
     def test_only_the_exact_captured_previous_health_can_wait_for_propagation(self):
         for process, image, exception in [

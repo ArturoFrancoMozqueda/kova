@@ -141,11 +141,18 @@ export function cloudflareBackendProvider({ run, env, fetcher, wait, now }) {
       if (nativeRuntime) {
         // A Python and a native publication can share the same commit. Prove
         // the runtime as well as the SHA before accepting/promoting the site.
+        const processArgs = nativePublication
+          ? ["--expected-process-id", nativePublication.processId] : [];
+        // An early staging failure may restore the process that never stopped
+        // serving. It needs strict target checks, not a fictitious transition.
+        if (nativePublication?.previousProcessId
+            && nativePublication.previousProcessId !== nativePublication.processId) {
+          processArgs.push("--previous-process-id", nativePublication.previousProcessId,
+            "--previous-sha", input.previousSha);
+        }
         await run("python3", [path.join(root, "scripts/check_native_resident.py"),
           "--base", input.backendUrl, "--sha", input.sha, "--check-private-bindings",
-          ...(nativePublication ? ["--expected-process-id", nativePublication.processId,
-            "--previous-process-id", nativePublication.previousProcessId,
-            "--previous-sha", input.previousSha] : [])], {
+          ...processArgs], {
           cwd: root, env: { PATH: env.PATH }, label: "Resident runtime acceptance",
         });
       }

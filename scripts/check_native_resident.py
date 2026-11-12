@@ -139,16 +139,19 @@ def _verify_once(base, *, sha=None, prefix="", idle_seconds=0, max_ms=3000,
 def verify(base, *, sha=None, prefix="", idle_seconds=0, max_ms=3000,
            check_private_bindings=False, expected_process_id=None,
            previous_process_id=None, previous_sha=None):
-    contextual = expected_process_id is not None
+    if expected_process_id is not None and (
+        not re.fullmatch(r"[a-f0-9]{32}", expected_process_id)
+        or not re.fullmatch(r"[a-f0-9]{40}", sha or "")
+    ):
+        raise RuntimeError("Resident convergence requires its captured target identity")
+    contextual = previous_process_id is not None or previous_sha is not None
     if contextual and (
-        not all(re.fullmatch(r"[a-f0-9]{32}", value or "")
-                for value in (expected_process_id, previous_process_id))
+        expected_process_id is None
+        or not re.fullmatch(r"[a-f0-9]{32}", previous_process_id or "")
         or expected_process_id == previous_process_id
         or not all(re.fullmatch(r"[a-f0-9]{40}", value or "") for value in (sha, previous_sha))
     ):
         raise RuntimeError("Resident convergence requires captured release and process identities")
-    if not contextual and (previous_process_id is not None or previous_sha is not None):
-        raise RuntimeError("Resident convergence requires its expected process identity")
     deadline = time.monotonic() + 60 if contextual else None
     for attempt in range(15 if contextual else 1):
         try:
