@@ -372,7 +372,6 @@ export default function ProductTour({
         </div>
 
         <div className={styles.footer}>
-          <p className={styles.note}>{t.demoNote}</p>
           <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
             {t.cta}
           </Link>

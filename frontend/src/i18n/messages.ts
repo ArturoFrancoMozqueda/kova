@@ -137,9 +137,8 @@ export const copy = {
     // LANDING_STORY_STEPS del backend (telemetría).
     tour: {
       title: "Mira lo que pasa con una sola venta.",
-      body: "Cobra en la caja de prueba y sigue cómo la misma venta actualiza tu inventario, tu turno y tu análisis del día.",
+      body: "Cobra en Caja y sigue cómo la misma venta actualiza tu inventario, tu turno y tu análisis del día.",
       tablistLabel: "Recorrido de una venta en Kova",
-      demoNote: "Demostración con datos de ejemplo: no registra ventas.",
       pause: "Pausar recorrido",
       play: "Reproducir recorrido",
       cta: "Probar Kova gratis",

@@ -63,7 +63,8 @@ describe("ProductTour", () => {
     expect(screen.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel")).toHaveTextContent("Carrito");
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
-    expect(screen.getByText("Demostración con datos de ejemplo: no registra ventas.")).toBeInTheDocument();
+    // Sin etiquetas de "demo", "prueba" o "simulación" a la vista.
+    expect(document.body.textContent).not.toMatch(/demo|prueba|simulaci|de ejemplo/i);
   });
 
   it("advances on its own while visible and stops once the visitor picks a step", () => {

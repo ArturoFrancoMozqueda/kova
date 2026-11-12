@@ -227,9 +227,9 @@ export default function SweetHomeRegisterDemo({
                 onClick={() => interactive && setCharged(true)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
               >
-                {charged ? <><CheckCircle2 className="h-4 w-4" />Demo completada</> : `Cobrar ${formatMoney(total)}`}
+                {charged ? <><CheckCircle2 className="h-4 w-4" />{copy.register.saleSuccessTitle}</> : `Cobrar ${formatMoney(total)}`}
               </button>
-              {charged ? <p role="status" className="text-center text-[10px] font-medium text-kova-growth">Simulación local: no se registró ninguna venta.</p> : null}
+              {charged ? <p role="status" className="text-center text-[10px] font-medium text-kova-growth">{copy.register.saleSuccessSubtitle}</p> : null}
             </CardContent>
           </Card>
         </div>

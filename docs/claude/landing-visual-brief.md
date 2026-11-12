@@ -3,10 +3,11 @@
 > **Actualización 11 de noviembre de 2026 (pulido):** el video narrado se
 > retira porque mostraba una versión anterior del producto. `#producto` es
 > ahora un recorrido de cuatro pasos (`ProductTour`): la demo local de Caja
-> (componentes reales de Caja, no registra ventas) y el efecto de esa venta de
+> (componentes reales de Caja; nada llega al servidor) y el efecto de esa venta de
 > $186 en inventario, turno y análisis. Avanza solo mientras está en pantalla,
 > se pausa con hover/foco o con su botón, se detiene al elegir un paso y no se
-> mueve con `prefers-reduced-motion`. Se eliminan los kickers en versalitas
+> mueve con `prefers-reduced-motion`. No lleva etiquetas de "demo", "prueba"
+> ni "simulación": al cobrar muestra el mismo estado que Caja. Se eliminan los kickers en versalitas
 > sobre los titulares; los testimonios llevan el logo del negocio
 > (`public/customers/`, con permiso) o sus iniciales. Las animaciones son
 > one-shot al entrar en pantalla (tachado del contraste, barras, medidores).
