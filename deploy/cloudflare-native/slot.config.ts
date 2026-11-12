@@ -3,7 +3,7 @@ import { stripeRuntimeIds } from "../stripe-runtime-ids.mjs";
 import { slotWorker, SLOT_APPLICATIONS } from "./slots.mjs";
 
 const slot = process.env.KOVA_NATIVE_TARGET_SLOT;
-if (slot !== "blue" && slot !== "green") throw new Error("A replacement API slot is required");
+if (!["blue", "green", "recovery"].includes(slot ?? "")) throw new Error("A replacement API slot is required");
 const worker = slotWorker(slot);
 const release = process.env.KOVA_BUILD_SHA;
 if (!/^[a-f0-9]{40}$/i.test(release ?? "")) throw new Error("Full slot build SHA is required");
@@ -20,7 +20,7 @@ const api = defineContainer({
 export default defineConfig({
   worker: {
     name: worker, entrypoint: "./slot-entry.mjs", compatibilityDate: "2026-11-10",
-    compatibilityFlags: ["nodejs_compat"], workersDev: false, previewUrls: false,
+    compatibilityFlags: ["nodejs_compat", "enable_request_signal"], workersDev: false, previewUrls: false,
     limits: { cpuMs: 30_000 },
     // Only the drained inactive Worker is published. The serving Worker and
     // its Durable Object never receive an image or controller update.
@@ -33,7 +33,7 @@ export default defineConfig({
       ...Object.fromEntries(Object.entries(ids).map(([name, value]) => [name, bindings.text(value)])),
       API: bindings.durableObject({ worker, exportName: "KovaApi" }),
       RATE_LIMITS: bindings.durableObject({ worker: "kova-backend", exportName: "KovaRateLimit" }),
-      SETTINGS: bindings.worker({ worker: "kova-backend", exportName: "NativeSettings" }),
+      SETTINGS: bindings.worker({ worker: "kova-native-signup-settings", exportName: "SignupSettings" }),
       GATEWAY_STATUS: bindings.worker({ worker: "kova-backend-gateway", exportName: "NativeReleaseStatus" }),
       JOBS: bindings.durableObject({ worker: "kova-backend-jobs", exportName: "KovaJobs" }),
       ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),

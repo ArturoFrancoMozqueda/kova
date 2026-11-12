@@ -18,7 +18,12 @@ const coreFiles = ["deploy/cloudflare-native/entry.mjs", "deploy/cloudflare-nati
   "deploy/cloudflare-native/settings-keys.json", "deploy/cloudflare-native/cloudflare.config.ts",
   "deploy/cloudflare-native/package.json", "deploy/cloudflare-native/package-lock.json",
   "deploy/public-images.mjs", "deploy/native-handoff.mjs", "deploy/controller-update-recovery.mjs",
-  "deploy/stripe-runtime-ids.mjs", "deploy/native-gateway-transition.mjs"];
+  "deploy/stripe-runtime-ids.mjs"];
+// The CLI routing comparator is not imported by the shared settings holder.
+// New signup settings have their own private entrypoint; changing them never
+// redeploys the serving API or the incumbent settings/rate-limit controller.
+const signupSettingsFiles = ["deploy/cloudflare-native/signup-settings.mjs",
+  "deploy/cloudflare-native/signup-settings.config.ts"];
 const readinessHeaders = { "Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 KovaResidentAcceptance/1.0" };
 async function readinessJson(response) {
   try { return await response.json(); }
@@ -27,14 +32,15 @@ async function readinessJson(response) {
 
 export function validateNativeSlots(input) {
   if (!input || Array.isArray(input) || Object.keys(input).sort().join(",") !== "activeProcessId,activeReleaseSha,activeSlot,coreSourceSha,slots,version"
-      || input.version !== 1 || !shaPattern.test(input.coreSourceSha ?? "")
+      || ![1, 2].includes(input.version) || !shaPattern.test(input.coreSourceSha ?? "")
       || !shaPattern.test(input.activeReleaseSha ?? "") || !/^[a-f0-9]{32}$/.test(input.activeProcessId ?? "")
-      || !input.slots || Object.keys(input.slots).sort().join(",") !== "blue,green") {
+      || !input.slots || Object.keys(input.slots).sort().join(",") !==
+        (input.version === 2 ? "blue,green,recovery" : "blue,green")) {
     throw new Error("Invalid native slot rollback artifact");
   }
   slotWorker(input.activeSlot);
   const slots = {};
-  for (const slot of ["blue", "green"]) {
+  for (const slot of input.version === 2 ? ["blue", "green", "recovery"] : ["blue", "green"]) {
     const record = input.slots[slot];
     if (record === null) { slots[slot] = null; continue; }
     if (!record || Array.isArray(record)
@@ -54,7 +60,8 @@ export function validateNativeSlots(input) {
       || slots[input.activeSlot].releaseSha !== input.activeReleaseSha)) {
     throw new Error("Serving API slot has no captured version");
   }
-  return { version: 1, activeSlot: input.activeSlot, coreSourceSha: input.coreSourceSha, slots,
+  if (input.activeSlot === "recovery" && input.version !== 2) throw new Error("Missing recovery slot capture");
+  return { version: input.version, activeSlot: input.activeSlot, coreSourceSha: input.coreSourceSha, slots,
     activeReleaseSha: input.activeReleaseSha, activeProcessId: input.activeProcessId };
 }
 
@@ -160,6 +167,30 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
     await cf(["deploy", "--prebuilt", "--worker", "kova-backend-gateway", "--dry-run"], false, commandEnv);
     await cf(["deploy", "--prebuilt", "--worker", "kova-backend-gateway"], false, commandEnv);
   };
+  const prepareSignupSettings = async () => {
+    const sourceSha = env.GITHUB_SHA ?? process.env.GITHUB_SHA;
+    const names = await workers();
+    if (names.has("kova-native-signup-settings")) {
+      const current = await metadata("kova-native-signup-settings");
+      const source = text(current, "KOVA_NATIVE_SIGNUP_SOURCE_SHA");
+      if (!shaPattern.test(source ?? "")) throw new Error("Private signup settings identity missing");
+      try { git(["diff", "--quiet", source, sourceSha, "--", ...signupSettingsFiles]); }
+      catch { throw new Error("Private signup settings changes require a reviewed control-plane migration"); }
+      return;
+    }
+    const baseline = await health();
+    if (!baseline) throw new Error("Cannot preserve API while preparing private signup settings");
+    const commandEnv = { ...env, KOVA_NATIVE_SIGNUP_SOURCE_SHA: sourceSha };
+    await run(process.execPath, [path.join(nativeDirectory, "build-signup-settings.mjs")],
+      { cwd: nativeDirectory, env: commandEnv, label: "Prepare private signup settings entrypoint" });
+    const args = ["deploy", "--prebuilt", "--worker", "kova-native-signup-settings"];
+    await cf([...args, "--dry-run"], false, commandEnv, true);
+    await cf(args, false, commandEnv, true);
+    const after = await health();
+    if (after?.sha !== baseline.sha || after.process !== baseline.process) {
+      throw new Error("Serving API changed while preparing private signup settings");
+    }
+  };
   return {
     async prepare(artifact) {
       const sourceSha = env.GITHUB_SHA ?? process.env.GITHUB_SHA;
@@ -175,6 +206,7 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
         if (!shaPattern.test(source ?? "")) throw new Error("Native settings source identity missing");
         try { git(["diff", "--quiet", source, sourceSha, "--", ...coreFiles]); }
         catch { throw new Error("Shared native settings/rate-limit changes require a separate control-plane migration"); }
+        await prepareSignupSettings();
         return;
       }
       const baseline = await health();
@@ -234,6 +266,7 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
       if (after?.sha !== baseline.sha || after?.process !== baseline.process) {
         throw new Error("Legacy process changed during private settings bootstrap");
       }
+      await prepareSignupSettings();
     },
     async capture(expectedSha) {
       const core = await metadata("kova-backend");
@@ -242,19 +275,19 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
       const names = await workers();
       const active = activeSlot(gateway);
       const slots = {};
-      for (const slot of ["blue", "green"]) {
+      for (const slot of ["blue", "green", "recovery"]) {
         slots[slot] = names.has(slotWorker(slot))
           ? await slotRecord(slot, inventory, { allowAbsent: slot !== active }) : null;
       }
       const serving = await health();
       if (serving?.sha !== expectedSha) throw new Error("Serving API changed during slot capture");
-      return validateNativeSlots({ version: 1, activeSlot: active,
+      return validateNativeSlots({ version: 2, activeSlot: active,
         coreSourceSha: text(core, "KOVA_NATIVE_CORE_SOURCE_SHA"), slots,
         activeReleaseSha: serving.sha, activeProcessId: serving.process });
     },
     async publish(sha, previousSha, rawSnapshot) {
       const snapshot = validateNativeSlots(rawSnapshot);
-      const target = nextSlot(snapshot.activeSlot);
+      let target = nextSlot(snapshot.activeSlot);
       const baseline = await health();
       if (baseline?.sha !== previousSha || baseline.process !== snapshot.activeProcessId
           || previousSha !== snapshot.activeReleaseSha
@@ -288,6 +321,23 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
             throw new Error("Inactive slot returned an uncaptured release identity");
           }
           if (probe?.replaceable === true) { drained = true; break; }
+          if (snapshot.version === 2 && snapshot.activeSlot !== "recovery"
+              && snapshot.slots.recovery === null) {
+            // A stalled response must never make us reset a live namespace or
+            // bypass the drain gate. The one bounded spare is usable only when
+            // both its Worker AND application were captured absent and still are.
+            const [names, inventory] = await Promise.all([workers(), applications()]);
+            if (names.has(slotWorker("recovery"))
+                || inventory.some(app => app.name === SLOT_APPLICATIONS.recovery)) {
+              throw new Error("Recovery slot appeared after capture; serving APIs preserved");
+            }
+            target = "recovery";
+            stagingEnv.KOVA_NATIVE_TARGET_SLOT = target;
+            stagingEnv.KOVA_NATIVE_CANDIDATE_SLOT = target;
+            stagingEnv.KOVA_NATIVE_TARGET_PREVIOUS_SHA = sha;
+            drained = true;
+            break;
+          }
           await wait(1000);
         }
         if (!drained) throw new Error("Inactive API did not finish draining; serving API preserved");

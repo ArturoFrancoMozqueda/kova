@@ -46,7 +46,7 @@ export const gateway = defineConfig({ worker: {
   // Preserve the existing remote ceiling so strict uploads do not erase it.
   // This metadata does not activate or change an account subscription.
   limits: { cpuMs: 100 },
-  compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
+  compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat", "enable_request_signal"],
   workersDev: false,
   exports: { NativeReleaseStatus: exports.worker() },
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"

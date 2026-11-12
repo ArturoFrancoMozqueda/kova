@@ -159,6 +159,72 @@ test("a streaming response prevents replacement after the drain lease until its 
   assert.equal(await fixture.controller.replaceable(), true);
 });
 
+test("an idle pending read cannot finish the drain before its cancellation is acknowledged", async () => {
+  let acknowledge;
+  const cleanup = new Promise(resolve => { acknowledge = resolve; });
+  const f = controllerFixture({ body: () => new Response(new ReadableStream({
+    cancel() { return cleanup; },
+  })) });
+  const client = new AbortController();
+  await f.controller.fetch(new Request("https://api.test/api/v1/catalog/products", { signal: client.signal }));
+  await Promise.resolve();
+  client.abort();
+  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  f.advance(SLOT_DRAIN_MS);
+  assert.equal(await f.controller.replaceable(), false);
+  acknowledge(); await Promise.all(f.waits);
+  assert.equal(await f.controller.replaceable(), true);
+});
+
+test("a response arriving after the caller aborts is cancelled before it can pin the drain counter", async () => {
+  let releaseResponse, cancelled = 0;
+  const pending = new Promise(resolve => { releaseResponse = resolve; });
+  const f = controllerFixture({ body: async () => {
+    await pending;
+    return new Response(new ReadableStream({
+      pull(controller) { controller.enqueue(new Uint8Array(65536)); },
+      cancel() { cancelled++; },
+    }));
+  } });
+  const abort = new AbortController();
+  const waiting = f.controller.fetch(new Request("https://api.test/api/v1/sales", {
+    method: "POST", body: "original", headers: { "Idempotency-Key": "unchanged" }, signal: abort.signal,
+  }));
+  // Wait until the original request has been dispatched, not replayed.
+  while (f.calls().dispatches === 0) await new Promise(resolve => setImmediate(resolve));
+  abort.abort(); releaseResponse();
+  await waiting;
+  f.advance(SLOT_DRAIN_MS);
+  assert.equal(cancelled, 1);
+  assert.equal(f.calls().dispatches, 1);
+  assert.equal(await f.controller.replaceable(), true);
+});
+
+test("aborted callers never dispatch new writes and a body abort waits for upstream cleanup", async () => {
+  const abort = new AbortController(); abort.abort();
+  const cold = controllerFixture();
+  await assert.rejects(cold.controller.fetch(new Request("https://api.test/api/v1/sales", {
+    method: "POST", body: "original", signal: abort.signal,
+  })), error => error.name === "AbortError");
+  assert.equal(cold.calls().dispatches, 0);
+  assert.equal(cold.controller.activeResponses, 0);
+
+  let acknowledge, started = 0;
+  const cleanup = new Promise(resolve => { acknowledge = resolve; });
+  const f = controllerFixture({ body: () => new Response(new ReadableStream({
+    pull(controller) { controller.enqueue(new Uint8Array(65536)); },
+    async cancel() { started++; await cleanup; },
+  })) });
+  const client = new AbortController();
+  await f.controller.fetch(new Request("https://api.test/api/v1/catalog/products", { signal: client.signal }));
+  client.abort(); f.advance(SLOT_DRAIN_MS);
+  assert.equal(await f.controller.replaceable(), false, "upstream cleanup has not acknowledged cancellation");
+  assert.equal(started, 1);
+  acknowledge(); await Promise.all(f.waits);
+  assert.equal(await f.controller.replaceable(), true);
+  assert.equal(f.calls().dispatches, 1);
+});
+
 test("the drain lease survives a controller restart and candidate probes never accept caller-selected paths", async () => {
   const fixture = controllerFixture();
   const response = await fixture.controller.fetch(new Request("https://api.test/health"));
@@ -182,10 +248,12 @@ test("a healthy candidate with an incorrect commercial offer cannot pass readine
   assert.equal(fixture.calls().dispatches, 0);
 });
 
-test("only the two reviewed slots and the original legacy Worker can be selected", () => {
+test("only three reviewed slots and the original legacy Worker can be selected", () => {
   assert.equal(slotWorker("legacy"), "kova-backend");
   assert.equal(nextSlot("legacy"), "green");
   assert.equal(nextSlot("blue"), "green");
   assert.equal(nextSlot("green"), "blue");
+  assert.equal(nextSlot("recovery"), "blue");
+  assert.equal(slotWorker("recovery"), "kova-api-recovery");
   for (const input of [undefined, "other-account", "__proto__"]) assert.throws(() => slotWorker(input));
 });

@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, R
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
+from app.branches.scope import active_branch_id
 from app.config import settings
 from app.crm.router import require_crm
-from app.db import get_db
-from app.messaging import connections, delivery, service
+from app.db import get_db, get_privileged_db
+from app.messaging import connections, delivery, onboarding, service
 from app.messaging.readiness import MessagingReadiness, readiness
 from app.messaging.schemas import (
     InboxAutomationDraftCreate,
@@ -22,12 +23,86 @@ from app.messaging.schemas import (
     InboxMessageList,
     InboxMessageResponse,
     InboxMessageTransition,
+    SendingSettings,
+    SignupAvailability,
+    SignupFinish,
+    SignupStart,
 )
 from app.messaging.webhooks import MAX_WEBHOOK_BYTES, verify_subscription
 from app.messaging.whatsapp import ChannelError
 from app.middleware.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
+
+
+@router.get("/onboarding", response_model=SignupAvailability)
+def signup_status(response: Response, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    response.headers["Cache-Control"] = "no-store"
+    return onboarding.status(db, ctx[1].tenant_id, owner=ctx[1].role == "owner")
+
+
+@router.post(
+    "/onboarding/start",
+    response_model=SignupStart,
+    dependencies=[Depends(rate_limit(5, key="whatsapp-signup-start"))],
+)
+def signup_start(
+    response: Response,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+    platform_db: Session = Depends(get_privileged_db),
+):
+    if ctx[1].role != "owner":
+        raise HTTPException(403, "El dueño del negocio debe autorizar esta conexión")
+    response.headers["Cache-Control"] = "no-store"
+    return onboarding.start(
+        platform_db, ctx[1].tenant_id, active_branch_id(db, ctx[1].tenant_id), ctx[0].id
+    )
+
+
+@router.post(
+    "/onboarding/finish",
+    response_model=InboxConnectionStatus,
+    dependencies=[Depends(rate_limit(10, key="whatsapp-signup-finish"))],
+)
+def signup_finish(
+    body: SignupFinish,
+    response: Response,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+    platform_db: Session = Depends(get_privileged_db),
+):
+    if ctx[1].role != "owner":
+        raise HTTPException(403, "El dueño del negocio debe autorizar esta conexión")
+    response.headers["Cache-Control"] = "no-store"
+    return onboarding.finish(
+        platform_db, ctx[1].tenant_id, active_branch_id(db, ctx[1].tenant_id), ctx[0].id, body
+    )
+
+
+@router.patch("/connection/sending", response_model=InboxConnectionStatus)
+def configure_sending(
+    body: SendingSettings,
+    response: Response,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+    platform_db: Session = Depends(get_privileged_db),
+):
+    if ctx[1].role != "owner":
+        raise HTTPException(403, "El dueño del negocio debe autorizar las respuestas")
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return onboarding.sending(
+            platform_db,
+            ctx[1].tenant_id,
+            active_branch_id(db, ctx[1].tenant_id),
+            ctx[0].id,
+            enabled=body.enabled,
+        )
+    except ChannelError:
+        raise HTTPException(
+            409, "Revisa la conexión de WhatsApp antes de habilitar respuestas"
+        ) from None
 
 
 @router.get("/connection", response_model=InboxConnectionStatus)
@@ -131,6 +206,7 @@ def messaging_readiness(db: Session = Depends(get_db), ctx=Depends(require_crm))
             "tenant_mapping_verified": connected,
             "setup_status": "configured" if connected else "setup_required",
             "account_mode": "verified" if connected else "not_verified",
+            "signup_available": onboarding.available(),
         }
     )
 

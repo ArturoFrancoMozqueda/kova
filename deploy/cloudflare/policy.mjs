@@ -8,7 +8,7 @@ export const securityHeaders = Object.fromEntries(
 // Cloudflare injects the existing zone's Web Analytics beacon. Permit only its
 // published script/collection origins; all other CSP directives stay intact.
 securityHeaders["Content-Security-Policy"] = securityHeaders["Content-Security-Policy"]
-  .replace("script-src 'self';", "script-src 'self' https://static.cloudflareinsights.com;")
+  .replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
   .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com");
 export const publicPages = Object.fromEntries(
   config.rewrites.filter(rule => rule.destination.endsWith(".html") && !rule.source.includes("("))

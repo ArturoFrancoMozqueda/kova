@@ -543,6 +543,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "automation_runs",
         "business_events",
         "messaging_channel_bindings",
+        "messaging_channel_connections",
+        "messaging_signup_sessions",
         "messaging_channel_events",
         "audit_logs",
         # Internal retry payload and Stripe session capability are not account exports.
@@ -575,6 +577,8 @@ _TENANT_DELETE_ORDER = (
     "messaging_channel_events",
     "messaging_messages",
     "messaging_conversations",
+    "messaging_channel_connections",
+    "messaging_signup_sessions",
     "messaging_channel_bindings",
     "crm_followup_tasks",
     "crm_followup_policies",

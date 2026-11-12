@@ -21,6 +21,7 @@ class MessagingReadiness(BaseModel):
     send_enabled: bool = False
     webhook_enabled: bool = False
     tenant_mapping_verified: bool = False
+    signup_available: bool = False
     supported_message_types: list[str] = Field(default_factory=lambda: ["text", "template"])
     checklist: list[SetupItem]
 

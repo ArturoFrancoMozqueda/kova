@@ -186,6 +186,7 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE (processed_at) ON business_events TO kova_app"))
         conn.execute(text("GRANT UPDATE (status, shared_at, accepted_at, customer_order_id, updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app"))
         conn.execute(text("GRANT SELECT ON messaging_channel_bindings TO kova_app"))
+        conn.execute(text("GRANT SELECT ON messaging_channel_connections, messaging_signup_sessions TO kova_app"))
         conn.execute(text("GRANT UPDATE(status, assigned_user_id, due_at, version, updated_at, resolved_at) ON service_cases TO kova_app"))
         conn.execute(text("GRANT UPDATE(name, is_active, version, updated_at) ON appointment_resources TO kova_app"))
         conn.execute(text("GRANT UPDATE(starts_at, ends_at, note, status, version, updated_at) ON appointments TO kova_app"))

@@ -126,6 +126,12 @@ class Settings(BaseSettings):
     whatsapp_app_secret: SecretStr | None = None
     whatsapp_webhook_verify_token: SecretStr | None = None
     whatsapp_connections: SecretStr | None = None
+    # Embedded Signup v4 is a separate, explicit platform rollout. Public IDs
+    # configure the SDK; the encryption key and Meta secret stay server-side.
+    whatsapp_signup_enabled: bool = False
+    whatsapp_app_id: str = Field(default="", pattern=r"^(?:[1-9][0-9]{0,31})?$")
+    whatsapp_signup_config_id: str = Field(default="", pattern=r"^(?:[1-9][0-9]{0,31})?$")
+    whatsapp_credentials_key: SecretStr | None = None
     assistant_cloudflare_account_id: str = ""
     assistant_cloudflare_token: SecretStr | None = None
     assistant_r2_access_key: SecretStr | None = None

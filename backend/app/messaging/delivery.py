@@ -1,13 +1,17 @@
 """Explicit human delivery and signed ingress through ordinary tenant RLS sessions."""
 
+from types import SimpleNamespace
+
+from sqlalchemy import tuple_
 from starlette.concurrency import run_in_threadpool
 
 from app.branches.scope import bind_branch
 from app.config import settings
-from app.db import SessionLocal, set_tenant_context
+from app.db import PrivilegedSessionLocal, SessionLocal, set_tenant_context
 from app.messaging import connections, service
+from app.messaging.models import ChannelBinding, ChannelConnection
 from app.messaging.schemas import InboxMessageTransition
-from app.messaging.webhooks import parse_verified_webhook, verify_signature
+from app.messaging.webhooks import parse_verified_webhook, routing_accounts, verify_signature
 from app.messaging.whatsapp import ChannelError
 from app.shared.exceptions import conflict
 
@@ -45,6 +49,37 @@ def send_human_reply(db, tenant, actor, message_id, body, key):
 
 def _ingest(raw_body, signature):
     registry = connections.configured_connections()
+    if settings.whatsapp_signup_enabled:
+        accounts = routing_accounts(raw_body)
+        if accounts:
+            # Deliberately privileged exact routing lookup, AFTER HMAC. It
+            # returns trusted scope only; message writes use kova_app and RLS.
+            with PrivilegedSessionLocal() as lookup:
+                rows = (
+                    lookup.query(ChannelBinding)
+                    .join(ChannelConnection, ChannelConnection.binding_id == ChannelBinding.id)
+                    .filter(
+                        tuple_(ChannelBinding.waba_id, ChannelBinding.phone_number_id).in_(
+                            accounts
+                        ),
+                        ChannelBinding.enabled.is_(True),
+                        ChannelBinding.verified_at.is_not(None),
+                    )
+                    .all()
+                )
+                for row in rows:
+                    if any(item.phone_number_id == row.phone_number_id for item in registry):
+                        raise ChannelError("channel_configuration_invalid")
+                    # Routing does not require decrypting any credentials.
+                    registry.append(
+                        SimpleNamespace(
+                            tenant_id=row.tenant_id,
+                            branch_id=row.branch_id,
+                            binding_id=row.id,
+                            waba_id=row.waba_id,
+                            phone_number_id=row.phone_number_id,
+                        )
+                    )
     # Validate the entire matched batch before any branch is committed. The
     # registry, never account IDs from the envelope, establishes the RLS scope.
     pending = []

@@ -27,7 +27,7 @@ _CREDENTIAL_URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _SECRET_ASSIGNMENT_PATTERN = re.compile(
-    r"(?P<key>\b(?:hub\.verify_token|access_token|x-hub-signature-256|token|password|secret|api[_-]?key|device[_-]?key|pairing[_-]?code|authorization|cookie|x-kova-device-key)\b)"
+    r"(?P<key>\b(?:hub\.verify_token|access_token|input_token|client_secret|code|nonce|pin|x-hub-signature-256|token|password|secret|api[_-]?key|device[_-]?key|pairing[_-]?code|authorization|cookie|x-kova-device-key)\b)"
     r"(?P<separator>\s*[:=]\s*)[^\s,;&]+",
     re.IGNORECASE,
 )

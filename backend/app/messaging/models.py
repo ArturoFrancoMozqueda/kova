@@ -1,4 +1,4 @@
-"""Private channel metadata and immutable-content delivery ledger; never credentials."""
+"""Private metadata, encrypted connections and immutable-content delivery ledger."""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -8,9 +8,12 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,6 +40,67 @@ class ChannelBinding(BranchScoped, Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ChannelConnection(BranchScoped, Base):
+    """Only verified onboarding writes this table through its privileged path."""
+
+    __tablename__ = "messaging_channel_connections"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "branch_id", name="uq_messaging_connection_branch"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "binding_id"],
+            [
+                "messaging_channel_bindings.tenant_id",
+                "messaging_channel_bindings.branch_id",
+                "messaging_channel_bindings.id",
+            ],
+        ),
+    )
+    binding_id: Mapped[UUID] = mapped_column(primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    encrypted_credentials: Mapped[str] = mapped_column(Text, nullable=False)
+    send_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class SignupSession(BranchScoped, Base):
+    __tablename__ = "messaging_signup_sessions"
+    __table_args__ = (
+        ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
+        ForeignKeyConstraint(
+            ["tenant_id", "actor_id"], ["memberships.tenant_id", "memberships.user_id"]
+        ),
+        UniqueConstraint("code_hash", name="uq_messaging_signup_code"),
+        Index(
+            "uq_messaging_signup_active_phone",
+            "phone_number_id",
+            unique=True,
+            postgresql_where=text(
+                "state IN ('authorized','subscribing','subscribed','registering','review_required')"
+            ),
+        ),
+        CheckConstraint(
+            "state IN ('pending','exchanging','authorized','subscribing','subscribed',"
+            "'registering','connected','review_required','failed')",
+            name="ck_messaging_signup_state",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    actor_id: Mapped[UUID] = mapped_column(nullable=False)
+    nonce_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    code_hash: Mapped[str | None] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
+    waba_id: Mapped[str | None] = mapped_column(String(32))
+    phone_number_id: Mapped[str | None] = mapped_column(String(32))
+    encrypted_credentials: Mapped[str | None] = mapped_column(Text)
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Conversation(BranchScoped, Base):

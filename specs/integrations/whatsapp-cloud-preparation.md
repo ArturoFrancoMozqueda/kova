@@ -1,5 +1,8 @@
 # Preparación del canal oficial de WhatsApp
 
+Actualización local 2026-11-11: el contrato de [Embedded Signup v4](whatsapp-embedded-signup.md)
+añade alta desde Kova con gate separado desactivado; no acredita disponibilidad productiva.
+
 Actualización 2026-10-23: el [piloto asistido](../../docs/runbooks/whatsapp-assisted-pilot.md)
 implementa conexión por registro de servidor, webhook y respuesta humana explícita. Todo empieza
 desactivado y falta aceptación real de Meta. Las secciones del 18 de octubre siguientes son el

@@ -52,8 +52,8 @@ export function slotContainerClass(Container, { now = Date.now } = {}) {
       const generation = this.activityGeneration;
       const active = await this.env.GATEWAY_STATUS.getActiveSlot();
       if (generation !== this.activityGeneration) return;
-      if (!["legacy", "blue", "green"].includes(active)
-          || !["blue", "green"].includes(this.env.KOVA_NATIVE_SLOT)) throw new Error("Invalid native slot routing");
+      if (!["legacy", "blue", "green", "recovery"].includes(active)
+          || !["blue", "green", "recovery"].includes(this.env.KOVA_NATIVE_SLOT)) throw new Error("Invalid native slot routing");
       if (active === this.env.KOVA_NATIVE_SLOT) {
         await this.cancelParking();
         return;
@@ -91,7 +91,11 @@ export function slotContainerClass(Container, { now = Date.now } = {}) {
     async drainState() {
       // This must work even when a staged image never became healthy. It
       // inspects controller metadata without starting Linux or fetching keys.
-      return { release_sha: this.env.KOVA_BUILD_SHA, replaceable: await this.replaceable() };
+      const lastRequest = await this.ctx.storage.get("native_last_request");
+      const idle = lastRequest === undefined ? null : Number.isSafeInteger(lastRequest)
+        ? Math.max(0, now() - lastRequest) : null;
+      return { release_sha: this.env.KOVA_BUILD_SHA, replaceable: await this.replaceable(),
+        active_responses: this.activeResponses, idle_ms: idle };
     }
 
     async probe() {
@@ -122,37 +126,55 @@ export function slotContainerClass(Container, { now = Date.now } = {}) {
       // lease. A write is forwarded once, with its existing idempotency key.
       this.activityGeneration++;
       this.activeResponses++;
-      let done;
-      const completed = new Promise(resolve => { done = resolve; });
-      this.ctx.waitUntil(completed);
+      // A returned stream already keeps its request alive. Do not pin the DO
+      // indefinitely with a separate unresolved waitUntil when its caller left.
       let finished = false;
+      let onAbort;
       const finish = () => {
         if (finished) return;
         finished = true;
         this.activeResponses--;
-        done();
+        if (onAbort) request.signal.removeEventListener("abort", onAbort);
       };
       try {
+        request.signal.throwIfAborted();
         await this.cancelParking();
         await this.ctx.storage.put("native_last_request", now());
+        request.signal.throwIfAborted();
         const response = await super.fetch(request);
         if (!response.body) { finish(); return response; }
+        // SDK 0.3.7 can return its body after startup even though the client
+        // already disconnected. Nobody will consume that body: explicitly
+        // cancel its pipe before returning, preserving the SDK's own counter.
+        if (request.signal.aborted) {
+          try { await response.body.cancel("client_disconnected"); }
+          finally { finish(); }
+          return response;
+        }
         const reader = response.body.getReader();
+        let cancelling;
+        const cancelBody = reason => cancelling ??= (async () => {
+          try { await reader.cancel(reason); }
+          finally { finish(); }
+        })();
+        onAbort = () => { this.ctx.waitUntil(cancelBody("client_disconnected").catch(() => {})); };
+        request.signal.addEventListener("abort", onAbort, { once: true });
         const body = new ReadableStream({
           async pull(controller) {
             try {
               const chunk = await reader.read();
-              if (chunk.done) { controller.close(); finish(); }
+              if (chunk.done) { controller.close(); if (!cancelling) finish(); }
               else controller.enqueue(chunk.value);
-            } catch (error) { controller.error(error); finish(); }
+            } catch (error) { controller.error(error); if (!cancelling) finish(); }
           },
-          async cancel(reason) { try { await reader.cancel(reason); } finally { finish(); } },
+          cancel(reason) { return cancelBody(reason); },
         });
         const result = new Response(body, response);
         // Preserve exact response bytes, distinct cookies and boot identity.
         if (new URL(request.url).pathname === "/health") {
           result.headers.set(ACTIVE_CONTROLLER_HEADER, this.env.KOVA_BUILD_SHA);
         }
+        if (request.signal.aborted) await cancelBody("client_disconnected");
         return result;
       } catch (error) { finish(); throw error; }
     }

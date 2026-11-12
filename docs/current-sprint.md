@@ -59,7 +59,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Función | Estado |
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
-| WhatsApp | `KOVA_WHATSAPP_ENABLED` falso. Piloto asistido listo en código ([runbook](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/messaging-inbox.md)). |
+| WhatsApp | El proceso productivo sigue sin activar el piloto; el intento 43157159134 se recuperó por bloqueo de drenado. Piloto asistido y alta v4 desde Kova preparados en código, esta última detrás de `WHATSAPP_SIGNUP_ENABLED=false` ([alta](runbooks/whatsapp-embedded-signup.md), [piloto](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). Falta publicar y aceptar con Meta. |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
 | Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-017](adr/ADR-017-asistente-respuestas-ancladas.md)). |
@@ -139,8 +139,10 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    ni hardware definidos. La regresión de navegador no sustituye una prueba física. Impresora,
    lector y cajón siguen pendientes. [Matriz de equipos](runbooks/pos-hardware-acceptance.md) y
    [checklist offline](claude/manual-qa-checklist.md#offline-funciona-sin-internet).
-6. **WhatsApp real.** App de Meta, número de prueba, credenciales en el Secret store, challenge del
-   webhook y una entrega aceptada.
+6. **WhatsApp real.** El dueño confirmó recepción del saludo de prueba de Meta y se guardaron los
+   secretos del piloto. Falta publicar la configuración en un proceso nuevo, validar challenge e
+   ingreso en Kova y aceptar entrega desde la bandeja. El alta v4 necesita además perfil/revisión
+   de Meta y configuración única de la plataforma; ver [runbook](runbooks/whatsapp-embedded-signup.md).
 7. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación
    Live controlada.
 8. **Piloto multi-giro.** Reclutar y observar la cohorte para medir la activación del análisis
