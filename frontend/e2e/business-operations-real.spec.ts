@@ -1,3 +1,4 @@
+import { openLoyaltyDesigner } from "./loyalty-program-helpers";
 import { expect, test } from "./fixtures";
 import {
   createTenantThroughUi,
@@ -66,10 +67,12 @@ test.describe("agenda y lealtad con Postgres/RLS reales", () => {
     }, signup.dev_verification_token);
 
     await page.goto("/appointments");
-    await page.getByRole("button", { name: "Agregar recurso" }).click();
-    await page.getByLabel("Nombre del recurso").fill("Asesoría local Cancún");
+    await page.getByRole("button", { name: "Configurar agenda", exact: true }).click();
+    await page.getByText("Detalle de citas y actividad anterior", { exact: true }).click();
+    await page.getByRole("button", { name: "Agregar persona o espacio", exact: true }).last().click();
+    await page.getByLabel("Nombre de la persona o espacio").fill("Asesoría local Cancún");
     await page
-      .getByLabel("Zona horaria del recurso")
+      .getByLabel("Zona horaria de atención")
       .selectOption("America/Cancun");
     const resourceResponse = page.waitForResponse(
       (response) =>
@@ -77,15 +80,15 @@ test.describe("agenda y lealtad con Postgres/RLS reales", () => {
         response.request().method() === "POST",
     );
     await page
-      .getByRole("button", { name: "Crear recurso", exact: true })
+      .getByRole("button", { name: "Guardar persona o espacio", exact: true })
       .click();
     const resource = await (await resourceResponse).json();
     expect(resource.timezone).toBe("America/Cancun");
     await expect(
-      page.getByRole("status").filter({ hasText: "Recurso creado" }),
+      page.getByRole("status").filter({ hasText: "Persona o espacio guardado" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Nueva cita", exact: true }).click();
-    await page.getByLabel("Recurso de la cita").selectOption(resource.id);
+    await page.getByLabel("Persona o espacio de la cita").selectOption(resource.id);
     await page
       .getByLabel("Cliente de la cita")
       .selectOption(prepared.customer_id);
@@ -125,7 +128,7 @@ test.describe("agenda y lealtad con Postgres/RLS reales", () => {
     await page
       .getByRole("button", { name: "Confirmar estado", exact: true })
       .click();
-    await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Citas del negocio" }).getByText("Cancelada", { exact: true })).toBeVisible();
     const history = await (
       await page.request.get(`/api/v1/appointments/${booking.id}/history`)
     ).json();
@@ -139,20 +142,22 @@ test.describe("agenda y lealtad con Postgres/RLS reales", () => {
     ).toBe(true);
 
     await page.goto("/loyalty");
-    await page.getByRole("button", { name: "Revisar regla de puntos" }).click();
+    await openLoyaltyDesigner(page);
     await expect(
-      page.getByLabel("Compra necesaria por bloque (MXN)"),
+      page.getByLabel("Por cada compra de (MXN)"),
     ).toHaveValue("");
-    await page.getByLabel("Compra necesaria por bloque (MXN)").fill("100.00");
-    await page.getByLabel("Puntos por bloque de compra").fill("5");
-    await page.getByLabel("Acumular puntos en nuevas ventas elegibles").check();
+    await page.getByLabel("Por cada compra de (MXN)").fill("100.00");
+    await page.getByLabel("El cliente suma estos puntos").fill("5");
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await page.getByLabel("Activar acumulación de puntos").check();
     await page
-      .getByRole("button", { name: "Confirmar regla de puntos", exact: true })
+      .getByRole("button", { name: "Guardar tarjeta y programa", exact: true })
       .click();
     await expect(
       page
         .getByRole("status")
-        .filter({ hasText: "Regla de lealtad actualizada" }),
+        .filter({ hasText: "Programa guardado" }),
     ).toBeVisible();
     const sale = await page.evaluate(
       async (ids: { customer_id: string; product_id: string }) => {

@@ -194,6 +194,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
     await expect(page.getByRole("status").filter({ hasText: "Oportunidad creada con el cliente que elegiste" })).toBeVisible();
 
     await page.goto("/followups");
+    await page.getByText("Configurar tareas después de una venta", { exact: true }).click();
     await page.getByRole("button", { name: "Revisar regla" }).click();
     await page.getByRole("checkbox", { name: "Crear pendientes a partir de ventas reales" }).check();
     await page.getByRole("button", { name: "Confirmar regla", exact: true }).click();

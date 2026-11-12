@@ -1,3 +1,4 @@
+import { openLoyaltyDesigner } from "./loyalty-program-helpers";
 import { expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 import { createTenantThroughUi, integrationEnabled } from "./integration-helpers";
@@ -49,13 +50,13 @@ test.describe("tarjeta desde el menú con API, PostgreSQL y RLS reales", () => {
     const menuPath = await publicLink.getAttribute("href");
     expect(menuPath).toMatch(/^\/catalogo\//);
     await page.goto("/loyalty");
-    const settings = page.getByRole("region", { name: "Tarjetas desde el menú", exact: true });
-    await settings.getByRole("button", { name: "Configurar tarjetas", exact: true }).click();
+    const settings = page.getByRole("region", { name: "Programa de lealtad", exact: true });
+    await openLoyaltyDesigner(page, "review");
     const allow = settings.getByRole("checkbox", { name: "Permitir nuevas tarjetas desde el menú", exact: true });
     await expect(allow).not.toBeChecked();
     await allow.check();
-    const policySaved = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/loyalty/enrollment-policy" && response.request().method() === "PUT");
-    await settings.getByRole("button", { name: "Guardar acceso a tarjetas", exact: true }).click();
+    const policySaved = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/loyalty/program" && response.request().method() === "PUT");
+    await settings.getByRole("button", { name: "Guardar tarjeta y programa", exact: true }).click();
     expect((await policySaved).ok()).toBe(true);
 
     const anonymousContext = await browser.newContext({ viewport: { width: 390, height: 844 } });

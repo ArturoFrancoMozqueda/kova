@@ -13,6 +13,10 @@ ROUTERS = (
     ('app.crm.router', ('/api/v1/crm',)),
     ('app.crm.engagement_router', ('/api/v1/crm',)),
     ('app.messaging.router', ('/api/v1/messaging',)),
+    ('app.bookings.router', (
+        '/api/v1/appointments', '/api/v1/public/bookings',
+        '/api/v1/public/loyalty/membership/booking-grant',
+    )),
     ('app.appointments.router', ('/api/v1/appointments',)),
     ('app.loyalty.enrollment_router', (
         '/api/v1/loyalty/enrollment-policy', '/api/v1/loyalty/members',

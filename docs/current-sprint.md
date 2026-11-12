@@ -151,6 +151,15 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    acuerdos y revisión profesional del [gate operativo](runbooks/ops-beta-gate.md#ops-6--legal-y-comercial).
    Es aceptación comercial y operativa, no código.
 
+## Clientes y reservas: cambio local pendiente de publicación
+
+La reorganización de Clientes y atención, el diseñador de lealtad y la reserva pública sin anticipo
+están implementados localmente. No cambia la baseline publicada. Las reservas comienzan desactivadas
+por sucursal y requieren servicios y disponibilidad configurados. Contratos:
+[reservas](../specs/appointments/public-booking.md), [lealtad](../specs/loyalty/program-designer.md),
+[ADR-032](adr/ADR-032-public-booking-and-loyalty-program.md). Validación y límites del cambio en
+[validación local](testing-clients-booking.md).
+
 ## Reglas de este archivo
 
 - Sólo estado actual y gates abiertos. Cuando un gate se cierra, se borra de aquí y la evidencia

@@ -51,6 +51,30 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
+    ExportTable("loyalty_appearances", _columns(
+        "id tenant_id branch_id color use_business_logo version"
+    )),
+    ExportTable("booking_pages", _columns(
+        "id tenant_id branch_id enabled version link_version horizon_days "
+        "notice_minutes slot_minutes manage_cutoff_hours authorized_by_user_id"
+    )),
+    ExportTable("booking_services", _columns(
+        "id tenant_id branch_id name description duration_minutes is_active version"
+    )),
+    ExportTable("booking_service_resources", _columns(
+        "id tenant_id branch_id service_id resource_id"
+    )),
+    ExportTable("booking_availability", _columns(
+        "id tenant_id branch_id resource_id weekly exceptions version"
+    )),
+    ExportTable("public_bookings", _columns(
+        "id tenant_id branch_id service_id resource_id customer_id appointment_id "
+        "guest_name phone title timezone starts_at ends_at status version created_at"
+    )),
+    ExportTable("booking_history", _columns(
+        "id tenant_id branch_id booking_id version action actor_user_id starts_at "
+        "ends_at created_at status details"
+    )),
     ExportTable("drawer_devices", _columns(
         "id tenant_id branch_id name pin auto_open last_seen_at revoked_at created_at"
     )),
@@ -561,6 +585,9 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "booking_history", "public_bookings", "booking_service_resources", "booking_availability",
+    "booking_services", "booking_pages", "loyalty_appearances",
+
     "service_case_events",
     "service_cases",
     "appointment_reminders",

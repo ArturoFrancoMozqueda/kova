@@ -1,3 +1,4 @@
+import { openLoyaltyDesigner } from "./loyalty-program-helpers";
 import { expect, test, type Page } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 import { createTenantThroughUi, integrationEnabled } from "./integration-helpers";
@@ -113,16 +114,17 @@ test.describe("recompensa aplicada en Caja con API, PostgreSQL y RLS reales", ()
     expect((await initialPointsResponse).ok()).toBe(true);
     await page.getByLabel("Cliente del programa", { exact: true }).selectOption(prepared.customerId);
     await expect(page.getByLabel("Saldo de puntos", { exact: true })).toHaveText("10 puntos");
-    const settings = page.getByRole("region", { name: "Recompensa en caja", exact: true });
-    await settings.getByRole("button", { name: "Definir recompensa", exact: true }).click();
+    const settings = page.getByRole("region", { name: "Programa de lealtad", exact: true });
+    await openLoyaltyDesigner(page, "reward");
+    await settings.getByLabel("Ofrecer una recompensa en caja", { exact: true }).check();
     await settings.getByLabel("Nombre de la recompensa", { exact: true }).fill("Gracias por volver");
     await settings.getByLabel("Puntos para canjear", { exact: true }).fill("8");
     await settings.getByLabel("Descuento en MXN", { exact: true }).fill("25.00");
-    await settings.getByLabel("Permitir nuevos canjes en caja", { exact: true }).check();
-    const rewardPolicyResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/loyalty/rewards" && response.request().method() === "PUT");
-    await settings.getByRole("button", { name: "Guardar recompensa", exact: true }).click();
+    await settings.getByRole("button", { name: "Continuar", exact: true }).click();
+    const rewardPolicyResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/loyalty/program" && response.request().method() === "PUT");
+    await settings.getByRole("button", { name: "Guardar tarjeta y programa", exact: true }).click();
     expect((await rewardPolicyResponse).ok()).toBe(true);
-    await expect(settings.getByRole("status")).toContainText("Recompensa guardada");
+    await expect(settings.getByRole("status")).toContainText("Programa guardado");
 
     await page.goto("/register");
     await page.getByRole("button", { name: "Agregar Café recompensa local", exact: true }).click();

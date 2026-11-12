@@ -252,3 +252,17 @@ class LoyaltyMember(BranchScoped, Base):
     customer_revision: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class LoyaltyAppearance(BranchScoped, Base):
+    __tablename__ = "loyalty_appearances"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "branch_id"),
+        ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
+        CheckConstraint("color ~ '^#[0-9a-fA-F]{6}$'", name="ck_loyalty_color"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(index=True)
+    color: Mapped[str] = mapped_column(String(7), default="#0F1117")
+    use_business_logo: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)

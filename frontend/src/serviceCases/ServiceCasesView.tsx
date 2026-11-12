@@ -45,7 +45,7 @@ type References = {
   customer_orders_has_more: boolean;
 };
 export default function ServiceCasesView() {
-  useDocumentTitle("Atención postventa");
+  useDocumentTitle("Casos de atención");
   return (
     <OperationsSession>
       {(identity) => <ServiceCasesWorkspace identity={identity} />}
@@ -222,8 +222,8 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     <ViewLayout className="space-y-6">
       <ViewHeader
         eyebrow="Relación con clientes"
-        title="Atención postventa"
-        meta="Da seguimiento a cada incidencia con un responsable y un historial claro."
+        title="Casos de atención"
+        meta="Resuelve dudas, problemas o reclamos con un responsable y un siguiente paso."
         actions={
           <Button
             className={buttonClass}

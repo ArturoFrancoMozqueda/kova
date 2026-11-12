@@ -171,7 +171,10 @@ def read_card(db: Session, token: str) -> PublicLoyaltyCard:
         from app.storefront.router import _settings as catalog_settings
 
         catalog_path = catalog_settings(db, catalog).share_path
+    from app.loyalty.program import appearance
+
     return PublicLoyaltyCard(
+        appearance=appearance(db, tenant_id),
         business_name=profile.public_name if profile else tenant.name,
         branch_name=branch.name,
         balance=service._balance(db, tenant_id, customer.id),

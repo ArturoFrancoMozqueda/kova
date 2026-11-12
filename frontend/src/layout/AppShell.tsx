@@ -207,13 +207,13 @@ export default function AppShell() {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
     if (path.startsWith("/operations-queue")) return "Pendientes del negocio";
-    if (path.startsWith("/service-cases")) return "Atención postventa";
+    if (path.startsWith("/service-cases")) return "Casos de atención";
     if (path.startsWith("/appointments")) return "Agenda del negocio";
     if (path.startsWith("/loyalty")) return "Lealtad de clientes";
-    if (path.startsWith("/inbox")) return "Bandeja de atención";
+    if (path.startsWith("/inbox")) return "Conversaciones";
     if (path.startsWith("/commercial-requests")) return "Solicitudes del catálogo";
-    if (path.startsWith("/followups")) return "Postventa y seguimiento";
-    if (path.startsWith("/crm")) return "Seguimiento comercial";
+    if (path.startsWith("/followups")) return "Seguimiento después de la venta";
+    if (path.startsWith("/crm")) return "Oportunidades";
     if (path.startsWith("/quotes")) return "Cotizaciones";
     if (path.startsWith("/automations")) return "Automatizaciones";
     if (path.startsWith("/reconciliation")) return "Conciliación";

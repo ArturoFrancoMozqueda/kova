@@ -47,6 +47,8 @@ const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
 const AppointmentsView = lazy(() => import("./appointments/AppointmentsView"));
 const LoyaltyView = lazy(() => import("./loyalty/LoyaltyView"));
+const PublicBookingView = lazy(() => import("./bookings/PublicBookingView"));
+const ManageBookingView = lazy(() => import("./bookings/ManageBookingView"));
 const LoyaltyCardView = lazy(() => import("./loyaltyCard/LoyaltyCardView"));
 const OrderTrackingView = lazy(() => import("./orderTracking/OrderTrackingView"));
 const ServiceCasesView = lazy(() => import("./serviceCases/ServiceCasesView"));
@@ -102,6 +104,8 @@ export function AppRoutes() {
 
             <Route path="/" element={<Home />} />
             <Route path="/catalogo/:token" element={<StorefrontView />} />
+            <Route path="/reservar/gestionar" element={<ManageBookingView />} />
+            <Route path="/reservar/:token" element={<PublicBookingView />} />
             <Route path="/lealtad" element={<LoyaltyCardView />} />
             <Route path="/seguimiento" element={<OrderTrackingView />} />
             {/* Isolated marketing showcase for video export (noindex). */}

@@ -73,3 +73,6 @@ puntos confirmados hasta existir en el ledger. No hay equivalencia monetaria o p
 - Propietario puede emitir; gerente/cajero no. La página pública no ofrece canje ni pago.
 - La aceptación productiva, tarjetas Wallet, sellos, alta pública verificada y QR físico
   requieren entregas independientes. El canje conectado con POS tiene su propia aceptación local.
+
+La [configuración visual del programa](program-designer.md) añade apariencia compartida y acceso
+a reservas para membresías reconocidas, sin cambiar saldo ni vigencia.
