@@ -94,8 +94,11 @@ El Centro de seguridad muestra **En revisión**. En Permisos y funciones, los bo
 acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
 también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
 controles. La app permanece en desarrollo y el alta comercial apagada.
-El botón de `public_profile` se muestra habilitado, pero al pulsarlo Meta indica que la verificación
-del negocio es obligatoria para obtener acceso avanzado. No abrió un formulario ni concedió acceso.
+El botón de `public_profile` se muestra habilitado. La primera lectura mostró un aviso de
+verificación obligatoria; después terminó de cargar el diálogo **Confirmar acceso avanzado para
+public_profile**, con pasos de comprobación de uso y tratamiento de datos. Está pendiente la
+aceptación expresa del titular de esas declaraciones; no se ha concedido acceso avanzado. No
+inferir el resultado final de esta confirmación a partir del aviso inicial.
 
 Tras la resolución, comprobar nuevamente estos controles, completar el requisito de `public_profile`
 del SDK y el acceso avanzado de WhatsApp. Antes de enviar, verificar privacidad, eliminación de datos,
