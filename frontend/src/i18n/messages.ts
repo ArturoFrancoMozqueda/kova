@@ -30,7 +30,6 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      eyebrow: "Gestión comercial y punto de venta para tu negocio",
       title: "Cobra una vez. Kova cuadra el resto.",
       subtitle: "Cada venta descuenta tu inventario, entra a tu corte de caja y aparece en tus reportes. Sin capturar nada dos veces.",
       bullets: [
@@ -74,7 +73,6 @@ export const copy = {
     // de plan que la habilita (o null si viene en todos); la etiqueta de plan
     // visible se deriva del catálogo público del servidor, nunca de este copy.
     capabilities: {
-      eyebrow: "Todo lo que incluye",
       title: "Más que una caja: todo lo que pasa alrededor de cada venta.",
       body: "Empieza por cobrar y crece cuando lo necesites. Todo vive en la misma app, con los mismos productos, clientes y números.",
       planBadgePrefix: "Plan",
@@ -134,68 +132,57 @@ export const copy = {
         },
       ],
     },
-    immersiveStory: {
-      eyebrow: "Una venta lo mueve todo",
-      title: "Cobras una vez. Kova acomoda el resto.",
-      body: "Sigue una venta real de $186 y descubre cómo el mismo cobro actualiza inventario, caja y reportes sin capturar información dos veces.",
-      problem: "Selecciona cada paso para seguir cómo cambia toda la operación.",
-      progressLabel: "Recorrido de una venta en Kova",
-      videoTitle: "Descubre Kova en 45 segundos",
-      videoLabel: "Demostración de Kova: caja, inventario, turnos, pedidos, catálogo en línea y análisis",
-      controlsLabel: "Controles del video",
-      playVideo: "Reproducir",
-      pauseVideo: "Pausar",
-      enableSound: "Activar sonido",
-      disableSound: "Silenciar",
-      steps: [
-        {
-          id: "sale",
-          number: "01",
-          title: "Venta",
-          line: "Arma el ticket, elige el método de pago y completa la venta.",
-          receipt: "Venta registrada",
-          heading: "Cobras en segundos.",
-          image: "/showcase/sale-register.jpeg",
-          alt: "Caja de Kova mostrando una venta lista para cobrarse.",
-        },
-        {
-          id: "inventory",
-          number: "02",
-          title: "Inventario",
-          line: "Los productos vendidos se descuentan y Kova señala lo que está por agotarse.",
-          receipt: "Stock actualizado",
-          heading: "El stock baja automáticamente.",
-          image: "/showcase/inventory-story.jpeg",
-          alt: "Inventario de Kova mostrando existencias y stock bajo.",
-        },
-        {
-          id: "cash",
-          number: "03",
-          title: "Caja",
-          line: "La venta entra al turno y el efectivo esperado queda actualizado.",
-          receipt: "Caja registrada",
-          heading: "El efectivo esperado se actualiza.",
-          image: "/showcase/shifts.png",
-          alt: "Turno de Kova mostrando efectivo esperado y movimientos de caja.",
-        },
-        {
-          id: "reports",
-          number: "04",
-          title: "Análisis",
-          line: "La venta aparece en tus resultados, productos top y mejores horarios.",
-          receipt: "Resultados actualizados",
-          heading: "La venta aparece en tus resultados.",
-          image: "/showcase/analysis-story.jpeg",
-          alt: "Análisis de Kova con ventas, productos y horarios destacados.",
-        },
-      ],
+    // Recorrido del producto (#producto): una venta de $186 en la demo local de
+    // Caja y su efecto en inventario, turno y análisis. Los ids coinciden con
+    // LANDING_STORY_STEPS del backend (telemetría).
+    tour: {
+      title: "Mira lo que pasa con una sola venta.",
+      body: "Cobra en la caja de prueba y sigue cómo la misma venta actualiza tu inventario, tu turno y tu análisis del día.",
+      tablistLabel: "Recorrido de una venta en Kova",
+      demoNote: "Demostración con datos de ejemplo: no registra ventas.",
+      pause: "Pausar recorrido",
+      play: "Reproducir recorrido",
       cta: "Probar Kova gratis",
+      steps: [
+        { id: "sale", title: "Cobras", line: "Arma el ticket, elige cómo te pagan y cobra en segundos." },
+        { id: "inventory", title: "Baja el inventario", line: "Cada producto vendido se descuenta y Kova avisa qué se acaba." },
+        { id: "cash", title: "Cuadra el turno", line: "El cobro entra al turno y el efectivo esperado se actualiza." },
+        { id: "reports", title: "Entiendes el día", line: "La venta aparece en tus totales, tus horas fuertes y cómo te pagaron." },
+      ],
+      inventory: {
+        title: "Inventario",
+        lowStock: "Stock bajo",
+        threshold: (n: number) => `Mínimo ${n}`,
+        sold: (n: number) => `−${n} por venta`,
+        unit: "en stock",
+      },
+      shift: {
+        title: "Turno abierto",
+        status: "Abierto",
+        since: (name: string, time: string) => `${name} · desde ${time}`,
+        openingCash: "Efectivo inicial",
+        cashSales: "Ventas en efectivo",
+        outflows: "Salidas",
+        expected: "Efectivo esperado",
+        movements: "Movimientos",
+        newSale: "Venta · Efectivo",
+      },
+      reports: {
+        title: "Análisis · Hoy",
+        netSales: "Ventas netas",
+        vsYesterday: (pct: number) => `+${pct}% vs ayer`,
+        orders: "Órdenes",
+        avgTicket: "Ticket promedio",
+        bestHours: "Tus mejores horas",
+        payments: "Cómo te pagaron",
+        cash: "Efectivo",
+        card: "Tarjeta y transferencia",
+      },
     },
     // "Sin Kova / Con Kova": cada fila nombra la herramienta suelta que hoy
     // hace ese trabajo y la parte de Kova que la sustituye. Sin precios de
     // terceros: el contraste es de trabajo manual, no de costo inventado.
     problem: {
-      eyebrow: "Lo que Kova reemplaza",
       title: "Lo que vive disperso, en un solo lugar.",
       body: "Si tu operación se reparte entre libreta, hojas de cálculo, calculadora y menú impreso, Kova la reúne. Cada venta se registra una vez y lo demás se acomoda.",
       beforeLabel: "Herramientas sueltas",
@@ -216,7 +203,6 @@ export const copy = {
       ticketTotalLabel: "Descuadre",
     },
     reportsSpotlight: {
-      eyebrow: "Respuestas, no ruido",
       title: "Tus ventas se convierten en respuestas para el negocio.",
       body: "Kova reúne lo que pasó en caja para que puedas revisar el día sin perseguir tickets ni volver a hacer cuentas.",
       alt: "Análisis de Kova con ventas netas, comparación con el periodo anterior, productos más vendidos y mejores horarios.",
@@ -396,7 +382,6 @@ export const copy = {
       helpSuffix: " y te decimos con honestidad si Kova encaja con tu negocio.",
     },
     testimonials: {
-      eyebrow: "Negocios reales que ya cobran con Kova",
       stripAria: "Lo que dicen negocios que usan Kova",
     },
     // Sección "¿Es para mí?" (#comercios). `fit` es la clave estable para
@@ -427,7 +412,6 @@ export const copy = {
       footerLink: "Escríbenos por WhatsApp",
     },
     faq: {
-      eyebrow: "Preguntas frecuentes",
       title: "Lo importante antes de empezar.",
       items: [
         { q: "¿Necesito comprar algún aparato?", a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware." },
@@ -455,7 +439,6 @@ export const copy = {
       // Oferta por niveles. Nombres, precios, funciones y límites llegan del
       // catálogo público del servidor; aquí solo vive el texto que los explica.
       tiered: {
-        eyebrow: "Planes",
         title: "Elige cómo quieres operar tu negocio.",
         lead: "Empieza con lo esencial o lleva tu negocio más allá del mostrador. Precio fijo al mes, IVA incluido y sin comisiones por venta de Kova.",
         audience: {

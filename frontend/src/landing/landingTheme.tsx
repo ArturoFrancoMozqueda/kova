@@ -128,7 +128,7 @@ export const LANDING_STYLES = `
 
   /* ── Riel de página ───────────────────────────────────────────────────────
      Un solo margen y una sola medida para navbar, hero, secciones y footer.
-     Los módulos CSS de la landing (LandingSections/SaleFlowStory) usan estos
+     Los módulos CSS de la landing (LandingSections/ProductTour) usan estos
      mismos valores: si cambian aquí, cambian allá. */
   .lp-section {
     padding: var(--lp-section-block) var(--lp-gutter);
@@ -458,17 +458,6 @@ export const LANDING_STYLES = `
   }
   .lp-hero-shell {
     width: 100%;
-  }
-  .lp-hero-eyebrow {
-    display: block;
-    max-width: 540px;
-    margin-bottom: 20px;
-    color: var(--lp-blue-tertiary);
-    font-size: 11px;
-    font-weight: 750;
-    letter-spacing: 0.12em;
-    line-height: 1.5;
-    text-transform: uppercase;
   }
   .lp-hero-pricing {
     margin: 18px 0 0;

@@ -54,10 +54,10 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).not.toContain(
       '<link rel="preload" as="image" href="/showcase/register.png"',
     );
-    // El video narrativo vive debajo del fold, por lo que sus assets pueden
-    // estar en el HTML pero ninguno debe competir como preload de alta prioridad.
-    expect(html).toContain("/film/kova-demo-horizontal.webp");
-    expect(html).not.toMatch(/<link[^>]+rel="preload"[^>]+href="\/film\//);
+    // El recorrido del producto vive debajo del fold: se prerenderiza con su
+    // primer paso, sin video ni preloads que compitan con el LCP del hero.
+    expect(html).toContain('role="tablist"');
+    expect(html).not.toContain("/film/");
   });
 
   test("social preview image is public and matches its declared contract", async ({ request }) => {

@@ -17,6 +17,9 @@ export type Testimonial = {
   // credibilidad — agrégalos en cuanto el cliente dé permiso.
   name?: string;
   city?: string;
+  // Logo del negocio en public/customers/ (PNG con fondo transparente; se
+  // sirve también en .webp con el mismo nombre). Solo con permiso del cliente.
+  logo?: string;
 };
 
 export const TESTIMONIALS: readonly Testimonial[] = [
@@ -24,6 +27,7 @@ export const TESTIMONIALS: readonly Testimonial[] = [
     quote: "Kova me ha ayudado mucho a leer mejor mi negocio y potenciarlo con ventas inteligentes",
     business: "Sweet Home",
     outcome: "Decidir con datos",
+    logo: "/customers/sweet-home.png",
   },
   {
     // Extracto fiel de la cita autorizada: conserva la ventaja comprobable sin

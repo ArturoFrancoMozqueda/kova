@@ -26,10 +26,10 @@ import {
   TestimonialsSection,
 } from "@/landing/LandingSections";
 import HeroProductFrame from "@/landing/HeroProductFrame";
-import SaleFlowStory, {
+import ProductTour, {
   type LandingStoryStepId,
   type LandingStoryTrigger,
-} from "@/landing/SaleFlowStory";
+} from "@/landing/ProductTour";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
@@ -222,9 +222,6 @@ function Hero({
           className="lp-hero-grid"
         >
           <div className="lp-hero-content">
-            <span className="lp-hero-eyebrow">
-              {t.hero.eyebrow}
-            </span>
             <h1
               className="lp-hero-title"
               style={{
@@ -332,9 +329,6 @@ function FAQ({
     <section id="faq" className="lp-section">
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
-          <span className="lp-section-label" data-lp-stagger-item>
-            {t.faq.eyebrow}
-          </span>
           <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>
             {t.faq.title}
           </h2>
@@ -466,56 +460,53 @@ function Pricing({
   return (
     <section id="precio" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
-      <div style={{ textAlign: "center" }}>
-        <span className="lp-section-label">{tp.eyebrow}</span>
-      </div>
-      <h2 className="lp-section-title" style={{ textAlign: "center", marginTop: 16 }}>{tp.title}</h2>
-      <p className="lp-section-copy" style={{ maxWidth: 640, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>{tp.lead}</p>
-      <div className="lp-plans">
-        {plans.map((plan, index) => {
-          const previous = index > 0 ? plans[index - 1] : undefined;
-          const isTop = index === plans.length - 1 && plans.length > 1;
-          const features = plan.features.filter((feature) => !previous?.features.includes(feature) && PLAN_FEATURE_LABELS[feature]);
-          return (
-            <article key={plan.code} className="lp-plan" data-featured={isTop ? "true" : undefined} aria-labelledby={`lp-plan-${plan.code}`}>
-              <div className="lp-plan-top">
-                <h3 id={`lp-plan-${plan.code}`}>{plan.name}</h3>
-                {isTop && <span className="lp-plan-badge">{tp.trialBadge}</span>}
-              </div>
-              {tp.audience[plan.code] && <p className="lp-plan-audience">{tp.audience[plan.code]}</p>}
-              <p className="lp-plan-price tabular">{formatCommercialPrice(plan)}</p>
-              {plan.tax_inclusive && <p className="lp-plan-note">{tp.taxIncluded}</p>}
-              {previous && <p className="lp-plan-inherits">{tp.includesAll(previous.name)}</p>}
-              <ul className="lp-plan-features">
-                {features.map((feature) => (
-                  <li key={feature}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span>{PLAN_FEATURE_LABELS[feature]}</span>
-                  </li>
-                ))}
-              </ul>
-              <ul className="lp-plan-limits">
-                {plan.limits.branches != null && <li>{tp.branches(plan.limits.branches)}</li>}
-                {plan.limits.product_image_bytes != null && <li>{tp.photos(formatImageLimit(plan.limits.product_image_bytes))}</li>}
-                <li>{tp.offline}</li>
-                <li>{tp.noCommission}</li>
-              </ul>
-              <Link
-                className="lp-cta-fill lp-plan-cta"
-                data-featured={isTop ? "true" : undefined}
-                to={primaryTarget}
-                onClick={() => onCtaClick("pricing")}
-              >
-                {tp.cta}
-              </Link>
-            </article>
-          );
-        })}
-      </div>
-      <p className="lp-plans-note">{tp.trialNote}</p>
-      <p className="lp-plans-note" style={{ marginTop: 6 }}>{tp.existingCustomers}</p>
+        <h2 className="lp-section-title" style={{ textAlign: "center" }}>{tp.title}</h2>
+        <p className="lp-section-copy" style={{ maxWidth: 640, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>{tp.lead}</p>
+        <div className="lp-plans" data-lp-stagger-group>
+          {plans.map((plan, index) => {
+            const previous = index > 0 ? plans[index - 1] : undefined;
+            const isTop = index === plans.length - 1 && plans.length > 1;
+            const features = plan.features.filter((feature) => !previous?.features.includes(feature) && PLAN_FEATURE_LABELS[feature]);
+            return (
+              <article key={plan.code} className="lp-plan" data-lp-stagger-item data-featured={isTop ? "true" : undefined} aria-labelledby={`lp-plan-${plan.code}`}>
+                <div className="lp-plan-top">
+                  <h3 id={`lp-plan-${plan.code}`}>{plan.name}</h3>
+                  {isTop && <span className="lp-plan-badge">{tp.trialBadge}</span>}
+                </div>
+                {tp.audience[plan.code] && <p className="lp-plan-audience">{tp.audience[plan.code]}</p>}
+                <p className="lp-plan-price tabular">{formatCommercialPrice(plan)}</p>
+                {plan.tax_inclusive && <p className="lp-plan-note">{tp.taxIncluded}</p>}
+                {previous && <p className="lp-plan-inherits">{tp.includesAll(previous.name)}</p>}
+                <ul className="lp-plan-features">
+                  {features.map((feature) => (
+                    <li key={feature}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span>{PLAN_FEATURE_LABELS[feature]}</span>
+                    </li>
+                  ))}
+                </ul>
+                <ul className="lp-plan-limits">
+                  {plan.limits.branches != null && <li>{tp.branches(plan.limits.branches)}</li>}
+                  {plan.limits.product_image_bytes != null && <li>{tp.photos(formatImageLimit(plan.limits.product_image_bytes))}</li>}
+                  <li>{tp.offline}</li>
+                  <li>{tp.noCommission}</li>
+                </ul>
+                <Link
+                  className="lp-cta-fill lp-plan-cta"
+                  data-featured={isTop ? "true" : undefined}
+                  to={primaryTarget}
+                  onClick={() => onCtaClick("pricing")}
+                >
+                  {tp.cta}
+                </Link>
+              </article>
+            );
+          })}
+        </div>
+        <p className="lp-plans-note">{tp.trialNote}</p>
+        <p className="lp-plans-note" style={{ marginTop: 6 }}>{tp.existingCustomers}</p>
       </div>
     </section>
   );
@@ -715,7 +706,7 @@ export default function Home(): ReactNode {
         />
         <TestimonialsSection />
         <ProblemSection />
-        <SaleFlowStory
+        <ProductTour
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("story")}
           onStepView={onStoryStepView}
