@@ -95,7 +95,9 @@ for (const width of [390, 1440]) {
     await expect(picker.getByRole("button", { name: "Aplicar a esta venta" })).toBeDisabled();
     await picker.getByLabel("El cliente confirma usar sus puntos").check();
     await picker.getByRole("button", { name: "Aplicar a esta venta" }).click();
-    await expect(page.getByLabel("Descuento de la venta (MXN)")).toBeDisabled();
+    // Cashiers lack orders.discount: the manual discount and tax fields are not offered.
+    await expect(page.getByLabel("Descuento de la venta (MXN)")).toHaveCount(0);
+    await expect(page.getByLabel("Impuesto adicional al precio (%)")).toHaveCount(0);
     await expect(page.getByText("Subtotal", { exact: true }).locator("..")).toContainText("$100.00");
     await page.getByRole("radio", { name: "Tarjeta manual", exact: true }).click();
     await expect(page.getByRole("button", { name: /^Cobrar$/ })).toBeEnabled();

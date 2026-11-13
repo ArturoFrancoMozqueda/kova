@@ -20,7 +20,7 @@ from app.inventory.lot_schemas import (
 from app.inventory.router import _idempotency_key
 from app.orders.models import Order
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session
+from app.shared.dependencies import get_current_session, require_permission
 from app.shared.exceptions import bad_request
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -30,7 +30,13 @@ router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
 def snapshot(
     client_uuid: list[UUID] = Query(default=[], max_length=1000),
     db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+    # The snapshot row-locks every lot-tracked product, so it is a selling
+    # operation (Caja refreshes it before offline lot sales), not a free read.
+    # Every selling role holds ORDERS_CREATE; commercial access is already
+    # enforced by the session dependency for this non-recovery route.
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.ORDERS_CREATE)
+    ),
 ):
     _, membership, _ = ctx
     from app.catalog.models import Product
@@ -56,7 +62,9 @@ def snapshot(
 def snapshot_post(
     body: LotSnapshotRequest,
     db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.ORDERS_CREATE)
+    ),
 ):
     return snapshot(client_uuid=body.client_uuids, db=db, ctx=ctx)
 

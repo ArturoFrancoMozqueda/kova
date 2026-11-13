@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FrontendCommitMismatch } from "./verify-deployment.mjs";
-import { candidateUrl, release, releaseProvider } from "./release.mjs";
+import { candidateUrl, causeSuffix, release, releaseProvider } from "./release.mjs";
 import { recoverRelease } from "./release-recovery.mjs";
 
 const artifact = {
@@ -328,4 +328,19 @@ test("new frontend readiness may regress to captured previous at final acceptanc
   assert.deepEqual(deadlines, [deadlines[0], deadlines[0]]);
   assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "promote",
     "ready-new", "acceptance-previous", "acceptance-new"]);
+});
+
+test("a recovered failure keeps only a sanitized transport cause code", async () => {
+  const fake = fixture();
+  const failure = Object.assign(new TypeError("fetch failed"), { cause: Object.assign(
+    new Error("read ECONNRESET https://api.kova.example/?token=secret"), { code: "ECONNRESET" }) });
+  await assert.rejects(release({ artifact, sha, ...fake, expectedBillingOffer: "tiered",
+    verifyOffer: async () => { throw failure; } }), error => {
+    assert.match(error.message, /^RELEASE_FAILED_RECOVERED \(.+\): fetch failed \(cause=ECONNRESET\)$/);
+    assert.doesNotMatch(error.message, /secret|https?:/);
+    return true;
+  });
+  for (const cause of [undefined, { code: "https://x/?t=secret" }, { code: 42 }, { message: "secret" }]) {
+    assert.equal(causeSuffix({ cause }), "");
+  }
 });

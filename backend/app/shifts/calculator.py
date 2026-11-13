@@ -23,10 +23,12 @@ def calculate_expected_cash(
     """
     shift_uuid = UUID(shift_id) if isinstance(shift_id, str) else shift_id
 
-    cash_in = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="cash_in")
-    cash_out = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="cash_out")
-    refund_payout = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="refund_payout")
-    opening = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="opening_balance")
+    sums = repo.get_cash_movement_sums(db, shift_id=shift_uuid)
+    zero = Decimal(0)
+    cash_in = sums.get("cash_in", zero)
+    cash_out = sums.get("cash_out", zero)
+    refund_payout = sums.get("refund_payout", zero)
+    opening = sums.get("opening_balance", zero)
     cash_sales = orders_repo.cash_sales_total_for_shift(
         db, tenant_id=tenant_id, shift_id=shift_uuid
     )

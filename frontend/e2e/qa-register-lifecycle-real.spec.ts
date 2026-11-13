@@ -253,6 +253,8 @@ test.describe("QA: ciclo financiero de Caja con API, PostgreSQL y RLS reales", (
         await page.getByRole("button", { name: "Cerrar turno", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "Cerrar turno", exact: true });
         await dialog.getByLabel("Efectivo real en caja", { exact: true }).fill("155.00");
+        // Blind count: expected cash is revealed on the review step.
+        await dialog.getByRole("button", { name: "Revisar corte", exact: true }).click();
         const closed = nextPost(page, `/shifts/${shift.id}/close`);
         await dialog.getByRole("button", { name: "Cerrar turno", exact: true }).click();
         const response = await closed;

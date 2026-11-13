@@ -512,43 +512,22 @@ def _load_product(db: Session, *, tenant_id: UUID, product_id: UUID) -> Product:
     return product
 
 
-@router.post(
-    "/products/{product_id}/image",
-    response_model=ProductImageUploadResponse,
-    dependencies=[Depends(rate_limit(30, key="catalog-image-upload"))],
-)
-async def upload_product_image(
+def _persist_product_image(
+    db: Session,
+    *,
+    user: User,
+    membership: Membership,
+    product: Product,
     product_id: UUID,
-    request: Request,
-    db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
-    ),
-):
-    user, membership, _ = ctx
-    product = _load_product(db, tenant_id=membership.tenant_id, product_id=product_id)
-
-    parsed = await _parse_image_upload(request)
-    if parsed.content_type not in ALLOWED_CONTENT_TYPES:
-        raise bad_request("Image must be PNG, JPEG, or WebP.")
-    if len(parsed.data) > MAX_IMAGE_BYTES:
-        raise bad_request("Image must be 1 MB or smaller.")
-    verify_image_signature(parsed.content_type, parsed.data)
-
-    tenant_id, user_id = membership.tenant_id, user.id
-    # All authentication/product objects below must be fresh after closing
-    # this read transaction. CPU work holds no connection and cannot block
-    # the ASGI event loop. Revalidate revocation/permissions before mutation.
-    db.close()
-    prepared = await run_in_threadpool(_prepare_upload_variants, parsed.data, parsed.content_type)
-    user, membership, product = await run_in_threadpool(
-        _revalidate_image_upload, request, db, tenant_id, user_id, product_id,
-    )
-
+    content_type: str,
+    data: bytes,
+    prepared,
+) -> str:
+    """Quota check and write in one sync transaction, run off the event loop."""
     from app.billing.plan_policy import enforce_product_image_quota
 
     enforce_product_image_quota(
-        db, tenant_id=tenant_id, product_id=product_id, incoming_bytes=len(parsed.data),
+        db, tenant_id=membership.tenant_id, product_id=product_id, incoming_bytes=len(data),
     )
 
     now = datetime.now(UTC)
@@ -565,10 +544,10 @@ async def upload_product_image(
         )
         db.add(image)
 
-    image.content_type = parsed.content_type
+    image.content_type = content_type
     image.thumbnail_variants = prepared
-    image.bytes_data = parsed.data
-    image.byte_size = len(parsed.data)
+    image.bytes_data = data
+    image.byte_size = len(data)
     image.updated_at = now
 
     image_url = _image_url(product_id, now)
@@ -588,6 +567,56 @@ async def upload_product_image(
     # Session.commit() expires ORM attributes. Reading product.image_url here
     # would start a new transaction after the transaction-local RLS context has
     # been cleared, so return the value already used for the committed update.
+    return image_url
+
+
+@router.post(
+    "/products/{product_id}/image",
+    response_model=ProductImageUploadResponse,
+    dependencies=[Depends(rate_limit(30, key="catalog-image-upload"))],
+)
+async def upload_product_image(
+    product_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.CATALOG_UPDATE)
+    ),
+):
+    user, membership, _ = ctx
+    # Sync SQLAlchemy I/O never runs on the event loop; only the body read is async.
+    await run_in_threadpool(
+        _load_product, db, tenant_id=membership.tenant_id, product_id=product_id
+    )
+
+    parsed = await _parse_image_upload(request)
+    if parsed.content_type not in ALLOWED_CONTENT_TYPES:
+        raise bad_request("Image must be PNG, JPEG, or WebP.")
+    if len(parsed.data) > MAX_IMAGE_BYTES:
+        raise bad_request("Image must be 1 MB or smaller.")
+    verify_image_signature(parsed.content_type, parsed.data)
+
+    tenant_id, user_id = membership.tenant_id, user.id
+    # All authentication/product objects below must be fresh after closing
+    # this read transaction. CPU work holds no connection and cannot block
+    # the ASGI event loop. Revalidate revocation/permissions before mutation.
+    await run_in_threadpool(db.close)
+    prepared = await run_in_threadpool(_prepare_upload_variants, parsed.data, parsed.content_type)
+    user, membership, product = await run_in_threadpool(
+        _revalidate_image_upload, request, db, tenant_id, user_id, product_id,
+    )
+
+    image_url = await run_in_threadpool(
+        _persist_product_image,
+        db,
+        user=user,
+        membership=membership,
+        product=product,
+        product_id=product_id,
+        content_type=parsed.content_type,
+        data=parsed.data,
+        prepared=prepared,
+    )
     return ProductImageUploadResponse(image_url=image_url)
 
 

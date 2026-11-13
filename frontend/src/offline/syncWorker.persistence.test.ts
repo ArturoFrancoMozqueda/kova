@@ -86,7 +86,8 @@ describe("offline worker mixed retry budgets", () => {
     expect(await offlineDb.offline_sales.get("a-exhausted")).toMatchObject({ status: "failed" });
     for (const clientUuid of ["b-retryable", "c-retryable"]) {
       const row = await offlineDb.offline_sales.get(clientUuid);
-      expect(row).toMatchObject({ status: "pending", attempt_count: status === 429 ? 0 : 1 });
+      // Neither a 5xx nor a 429 spends the sale's retry budget.
+      expect(row).toMatchObject({ status: "pending", attempt_count: 0 });
       expect(row?.lease_id).toBeUndefined();
     }
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).sales.map((sale: { client_uuid: string }) => sale.client_uuid))

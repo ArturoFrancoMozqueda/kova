@@ -81,9 +81,15 @@ def get_membership_including_inactive(
 
 
 def get_membership_by_user(db: Session, user_id: UUID) -> Membership | None:
+    # A user can belong to several tenants and there is no tenant switcher yet,
+    # so the session tenant must be stable across logins: always the oldest
+    # active membership (the de-facto legacy choice), with id as a tie-breaker.
+    # Without ORDER BY, Postgres may return any row and a login could land in a
+    # different business from one day to the next.
     return (
         db.query(Membership)
         .filter(Membership.user_id == user_id, Membership.is_active.is_(True))
+        .order_by(Membership.created_at.asc(), Membership.id.asc())
         .first()
     )
 

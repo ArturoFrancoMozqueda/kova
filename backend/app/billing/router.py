@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -25,6 +27,15 @@ from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, forbidden
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
+
+
+def _internal_key_valid(provided: str | None) -> bool:
+    """Constant-time check of the X-Internal-Key header. A missing server key or
+    header always fails; bytes avoid compare_digest's ASCII-only str limit."""
+    expected = settings.internal_api_key
+    if not expected or not provided:
+        return False
+    return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
 
 
 def _idempotency_key(value: str | None = Header(default=None, alias="Idempotency-Key")) -> str:
@@ -171,7 +182,7 @@ def internal_list_subscriptions(
     # single-tenant context. Privileged engine (RLS bypass).
     db: Session = Depends(get_privileged_db),
 ):
-    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+    if not _internal_key_valid(x_internal_key):
         raise forbidden("Invalid or missing internal API key")
     items = repository.list_all_subscriptions(db, offset=offset, limit=limit)
     return InternalSubscriptionListResponse(items=items, total=len(items))
@@ -187,6 +198,6 @@ def internal_reconcile_subscriptions(
     x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
     db: Session = Depends(get_privileged_db),
 ):
-    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+    if not _internal_key_valid(x_internal_key):
         raise forbidden("Invalid or missing internal API key")
     return service.reconcile_subscriptions(db, limit=body.limit)

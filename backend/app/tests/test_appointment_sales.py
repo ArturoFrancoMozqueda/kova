@@ -163,8 +163,18 @@ def test_append_only_runtime_grants_and_role_restriction(client, db):
     member = db.query(Membership).filter_by(tenant_id=UUID(account["tenant_id"])).one()
     member.role = "cashier"
     db.commit()
+    # Linking sales to appointments stays owner/manager; reading the appointment
+    # itself is operational agenda work (appointments.operate).
     assert client.get(BASE + f"/{appointment['id']}/sales").status_code == 403
-    assert client.get(BASE + f"/{appointment['id']}").status_code == 403
+    assert (
+        post(
+            client,
+            f"/{appointment['id']}/sale",
+            {"expected_version": 1, "sale_order_id": str(sale.id)},
+        ).status_code
+        == 403
+    )
+    assert client.get(BASE + f"/{appointment['id']}").status_code == 200
 
 
 def test_links_and_candidates_cannot_cross_branch_tenant_or_billing_gate(client, db, monkeypatch):

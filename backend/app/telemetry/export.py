@@ -117,6 +117,24 @@ def _text_property(properties: dict[str, Any], key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: str) -> str:
+    """Neutralize spreadsheet formulas in browser-supplied text.
+
+    UTM values, CTA labels and client ids come from anonymous visitors; an
+    operator opening the export in Excel or Sheets must never execute them.
+    Leading blanks are ignored when detecting a formula because spreadsheet apps
+    trim them too; the apostrophe renders as a literal text marker.
+    """
+    if value.startswith(_FORMULA_PREFIXES) or value.lstrip(" \t\r\n").startswith(
+        _FORMULA_PREFIXES
+    ):
+        return f"'{value}"
+    return value
+
+
 def build_cro_export(
     db: Session, *, days: int = 30, now: datetime | None = None
 ) -> str:
@@ -160,23 +178,22 @@ def build_cro_export(
     writer = csv.DictWriter(output, fieldnames=CRO_EXPORT_COLUMNS, lineterminator="\n")
     writer.writeheader()
     for created_at, event_name, client_id, properties in rows:
-        writer.writerow(
-            {
-                "date": created_at.astimezone(UTC).isoformat(),
-                "event": event_name,
-                "client_id": client_id,
-                "device_class": _text_property(properties, "device_class"),
-                "viewport_bucket": _text_property(properties, "viewport_bucket"),
-                "source": _text_property(properties, "source"),
-                "medium": _text_property(properties, "medium"),
-                "campaign": _text_property(properties, "campaign"),
-                "cta": _text_property(properties, "cta"),
-                "section": _text_property(properties, "section"),
-                "experiment_id": _text_property(properties, "experiment_id"),
-                "variant": _text_property(properties, "variant"),
-                "conversion_state": _CONVERSION_LABEL.get(stages[client_id], "observed"),
-            }
-        )
+        row = {
+            "date": created_at.astimezone(UTC).isoformat(),
+            "event": event_name,
+            "client_id": client_id,
+            "device_class": _text_property(properties, "device_class"),
+            "viewport_bucket": _text_property(properties, "viewport_bucket"),
+            "source": _text_property(properties, "source"),
+            "medium": _text_property(properties, "medium"),
+            "campaign": _text_property(properties, "campaign"),
+            "cta": _text_property(properties, "cta"),
+            "section": _text_property(properties, "section"),
+            "experiment_id": _text_property(properties, "experiment_id"),
+            "variant": _text_property(properties, "variant"),
+            "conversion_state": _CONVERSION_LABEL.get(stages[client_id], "observed"),
+        }
+        writer.writerow({column: _csv_safe(value) for column, value in row.items()})
     return output.getvalue()
 
 

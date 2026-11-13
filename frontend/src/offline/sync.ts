@@ -8,6 +8,7 @@ import {
 } from "./queue";
 import type { OfflineSaleQueueItem } from "./types";
 import { getActiveOfflineTenant, onActiveOfflineTenantChange } from "./activeTenant";
+import { SyncSessionError } from "./syncStatus";
 
 type ApiSyncResult = {
   client_uuid: string;
@@ -50,7 +51,31 @@ export class BillingAccessError extends Error {
   }
 }
 
+/** The request did not finish in time. Outcome unknown; replay is safe. */
+export class SyncTimeoutError extends Error {
+  constructor() {
+    super("Offline sync request timed out");
+    this.name = "SyncTimeoutError";
+  }
+}
+
+/** Network, timeout or 5xx: the sale is fine, the connection is not. */
+export class SyncTransientError extends Error {
+  constructor(message: string, public readonly status?: number) {
+    super(message);
+    this.name = "SyncTransientError";
+  }
+}
+
+export const SYNC_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_RETRY_AFTER_MS = 60_000;
+// Stored on released rows only; shown to people solely through safeUserMessage.
+const TRANSIENT_MESSAGE = "No hubo respuesta de Kova; la venta sigue guardada y se reintentará.";
+const SESSION_MESSAGE = "La sesión necesita verificarse; la venta sigue guardada y se enviará después.";
+const REJECTED_MESSAGE = "No pudimos registrar esta venta en Kova. Sigue guardada en este dispositivo; revisa sus productos y pagos antes de reintentar.";
+const TOO_LARGE_MESSAGE = "Esta venta es demasiado grande para enviarse. Sigue guardada en este dispositivo; contacta a soporte para registrarla.";
+// Whole-request content errors: bisect the batch to isolate the sale at fault.
+const SPLITTABLE_STATUSES = new Set([400, 413, 422]);
 const ORDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function readSyncResults(body: unknown, tenantId: string, items: OfflineSaleQueueItem[]): ApiSyncResult[] {
@@ -97,6 +122,66 @@ export function parseRetryAfterMs(header: string | null): number {
   return DEFAULT_RETRY_AFTER_MS;
 }
 
+/** Release leases without spending retry budget: the sale is not at fault. */
+function releaseAttempts(tenantId: string, items: OfflineSaleQueueItem[], message: string) {
+  return Promise.all(items.map((item) =>
+    rollbackOfflineSaleAttempt(tenantId, item.client_uuid, item.lease_id!, message),
+  ));
+}
+
+async function syncInHalves(tenantId: string, items: OfflineSaleQueueItem[]): Promise<SyncItemResult[]> {
+  const middle = Math.ceil(items.length / 2);
+  const first = items.slice(0, middle);
+  const second = items.slice(middle);
+  let firstResults: SyncItemResult[];
+  try {
+    firstResults = await syncOfflineSales(tenantId, first);
+  } catch (err) {
+    // The second half is still leased by us; hand it back before unwinding.
+    await releaseAttempts(tenantId, second, TRANSIENT_MESSAGE);
+    throw err;
+  }
+  return [...firstResults, ...await syncOfflineSales(tenantId, second)];
+}
+
+async function handleRejectedBatch(
+  tenantId: string,
+  items: OfflineSaleQueueItem[],
+  response: Response,
+): Promise<SyncItemResult[]> {
+  const status = response.status;
+  if (status === 402) {
+    const error = new BillingAccessError();
+    await releaseAttempts(tenantId, items, error.message);
+    throw error;
+  }
+  // 429: release without burning a retry and let the worker honor Retry-After
+  // instead of sending the remaining chunks as a burst of 429s.
+  if (status === 429) {
+    await releaseAttempts(tenantId, items, TRANSIENT_MESSAGE);
+    throw new RateLimitError("Rate limited; will retry on next sync.", parseRetryAfterMs(response.headers.get("Retry-After")));
+  }
+  if (status >= 500 || status === 408) {
+    await releaseAttempts(tenantId, items, TRANSIENT_MESSAGE);
+    throw new SyncTransientError(`Sync failed with status ${status}`, status);
+  }
+  if (SPLITTABLE_STATUSES.has(status)) {
+    if (items.length > 1) return syncInHalves(tenantId, items);
+    // A single sale the server refuses as a whole is a definitive rejection.
+    const [item] = items;
+    const tooLarge = status === 413;
+    const message = tooLarge ? TOO_LARGE_MESSAGE : REJECTED_MESSAGE;
+    const errorCode = tooLarge ? "SYNC_PAYLOAD_TOO_LARGE" : "SYNC_REJECTED";
+    await markOfflineSaleFailed(tenantId, item.client_uuid, item.lease_id!, message, errorCode);
+    return [{ client_uuid: item.client_uuid, status: "failed", order_id: null, order: null, error: message, error_code: errorCode }];
+  }
+  // 401/403 (session or CSRF), 409 (identity mismatch), 404/405/415 (deploy
+  // mismatch)… none of these describe a sale. Keep every sale pending.
+  const error = new SyncSessionError(status);
+  await releaseAttempts(tenantId, items, error.kind === "session" ? SESSION_MESSAGE : TRANSIENT_MESSAGE);
+  throw error;
+}
+
 export async function syncOfflineSales(
   tenantId: string,
   items: OfflineSaleQueueItem[],
@@ -117,108 +202,76 @@ export async function syncOfflineSales(
     throw new Error("Authenticated tenant changed before offline sync");
   }
 
-  let apiResults: ApiSyncResult[];
-
+  const controller = new AbortController();
+  let timedOut = false;
+  // A hung request must not hold the leases until they expire (and another tab
+  // resends): abort it, release the batch and let the worker back off.
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, SYNC_REQUEST_TIMEOUT_MS);
+  // The listener also aborts an in-flight request if logout/login changes
+  // ownership while the network is pending.
+  const unsubscribe = onActiveOfflineTenantChange((activeTenant) => {
+    if (activeTenant !== tenantId) controller.abort();
+  });
+  let response: Response;
+  let body: unknown;
   try {
-    const controller = new AbortController();
-    const unsubscribe = onActiveOfflineTenantChange((activeTenant) => {
-      if (activeTenant !== tenantId) controller.abort();
-    });
-    // Revalidate immediately before fetch. The listener also aborts an in-flight
-    // request if logout/login changes ownership while the network is pending.
     if (getActiveOfflineTenant() !== tenantId) controller.abort();
-    let response: Response;
-    try {
-      response = await fetch("/api/v1/sync/offline-sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...csrfHeaders("POST") },
-        credentials: "include",
-        signal: controller.signal,
-        body: JSON.stringify({
-          sales: items.map((item) => ({
-            client_uuid: item.client_uuid,
-            ...(item.branch_id ? { branch_id: item.branch_id } : {}),
-            order: item.sale,
-            ...(item.lot_reconciliation ? { lot_reconciliation: item.lot_reconciliation } : {}),
-            ...(item.shift_id ? { shift_id: item.shift_id } : {}),
-            ...(item.created_at ? { occurred_at: item.created_at } : {}),
-          })),
-        }),
-      });
-    } finally {
-      unsubscribe();
-    }
-
-    if (!response.ok) {
-      if (response.status === 402) {
-        const error = new BillingAccessError();
-        await Promise.all(items.map((item) => rollbackOfflineSaleAttempt(
-          tenantId, item.client_uuid, item.lease_id!, error.message,
-        )));
-        throw error;
-      }
-      // 429: server rate-limited us. Don't dead-letter the sales — mark them
-      // back to pending so the next sync attempt retries within the same
-      // queue. Any other 4xx/5xx is a real failure and goes to dead letter.
-      if (response.status === 429) {
-        const message = "Rate limited; will retry on next sync.";
-        for (const item of items) {
-          await rollbackOfflineSaleAttempt(tenantId, item.client_uuid, item.lease_id!, message);
-        }
-        // Signal the worker so it schedules a Retry-After-honoring retry and
-        // stops sending the remaining chunks (a big backlog must not turn into
-        // a burst of 429s).
-        throw new RateLimitError(message, parseRetryAfterMs(response.headers.get("Retry-After")));
-      }
-      const message = `Sync failed with status ${response.status}`;
-      if (response.status >= 500) {
-        await Promise.all(items.map((item) =>
-          markOfflineSaleStatus(tenantId, item.client_uuid, item.lease_id!, "pending", message),
-        ));
-        throw new Error(message);
-      }
-      await Promise.all(items.map((item) =>
-        markOfflineSaleFailed(tenantId, item.client_uuid, item.lease_id!, message),
-      ));
-      return items.map((item) => ({
-        client_uuid: item.client_uuid,
-        status: "failed" as const,
-        order_id: null,
-        order: null,
-        error: message,
-      }));
-    }
-
-    // Validate the entire acknowledgement before releasing any lease. A partial
-    // or malformed 200 must not strand omitted sales in `syncing`, or turn an
-    // unknown result into a dead letter. Replaying the original UUIDs is safe
-    // even when the server already committed some sales from this batch.
-    apiResults = readSyncResults(await response.json(), tenantId, items);
+    response = await fetch("/api/v1/sync/offline-sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...csrfHeaders("POST") },
+      credentials: "include",
+      signal: controller.signal,
+      body: JSON.stringify({
+        sales: items.map((item) => ({
+          client_uuid: item.client_uuid,
+          ...(item.branch_id ? { branch_id: item.branch_id } : {}),
+          order: item.sale,
+          ...(item.lot_reconciliation ? { lot_reconciliation: item.lot_reconciliation } : {}),
+          ...(item.shift_id ? { shift_id: item.shift_id } : {}),
+          ...(item.created_at ? { occurred_at: item.created_at } : {}),
+        })),
+      }),
+    });
+    if (response.ok) body = await response.json();
   } catch (err) {
-    if (err instanceof BillingAccessError) throw err;
-    // Network error — mark back to pending so sync worker can retry
-    for (const item of items) {
-      await markOfflineSaleStatus(
-        tenantId,
-        item.client_uuid,
-        item.lease_id!,
-        "pending",
-        err instanceof Error ? err.message : "Network error",
-      );
-    }
+    // Network failure, timeout, abort or an unreadable body (e.g. a captive
+    // portal page). The outcome is unknown but replaying the same UUIDs is
+    // safe, so release every lease without consuming retry budget.
+    await releaseAttempts(tenantId, items, TRANSIENT_MESSAGE);
+    throw timedOut ? new SyncTimeoutError() : err;
+  } finally {
+    clearTimeout(timer);
+    unsubscribe();
+  }
+
+  if (!response.ok) return handleRejectedBatch(tenantId, items, response);
+
+  // Validate the entire acknowledgement before releasing any lease. A partial
+  // or malformed 200 must not strand omitted sales in `syncing`, or turn an
+  // unknown result into a dead letter. Replaying the original UUIDs is safe
+  // even when the server already committed some sales from this batch. This
+  // keeps the attempt: a server repeatedly answering nonsense is bounded.
+  let apiResults: ApiSyncResult[];
+  try {
+    apiResults = readSyncResults(body, tenantId, items);
+  } catch (err) {
+    await Promise.all(items.map((item) =>
+      markOfflineSaleStatus(tenantId, item.client_uuid, item.lease_id!, "pending", TRANSIENT_MESSAGE),
+    ));
     throw err;
   }
 
   const results: SyncItemResult[] = [];
   for (const result of apiResults) {
+    const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
+    if (!item) continue;
     if (result.status === "synced") {
-      const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
-      if (!item) continue;
       await markOfflineSaleSynced(tenantId, result.client_uuid, item.lease_id!, result.order_id ?? undefined);
       results.push({ ...result, status: "synced" });
     } else {
-      const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
-      if (!item) continue;
       if (result.error_code) await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed", result.error_code);
       else await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed");
       results.push({ ...result, status: "failed", order_id: null, order: null });

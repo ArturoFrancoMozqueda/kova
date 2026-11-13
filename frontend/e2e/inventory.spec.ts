@@ -211,7 +211,7 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   await page.getByRole("button", { name: /definir umbral/i }).click();
   await page.getByRole("spinbutton", { name: /umbral/i }).fill("2");
   await page.getByRole("button", { name: /guardar/i }).click();
-  await expect(page.getByText(/umbral de stock bajo actualizado/i)).toBeVisible();
+  await expect(page.getByText(/umbral de existencias bajas actualizado/i)).toBeVisible();
 });
 
 test("inventory supports search filter and sort at mobile width", async ({ page }) => {

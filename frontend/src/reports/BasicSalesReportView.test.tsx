@@ -49,7 +49,7 @@ it("draws the basic panel with KPI cards, a payment donut and ranked product bar
   api.dashboard.mockResolvedValue({ story: null, summary, advanced_reports_available: false });
   api.payments.mockResolvedValue({ start_date: "2026-11-02", end_date: "2026-11-02", gross_total: "150.00", refund_total: "10.00", net_total: "140.00",
     payments: [{ method: "cash", amount: "110.00", refunded_amount: "10.00", net_amount: "100.00", payment_count: 2 },
-      { method: "card", amount: "40.00", refunded_amount: "0.00", net_amount: "40.00", payment_count: 1 }] });
+      { method: "manual_card", amount: "40.00", refunded_amount: "0.00", net_amount: "40.00", payment_count: 1 }] });
   api.products.mockResolvedValue({ start_date: "2026-11-02", end_date: "2026-11-02",
     products: [{ product_id: "p1", product_name: "Concha", quantity_sold: 3, gross_sales: "90.00" }, { product_id: "p2", product_name: "Café", quantity_sold: 1, gross_sales: "60.00" }] });
   mount(true);

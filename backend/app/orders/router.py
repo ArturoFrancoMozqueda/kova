@@ -18,7 +18,7 @@ from app.orders.schemas import (
     VoidCreate,
     VoidResponse,
 )
-from app.rbac.permissions import Permission
+from app.rbac.permissions import Permission, has_permission
 from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
@@ -69,6 +69,7 @@ def create_order(
         user_id=user.id,
         body=body,
         idempotency_key=idempotency_key,
+        can_adjust_pricing=has_permission(membership.role, Permission.ORDERS_DISCOUNT),
     )
     response.status_code = status_code
     return response_body

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
+import { resolveUserFacingError } from "@/lib/apiError";
 import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
@@ -103,8 +104,8 @@ export default function ExpensesView() {
       toast(editing === "new" ? copy.expenses.created : copy.expenses.updated, "success");
       setEditing(null);
       await load();
-    } catch {
-      toast(copy.expenses.saveError, "error");
+    } catch (err) {
+      toast(resolveUserFacingError(err, copy.expenses.saveError), "error");
     } finally {
       setBusy(false);
     }
@@ -118,8 +119,8 @@ export default function ExpensesView() {
       toast(copy.expenses.deleted, "success");
       setDeleting(null);
       await load();
-    } catch {
-      toast(copy.expenses.deleteError, "error");
+    } catch (err) {
+      toast(resolveUserFacingError(err, copy.expenses.deleteError), "error");
     } finally {
       setBusy(false);
     }

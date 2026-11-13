@@ -62,9 +62,11 @@ export function DashboardVisualOverview({ story, hourly, previous, compareLabel,
   const shifts = salesArea?.status === "ready" ? salesArea.metrics.find(metric => metric.key === "open_shifts")?.value : null;
   const cards = [
     { label: "Ventas netas", value: formatMoney(story.summary.net_sales), icon: TrendingUp, main: true, note: previous?.order_count ? `${formatMoney(previous.net_sales)} ${compareLabel}` : "Sin base anterior" },
-    { label: "Órdenes", value: story.summary.completed_orders.toLocaleString("es-MX"), icon: ShoppingBag, note: "Completadas en el periodo" },
-    { label: "Ticket promedio", value: formatMoney(story.summary.average_ticket), icon: Receipt, note: "Por orden completada" },
-    { label: "Turnos abiertos", value: shifts ?? "Sin datos", icon: CreditCard, note: "Estado actual de caja" },
+    { label: "Ventas", value: story.summary.completed_orders.toLocaleString("es-MX"), icon: ShoppingBag, note: "Completadas en el periodo" },
+    { label: "Ticket promedio", value: formatMoney(story.summary.average_ticket), icon: Receipt, note: "Por venta completada" },
+    // A failed or missing source is "No disponible", never "Sin datos": the
+    // owner must not read an outage as an empty drawer.
+    { label: "Turnos abiertos", value: shifts ?? "No disponible", icon: CreditCard, note: shifts == null ? "No pudimos consultar la caja" : "Estado actual de caja" },
   ];
   return <section aria-label="Tu día" className="mb-5 space-y-4">
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{cards.map(({ label, value, icon: Icon, note, main }) => <div key={label} className={cn("min-w-0 rounded-kova-xl border p-3 sm:p-5", main ? "border-kova-ink bg-kova-ink text-white" : "border-kova-border bg-white")}>

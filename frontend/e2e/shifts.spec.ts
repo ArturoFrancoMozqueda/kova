@@ -142,7 +142,9 @@ test("owner closes a shift and sees reconciliation result", async ({ page }) => 
   await page.route("**/api/v1/shifts", (route) =>
     route.fulfill({ json: isClosed ? [closedShift] : [] }),
   );
+  const closeBodies: unknown[] = [];
   await page.route("**/api/v1/shifts/shift-1/close", async (route) => {
+    closeBodies.push(route.request().postDataJSON());
     isClosed = true;
     await route.fulfill({ json: closedShift });
   });
@@ -153,11 +155,23 @@ test("owner closes a shift and sees reconciliation result", async ({ page }) => 
   await page.getByRole("button", { name: "Cerrar turno", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Cerrar turno", exact: true })).toBeVisible();
 
+  // Blind count: expected cash and the difference stay hidden until the count is reviewed.
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Efectivo esperado", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText("$1,050.00")).toHaveCount(0);
   await page.getByLabel(/efectivo real en caja/i).fill("1050.00");
-  await page.locator("form").getByRole("button", { name: "Cerrar turno", exact: true }).click();
+  await expect(dialog.getByText("Diferencia", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Revisar corte", exact: true }).click();
+  expect(closeBodies).toEqual([]);
+  await expect(dialog.getByText("Efectivo esperado", { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByLabel("Vista previa del corte de caja")).toBeVisible();
+  await expect(dialog.getByText("Diferencia", { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Corregir conteo", exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cerrar turno", exact: true }).click();
 
   await expect(page.getByRole("status")).toHaveText(/turno cerrado correctamente/i);
   await expect(page.getByRole("table").getByText(/caja cuadrada/i)).toBeVisible();
+  expect(closeBodies).toEqual([{ actual_cash_amount: "1050.00" }]);
 });
 
 test("staff user without open permission does not see Open Shift button", async ({ page }) => {

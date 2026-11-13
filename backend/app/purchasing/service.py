@@ -27,16 +27,17 @@ def suppliers(db: Session, tenant_id: UUID):
     )
 
 
-def serialize(db: Session, order: PurchaseOrder):
-    items = (
-        db.query(PurchaseOrderItem)
-        .filter(
-            PurchaseOrderItem.tenant_id == order.tenant_id,
-            PurchaseOrderItem.purchase_order_id == order.id,
+def serialize(db: Session, order: PurchaseOrder, items: list | None = None):
+    if items is None:
+        items = (
+            db.query(PurchaseOrderItem)
+            .filter(
+                PurchaseOrderItem.tenant_id == order.tenant_id,
+                PurchaseOrderItem.purchase_order_id == order.id,
+            )
+            .order_by(PurchaseOrderItem.product_name)
+            .all()
         )
-        .order_by(PurchaseOrderItem.product_name)
-        .all()
-    )
     return PurchaseResponse(
         **{
             field: getattr(order, field)
@@ -63,7 +64,20 @@ def orders(db: Session, tenant_id: UUID, limit: int = 100, offset: int = 0):
         .offset(offset)
         .all()
     )
-    return [serialize(db, order) for order in rows]
+    # One IN query for the page's items instead of one query per purchase order.
+    items_by_order: dict[UUID, list[PurchaseOrderItem]] = {row.id: [] for row in rows}
+    if rows:
+        for item in (
+            db.query(PurchaseOrderItem)
+            .filter(
+                PurchaseOrderItem.tenant_id == tenant_id,
+                PurchaseOrderItem.purchase_order_id.in_(list(items_by_order)),
+            )
+            .order_by(PurchaseOrderItem.product_name)
+            .all()
+        ):
+            items_by_order[item.purchase_order_id].append(item)
+    return [serialize(db, order, items_by_order[order.id]) for order in rows]
 
 
 def _finish(

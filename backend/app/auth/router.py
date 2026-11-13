@@ -18,7 +18,7 @@ from app.auth.schemas import (
 from app.config import settings
 from app.db import get_db, get_privileged_db
 from app.middleware.csrf import clear_csrf_cookie, set_csrf_cookie
-from app.middleware.rate_limit import enforce_rate_limit, rate_limit
+from app.middleware.rate_limit import _get_client_ip, enforce_rate_limit, rate_limit
 from app.shared.dependencies import get_current_session
 from app.telemetry import service as telemetry_service
 
@@ -31,6 +31,22 @@ def _account_bucket(prefix: str, email: str) -> str:
     store (e.g. Redis keys)."""
     digest = hashlib.sha256(email.encode()).hexdigest()
     return f"{prefix}:{digest}"
+
+
+def request_client_ip(request: Request) -> str | None:
+    """Real client IP for audit and consent records.
+
+    ``request.client.host`` is the edge proxy in production. Reuse the rate
+    limiter's resolution, which reads only the configured trusted header
+    (``TRUSTED_CLIENT_IP_HEADER``, set by our own edge) and falls back to the
+    socket peer; arbitrary forwarding headers are never trusted.
+    """
+    ip = _get_client_ip(request)
+    if ip != "unknown":
+        return ip
+    # Nothing parsed as an IP (e.g. a unix-socket peer): keep the raw peer label
+    # as before rather than dropping the record.
+    return request.client.host[:45] if request.client and request.client.host else None
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -87,7 +103,7 @@ def signup(
         tenant_name=body.tenant_name,
         accepted_terms=body.accepted_terms,
         billing_offer_revision=body.billing_offer_revision,
-        ip_address=request.client.host if request.client else None,
+        ip_address=request_client_ip(request),
     )
     if outcome.reason == service.SignupOutcome.ACCOUNT_CREATED:
         # Written here, not by the browser: the event is now true by
@@ -140,7 +156,7 @@ def resend_verification(
     """
     user, _, _ = ctx
     service.resend_verification_for_user(
-        db, user=user, ip_address=request.client.host if request.client else None
+        db, user=user, ip_address=request_client_ip(request)
     )
     return MessageResponse(message="Verification email sent.")
 
@@ -155,19 +171,26 @@ def login(
     db: Session = Depends(get_privileged_db),
 ):
     # Per-account throttle bounds distributed password-spraying against a single
-    # account that the per-IP limit alone would miss. Window is short and the cap
-    # generous so a real user is essentially never tripped, keeping the worst-case
-    # targeted lockout brief (see docs / plan: failure-only counting is a follow-up).
-    enforce_rate_limit(
-        bucket_key=_account_bucket("auth-login-acct", body.email),
-        max_requests=10, window_seconds=600, fail_closed=True,
-    )
+    # account that the per-IP limit alone would miss. It counts failures only:
+    # for real accounts the service keeps a failure streak that a successful
+    # login resets, so a third party can't burn an owner's budget by watching
+    # them sign in. Unknown addresses use the attempt limiter below, where every
+    # attempt is a failure anyway.
+    def unknown_account_throttle() -> None:
+        enforce_rate_limit(
+            bucket_key=_account_bucket("auth-login-acct", body.email),
+            max_requests=service.LOGIN_FAILURE_LIMIT,
+            window_seconds=service.LOGIN_FAILURE_WINDOW_SECONDS,
+            fail_closed=True,
+        )
+
     access_token, refresh_token, _ = service.login(
         db,
         email=body.email,
         password=body.password,
-        ip_address=request.client.host if request.client else None,
+        ip_address=request_client_ip(request),
         user_agent=request.headers.get("user-agent"),
+        unknown_account_throttle=unknown_account_throttle,
     )
     _set_auth_cookies(response, access_token, refresh_token)
     return {"message": "Logged in."}
@@ -192,7 +215,7 @@ def logout(
     ctx=Depends(get_current_session),
 ):
     _, _, session = ctx
-    ip = request.client.host if request.client else None
+    ip = request_client_ip(request)
     service.logout(db, session=session, ip_address=ip)
     _clear_auth_cookies(response)
 
@@ -213,7 +236,7 @@ def logout_all(
         db,
         user_id=user.id,
         tenant_id=membership.tenant_id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=request_client_ip(request),
     )
     _clear_auth_cookies(response)
 

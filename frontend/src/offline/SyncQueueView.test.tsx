@@ -11,11 +11,14 @@ const queueState = vi.hoisted(() => ({
   discardQuarantined: vi.fn(),
   failedEntries: [] as OfflineSaleQueueItem[],
   tenantId: "tenant-1",
+  pendingCount: 0,
+  syncIssue: null as "session" | "unavailable" | null,
 }));
 
 vi.mock("./useSyncQueue", () => ({
   useSyncQueue: () => ({
-    pendingCount: 0,
+    pendingCount: queueState.pendingCount,
+    syncIssue: queueState.syncIssue,
     failedEntries: queueState.failedEntries,
     quarantinedCount: queueState.quarantinedCount,
     syncNow: vi.fn(),
@@ -37,6 +40,8 @@ describe("SyncQueueView", () => {
     queueState.quarantinedCount = 0;
     queueState.failedEntries = [];
     queueState.tenantId = "tenant-1";
+    queueState.pendingCount = 0;
+    queueState.syncIssue = null;
     queueState.discardQuarantined.mockReset().mockResolvedValue(0);
     vi.mocked(readCatalogCache).mockReset().mockResolvedValue(undefined);
   });
@@ -97,6 +102,27 @@ describe("SyncQueueView", () => {
     fireEvent.click(screen.getByText(copy.syncQueue.technicalDetail));
     expect(screen.getByText("Tarjeta manual: $18.50")).toBeVisible();
     expect(screen.queryByText(/SQLAlchemy|11111111|manual_card/)).not.toBeInTheDocument();
+  });
+
+  it("explains a session block without blaming the pending sales", () => {
+    queueState.pendingCount = 3;
+    queueState.syncIssue = "session";
+    render(<MemoryRouter><SyncQueueView /></MemoryRouter>);
+    expect(screen.getByText(copy.syncQueue.sessionIssueTitle)).toBeVisible();
+    expect(screen.getByText(copy.syncQueue.sessionIssueBody)).toBeVisible();
+    expect(screen.queryByText(copy.syncQueue.failed)).not.toBeInTheDocument();
+  });
+
+  it("uses reassuring copy for failed sales without a safe server message", () => {
+    queueState.failedEntries = [{
+      client_uuid: "sale-old", tenant_id: "tenant-1", status: "failed",
+      sale: { items: [{ product_id: "p", quantity: 1 }], payments: [{ method: "cash", amount: "18.50" }] },
+      last_error: "Max sync attempts exceeded", attempt_count: 6,
+      created_at: "2026-10-04T12:00:00Z", updated_at: "2026-10-04T12:00:00Z",
+    }];
+    render(<MemoryRouter><SyncQueueView /></MemoryRouter>);
+    expect(screen.getByText(copy.syncQueue.failedFallback)).toBeVisible();
+    expect(screen.queryByText(/Revisa sus datos|Max sync/)).not.toBeInTheDocument();
   });
 
   it("announces legacy recovery without exposing sale payloads or a retry action", async () => {

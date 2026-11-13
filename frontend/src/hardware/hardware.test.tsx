@@ -33,6 +33,33 @@ describe("cash drawer setup and failures", () => {
     expect(api.openDrawer).not.toHaveBeenCalled();
   });
 
+  it("does not poll the connector when no drawer is configured", async () => {
+    vi.useFakeTimers();
+    try {
+      api.getDrawerStatus.mockResolvedValue({ configured: false, online: false, auto_open: false });
+      const { result } = renderHook(useCashDrawer);
+      await act(async () => { await Promise.resolve(); });
+      expect(result.current.device?.configured).toBe(false);
+      await act(async () => { vi.advanceTimersByTime(60_000); });
+      expect(api.getDrawerStatus).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps polling connector health while a drawer is configured", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(useCashDrawer);
+      await act(async () => { await Promise.resolve(); });
+      expect(result.current.device?.configured).toBe(true);
+      await act(async () => { vi.advanceTimersByTime(15_000); });
+      expect(api.getDrawerStatus).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("saves changes without rotating the paired device key", async () => {
     api.saveDrawerSettings.mockResolvedValue({ configured: true, online: true, auto_open: false });
     render(<DrawerSettings />);

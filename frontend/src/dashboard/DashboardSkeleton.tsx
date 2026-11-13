@@ -17,7 +17,7 @@ export function DashboardSkeleton({ scopePending, branchCount = 2 }: {
         </div>}
         <div className="mb-5 space-y-4">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {["Ventas netas", "Órdenes", "Ticket promedio", "Turnos abiertos"].map((label, index) => (
+            {["Ventas netas", "Ventas", "Ticket promedio", "Turnos abiertos"].map((label, index) => (
               <div key={label} className={`min-w-0 rounded-kova-xl border p-3 sm:p-5 ${index === 0 ? "border-kova-ink bg-kova-ink text-white" : "border-kova-border bg-white"}`}>
                 <p className={`text-xs font-medium ${index === 0 ? "text-white/80" : "text-kova-muted"}`}>{label}</p>
                 <Skeleton className={`mt-3 h-7 w-3/4 sm:h-9 ${index === 0 ? "bg-white/15" : ""}`} />

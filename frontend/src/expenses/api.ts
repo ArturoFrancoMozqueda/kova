@@ -1,9 +1,27 @@
+import { csrfHeaders } from "@/lib/csrf";
 import { invalidateReportsCache } from "@/reports/api";
 import type { Expense, ExpensePayload } from "./types";
 
+/** Carries the HTTP status and raw body so views can map it through
+ * `resolveUserFacingError` instead of rendering the response text. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) throw new Error(await response.text());
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      ...csrfHeaders(init?.method),
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!response.ok) throw new ApiError(await response.text(), response.status);
   return (await response.json()) as T;
 }
 

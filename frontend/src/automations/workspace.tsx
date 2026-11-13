@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/auth/useAuth";
+import { permissionsForRole } from "@/auth/permissions";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { ViewPermissionDenied } from "@/components/ui/view-states";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -13,6 +14,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { csrfHeaders } from "@/lib/csrf";
 import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
+import { copy } from "@/i18n/messages";
 
 export type WorkspaceIdentity = {
   tenantId: string;
@@ -22,14 +24,20 @@ export type WorkspaceIdentity = {
 
 export function OperationsSession({
   children,
+  permission,
 }: {
   children: (identity: WorkspaceIdentity) => ReactNode;
+  /** Opens the workspace to every role holding this permission (e.g. the
+   * operational agenda). Without it, only owner and manager enter. */
+  permission?: string;
 }) {
   const { state } = useAuth();
-  if (
-    state.status !== "authenticated" ||
-    !["owner", "manager"].includes(state.user.role)
-  ) {
+  const allowed = state.status === "authenticated" && (
+    permission
+      ? permissionsForRole(state.user.role).has(permission)
+      : ["owner", "manager"].includes(state.user.role)
+  );
+  if (state.status !== "authenticated" || !allowed) {
     return (
       <ViewPermissionDenied
         title="Acceso de administración"
@@ -99,7 +107,9 @@ export function useOperationsRequest(
     ): Promise<T> => {
       if (!navigator.onLine)
         throw new OperationsError("Conéctate a internet para continuar.", 0);
-      const response = await fetch(`${base}${path}`, {
+      let response: Response;
+      try {
+        response = await fetch(`${base}${path}`, {
         method,
         credentials: "include",
         cache: "no-store",
@@ -113,7 +123,13 @@ export function useOperationsRequest(
           ...(key ? { "Idempotency-Key": key } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-      });
+        });
+      } catch (err) {
+        // Aborts stay silent for callers; a dropped connection ("Failed to
+        // fetch") becomes the shared network copy, never the raw text.
+        if (err instanceof DOMException && err.name === "AbortError") throw err;
+        throw new OperationsError(resolveApiErrorMessage(err, copy.errors.network), 0);
+      }
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as {
           detail?: string | { message?: string };

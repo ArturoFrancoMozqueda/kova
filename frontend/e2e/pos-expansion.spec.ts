@@ -197,7 +197,7 @@ test("mobile owner creates a customer and reviews purchases and refunds", async 
   await noOverflow(page);
 });
 
-test("cashier can find customers but cannot edit or inspect purchase history", async ({
+test("cashier can find and create customers but cannot edit or inspect purchase history", async ({
   page,
 }) => {
   await shell(page, "cashier");
@@ -211,9 +211,9 @@ test("cashier can find customers but cannot edit or inspect purchase history", a
   });
   await page.goto("/customers");
   await expect(page.getByText(customer.name, { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nuevo cliente" })).toHaveCount(
-    0,
-  );
+  // customers.create is granted to every role so the counter can register a
+  // new customer; editing existing records stays owner/manager only.
+  await expect(page.getByRole("button", { name: "Nuevo cliente" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Editar", exact: true }),
   ).toHaveCount(0);

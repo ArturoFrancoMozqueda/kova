@@ -7,7 +7,7 @@ El modo opcional de [solicitudes de mesa](table-requests.md) conserva los contra
 
 El dueño necesita organizar servicios, personas o espacios y horarios sin mezclar configuración
 con atención diaria. El cliente puede reservar desde un calendario público sin cuenta ni anticipo.
-Owner y manager conservan el acceso comercial y RBAC de Agenda; Caja mantiene sus propios permisos.
+Owner y manager conservan el acceso comercial y RBAC de Agenda; Caja mantiene sus propios permisos. Ver, cancelar y reprogramar reservas ya recibidas y el calendario también están disponibles para cashier y staff (`appointments.operate`, detalle en `internal-agenda.md`); la configuración sigue siendo owner/manager.
 
 ## Operación
 

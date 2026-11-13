@@ -1,9 +1,10 @@
 import { liveQuery } from "dexie";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { offlineDb } from "./db";
 import { discardQuarantinedSales, retryDeadLetter } from "./queue";
 import { triggerSync } from "./syncWorker";
+import { getSyncIssue, subscribeSyncIssue } from "./syncStatus";
 import type { OfflineSaleQueueItem } from "./types";
 import { useAuth } from "@/auth/useAuth";
 
@@ -19,6 +20,7 @@ export function useSyncQueue(shiftId?: string) {
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const [queueState, setQueueState] = useState(EMPTY_QUEUE);
+  const syncIssue = useSyncExternalStore(subscribeSyncIssue, getSyncIssue, getSyncIssue);
 
   useEffect(() => {
     if (!tenantId) {
@@ -77,6 +79,9 @@ export function useSyncQueue(shiftId?: string) {
     pendingCount: visibleQueue.pendingCount,
     failedEntries: visibleQueue.failedEntries,
     quarantinedCount: visibleQueue.quarantinedCount,
+    // Batch-level problem (e.g. the session needs revalidation) that keeps
+    // sales pending; never shown for another tenant.
+    syncIssue: syncIssue && syncIssue.tenantId === tenantId ? syncIssue.kind : null,
     ready: Object.values(visibleQueue.loaded).every(Boolean),
     syncNow: () => tenantId ? triggerSync(tenantId) : Promise.resolve(),
     retryDeadLetter: (clientUuid: string) => tenantId

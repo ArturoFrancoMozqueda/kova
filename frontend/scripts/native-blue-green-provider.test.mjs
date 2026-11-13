@@ -371,3 +371,134 @@ for (const scenario of ["fresh", "already_present", "appeared", "foreign_identit
     }
   });
 }
+
+const transport = code => Object.assign(new TypeError("fetch failed"), { cause: Object.assign(
+  new Error(`connect ${code} 10.0.0.1:443 Authorization: secret`), { code }) });
+
+function scriptedProvider({ route: initialRoute = "legacy", staged: initialStaged = null, script }) {
+  let route = initialRoute, staged = initialStaged, clock = 1_000_000;
+  const calls = {}, mutations = [];
+  const fetcher = async url => {
+    const path = new URL(url).pathname;
+    const queue = script[path] ?? [];
+    const index = calls[path] = (calls[path] ?? -1) + 1;
+    const step = queue[Math.min(index, queue.length - 1)];
+    if (typeof step === "string") throw transport(step);
+    if (step?.status) return new Response("{}", { status: step.status });
+    const slot = path === "/health/candidate" ? staged : route;
+    const sha = step?.sha ?? (slot === "legacy" ? previous : target);
+    const body = path.endsWith("/drain") ? { release_sha: sha, replaceable: step?.replaceable ?? true }
+      : { status: "ok", release_sha: sha, db: "reachable", offer_verified: true };
+    return Response.json(body, { headers: { "x-kova-process-id": (slot === "legacy" ? "a" : "b").repeat(32),
+      "x-kova-controller-sha": sha, "x-kova-boot-controller-sha": sha } });
+  };
+  const run = async (_command, args, options) => {
+    if (!args[0].endsWith("/cf")) return "";
+    const command = args.slice(1);
+    if (command.slice(0, 3).join(" ") === "workers deployments list") {
+      const worker = command[command.indexOf("--script-name") + 1];
+      return JSON.stringify({ deployments: [{ versions: [{ version_id: worker === "kova-backend" ? coreVersion : version,
+        percentage: 100 }] }] });
+    }
+    if (command.slice(0, 3).join(" ") === "workers versions get") {
+      return JSON.stringify({ id: version, env: {
+        API: { type: "durable_object_namespace", class_name: "KovaApi", script_name: slotWorker(route) },
+        ...(route === "legacy" ? {} : { KOVA_NATIVE_ACTIVE_SLOT: { type: "plain_text", text: route } }),
+        ...(staged ? { KOVA_NATIVE_CANDIDATE_SLOT: { type: "plain_text", text: staged } } : {}) } });
+    }
+    if (command.slice(0, 3).join(" ") === "workers deployments create") {
+      mutations.push("restore"); route = "legacy"; staged = null; return "";
+    }
+    assert.equal(command[0], "deploy");
+    if (command.includes("--dry-run")) return "";
+    const worker = command[command.indexOf("--worker") + 1];
+    mutations.push(worker);
+    if (worker === "kova-backend-gateway") {
+      route = options.env.KOVA_NATIVE_ACTIVE_SLOT; staged = options.env.KOVA_NATIVE_CANDIDATE_SLOT;
+    }
+    return "";
+  };
+  const provider = nativeBlueGreenProvider({ run, env: {}, fetcher, now: () => clock,
+    wait: async ms => { clock += ms; } });
+  return { provider, calls, mutations, get route() { return route; } };
+}
+
+test("a transient transport reset while the candidate warms is retried and then publishes", async () => {
+  const fixture = scriptedProvider({ script: { "/health/candidate": ["ECONNRESET", "UND_ERR_SOCKET", {}] } });
+  const result = await fixture.provider.publish(target, previous, baseline());
+  assert.equal(result.processId, "b".repeat(32));
+  assert.equal(fixture.calls["/health/candidate"], 2);
+  assert.equal(fixture.route, "green");
+});
+
+for (const [code, pattern] of [["ENOTFOUND", /dns_not_found/], ["CERT_HAS_EXPIRED", /certificate/]]) {
+  test(`${code} while the candidate warms fails closed on the first try`, async () => {
+    const fixture = scriptedProvider({ script: { "/health/candidate": [code, {}] } });
+    await assert.rejects(fixture.provider.publish(target, previous, baseline()), error => {
+      assert.match(error.message, pattern);
+      assert.doesNotMatch(error.message, /secret|10\.0\.0\.1|kovasuite/);
+      return true;
+    });
+    assert.equal(fixture.calls["/health/candidate"], 0);
+    assert.equal(fixture.route, "legacy");
+    assert.deepEqual(fixture.mutations, ["kova-api-green", "kova-backend-gateway"]);
+  });
+}
+
+test("a foreign candidate identity after a transport reset still fails closed", async () => {
+  const fixture = scriptedProvider({ script: { "/health/candidate": ["ECONNRESET", { sha: "f".repeat(40) }] } });
+  await assert.rejects(fixture.provider.publish(target, previous, baseline()), /uncaptured release identity/);
+  assert.equal(fixture.route, "legacy");
+});
+
+test("persistent transport resets exhaust the unchanged budget and report a sanitized last failure", async () => {
+  const fixture = scriptedProvider({ script: { "/health/candidate": ["ECONNRESET"] } });
+  await assert.rejects(fixture.provider.publish(target, previous, baseline()), error => {
+    assert.match(error.message, /Candidate API failed readiness.*cause=ECONNRESET/);
+    assert.doesNotMatch(error.message, /secret|10\.0\.0\.1|kovasuite/);
+    return true;
+  });
+  assert.equal(fixture.calls["/health/candidate"], 599);
+  assert.equal(fixture.route, "legacy");
+});
+
+test("rollback warming retries a transport reset and restores the exact old process", async () => {
+  const fixture = scriptedProvider({ route: "green", staged: "legacy",
+    script: { "/health/candidate": ["ECONNRESET", "ECONNREFUSED", {}] } });
+  const result = await fixture.provider.restore(versions, baseline());
+  assert.equal(result.processId, baseline().activeProcessId);
+  assert.equal(result.previousProcessId, "b".repeat(32));
+  assert.deepEqual(fixture.mutations, ["restore"]);
+  assert.equal(fixture.route, "legacy");
+});
+
+test("rollback warming fails closed on DNS failure and on a foreign identity after a reset", async () => {
+  const dns = scriptedProvider({ route: "green", staged: "legacy", script: { "/health/candidate": ["ENOTFOUND"] } });
+  await assert.rejects(dns.provider.restore(versions, baseline()), /dns_not_found/);
+  assert.deepEqual(dns.mutations, []);
+  const foreign = scriptedProvider({ route: "green", staged: "legacy",
+    script: { "/health/candidate": ["ECONNRESET", { sha: "f".repeat(40) }] } });
+  await assert.rejects(foreign.provider.restore(versions, baseline()), /foreign release/);
+  assert.deepEqual(foreign.mutations, []);
+});
+
+test("the drain gate tolerates a transport reset but never a DNS failure or unexpected status", async () => {
+  const record = slot => ({ workerVersion: version, applicationId: version, namespaceId: "f".repeat(32),
+    image: `registry.cloudflare.com/47d850c847503be3597dc7165cfea177/kova-api-${slot}:${previous.slice(0, 12)}`,
+    releaseSha: previous });
+  const snapshot = { ...baseline(), activeSlot: "green", activeProcessId: "b".repeat(32), activeReleaseSha: target,
+    slots: { blue: record("blue"), green: { ...record("green"), releaseSha: target } } };
+  const drain = steps => scriptedProvider({ route: "green", staged: "blue",
+    script: { "/health": [{ sha: target }], "/health/candidate/drain": steps,
+      "/health/candidate": [{ sha: previous }] } });
+  const ok = drain(["ECONNRESET", { sha: previous, replaceable: true }]);
+  await ok.provider.publish(previous, target, snapshot);
+  assert.equal(ok.calls["/health/candidate/drain"], 1);
+  assert.equal(ok.route, "blue");
+  for (const [steps, pattern] of [[["ENOTFOUND"], /dns_not_found/], [[{ status: 503 }], /drain state/]]) {
+    const failed = drain(steps);
+    await assert.rejects(failed.provider.publish(previous, target, snapshot), pattern);
+    assert.equal(failed.route, "green");
+    assert.equal(failed.mutations.includes("kova-api-blue"), false);
+  }
+});

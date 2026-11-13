@@ -7,6 +7,7 @@ import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
 import {
+  APPOINTMENTS_OPERATE_PERMISSION,
   BILLING_VIEW_PERMISSION,
   CATALOG_CREATE_PERMISSION,
   CUSTOMER_ORDER_CREATE_PERMISSION,
@@ -172,6 +173,7 @@ export default function AppShell() {
     [CUSTOMERS_VIEW_PERMISSION]: usePermission(CUSTOMERS_VIEW_PERMISSION),
     [INVENTORY_ADJUST_PERMISSION]: usePermission(INVENTORY_ADJUST_PERMISSION),
     [CUSTOMER_ORDER_VIEW_PERMISSION]: usePermission(CUSTOMER_ORDER_VIEW_PERMISSION),
+    [APPOINTMENTS_OPERATE_PERMISSION]: usePermission(APPOINTMENTS_OPERATE_PERMISSION),
   };
   const filteredNavItems = visibleNavItems({
     role: userRole,
@@ -183,7 +185,7 @@ export default function AppShell() {
     marginReportsEnabled,
     customerOrdersEnabled,
   });
-  const operationNavItems = ["/register", "/dashboard", "/operations-queue", "/customers", "/orders", "/shifts", "/pedidos"]
+  const operationNavItems = ["/register", "/dashboard", "/operations-queue", "/customers", "/orders", "/shifts", "/pedidos", "/appointments"]
     .flatMap(path => filteredNavItems.filter(item => item.to === path && item.group === "operation"));
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
   const searchingSections = !(isDesktop && sidebarCollapsed) && navigationQuery.trim().length > 0;

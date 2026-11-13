@@ -76,7 +76,7 @@ def _effective_status(row):
     return row.status
 
 
-def _serialize(db, row):
+def _serialize(db, row, items=None):
     return QuoteResponse(
         id=row.id,
         folio=row.folio,
@@ -85,7 +85,7 @@ def _serialize(db, row):
         opportunity_id=row.opportunity_id,
         customer_name=row.customer_name,
         expires_at=row.expires_at,
-        items=_items(db, row),
+        items=_items(db, row) if items is None else items,
         total_amount=row.total_amount,
         version=row.version,
         customer_order_id=row.customer_order_id,
@@ -141,7 +141,24 @@ def list_quotes(db: Session, *, tenant_id: UUID, limit=50, offset=0) -> QuoteLis
         .limit(limit)
         .all()
     )
-    return QuoteList(items=[_serialize(db, row) for row in rows], total=total)
+    # One IN query for the page's lines instead of one query per quote. Rows
+    # already share the tenant and active branch selected by _query.
+    items_by_quote: dict[UUID, list[CustomerQuoteItem]] = {row.id: [] for row in rows}
+    if rows:
+        for item in (
+            db.query(CustomerQuoteItem)
+            .filter(
+                CustomerQuoteItem.tenant_id == tenant_id,
+                CustomerQuoteItem.branch_id == rows[0].branch_id,
+                CustomerQuoteItem.quote_id.in_(list(items_by_quote)),
+            )
+            .order_by(CustomerQuoteItem.product_id)
+            .all()
+        ):
+            items_by_quote[item.quote_id].append(item)
+    return QuoteList(
+        items=[_serialize(db, row, items_by_quote[row.id]) for row in rows], total=total
+    )
 
 
 def journey(db: Session, *, tenant_id: UUID, quote_id: UUID) -> QuoteJourney:

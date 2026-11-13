@@ -458,36 +458,17 @@ async def document_upload(
     db=Depends(get_db),
     ctx=Depends(require_enabled),
 ):
-    tenant, user, branch = scope(db, ctx)
-    if not settings.assistant_documents_enabled or not storage.ready():
-        raise HTTPException(503, "Las cargas privadas no están habilitadas.")
-    if replaces:
-        old = repo.get(db, tenant, user, "document", replaces)
-        if purpose != "knowledge" or old.data.get("purpose") != "knowledge":
-            raise HTTPException(422, "Solo se pueden reemplazar documentos de conocimiento.")
-    from uuid import uuid4
-
-    from app.assistant.models import AssistantRecord
-    from app.assistant.worker import acquire, release
-
-    lease = AssistantRecord(id=uuid4(), tenant_id=tenant, owner_user_id=user)
-    if not acquire(db, lease):
-        db.rollback()
-        raise HTTPException(
-            429, "Espera a que termine la carga actual.", headers={"Retry-After": "5"}
-        )
-    budget.charge(db, [(f"upload:{tenant}:{user}", 1, 20), (f"upload:{tenant}", 1, 50)])
-    budget.charge(
-        db, [(f"upload_hour:{tenant}:{user}", 1, 5)], window=now().strftime("%Y-%m-%dT%H")
+    # Sync SQLAlchemy and storage I/O run in the threadpool, like every sync
+    # route; only the request body read stays on the event loop.
+    tenant, user, branch, lease_id = await run_in_threadpool(
+        _reserve_document_upload, db, ctx, purpose, replaces
     )
-    db.commit()
     try:
         try:
             content = await asyncio.wait_for(request.body(), timeout=30)
         except TimeoutError:
             raise HTTPException(408, "La carga tardó demasiado. Vuelve a intentarlo.") from None
-        budget.charge(db, [(f"upload_bytes:{tenant}", len(content), 200 * 1024 * 1024)])
-        db.commit()
+        await run_in_threadpool(_charge_upload_bytes, db, tenant, len(content))
         row = await run_in_threadpool(
             documents.upload,
             db,
@@ -500,8 +481,47 @@ async def document_upload(
             replaces=replaces,
         )
     finally:
-        release(db, lease.id)
-    return repo.view(db, tenant, user, row)
+        await run_in_threadpool(_release_upload_lease, db, lease_id)
+    return await run_in_threadpool(repo.view, db, tenant, user, row)
+
+
+def _reserve_document_upload(db, ctx, purpose: str, replaces: UUID | None):
+    tenant, user, branch = scope(db, ctx)
+    if not settings.assistant_documents_enabled or not storage.ready():
+        raise HTTPException(503, "Las cargas privadas no están habilitadas.")
+    if replaces:
+        old = repo.get(db, tenant, user, "document", replaces)
+        if purpose != "knowledge" or old.data.get("purpose") != "knowledge":
+            raise HTTPException(422, "Solo se pueden reemplazar documentos de conocimiento.")
+    from uuid import uuid4
+
+    from app.assistant.models import AssistantRecord
+    from app.assistant.worker import acquire
+
+    lease = AssistantRecord(id=uuid4(), tenant_id=tenant, owner_user_id=user)
+    if not acquire(db, lease):
+        db.rollback()
+        raise HTTPException(
+            429, "Espera a que termine la carga actual.", headers={"Retry-After": "5"}
+        )
+    lease_id = lease.id
+    budget.charge(db, [(f"upload:{tenant}:{user}", 1, 20), (f"upload:{tenant}", 1, 50)])
+    budget.charge(
+        db, [(f"upload_hour:{tenant}:{user}", 1, 5)], window=now().strftime("%Y-%m-%dT%H")
+    )
+    db.commit()
+    return tenant, user, branch, lease_id
+
+
+def _charge_upload_bytes(db, tenant, size: int) -> None:
+    budget.charge(db, [(f"upload_bytes:{tenant}", size, 200 * 1024 * 1024)])
+    db.commit()
+
+
+def _release_upload_lease(db, lease_id) -> None:
+    from app.assistant.worker import release
+
+    release(db, lease_id)
 
 
 @router.get("/documents/{identifier}/source")

@@ -8,7 +8,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.auth.models import User
 from app.business_settings.models import BusinessProfile
@@ -208,7 +208,14 @@ def refunds_in_window(
 def sales_by_employee_rows(
     db: Session, *, tenant_id: UUID, start: datetime, end: datetime
 ) -> list:
-    """Per-user net sales rollup. Uses a subquery to fold refunds into Order rows."""
+    """Per-user net sales rollup. Uses a subquery to fold refunds into Order rows.
+
+    Refunds stay attributed to the original sale (refunded later or not). The
+    subquery is bounded to the same sale cohort as the outer query, so it no
+    longer aggregates the tenant's entire refund history; the outer join only
+    ever matched these orders, so totals are unchanged.
+    """
+    window_orders = aliased(Order)
     refunds_by_order = (
         db.query(
             Refund.order_id.label("order_id"),
@@ -217,7 +224,17 @@ def sales_by_employee_rows(
             ),
             func.count(Refund.id).label("refund_count"),
         )
-        .filter(Refund.tenant_id == tenant_id)
+        .join(
+            window_orders,
+            (window_orders.tenant_id == Refund.tenant_id)
+            & (window_orders.id == Refund.order_id),
+        )
+        .filter(
+            Refund.tenant_id == tenant_id,
+            window_orders.status == "completed",
+            func.coalesce(window_orders.occurred_at, window_orders.created_at) >= start,
+            func.coalesce(window_orders.occurred_at, window_orders.created_at) <= end,
+        )
         .group_by(Refund.order_id)
         .subquery()
     )

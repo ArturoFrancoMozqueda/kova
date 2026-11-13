@@ -3,12 +3,15 @@ from enum import StrEnum
 
 class Permission(StrEnum):
     CUSTOMERS_VIEW = "customers.view"
+    CUSTOMERS_CREATE = "customers.create"
     CUSTOMERS_MANAGE = "customers.manage"
     CUSTOMERS_HISTORY = "customers.history"
     CATALOG_CREATE = "catalog.create"
     CATALOG_UPDATE = "catalog.update"
     CATALOG_DELETE = "catalog.delete"
     ORDERS_CREATE = "orders.create"
+    # Manual sale discount or an additional tax rate other than the tenant default.
+    ORDERS_DISCOUNT = "orders.discount"
     ORDERS_REFUND = "orders.refund"
     ORDERS_VOID = "orders.void"
     CUSTOMER_ORDERS_VIEW = "customer_orders.view"
@@ -27,18 +30,22 @@ class Permission(StrEnum):
     SETTINGS_MANAGE = "settings.manage"
     FISCAL_VIEW = "fiscal.view"
     FISCAL_MANAGE = "fiscal.manage"
+    # Day-to-day agenda work (appointments and calendar); configuration stays owner/manager.
+    APPOINTMENTS_OPERATE = "appointments.operate"
 
 
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "owner": set(Permission),
     "manager": {
         Permission.CUSTOMERS_VIEW,
+        Permission.CUSTOMERS_CREATE,
         Permission.CUSTOMERS_MANAGE,
         Permission.CUSTOMERS_HISTORY,
         Permission.CATALOG_CREATE,
         Permission.CATALOG_UPDATE,
         Permission.CATALOG_DELETE,
         Permission.ORDERS_CREATE,
+        Permission.ORDERS_DISCOUNT,
         Permission.ORDERS_REFUND,
         Permission.ORDERS_VOID,
         Permission.CUSTOMER_ORDERS_VIEW,
@@ -53,9 +60,12 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.REPORTS_VIEW_ALL,
         Permission.SETTINGS_MANAGE,
         Permission.FISCAL_VIEW,
+        Permission.APPOINTMENTS_OPERATE,
     },
     "cashier": {
         Permission.CUSTOMERS_VIEW,
+        Permission.CUSTOMERS_CREATE,
+        Permission.APPOINTMENTS_OPERATE,
         Permission.ORDERS_CREATE,
         Permission.CUSTOMER_ORDERS_VIEW,
         Permission.CUSTOMER_ORDERS_CREATE,
@@ -67,6 +77,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     },
     "staff": {
         Permission.CUSTOMERS_VIEW,
+        Permission.CUSTOMERS_CREATE,
+        Permission.APPOINTMENTS_OPERATE,
         Permission.ORDERS_CREATE,
         Permission.CUSTOMER_ORDERS_VIEW,
         Permission.CUSTOMER_ORDERS_CREATE,

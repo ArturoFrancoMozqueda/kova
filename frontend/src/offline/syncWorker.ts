@@ -6,11 +6,24 @@ import {
   recoverExpiredLeases,
 } from "./queue";
 import { BillingAccessError, RateLimitError, syncOfflineSales } from "./sync";
+import { purgeSyncedSales } from "./storage";
+import { setSyncIssue, SyncSessionError } from "./syncStatus";
 
+// Attempts are only consumed by sends whose outcome stayed unknown for reasons
+// other than the connection (an expired lease after a crashed tab, or a
+// malformed acknowledgement). Network errors, timeouts, 5xx, 429 and
+// batch-level 4xx roll their attempt back, so an outage never exhausts this.
 const MAX_ATTEMPTS = 5;
+// Transient failures retry indefinitely while online, capped at 2 minutes.
 const BACKOFF_MS = [2_000, 8_000, 30_000, 60_000, 120_000];
-const SYNC_CHUNK_SIZE = 100;
+// The backend processes a batch serially; small chunks keep each request well
+// under the client timeout and free the leases sooner.
+export const SYNC_CHUNK_SIZE = 25;
+const PURGE_INTERVAL_MS = 60 * 60_000;
+const EXHAUSTED_MESSAGE = "No pudimos confirmar esta venta tras varios intentos. Sigue guardada en este dispositivo; al reintentar no se duplicará.";
 const workerId = crypto.randomUUID();
+let transientFailures = 0;
+let lastPurgeAt = 0;
 
 let syncingTenant: string | null = null;
 let retryTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -42,6 +55,8 @@ function scheduleActivationSync(tenantId: string) {
 // has not published its tenant yet. The deferred retry closes that mount race.
 onActiveOfflineTenantChange((tenantId) => {
   stopOfflineSync();
+  transientFailures = 0;
+  setSyncIssue(null);
   if (tenantId) scheduleActivationSync(tenantId);
 });
 
@@ -63,8 +78,26 @@ function scheduleRetryIn(tenantId: string, delayMs: number) {
   }, delayMs);
 }
 
-function scheduleRetry(tenantId: string, minAttemptCount: number) {
-  scheduleRetryIn(tenantId, BACKOFF_MS[Math.min(minAttemptCount, BACKOFF_MS.length - 1)]);
+function nextBackoffMs() {
+  const delay = BACKOFF_MS[Math.min(transientFailures, BACKOFF_MS.length - 1)];
+  transientFailures += 1;
+  return delay;
+}
+
+function noteSyncIssue(tenantId: string, error: unknown) {
+  if (error instanceof SyncSessionError) setSyncIssue({ tenantId, kind: error.kind });
+}
+
+/** Keeps the local queue bounded; never touches unconfirmed or failed sales. */
+async function purgeIfDue() {
+  const now = Date.now();
+  if (now - lastPurgeAt < PURGE_INTERVAL_MS) return;
+  lastPurgeAt = now;
+  try {
+    await purgeSyncedSales();
+  } catch {
+    // Housekeeping only; a failed purge must never block a sync.
+  }
 }
 
 /** Foreground checkout also uses leased sync, so transient failures must hand
@@ -72,6 +105,7 @@ function scheduleRetry(tenantId: string, minAttemptCount: number) {
 export function scheduleOfflineSyncRetry(tenantId: string, error: unknown) {
   if (error instanceof BillingAccessError) return;
   if (!tenantId || getActiveOfflineTenant() !== tenantId) return;
+  noteSyncIssue(tenantId, error);
   scheduleRetryIn(tenantId, error instanceof RateLimitError ? error.retryAfterMs : BACKOFF_MS[0]);
 }
 
@@ -79,6 +113,7 @@ export async function triggerSync(tenantId: string): Promise<void> {
   if (!tenantId || getActiveOfflineTenant() !== tenantId || syncingTenant || !navigator.onLine) return;
   syncingTenant = tenantId;
   try {
+    await purgeIfDue();
     await recoverExpiredLeases(tenantId);
     while (getActiveOfflineTenant() === tenantId) {
       const candidates = await offlineDb.offline_sales
@@ -101,13 +136,17 @@ export async function triggerSync(tenantId: string): Promise<void> {
             tenantId,
             entry.client_uuid,
             entry.lease_id!,
-            "Max sync attempts exceeded",
+            EXHAUSTED_MESSAGE,
+            "SYNC_UNCONFIRMED",
           );
         } else {
           retryable.push(entry);
         }
       }
       if (retryable.length > 0) await syncOfflineSales(tenantId, retryable);
+      // The server answered this chunk: the connection and session are fine.
+      transientFailures = 0;
+      setSyncIssue(null);
     }
   } catch (err) {
     if (err instanceof BillingAccessError) return;
@@ -116,13 +155,12 @@ export async function triggerSync(tenantId: string): Promise<void> {
       scheduleRetryIn(tenantId, err.retryAfterMs);
       return;
     }
+    noteSyncIssue(tenantId, err);
     const pending = await offlineDb.offline_sales
       .where("[tenant_id+status]")
       .equals([tenantId, "pending"])
       .toArray();
-    if (pending.length > 0) {
-      scheduleRetry(tenantId, Math.min(...pending.map((entry) => entry.attempt_count)));
-    }
+    if (pending.length > 0) scheduleRetryIn(tenantId, nextBackoffMs());
   } finally {
     syncingTenant = null;
     const activeTenant = getActiveOfflineTenant();

@@ -1,4 +1,5 @@
 import { csrfHeaders } from "../lib/csrf";
+import { invalidateOrderLists } from "./queryKeys";
 import type {
   Order,
   OrderCreatePayload,
@@ -58,12 +59,18 @@ export function getReceipt(orderId: string): Promise<Receipt> {
   return requestJson<Receipt>(`/api/v1/orders/${orderId}/receipt`);
 }
 
+async function andInvalidateOrders<T>(request: Promise<T>): Promise<T> {
+  const result = await request;
+  invalidateOrderLists();
+  return result;
+}
+
 export function createOrder(payload: OrderCreatePayload): Promise<Order> {
-  return requestJson<Order>("/api/v1/orders", {
+  return andInvalidateOrders(requestJson<Order>("/api/v1/orders", {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(payload),
-  });
+  }));
 }
 
 export function createRefund(
@@ -71,17 +78,17 @@ export function createRefund(
   payload: RefundPayload,
   idempotencyKey: string,
 ): Promise<ReceiptRefund> {
-  return requestJson<ReceiptRefund>(`/api/v1/orders/${orderId}/refunds`, {
+  return andInvalidateOrders(requestJson<ReceiptRefund>(`/api/v1/orders/${orderId}/refunds`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(payload),
-  });
+  }));
 }
 
 export function createVoid(orderId: string, reason: string, notDelivered?: boolean): Promise<ReceiptVoid> {
-  return requestJson<ReceiptVoid>(`/api/v1/orders/${orderId}/void`, {
+  return andInvalidateOrders(requestJson<ReceiptVoid>(`/api/v1/orders/${orderId}/void`, {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({ reason, ...(notDelivered !== undefined ? { not_delivered: notDelivered } : {}) }),
-  });
+  }));
 }

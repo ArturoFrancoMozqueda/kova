@@ -1,7 +1,7 @@
 # Agenda interna por recurso y sucursal
 
-Corte solicitado 2026-10-19. Agenda owner/manager con acceso comercial, cookies/CSRF y sucursal
-autorizada. No conecta Google/Meta, no expone disponibilidad pública, no cobra ni crea ventas.
+Corte solicitado 2026-10-19. Agenda con acceso comercial, cookies/CSRF y sucursal autorizada.
+Permisos en "Roles de la agenda" (abajo). No conecta Google/Meta, no expone disponibilidad pública, no cobra ni crea ventas.
 
 El dueño define recursos reales (por ejemplo una persona o un espacio) y su zona IANA mexicana:
 America/Mexico_City, Cancun, Tijuana, Hermosillo, Mazatlan o Monterrey. No se crean recursos de
@@ -80,3 +80,21 @@ una cita atendida como pagada. Las listas agregan devoluciones por página, sin 
 
 La ampliación de calendario y reservas públicas se describe en [reservas públicas](public-booking.md).
 Los contratos internos de este documento permanecen; su bloqueo también protege contra reservas públicas.
+
+## Roles de la agenda (2026-11-13)
+
+`appointments.operate` (owner, manager, cashier, staff) cubre la operación diaria de recepción:
+
+- `GET /api/v1/appointments`, `POST /api/v1/appointments`, `GET /{id}`, `GET /{id}/history`,
+  `POST /{id}/reschedule`, `POST /{id}/transition` (cancelar, atendida, no se presentó).
+- `GET /resources` (sólo lectura, para elegir recurso al agendar) y `GET /calendar`.
+- Reservas públicas ya recibidas: `GET /bookings/{id}`, `POST /bookings/{id}/cancel`,
+  `POST /bookings/{id}/reschedule`.
+
+Siguen con la barrera de configuración (owner/manager con `settings.manage`): `POST/PATCH
+/resources`, `GET/POST/PUT /services`, `GET/PUT /availability/{resource_id}`, `GET/PUT
+/booking-page`, `POST /booking-preview`, `POST /booking-invites`, `POST /bookings/{id}/customer`,
+`POST /bookings/{id}/revoke`, recordatorios (`/reminders`), vínculo de ventas (`GET /{id}/sales`,
+`POST /{id}/sale`) y solicitudes de mesa (`/table-reservations`, requieren revisión). Todas las rutas
+conservan `require_commercial_access`. Pruebas: `test_appointments.py`
+(`test_front_desk_roles_operate_agenda_not_configuration`) y `test_appointment_sales.py`.

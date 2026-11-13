@@ -114,5 +114,6 @@ function SectionLoading({ label }: { label: string }) {
   return <div role="status" aria-label={label} aria-busy="true" className="space-y-3"><Skeleton className="h-6 w-1/2" /><Skeleton className="h-24 w-full" /></div>;
 }
 function paymentLabel(method: string) {
-  return ({ cash: "Efectivo", card: "Tarjeta", transfer: "Transferencia", bank_transfer: "Transferencia" } as Record<string, string>)[method] ?? "Otra forma de pago";
+  // Backend payment methods: cash | bank_transfer | manual_card (backend/app/orders/schemas.py).
+  return ({ cash: "Efectivo", manual_card: "Tarjeta", bank_transfer: "Transferencia" } as Record<string, string>)[method] ?? "Otra forma de pago";
 }

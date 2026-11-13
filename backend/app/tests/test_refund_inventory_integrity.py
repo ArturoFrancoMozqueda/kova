@@ -288,30 +288,47 @@ def test_void_uses_sale_ledger_instead_of_current_tracking_flag(client, db):
     ) == [-1, 1]
 
 
-def test_order_locks_products_in_stable_uuid_order(client, monkeypatch):
+def test_order_locks_products_in_stable_uuid_order(client, db, monkeypatch):
     _signup_verify_login(client, label="lock-order")
     _open_shift(client, label="lock-order")
     first = _create_product(client, label="lock-first", price="10.00", track_inventory=False)
     second = _create_product(client, label="lock-second", price="20.00", track_inventory=False)
 
+    from sqlalchemy import event
+
     from app.orders import repository as orders_repo
 
-    original_get = orders_repo.get_active_product_for_update
-    locked_ids = []
+    # Checkout now locks the whole cart with one SELECT ... ORDER BY id FOR UPDATE
+    # (PostgreSQL locks rows after sorting), instead of one locking query per product.
+    original_get = orders_repo.get_active_products_for_update
+    locked_calls = []
 
-    def recording_get(db, *, tenant_id, product_id):
-        locked_ids.append(product_id)
-        return original_get(db, tenant_id=tenant_id, product_id=product_id)
+    def recording_get(db, *, tenant_id, product_ids):
+        locked_calls.append(list(product_ids))
+        return original_get(db, tenant_id=tenant_id, product_ids=product_ids)
 
-    monkeypatch.setattr(orders_repo, "get_active_product_for_update", recording_get)
+    monkeypatch.setattr(orders_repo, "get_active_products_for_update", recording_get)
     cart = sorted([first, second], key=lambda product: UUID(product["id"]).int, reverse=True)
+    locking_selects = []
 
-    _create_cash_order(
-        client,
-        items=[{"product_id": product["id"], "quantity": 1} for product in cart],
-        amount="30.00",
-        label="lock-order",
-    )
+    def record_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if "FROM products" in statement and "FOR UPDATE" in statement:
+            locking_selects.append(statement)
 
+    event.listen(db.bind, "before_cursor_execute", record_sql)
+    try:
+        _create_cash_order(
+            client,
+            items=[{"product_id": product["id"], "quantity": 1} for product in cart],
+            amount="30.00",
+            label="lock-order",
+        )
+    finally:
+        event.remove(db.bind, "before_cursor_execute", record_sql)
+
+    assert len(locked_calls) == 1
+    locked_ids = locked_calls[0]
     assert locked_ids == sorted(locked_ids, key=lambda product_id: product_id.int)
     assert set(locked_ids) == {UUID(first["id"]), UUID(second["id"])}
+    assert len(locking_selects) == 1
+    assert "ORDER BY products.id" in locking_selects[0]

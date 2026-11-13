@@ -145,7 +145,7 @@ export function BusinessControlCenter({ destinations, snapshot, control = null, 
                   </div>;
                 })}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
                   {snapshot && area.id === "sales"
-                    ? `${snapshot.orderCount} ${snapshot.orderCount === 1 ? "orden completada" : "órdenes completadas"}`
+                    ? `${snapshot.orderCount} ${snapshot.orderCount === 1 ? "venta completada" : "ventas completadas"}`
                     : snapshot && area.id === "products"
                       ? needsStock
                         ? `${snapshot.lowStockCount} ${snapshot.lowStockCount === 1 ? "producto por reponer" : "productos por reponer"}`

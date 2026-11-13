@@ -19,6 +19,7 @@ import {
   CATALOG_CREATE_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
   ORDER_CREATE_PERMISSION,
+  ORDER_DISCOUNT_PERMISSION,
   SHIFT_OPEN_PERMISSION,
   usePermission,
 } from "../auth/permissions";
@@ -30,6 +31,7 @@ import type { StockItem } from "../inventory/types";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import { getReceipt } from "../orders/api";
+import { invalidateOrderLists } from "../orders/queryKeys";
 import { ReceiptTemplate } from "../orders/ReceiptTemplate";
 import { TicketPaper } from "@/components/ui/ticket";
 import type { Order, Receipt } from "../orders/types";
@@ -154,6 +156,9 @@ function restoreCartLine(
 
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
 
+/** Window in which focus + visibilitychange count as one return to the tab. */
+const RETURN_REFRESH_GUARD_MS = 2000;
+
 type PaymentDraft = {
   id: string;
   method: PaymentMethod;
@@ -243,6 +248,9 @@ function RegularRegisterView() {
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
   const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
   const canOpenDrawer = usePermission(SHIFT_OPEN_PERMISSION);
+  // Manual discount and a non-default tax rate need orders.discount online; the
+  // backend rejects them otherwise, so the controls stay hidden for that role.
+  const canAdjustPricing = usePermission(ORDER_DISCOUNT_PERMISSION);
   const { toast } = useToast();
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
@@ -264,7 +272,7 @@ function RegularRegisterView() {
     setCart({}); setCashTendered(""); setReference(""); setDiscount("0.00");
     setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]);
     setRewardChoice(null); setPendingReceipt(null); setCompletedOrder(order);
-    resetCashInteraction(); void refreshStock();
+    resetCashInteraction(); void refreshStock(); invalidateOrderLists();
     if (navigator.onLine && order.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount_amount) > 0)) void drawer.open("sale", "", order.id);
     void trackFunnelEventOnce("first_sale", "first_sale_completed");
     toast(copy.register.saleComplete, { variant: "success", srOnly: true });
@@ -330,6 +338,9 @@ function RegularRegisterView() {
   // Undo actions belong to the cart that created them, never to the next sale.
   const cartGenerationRef = useRef(0);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  // Polite screen-reader announcement for a sale kept on this device without
+  // connection; the persistent live region below reads it out.
+  const [offlineSaleAnnouncement, setOfflineSaleAnnouncement] = useState("");
   const [pendingReceipt, setPendingReceipt] = useState<{
     clientUuid: string;
     snapshot: OfflineReceiptSnapshot;
@@ -488,6 +499,7 @@ function RegularRegisterView() {
     setSplitPayments([createPaymentDraft("cash")]);
     setCompletedOrder(null);
     setPendingReceipt(null);
+    setOfflineSaleAnnouncement("");
     activeSaleClientUuidRef.current = null;
     submittingRef.current = false;
     // Desktop counters scan the next item right away: put focus back on the
@@ -764,16 +776,20 @@ function RegularRegisterView() {
 
   // Re-check the shift when the cashier returns to the tab: another device may
   // have opened or closed the drawer in the meantime.
+  // Returning to the tab usually fires both `focus` and `visibilitychange`;
+  // a short guard keeps that to a single shift + stock request.
   useEffect(() => {
-    const onFocus = () => {
+    let lastReturnRefreshAt = 0;
+    const refreshOnReturn = () => {
+      const now = Date.now();
+      if (now - lastReturnRefreshAt < RETURN_REFRESH_GUARD_MS) return;
+      lastReturnRefreshAt = now;
       refreshShift();
       void refreshStock();
     };
+    const onFocus = () => refreshOnReturn();
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        refreshShift();
-        void refreshStock();
-      }
+      if (document.visibilityState === "visible") refreshOnReturn();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
@@ -1346,7 +1362,11 @@ function RegularRegisterView() {
 
     // The sale and its printable receipt are already durable. A known offline
     // session must not claim a sync lease or spend retries before reconnecting.
-    if (!navigator.onLine || (state.status === "authenticated" && state.sessionMode === "offline")) return;
+    if (!navigator.onLine || (state.status === "authenticated" && state.sessionMode === "offline")) {
+      setOfflineSaleAnnouncement(copy.register.offlineSaleSavedAnnouncement);
+      return;
+    }
+    setOfflineSaleAnnouncement("");
 
     void claimOfflineSale(tenantId!, queueItem.client_uuid, `register:${crypto.randomUUID()}`)
       .then((claimed) => claimed ? syncOfflineSales(tenantId!, [claimed]) : [])
@@ -1355,6 +1375,7 @@ function RegularRegisterView() {
         if (!result) return;
         if (result.status === "synced" && result.order) {
           trackFunnelEventOnce("first_sale", "first_sale_completed");
+          invalidateOrderLists();
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           setPendingReceipt(null);
           setCompletedOrder(result.order as Order);
@@ -1433,6 +1454,7 @@ function RegularRegisterView() {
       <div className="mb-6">
         <ViewHeader title={copy.register.title} />
       </div>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">{offlineSaleAnnouncement}</div>
       <DrawerActions drawer={drawer} canOpen={hasOpenShift === true && canOpenDrawer} />
       {(rewardCheckout.pending || rewardCheckout.error) && <section ref={rewardRecoveryRef} tabIndex={-1} aria-label="Confirmar venta con recompensa" className="mb-4 scroll-mt-4 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm focus:outline-none">
         {rewardCheckout.pending && <><p className="font-semibold">Hay una venta con recompensa por confirmar</p><p>Consulta su resultado antes de cobrar otra vez. Se conservaron la venta y su referencia para evitar duplicados.</p><Button type="button" disabled={rewardCheckout.busy || !online} onClick={() => void rewardCheckout.retry()}>{rewardCheckout.busy ? "Consultando…" : "Consultar resultado de la venta"}</Button></>}
@@ -1526,6 +1548,7 @@ function RegularRegisterView() {
                   }
                 }}
                 placeholder={copy.register.skuSearchPlaceholder}
+                aria-label={copy.register.skuSearchLabel}
                 className="h-11 w-full rounded-kova-md border border-kova-border bg-kova-mist/30 py-2 pl-9 pr-9 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-kova-blue focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/20"
               />
               {skuQuery && (
@@ -1540,12 +1563,15 @@ function RegularRegisterView() {
               )}
             </div>
 
-            {/* SKU match results */}
-            {skuQuery && !skuSearchPending && skuMatches.length === 0 && (
-              <p className="mt-1.5 text-xs text-muted-foreground px-1">
-                {copy.register.skuNoMatch(skuQuery)}
-              </p>
-            )}
+            {/* SKU match results. The live region stays mounted so screen
+                readers announce "no encontrado" for scanner input too. */}
+            <p
+              aria-live="polite"
+              aria-atomic="true"
+              className={skuQuery && !skuSearchPending && skuMatches.length === 0 ? "mt-1.5 text-xs text-muted-foreground px-1" : "sr-only"}
+            >
+              {skuQuery && !skuSearchPending && skuMatches.length === 0 ? copy.register.skuNoMatch(skuQuery) : ""}
+            </p>
             {skuMatches.length > 1 && (
               <div className="mt-1.5 space-y-1 animate-fade-in">
                 <p className="text-xs text-muted-foreground px-1">{copy.register.skuMultipleMatches}</p>
@@ -1853,11 +1879,13 @@ function RegularRegisterView() {
                       {customerId && !customers.some((customer) => customer.id === customerId) && <option value={customerId}>{selectedCustomerName || "Cliente seleccionado"}</option>}
                       {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
                     </Select>
-                    <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
-                    <Input id="sale-discount" inputMode="decimal" value={discount} disabled={Boolean(selectedReward)} onChange={(event) => setDiscount(event.target.value)} />
-                    <Label htmlFor="sale-tax">{copy.register.saleTax}</Label>
-                    <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
-                    <p className="text-xs text-muted-foreground">{copy.register.saleTaxHint}</p>
+                    {canAdjustPricing && <>
+                      <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
+                      <Input id="sale-discount" inputMode="decimal" value={discount} disabled={Boolean(selectedReward)} onChange={(event) => setDiscount(event.target.value)} />
+                      <Label htmlFor="sale-tax">{copy.register.saleTax}</Label>
+                      <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
+                      <p className="text-xs text-muted-foreground">{copy.register.saleTaxHint}</p>
+                    </>}
                     {!pricing.valid && <p role="alert" className="text-sm text-destructive">{copy.register.salePricingInvalid}</p>}
                   </div>
                 </details>

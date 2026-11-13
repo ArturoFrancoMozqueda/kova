@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
@@ -86,26 +87,9 @@ def _logo_url(tenant_id: UUID, updated_at: datetime) -> str:
     return f"/api/v1/settings/receipt/logo/{tenant_id}?v={epoch}"
 
 
-@router.post(
-    "/receipt/logo",
-    response_model=LogoUploadResponse,
-    dependencies=[Depends(rate_limit(10, key="settings-logo-upload"))],
-)
-async def upload_receipt_logo(
-    request: Request,
-    db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(
-        require_commercial_access(Permission.SETTINGS_MANAGE)
-    ),
-):
-    user, membership, _ = ctx
-    parsed = await _parse_logo_upload(request)
-    if parsed.content_type not in ALLOWED_CONTENT_TYPES:
-        raise bad_request("Logo must be PNG, JPEG, or WebP.")
-    if len(parsed.data) > MAX_LOGO_BYTES:
-        raise bad_request("Logo must be 512 KB or smaller.")
-    verify_image_signature(parsed.content_type, parsed.data)
-
+def _persist_logo(
+    db: Session, *, user: User, membership: Membership, parsed: ParsedMultipartFile
+) -> str:
     now = datetime.now(UTC)
     logo = (
         db.query(TenantLogoFile)
@@ -146,6 +130,33 @@ async def upload_receipt_logo(
     # Session.commit() expires ORM attributes and clears the transaction-local
     # RLS context. Return the value already persisted instead of starting an
     # unsafe post-commit refresh of tenant_receipt_settings.
+    return logo_url
+
+
+@router.post(
+    "/receipt/logo",
+    response_model=LogoUploadResponse,
+    dependencies=[Depends(rate_limit(10, key="settings-logo-upload"))],
+)
+async def upload_receipt_logo(
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.SETTINGS_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    parsed = await _parse_logo_upload(request)
+    if parsed.content_type not in ALLOWED_CONTENT_TYPES:
+        raise bad_request("Logo must be PNG, JPEG, or WebP.")
+    if len(parsed.data) > MAX_LOGO_BYTES:
+        raise bad_request("Logo must be 512 KB or smaller.")
+    verify_image_signature(parsed.content_type, parsed.data)
+
+    # Sync SQLAlchemy I/O never runs on the event loop; only the body read is async.
+    logo_url = await run_in_threadpool(
+        _persist_logo, db, user=user, membership=membership, parsed=parsed
+    )
     return LogoUploadResponse(logo_url=logo_url)
 
 

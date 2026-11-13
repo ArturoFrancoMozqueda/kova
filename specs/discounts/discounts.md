@@ -1,82 +1,61 @@
 # Descuentos de venta
 
-## Estado y gate
+## Estado
 
-Especificado, no implementado. Requiere 10 pilotos activos, política comercial aprobada y entrada
-explícita en `docs/current-sprint.md`.
+Implementado (V1): un descuento por venta en MXN (`discount_amount`) y una tasa adicional
+(`tax_rate`) sobre `POST /api/v1/orders` y la cola offline. Cálculo, redondeo, prorrateo por línea,
+devoluciones y tickets se describen en `specs/sales-pricing.md`. Lo que sigue en "Pendiente" no
+está implementado.
 
-## Resultado para el usuario
+## Autorización (servidor)
 
-Owner o manager autorizado aplica un descuento de línea o de orden con tipo, valor y motivo. El
-ticket, devolución y reporte explican cuánto se descontó sin alterar el precio histórico.
+- Permiso `orders.discount`: owner y manager. Cashier y staff no lo tienen.
+- Venta en línea (`POST /api/v1/orders`, sin `client_uuid`):
+  - `discount_amount > 0` sin `orders.discount` → `403`; no se crea venta, pago ni movimiento.
+  - `tax_rate` distinta de la tasa predeterminada del negocio
+    (`tenant_receipt_settings.default_tax_rate`, `0.00` si no hay configuración) sin
+    `orders.discount` → `403`. La comparación es numérica (`16` = `16.00`). Cashier y staff venden
+    siempre con la tasa configurada; cambiarla para una venta requiere owner o manager.
+  - El permiso se resuelve con la membresía de la sesión, nunca con datos del navegador.
+- Canje de recompensa de lealtad: el checkout rechaza descuentos del cliente y aplica el importe de
+  la recompensa definido en el servidor, así que no exige `orders.discount`; la tasa sí se valida.
+- Precio unitario congelado (`unit_price_amount`) sin `client_uuid` → `400`, como antes.
 
-## Contrato funcional
+## Ventas offline (`POST /api/v1/sync/offline-sales`, con `client_uuid`)
 
-- Tipos: `fixed` y `percentage`; alcance: `line` u `order`.
-- Motivo requerido, 1-160 caracteres, más `reason_code` configurable de catálogo controlado.
-- Un descuento de orden se prorratea entre líneas por base neta, con residuo asignado de forma
-  determinista a la línea de mayor base y luego por `order_item.id`.
-- Descuentos de línea se aplican antes del prorrateo de orden; impuestos usan la base posterior.
-- El total de una línea y el total de orden nunca pueden ser negativos.
-- Devolución usa el neto/descuento prorrateado original; no recalcula con la política vigente.
-- Void revierte inventario y excluye la venta de netos, pero conserva snapshots/auditoría.
+Una venta en cola ya se cobró en el mostrador; puede ser legítima aunque se haya calculado con un
+catálogo o una tasa desactualizados. Por eso **nunca se rechaza ni se descarta** por estos controles.
+Se acepta tal como se cobró y se registra una entrada de auditoría `orders.pricing_review`
+(recurso = venta) cuando ocurre cualquiera de estos casos:
 
-## Datos propuestos
+- `discount_without_permission`: descuento > 0 y el usuario no tiene `orders.discount`.
+- `tax_rate_without_permission`: tasa distinta de la predeterminada y sin `orders.discount`.
+- `unit_price_differs_from_catalog`: algún precio unitario congelado difiere del precio vigente del
+  producto más modificadores (se audita para cualquier rol).
 
-`sale_discount_intents`: `id`, `tenant_id`, `order_id`, `order_item_id nullable`, `scope`, `kind`,
-`value`, `reason_code`, `reason`, `authorized_by_user_id`, `created_at`.
-
-Snapshots no nulos con default cero:
-
-- `order_items.gross_line_amount`, `line_discount_amount`, `order_discount_allocated_amount`,
-  `net_before_tax_amount`.
-- `orders.gross_amount`, `discount_total_amount`, `tax_total_amount`, `total_amount`,
-  `pricing_engine_version`.
-
-No se persiste sólo porcentaje/valor: se conserva también el resultado calculado.
-
-## API propuesta
-
-El endpoint existente `POST /api/v1/orders` agrega intenciones opcionales, nunca totales calculados:
-
-```json
-{
-  "items": [{
-    "product_id": "uuid",
-    "quantity": 2,
-    "discount": {"kind": "percentage", "value": "10", "reason_code": "courtesy", "reason": "Cliente frecuente"}
-  }],
-  "order_discount": {"kind": "fixed", "value": "20.00", "reason_code": "promotion", "reason": "Cupón autorizado"}
-}
-```
-
-La respuesta agrega breakdown gross/descuento/base/impuesto/total por línea y orden. Clientes que no
-envían descuentos mantienen el contrato actual.
-
-## RBAC, auditoría e idempotencia
-
-- Permisos nuevos: `discounts.apply` y `discounts.override_limit`.
-- Default propuesto: owner/manager aplican; cashier no hasta decisión explícita.
-- Auditoría `orders.discount.applied` registra alcance, monto final, motivo y autorizador.
-- La idempotencia de la orden cubre también la intención; misma key con cambio de descuento falla.
-- El servidor ignora cualquier rol/límite declarado por cliente.
-
-## Offline
-
-V1 online-only. Offline mantiene venta sin descuento. No se almacena autorización en localStorage.
-Una futura cola versionada deberá llevar intención y una capacidad firmada; el servidor recalcula.
+La entrada guarda `client_uuid`, motivos, descuento, tasa enviada y predeterminada, y por línea
+`product_id`, precio cobrado y precio de catálogo. No guarda datos personales. Un reintento
+idempotente no duplica la venta ni la entrada de auditoría. Las demás validaciones offline
+(producto, inventario, tenant, sucursal, modificadores, pagos) no cambian.
 
 ## Errores
 
-- `400`: valor cero/negativo, porcentaje >100, monto supera base o motivo inválido.
-- `403`: permiso/límite insuficiente.
-- `409`: política cambió antes de confirmar; carrito se recalcula y requiere confirmación.
+- `400`: descuento mayor que el subtotal, tasa fuera de 0-100, precio congelado en línea.
+- `403`: descuento o tasa distinta sin `orders.discount` en una venta en línea.
 
-## Aceptación y pruebas
+## Pruebas
 
-- Golden Decimal para fijo, porcentaje, dos descuentos, prorrateo con centavo residual e impuesto.
-- Refund parcial conserva el descuento unitario original.
-- Replay concurrente crea una sola orden/auditoría.
-- Cashier sin permiso recibe `403`; tenant B recibe `404`.
-- Ticket/reporte muestran gross, descuento y neto reconciliables.
-- E2E online; control deshabilitado y explicación al quedar offline.
+`backend/app/tests/test_order_pricing_controls.py`: cajero/staff con descuento en línea → 403 sin
+venta; manager con descuento y tasa → 201; cajero con tasa distinta a la configurada → 403 y con la
+predeterminada → 201; venta offline sin permiso y con precio desactualizado → sincronizada y auditada
+una sola vez; venta offline del owner a precio de catálogo → sin auditoría de revisión; precio
+congelado en línea → 400. `test_sale_pricing.py` cubre cálculo y devoluciones.
+
+## Pendiente (no implementado)
+
+- Descuentos por línea, porcentuales, con motivo/`reason_code` y límites por rol
+  (`discounts.override_limit`).
+- Tabla de intenciones de descuento y desglose gross/neto por línea en la respuesta.
+- Bandeja en la interfaz para revisar `orders.pricing_review`; hoy sólo vive en auditoría.
+- La interfaz de Caja aún permite capturar descuento/tasa a roles sin permiso; el servidor responde
+  `403` en línea. Ocultar o explicar el control por rol es trabajo de frontend.

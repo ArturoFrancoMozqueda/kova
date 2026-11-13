@@ -72,12 +72,21 @@ def test_customers_permissions_and_cross_tenant_ownership(client, db):
     membership.role = "cashier"
     db.commit()
     assert client.get("/api/v1/customers").status_code == 200
-    assert (
-        client.post(
-            "/api/v1/customers", headers={"Idempotency-Key": "cashier"}, json={"name": "Nuevo"}
-        ).status_code
-        == 403
+    # customers.create: front-desk roles register customers at the counter...
+    created = client.post(
+        "/api/v1/customers", headers={"Idempotency-Key": "cashier"}, json={"name": "Nuevo"}
     )
+    assert created.status_code == 201, created.text
+    # ...but editing or deactivating (there is no hard delete) stays customers.manage.
+    for change in ({"name": "Editado"}, {"name": "Nuevo", "is_active": False}):
+        assert (
+            client.put(
+                f"/api/v1/customers/{created.json()['id']}",
+                headers={"Idempotency-Key": f"cashier-edit-{len(change)}"},
+                json=change,
+            ).status_code
+            == 403
+        )
     assert client.get(f"/api/v1/customers/{customer['id']}/history").status_code == 403
     assert first["tenant_id"] != second["tenant_id"]
 

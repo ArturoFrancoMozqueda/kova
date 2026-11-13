@@ -22,14 +22,14 @@ from app.appointments.schemas import (
     AppointmentSalesList,
     AppointmentTransition,
 )
-from app.crm.router import require_crm
+from app.crm.router import require_agenda, require_crm
 from app.db import get_db
 
 router = APIRouter(prefix="/api/v1/appointments", tags=["appointments"])
 
 
 @router.get("/resources", response_model=AppointmentResourceList)
-def resources(db: Session = Depends(get_db), ctx=Depends(require_crm)):
+def resources(db: Session = Depends(get_db), ctx=Depends(require_agenda)):
     return service.resources(db, ctx[1].tenant_id)
 
 
@@ -99,7 +99,7 @@ def appointments(
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     return service.list_appointments(
         db,
@@ -117,7 +117,7 @@ def create_appointment(
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     response.status_code, result = service.create_appointment(
         db, ctx[1].tenant_id, ctx[0].id, body, key
@@ -132,7 +132,7 @@ def reschedule(
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     response.status_code, result = service.reschedule(
         db, ctx[1].tenant_id, ctx[0].id, appointment_id, body, key
@@ -147,7 +147,7 @@ def transition(
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     response.status_code, result = service.transition(
         db, ctx[1].tenant_id, ctx[0].id, appointment_id, body, key
@@ -156,12 +156,14 @@ def transition(
 
 
 @router.get("/{appointment_id}/history", response_model=AppointmentHistoryList)
-def history(appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+def history(appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_agenda)):
     return service.history(db, ctx[1].tenant_id, appointment_id)
 
 
 @router.get("/{appointment_id}", response_model=AppointmentResponse)
-def get_appointment(appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+def get_appointment(
+    appointment_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_agenda)
+):
     return service.get_appointment(db, ctx[1].tenant_id, appointment_id)
 
 

@@ -109,6 +109,24 @@ def list_cash_movements(db: Session, *, shift_id: UUID) -> list[CashMovement]:
     )
 
 
+def list_cash_movements_for_shifts(
+    db: Session, *, shift_ids: list[UUID]
+) -> dict[UUID, list[CashMovement]]:
+    """Movements of many drawers in one query, each list in created_at order."""
+    grouped: dict[UUID, list[CashMovement]] = {shift_id: [] for shift_id in shift_ids}
+    if not shift_ids:
+        return grouped
+    rows = (
+        db.query(CashMovement)
+        .filter(CashMovement.shift_id.in_(shift_ids))
+        .order_by(CashMovement.created_at)
+        .all()
+    )
+    for movement in rows:
+        grouped.setdefault(movement.shift_id, []).append(movement)
+    return grouped
+
+
 def list_closed_shifts(db: Session, *, tenant_id: UUID, limit: int = 50) -> list[Shift]:
     return (
         db.query(Shift)
@@ -126,3 +144,14 @@ def get_cash_movement_sum(db: Session, *, shift_id: UUID, type: str) -> Decimal:
         .scalar()
     )
     return Decimal(result or 0)
+
+
+def get_cash_movement_sums(db: Session, *, shift_id: UUID) -> dict[str, Decimal]:
+    """Every movement type's total for one drawer in a single grouped query."""
+    rows = (
+        db.query(CashMovement.type, func.sum(CashMovement.amount))
+        .filter(CashMovement.shift_id == shift_id)
+        .group_by(CashMovement.type)
+        .all()
+    )
+    return {movement_type: Decimal(total or 0) for movement_type, total in rows}
