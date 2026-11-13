@@ -19,6 +19,8 @@ def _wake_native_container(tenant_id):
                 "http://jobs.kova.internal/wake", json={"tenantId": tenant}
             )
             response.raise_for_status()
+            if response.json().get("scheduled") is not True:
+                logging.getLogger(__name__).warning("Assistant scheduling declined")
     except Exception:
         # The authoritative PostgreSQL job was committed before this call.
         # Preserve it for the existing scheduled sweep; no rollback or replay.

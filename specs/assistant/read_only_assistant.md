@@ -64,6 +64,9 @@ No se relajan roles, acceso comercial, cuotas, reservas inciertas o idempotencia
 - Sin conexión se explica el requisito y se ofrece volver a Caja. No se encolan consultas offline.
 - Medición operativa por ejecución: estado, modo, tiempo en cola y ejecución, sin preguntas,
   respuestas, documentos, credenciales ni errores externos crudos en el log.
+- El despertar privado valida cohorte y tenant sin abrir la base de datos. Adelanta una alarma
+  de recuperación futura para atender la consulta; la ejecución conserva las verificaciones de
+  RLS, ACL, sesión y acceso comercial antes de leer datos. La pausa operativa sigue bloqueándola.
 - Se revisan teclado, foco, borradores, cancelación, sesión y aislamiento a 390 y 1440 px.
 
 ## Escenarios de aceptación

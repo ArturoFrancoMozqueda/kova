@@ -114,6 +114,22 @@ def test_transport_error_does_not_expose_exception_or_tenant(monkeypatch, caplog
     assert str(tenant) not in caplog.text
 
 
+@pytest.mark.parametrize("payload", [{"scheduled": False}, {}, {"scheduled": "true"}])
+def test_declined_private_schedule_is_observable_without_replay(monkeypatch, caplog, payload):
+    requests = []
+    tenant = uuid4()
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json=payload)
+
+    _private_transport(monkeypatch, handler)
+    assert jobs._wake_native_container(tenant) is None
+    assert len(requests) == 1
+    assert "Assistant scheduling declined" in caplog.text
+    assert str(tenant) not in caplog.text
+
+
 def test_invalid_tenant_is_not_forwarded_to_the_binding(monkeypatch, caplog):
     monkeypatch.setattr(settings, "cloudflare_container_mode", True)
 

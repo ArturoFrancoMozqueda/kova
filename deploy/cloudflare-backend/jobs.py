@@ -16,9 +16,13 @@ def budget_paused(env):
 
 
 def automation_cohort(env):
+    return configured_cohort(env, "AUTOMATION_TENANT_IDS")
+
+
+def configured_cohort(env, name):
     return {
         UUID(value.strip())
-        for value in (getattr(env, "AUTOMATION_TENANT_IDS", "") or "").split(",")
+        for value in (getattr(env, name, "") or "").split(",")
         if value.strip()
     }
 
@@ -54,11 +58,7 @@ class Default(WorkerEntrypoint):
         # globally. The job objects independently revalidate enabled membership.
         # Keep the Free cron handler small: settings/schema imports and database
         # checks run in the private job object's larger compute budget.
-        tenants = automation_cohort(env) | {
-            UUID(value.strip())
-            for value in (getattr(env, "ASSISTANT_TENANT_IDS", "") or "").split(",")
-            if value.strip()
-        }
+        tenants = automation_cohort(env) | configured_cohort(env, "ASSISTANT_TENANT_IDS")
         for tenant_id in sorted(tenants, key=str):
             tenant = str(tenant_id)
             await env.JOBS.getByName(tenant).wake(tenant)
@@ -70,24 +70,34 @@ class KovaJobs(DurableObject):
         self._lock = asyncio.Lock()
 
     async def wake(self, tenant):
+        logger = logging.getLogger(__name__)
         if budget_paused(self.env):
+            logger.warning("assistant_wake outcome=budget_paused")
             return False
         try:
             tenant = str(UUID(tenant))
         except (ValueError, TypeError, AttributeError):
             return False
         async with self._lock:
-            initialize(self.env)
-            from app.assistant.access import cohort
-
-            if UUID(tenant) not in set(cohort()) | automation_cohort(self.env):
+            # Wake is a bounded private scheduling operation. Database imports
+            # and posture checks belong in alarm(), before processing any data,
+            # rather than inside the container bridge's two-second timeout.
+            allowed = configured_cohort(self.env, "ASSISTANT_TENANT_IDS")
+            if UUID(tenant) not in allowed | automation_cohort(self.env):
+                logger.warning("assistant_wake outcome=outside_cohort")
                 return False
             stored = await self.ctx.storage.get("tenant")
             if stored is not None and stored != tenant:
+                logger.warning("assistant_wake outcome=tenant_mismatch")
                 return False
             await self.ctx.storage.put("tenant", tenant)
-            if await self.ctx.storage.getAlarm() is None:
-                await self.ctx.storage.setAlarm(int(time.time() * 1000) + 1)
+            due = int(time.time() * 1000) + 1
+            scheduled = await self.ctx.storage.getAlarm()
+            # A previous iteration may have pre-armed sixty-second recovery.
+            # Interactive work must advance it, while retaining an earlier alarm.
+            if scheduled is None or scheduled > due:
+                await self.ctx.storage.setAlarm(due)
+            logger.info("assistant_wake outcome=scheduled")
         return True
 
     async def alarm(self):
@@ -100,8 +110,10 @@ class KovaJobs(DurableObject):
         async with self._lock:
             env_token = environment.set(self.env)
             ctx_token = execution.set(self.ctx)
+            phase = "initialize"
             try:
                 initialize(self.env)
+                phase = "authorization"
                 from app.assistant.access import enabled
                 from app.assistant.worker import process_once
 
@@ -112,10 +124,12 @@ class KovaJobs(DurableObject):
                 assistant_allowed = enabled(tenant_id)
                 automation_allowed = tenant_id in automation_cohort(self.env)
                 if not assistant_allowed and not automation_allowed:
+                    logging.getLogger(__name__).warning("assistant_alarm outcome=disabled")
                     return
                 # Persist recovery before I/O. One job per invocation, with
                 # the existing leases, session checks and uncertain-call rules.
                 await self.ctx.storage.setAlarm(int(time.time() * 1000) + 60_000)
+                phase = "processing"
                 processed = 0
                 failed = False
                 if automation_allowed:
@@ -143,7 +157,7 @@ class KovaJobs(DurableObject):
                 else:
                     await self.ctx.storage.deleteAlarm()
             except Exception:
-                logging.getLogger(__name__).error("Assistant job iteration failed")
+                logging.getLogger(__name__).error("Assistant job iteration failed phase=%s", phase)
                 raise RuntimeError("Assistant job iteration failed") from None
             finally:
                 execution.reset(ctx_token)
