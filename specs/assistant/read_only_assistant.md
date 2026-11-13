@@ -8,6 +8,7 @@ El primer alcance es de lectura: reportes del backend y guías públicas. La inf
 requiere aceptación propia; la ingesta de documentos y las mutaciones permanecen apagadas.
 Decisión vigente: [ADR-034](../../docs/adr/ADR-034-asistente-cloudflare-consumo-verificado.md),
 que conserva la arquitectura anclada de ADR-017.
+Las lecturas locales en el contenedor nativo siguen [ADR-035](../../docs/adr/ADR-035-consultas-locales-en-api-nativa.md).
 
 ## Requisitos funcionales
 
@@ -15,6 +16,10 @@ que conserva la arquitectura anclada de ADR-017.
   `advanced_reports`; las herramientas conservan los permisos comerciales de reportes.
 - Las preguntas locales reconocidas se resuelven sin inferencia ni reserva de presupuesto de
   modelo. Conservan autorización, consentimiento, límites de turnos y sucursal activa.
+- En el contenedor nativo, las lecturas locales intentan ejecutar su trabajo confirmado en la
+  misma petición mediante el procesador existente y sus locks. Si no hay cupo, conservan la cola;
+  los reenvíos idempotentes sólo recuperan el trabajo original. La inferencia externa, la ingesta
+  y los mantenimientos conservan su worker privado y su pausa operativa.
 - Ventas, productos, inventario y sucursales admiten hoy, ayer, semana/mes actual y semana/mes
   anterior completos. Sólo productos destacados admiten todo el histórico.
 - Fechas y límites se resuelven con el calendario del negocio; nunca con la fecha del navegador.

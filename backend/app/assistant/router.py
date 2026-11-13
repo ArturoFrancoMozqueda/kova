@@ -177,6 +177,14 @@ def message_create(
         dedupe=dedupe,
     )
     db.commit()
+    if settings.cloudflare_container_mode and direct.match(content):
+        # Deterministic reads can use the already-initialized native API. Claim
+        # the committed job through the existing locks, quotas, session checks
+        # and completion guards; external inference stays in the private worker.
+        from app.assistant.worker import process_job
+
+        if process_job(db, ctx[0], ctx[1], job):
+            return repo.view(db, tenant, user, job)
     from app.workers.jobs import wake
 
     wake(tenant)
