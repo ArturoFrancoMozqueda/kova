@@ -11,11 +11,11 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ProductPhoto, type ProductPhotoData } from "./ProductPhoto";
-import { MenuPreview } from "./MenuPreview";
+import { MenuPreview, type MenuDraft } from "./MenuPreview";
+import type { PublicCatalog } from "./StorefrontView";
 
 type Settings = { enabled: boolean; title: string; description: string | null; whatsapp_phone: string | null; product_ids: string[]; version: number; share_path: string | null };
-type Product = ProductPhotoData & { id: string; name: string; description?: string | null; price_amount: string; is_active: boolean };
-const nameOrder = new Intl.Collator("es-MX", { sensitivity: "base", numeric: true });
+type Product = ProductPhotoData & { id: string; name: string; price_amount: string; is_active: boolean };
 const money = (amount: string) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(amount));
 
 export default function CatalogPublishView() {
@@ -56,6 +56,7 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     }
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [settings?.share_path, identity.tenantId, identity.userId, identity.branchId]);
+  const loadPreview = useCallback((draft: MenuDraft) => request<PublicCatalog>("/storefront/preview", "POST", draft), [request]);
   const copyLink = async () => {
     if (!settings?.share_path) return;
     try {
@@ -89,9 +90,9 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
     {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice}</p>}
     {!settings && !error && <SectionSkeleton label="Cargando publicación…" variant="form" />}
-    {settings && <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
-    <MenuPreview className="order-first lg:order-last" title={settings.title} description={settings.description} whatsappPhone={settings.whatsapp_phone} enabled={settings.enabled}
-      products={products.filter(product => settings.product_ids.includes(product.id)).sort((a, b) => nameOrder.compare(a.name, b.name) || a.id.localeCompare(b.id))} />
+    {settings && <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+    <MenuPreview className="order-first lg:order-last" loadPreview={loadPreview}
+      draft={{ enabled: settings.enabled, title: settings.title, description: settings.description, whatsapp_phone: settings.whatsapp_phone, product_ids: settings.product_ids }} />
     <form onSubmit={event => void save(event)} className="min-w-0 space-y-6">
       <fieldset disabled={busy || !online} className="space-y-5 rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Información pública</legend>

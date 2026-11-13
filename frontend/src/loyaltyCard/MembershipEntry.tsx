@@ -6,8 +6,16 @@ import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { clearMembershipKey, enrollMembership, loadMembership, memberCardPath, pendingMembershipKey, prepareMembershipKey, type Membership } from "./membership";
 
-export function MembershipEntry(props: { menuToken: string; businessName: string; available?: boolean }) {
+export function MembershipEntry({ preview = false, ...props }: { menuToken: string; businessName: string; available?: boolean; preview?: boolean }) {
+  // The owner's menu preview shows the entry exactly as customers see it, without reading a real card.
+  if (preview) return props.available ? <MembershipButton hasCard={false} onOpen={() => undefined} /> : null;
   return <MembershipEntryContent key={props.menuToken} {...props} />;
+}
+function MembershipButton({ hasCard, onOpen }: { hasCard: boolean; onOpen: () => void }) {
+  return <button type="button" aria-label={hasCard ? "Ver mi tarjeta" : "Tu tarjeta de lealtad"} onClick={onOpen} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-kova-border bg-white px-4 py-3 text-left text-kova-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue"><Gift className="h-5 w-5" aria-hidden="true" /></span>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{hasCard ? "Ver mi tarjeta" : "Tu tarjeta de lealtad"}</span><span className="mt-0.5 block text-xs text-kova-muted">{hasCard ? "Consulta tus puntos y recompensas." : "Consulta el programa y guarda tu tarjeta."}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+    </button>;
 }
 function MembershipEntryContent({ menuToken, businessName, available = true }: { menuToken: string; businessName: string; available?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -56,10 +64,7 @@ function MembershipEntryContent({ menuToken, businessName, available = true }: {
   };
   if (!open && ((!membership && (loading || (!available && !recovering))) || (membership && !membership.available && !membership.card && !operation.current && !recovering))) return null;
   return <>
-    <button type="button" aria-label={cardPath ? "Ver mi tarjeta" : "Tu tarjeta de lealtad"} onClick={() => setOpen(true)} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-kova-border bg-white px-4 py-3 text-left text-kova-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue"><Gift className="h-5 w-5" aria-hidden="true" /></span>
-      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{cardPath ? "Ver mi tarjeta" : "Tu tarjeta de lealtad"}</span><span className="mt-0.5 block text-xs text-kova-muted">{cardPath ? "Consulta tus puntos y recompensas." : "Consulta el programa y guarda tu tarjeta."}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-    </button>
+    <MembershipButton hasCard={Boolean(cardPath)} onOpen={() => setOpen(true)} />
     <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }}>
       <DialogTitle className="break-words pr-8 leading-tight">Tu tarjeta en {membership?.business_name ?? businessName}</DialogTitle>
       {loading ? <p role="status" className="mt-4 text-sm text-kova-muted">Consultando tu tarjeta…</p> : cardPath ? <div className="mt-5 space-y-4">

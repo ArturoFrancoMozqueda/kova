@@ -37,6 +37,26 @@ class CatalogWrite(StrictModel):
         return value
 
 
+class CatalogPreview(StrictModel):
+    """Unsaved publication draft rendered as the public menu for the owner."""
+
+    enabled: bool = False
+    title: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=500)
+    whatsapp_phone: str | None = Field(default=None, pattern=r"^[1-9][0-9]{9,14}$")
+    product_ids: list[UUID] = Field(default_factory=list, max_length=200)
+
+    @field_validator("title", "description")
+    @classmethod
+    def clean_text(cls, value):
+        if value is not None:
+            value = value.strip()
+            reject_html(value)
+            if not value:
+                raise ValueError("El texto no puede estar vacío")
+        return value
+
+
 class CatalogSettings(BaseModel):
     enabled: bool
     title: str

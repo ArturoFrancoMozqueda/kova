@@ -1,79 +1,86 @@
-import { ArrowUpRight, UtensilsCrossed } from "lucide-react";
+import { useEffect, useState } from "react";
 import { LivePreview } from "@/components/ui/live-preview";
-import { MenuProductCard } from "./MenuProductCard";
-import type { MenuProduct } from "./menu";
+import { DevicePreview, type PreviewDevice } from "@/components/ui/device-preview";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
+import { CatalogContent, type PublicCatalog } from "./StorefrontView";
 
-export type MenuPreviewProduct = Omit<MenuProduct, "availability" | "description"> & {
-  description?: string | null;
-};
-
-const noop = () => undefined;
-
-/**
- * Renders the public menu from the unsaved publication draft with the same
- * product cards customers see. Availability depends on live inventory when the
- * menu opens, so every card is shown as available here and the note says so.
- */
-export function MenuPreview({
-  title,
-  description,
-  whatsappPhone,
-  enabled,
-  products,
-  className,
-}: {
+export type MenuDraft = {
+  enabled: boolean;
   title: string;
   description: string | null;
-  whatsappPhone: string | null;
-  enabled: boolean;
-  products: MenuPreviewProduct[];
+  whatsapp_phone: string | null;
+  product_ids: string[];
+};
+
+const validPhone = (value: string | null) => !!value && /^[1-9][0-9]{9,14}$/.test(value.trim());
+
+/**
+ * The real public menu page (same component, same server projection) for the
+ * unsaved draft, inside a phone or computer viewport. The server builds the
+ * payload with the public endpoint's rules, so order, availability and the
+ * loyalty and order buttons match what customers get.
+ */
+export function MenuPreview({
+  draft,
+  loadPreview,
+  className,
+}: {
+  draft: MenuDraft;
+  loadPreview: (draft: MenuDraft) => Promise<PublicCatalog>;
   className?: string;
 }) {
-  const shownTitle = title.trim() || "Nombre de tu menú";
-  const validWhatsapp = !!whatsappPhone && /^[1-9][0-9]{9,14}$/.test(whatsappPhone.trim());
-  const count = products.length;
-  const summary = `${enabled ? "Menú marcado para publicar" : "Menú sin publicar"} con el título ${shownTitle}, ${count} ${count === 1 ? "producto" : "productos"}${validWhatsapp ? " y botón para consultar por WhatsApp" : ""}.`;
+  const [device, setDevice] = useState<PreviewDevice>("phone");
+  const [data, setData] = useState<PublicCatalog | null>(null);
+  const [failed, setFailed] = useState(false);
+  // Only send what the server would accept, so a half-typed phone never blanks the preview.
+  const request: MenuDraft = {
+    enabled: draft.enabled,
+    title: draft.title.trim() || "Nombre de tu menú",
+    description: draft.description?.trim() || null,
+    whatsapp_phone: validPhone(draft.whatsapp_phone) ? draft.whatsapp_phone!.trim() : null,
+    product_ids: draft.product_ids,
+  };
+  const key = JSON.stringify(request);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      loadPreview(JSON.parse(key) as MenuDraft)
+        .then(result => { if (active) { setData(result); setFailed(false); } })
+        .catch(() => { if (active) setFailed(true); });
+    }, 350);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [key, loadPreview]);
+
+  const count = data?.products.length ?? 0;
+  const summary = data
+    ? `Menú ${draft.enabled ? "marcado para publicar" : "sin publicar"} con el título ${data.title}, ${count} ${count === 1 ? "producto" : "productos"}${data.whatsapp_phone ? " y botón para consultar por WhatsApp" : ""}.`
+    : "Preparando la vista previa del menú.";
   return (
     <LivePreview
       label="Vista previa del menú público"
-      className={className}
       summary={summary}
-      frame={{ caption: "Así lo ven tus clientes", icon: <UtensilsCrossed className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /> }}
+      className={className}
+      selfContained
+      controls={<SegmentedControl ariaLabel="Ver el menú en" value={device} onValueChange={setDevice}
+        options={[{ value: "phone", label: "Teléfono" }, { value: "computer", label: "Computadora" }]} />}
       note={<>
-        {!enabled && <p className="mb-1 font-medium text-kova-ink">Aún no está publicado: tus clientes no lo verán hasta que actives “Publicar catálogo” y guardes.</p>}
-        <p>La disponibilidad de cada producto se toma de tu inventario cuando el cliente abre el menú.</p>
+        {!draft.enabled && <p className="mb-1 font-medium text-kova-ink">Aún no está publicado: tus clientes no lo verán hasta que actives “Publicar catálogo” y guardes.</p>}
+        {failed && data && <p className="mb-1 text-kova-ink">No pudimos actualizar la vista previa. Tus cambios no se pierden; revisa tu conexión.</p>}
+        <p>Es la misma página que abren tus clientes, con la disponibilidad actual de tu inventario. Puedes desplazarla para verla completa.</p>
       </>}
     >
-      <div className="border-b border-kova-border bg-white px-4 py-4">
-        <p className="break-words text-xl font-semibold tracking-tight text-kova-ink">{shownTitle}</p>
-        {description?.trim() && <p className="mt-1 break-words text-sm leading-relaxed text-kova-muted">{description.trim()}</p>}
-        {validWhatsapp && <span className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border border-kova-border px-4 text-xs font-medium">
-          Consultar por WhatsApp<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </span>}
-      </div>
-      <div className="max-h-[28rem] overflow-hidden px-3 py-3">
-        <p className="mb-2 text-sm font-semibold">Nuestro menú <span className="font-normal text-kova-muted">· {count} {count === 1 ? "producto" : "productos"}</span></p>
-        {count === 0 ? (
-          <div className="rounded-2xl border border-dashed border-kova-border bg-white p-5 text-sm text-kova-muted">
-            Marca los productos que quieres mostrar y aparecerán aquí.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 items-stretch gap-2 lg:grid-cols-1">
-            {products.slice(0, 6).map(product => (
-              <MenuProductCard
-                key={product.id}
-                product={{ ...product, description: product.description ?? null, availability: "available" }}
-                quantity={0}
-                disabled
-                cannotAdd={false}
-                onQuantityChange={noop}
-                onDetails={noop}
-              />
-            ))}
-          </div>
-        )}
-        {count > 6 && <p className="mt-2 text-center text-xs text-kova-muted">y {count - 6} más</p>}
-      </div>
+      {data ? (
+        <DevicePreview device={device} title="Vista previa del menú público">
+          <main className="min-h-screen bg-[#FAFAF7] text-kova-ink">
+            <CatalogContent data={data} token="vista-previa" preview />
+          </main>
+        </DevicePreview>
+      ) : failed ? (
+        <p className="rounded-2xl border border-kova-border bg-white p-5 text-sm">No pudimos preparar la vista previa. Revisa tu conexión y vuelve a intentar.</p>
+      ) : (
+        <SectionSkeleton label="Preparando vista previa del menú…" variant="summary" />
+      )}
     </LivePreview>
   );
 }

@@ -415,3 +415,57 @@ def test_concurrent_businesses_reserve_distinct_readable_names(owner_engine, kov
                 for table in ("public_catalog_links", "public_catalogs", "branches"):
                     conn.execute(text(f"DELETE FROM {table} WHERE tenant_id=:tenant"), {"tenant": tenant})
                 conn.execute(text("DELETE FROM tenants WHERE id=:tenant"), {"tenant": tenant})
+
+
+def _preview(client, products, **extra):
+    return client.post(
+        "/api/v1/storefront/preview",
+        json={"title": "Borrador de la casa", "product_ids": [p["id"] for p in products], **extra},
+    )
+
+
+def test_preview_renders_unsaved_draft_like_public_menu_without_saving(client, db):
+    tenant_id = _signup_login(client, prefix="catalog-preview")
+    stocked = _product(client, name="Concha")
+    empty = _product(client, name="Bolillo")
+    _seed(client, stocked["id"], 3)
+    saved = _save(client, [stocked])
+    assert saved.status_code == 200, saved.text
+    public = _read(client, saved.json()).json()
+
+    # Same projection, same order and availability rules as the customer view.
+    same = _preview(client, [stocked], title="Pan de la casa", enabled=True)
+    assert same.status_code == 200, same.text
+    assert same.json() == public
+
+    draft = _preview(client, [stocked, empty], title=" Panadería Lupita ", whatsapp_phone="525512345678")
+    assert draft.status_code == 200, draft.text
+    body = draft.json()
+    assert body["title"] == "Panadería Lupita"
+    assert body["whatsapp_phone"] == "525512345678"
+    assert [(p["name"], p["availability"]) for p in body["products"]] == [
+        ("Bolillo", "unavailable"), ("Concha", "available"),
+    ]
+    for forbidden in ("tenant_id", "cost_price", "stock_on_hand", "sku"):
+        assert forbidden not in draft.text
+    # Nothing was stored: the published menu and settings are unchanged.
+    assert client.get("/api/v1/storefront/settings").json()["version"] == 1
+    assert _read(client, saved.json()).json() == public
+    assert db.query(PublicCatalog).filter_by(tenant_id=tenant_id).count() == 1
+
+
+def test_preview_is_tenant_scoped_owner_only_and_validated(client, db):
+    _signup_login(client, prefix="catalog-preview-a")
+    foreign = _product(client, name="Ajeno")
+    client.cookies.clear()
+    tenant_id = _signup_login(client, prefix="catalog-preview-b")
+    own = _product(client, name="Propio")
+    result = _preview(client, [foreign, own])
+    assert result.status_code == 200, result.text
+    assert [p["name"] for p in result.json()["products"]] == ["Propio"]
+    assert _preview(client, [], title="<b>x</b>").status_code == 422
+    assert _preview(client, [], whatsapp_phone="javascript:bad").status_code == 422
+    member = db.query(Membership).filter_by(tenant_id=tenant_id).one()
+    member.role = "cashier"
+    db.commit()
+    assert _preview(client, [own]).status_code == 403

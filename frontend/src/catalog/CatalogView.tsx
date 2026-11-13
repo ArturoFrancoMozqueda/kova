@@ -1567,7 +1567,7 @@ export function ProductForm({
   };
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_15rem]">
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
     <ProductPreview
       className="lg:order-last"
       name={name}
