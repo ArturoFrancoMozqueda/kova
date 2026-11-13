@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 TENANT_SCOPED_TABLES = (
     "loyalty_appearances", "booking_pages", "booking_services", "booking_service_resources",
     "booking_availability", "public_bookings", "booking_history",
+    "table_reservations", "table_reservation_history",
     "service_cases",
     "service_case_events",
     "appointment_resources",

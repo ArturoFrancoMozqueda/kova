@@ -22,8 +22,11 @@ import {
 import { BookingError, publicBookingRequest } from "./api";
 import { addDays, dateKey, DatePicker } from "./DatePicker";
 import { downloadCalendar } from "./calendarFile";
+import { PublicTableRequest } from "./PublicTableRequest";
 
 type Context = {
+  mode?: "appointments" | "tables";
+  timezone?: string | null;
   business_name: string;
   branch_name: string;
   services: BookingService[];
@@ -200,6 +203,21 @@ function BookingPage({ token }: { token: string }) {
       if (alive.current) setBusy(false);
     }
   };
+  if (context?.mode === "tables")
+    return (
+      <PublicTableRequest
+        token={token}
+        context={context}
+        identityToken={identity.current}
+        identityReady={identityReady}
+        identityError={identityError}
+        onGuest={() => {
+          identity.current = null;
+          setIdentityReady(true);
+          setIdentityError("");
+        }}
+      />
+    );
   return (
     <main className="min-h-screen bg-[#FAFAF7] px-4 py-6 text-kova-ink sm:py-12">
       <div className="mx-auto max-w-5xl space-y-5">

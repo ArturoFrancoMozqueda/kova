@@ -135,6 +135,8 @@ BEGIN
             ('booking_availability', 'SELECT, INSERT'),
             ('public_bookings', 'SELECT, INSERT'),
             ('booking_history', 'SELECT, INSERT'),
+            ('table_reservations', 'SELECT, INSERT'),
+            ('table_reservation_history', 'SELECT, INSERT'),
             ('appointment_resources', 'SELECT, INSERT'),
             ('appointments', 'SELECT, INSERT'),
             ('appointment_sales', 'SELECT, INSERT'),
@@ -280,6 +282,13 @@ DO $$ BEGIN
         GRANT UPDATE(state, binding_id, provider_message_id, contact_fingerprint,
                      version, error_code, updated_at)
             ON messaging_messages TO kova_app;
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.table_reservations') IS NOT NULL THEN
+        GRANT UPDATE(mode) ON booking_pages TO kova_app;
+        GRANT UPDATE(resource_id,starts_at,status,version,manage_version,seated_at,released_at) ON table_reservations TO kova_app;
     END IF;
 END $$;
 

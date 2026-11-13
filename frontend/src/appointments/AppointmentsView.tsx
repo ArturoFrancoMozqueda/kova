@@ -1,5 +1,6 @@
 import { BookingSettings } from "./BookingSettings";
 import { CalendarBoard } from "./CalendarBoard";
+import { TableReservations } from "./TableReservations";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { CalendarDays } from "lucide-react";
@@ -92,6 +93,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [resourceName, setResourceName] = useState("");
+  const [resourceKind, setResourceKind] = useState<"appointment" | "table">("appointment");
   const [resourceTimezone, setResourceTimezone] = useState(
     "America/Mexico_City",
   );
@@ -175,7 +177,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const visibleAppointments = linked.record
     ? [linked.record, ...(panel.data?.items ?? []).filter((row) => row.id !== linked.record?.id)]
     : panel.data?.items ?? [];
-  const hasActiveResource = resources.some(row => row.is_active);
+  const hasTables = resources.some(row => row.kind === "table");
+  const hasActiveResource = resources.some(row => row.is_active && row.kind !== "table");
   const resourceNameInput = useRef<HTMLInputElement>(null);
   useEffect(() => { if (resourceOpen) resourceNameInput.current?.focus(); }, [resourceOpen]);
   const createResource = async (event: FormEvent) => {
@@ -184,7 +187,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       await panel.mutate(
         "/resources",
         "POST",
-        { name: resourceName.trim(), timezone: resourceTimezone },
+        { name: resourceName.trim(), timezone: resourceTimezone, ...(resourceKind === "table" ? { kind: resourceKind } : {}) },
         "Persona o espacio guardado con su zona horaria.",
       )
     ) {
@@ -263,7 +266,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       <ViewHeader
         eyebrow="Servicio y atención"
         title="Agenda del negocio"
-        meta="Reserva el tiempo del equipo sin cruces de horario."
+        meta={hasTables ? "Revisa solicitudes de mesa y organiza las llegadas." : "Reserva el tiempo del equipo sin cruces de horario."}
         actions={
           <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" aria-expanded={settingsOpen} aria-controls="agenda-settings" onClick={() => { setSettingsVisited(true); setSettingsOpen(v => !v); }}>Configurar agenda</Button><Button
             className={buttonClass}
@@ -295,8 +298,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Organiza las citas en el horario de cada persona o espacio. El equipo contacta
-        al cliente; el cobro se registra por separado en Caja.
+        {hasTables ? "El equipo confirma cada solicitud de mesa y registra la salida cuando el cliente se retira." : "Organiza las citas en el horario de cada persona o espacio."} El equipo contacta al cliente; el cobro se registra por separado en Caja.
       </p>
       {incomingCustomerError && <p role="alert">{incomingCustomerError}</p>}
       <LinkedRecordNotice linked={linked}>
@@ -321,7 +323,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           retryLabel="Consultar personas y espacios"
         />
       )}
-      <CalendarBoard identity={identity} resources={resources} revision={reminderRevision + resourceRevision} />
+      {hasTables && <TableReservations identity={identity} revision={reminderRevision + resourceRevision} />}
+      <CalendarBoard identity={identity} resources={resources} revision={reminderRevision + resourceRevision} onTableSaved={() => setReminderRevision(v => v + 1)} />
       {settingsVisited && <div id="agenda-settings" hidden={!settingsOpen} className="space-y-4">
       <details className="space-y-4 rounded-2xl border border-kova-border bg-white p-6" open={resources.length === 0 || resourceOpen}>
         <summary className="min-h-11 cursor-pointer font-semibold">Personas y espacios para las citas</summary>
@@ -329,8 +332,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <div>
             <h2 className="text-xl font-semibold">Personas y espacios</h2>
             <p className="mt-2 text-sm text-kova-muted">
-              Una persona, mesa de atención o espacio que puede recibir una cita
-              a la vez.
+              Una persona o espacio recibe una cita a la vez. Las mesas reciben
+              solicitudes de llegada y el equipo registra cuándo se desocupan.
             </p>
           </div>
           <Button
@@ -354,6 +357,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               className="min-w-0 space-y-2 rounded-xl bg-kova-mist p-4"
             >
               <p className="break-words font-medium">{row.name}</p>
+              {row.kind === "table" && <p className="text-xs text-kova-muted">Mesa · Sin duración fija</p>}
               <p className="text-sm text-kova-muted">
                 {zoneLabel(row.timezone)} ·{" "}
                 {row.is_active ? "Disponible" : "Inactivo"}
@@ -392,6 +396,13 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           onSubmit={(event) => void createResource(event)}
         >
           <h2 className="text-xl font-semibold">Nueva persona o espacio</h2>
+          <div className="space-y-2">
+            <Label htmlFor={`${fieldId}-kind`}>Tipo</Label>
+            <Select id={`${fieldId}-kind`} value={resourceKind} onChange={e => setResourceKind(e.target.value as "appointment" | "table")}>
+              <option value="appointment">Persona o espacio para citas</option>
+              <option value="table">Mesa sin hora de salida</option>
+            </Select>
+          </div>
           <Label htmlFor={`${fieldId}-1`} className="block text-sm">
             Nombre de la persona o espacio
             <Input id={`${fieldId}-1`} ref={resourceNameInput}
@@ -475,7 +486,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 >
                   <option value="">Elige una persona o espacio</option>
                   {resources
-                    .filter((row) => row.is_active)
+                    .filter((row) => row.is_active && row.kind !== "table")
                     .map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name} · {zoneLabel(row.timezone)}

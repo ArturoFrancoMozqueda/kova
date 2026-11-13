@@ -15,6 +15,9 @@ import { appointmentDateRange, appointmentTimezones } from "./timezone";
 import type { AppointmentResource } from "./types";
 import type { CalendarEvent } from "./bookingTypes";
 import { PublicBookingDetail } from "./PublicBookingDetail";
+import { TableReservationDetail } from "./TableReservations";
+import { tableStatusText } from "@/bookings/tableStatus";
+import type { TableStatus } from "./bookingTypes";
 
 const statuses: Record<string, string> = {
   scheduled: "Programada",
@@ -26,10 +29,12 @@ export function CalendarBoard({
   identity,
   resources,
   revision,
+  onTableSaved,
 }: {
   identity: WorkspaceIdentity;
   resources: AppointmentResource[];
   revision: number;
+  onTableSaved?: () => void;
 }) {
   const [day, setDay] = useState(() => dateKey(new Date()));
   const [zone, setZone] = useState("America/Mexico_City");
@@ -73,8 +78,13 @@ export function CalendarBoard({
       const n = new URLSearchParams(p);
       n.delete("bookingId");
       n.delete("appointmentId");
+      n.delete("tableId");
       n.set(
-        event.source === "booking" ? "bookingId" : "appointmentId",
+        event.source === "table"
+          ? "tableId"
+          : event.source === "booking"
+            ? "bookingId"
+            : "appointmentId",
         event.id,
       );
       return n;
@@ -92,12 +102,18 @@ export function CalendarBoard({
           hour: "2-digit",
           minute: "2-digit",
         }).format(new Date(event.starts_at))}{" "}
-        –{" "}
-        {new Intl.DateTimeFormat("es-MX", {
-          timeZone: zone,
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date(event.ends_at))}
+        {event.ends_at ? (
+          <>
+            –{" "}
+            {new Intl.DateTimeFormat("es-MX", {
+              timeZone: zone,
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(new Date(event.ends_at))}
+          </>
+        ) : (
+          " · Llegada"
+        )}
       </span>
       <span className="block break-words text-sm font-semibold">
         {event.title}
@@ -107,7 +123,9 @@ export function CalendarBoard({
         {event.resource_name}
       </span>
       <span className="block text-xs text-kova-muted">
-        {statuses[event.status] ?? "Consultar cita"}
+        {event.source === "table"
+          ? tableStatusText[event.status as TableStatus]
+          : (statuses[event.status] ?? "Consultar cita")}
         {event.source === "booking" ? " · Reserva en línea" : ""}
       </span>
     </button>
@@ -242,7 +260,11 @@ export function CalendarBoard({
                     (e) =>
                       dateKey(new Date(e.starts_at), zone) <= d &&
                       dateKey(
-                        new Date(new Date(e.ends_at).getTime() - 1),
+                        new Date(
+                          e.ends_at
+                            ? new Date(e.ends_at).getTime() - 1
+                            : e.starts_at,
+                        ),
                         zone,
                       ) >= d,
                   );
@@ -274,7 +296,11 @@ export function CalendarBoard({
                     (e) =>
                       dateKey(new Date(e.starts_at), zone) <= d &&
                       dateKey(
-                        new Date(new Date(e.ends_at).getTime() - 1),
+                        new Date(
+                          e.ends_at
+                            ? new Date(e.ends_at).getTime() - 1
+                            : e.starts_at,
+                        ),
                         zone,
                       ) >= d,
                   );
@@ -308,6 +334,25 @@ export function CalendarBoard({
             )}
           </>
         )
+      )}
+      {params.get("tableId") && (
+        <TableReservationDetail
+          key={params.get("tableId")}
+          identity={identity}
+          reservationId={params.get("tableId")!}
+          resources={resources}
+          onClose={() =>
+            setParams((p) => {
+              const n = new URLSearchParams(p);
+              n.delete("tableId");
+              return n;
+            })
+          }
+          onSaved={() => {
+            void panel.load();
+            onTableSaved?.();
+          }}
+        />
       )}
       {bookingId && (
         <PublicBookingDetail

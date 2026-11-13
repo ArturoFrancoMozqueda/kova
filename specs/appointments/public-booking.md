@@ -1,6 +1,7 @@
 # Agenda visual y reservas públicas
 
-Estado: implementación local; sin publicación ni aceptación productiva.
+Estado: citas publicadas en PR #349; la activación permanece a elección de cada sucursal.
+El modo opcional de [solicitudes de mesa](table-requests.md) conserva los contratos de citas.
 
 ## Problema, usuarios y valor
 

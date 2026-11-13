@@ -1,9 +1,9 @@
 """Bounded, read-only customer context from the current branch's existing records."""
 
-from sqlalchemy import literal, union_all
+from sqlalchemy import Uuid, cast, literal, union_all
 
 from app.appointments.models import Appointment
-from app.bookings.models import PublicBooking
+from app.bookings.models import PublicBooking, TableReservation
 from app.branches.scope import active_branch_id
 from app.crm.engagement_models import FollowupTask
 from app.crm.models import Opportunity
@@ -34,7 +34,8 @@ def read_activity(db, *, tenant_id, customer_id, include_customer_orders=True):
             state.label("state"),
             model.created_at,
             due.label("due_at"),
-            literal(None).label("booking_id"),
+            cast(literal(None), Uuid).label("booking_id"),
+            cast(literal(None), Uuid).label("table_id"),
         ).filter(
             model.tenant_id == tenant_id,
             model.branch_id == branch_id,
@@ -48,13 +49,27 @@ def read_activity(db, *, tenant_id, customer_id, include_customer_orders=True):
                 PublicBooking.created_at,
                 PublicBooking.starts_at.label("due_at"),
                 PublicBooking.id.label("booking_id"),
+                cast(literal(None), Uuid).label("table_id"),
             ).filter(
                 PublicBooking.tenant_id == tenant_id,
                 PublicBooking.branch_id == branch_id,
                 PublicBooking.customer_id == customer_id,
                 PublicBooking.appointment_id.is_(None),
             )
-            combined = union_all(base.statement, public.statement).subquery()
+            tables = db.query(
+                TableReservation.id,
+                literal("Reserva de mesa").label("title"),
+                TableReservation.status.label("state"),
+                TableReservation.created_at,
+                TableReservation.starts_at.label("due_at"),
+                cast(literal(None), Uuid).label("booking_id"),
+                TableReservation.id.label("table_id"),
+            ).filter(
+                TableReservation.tenant_id == tenant_id,
+                TableReservation.branch_id == branch_id,
+                TableReservation.customer_id == customer_id,
+            )
+            combined = union_all(base.statement, public.statement, tables.statement).subquery()
             rows = (
                 db.query(combined)
                 .order_by(combined.c.created_at.desc(), combined.c.id)

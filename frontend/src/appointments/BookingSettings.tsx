@@ -34,15 +34,34 @@ export function BookingSettings({
   resources: AppointmentResource[];
   onSaved: () => void;
 }) {
+  const publication = useOperationsPanel<BookingPage>(
+    "/api/v1/appointments/booking-page",
+    identity,
+  );
   return (
     <div className="space-y-4">
-      <Services identity={identity} resources={resources} />
+      {publication.loading && !publication.data ? (
+        <SectionSkeleton
+          label="Consultando tipo de reservas…"
+          variant="notice"
+        />
+      ) : publication.data?.mode === "tables" ? (
+        <p className="rounded-xl bg-kova-mist p-4 text-sm">
+          Las mesas reciben solicitudes de llegada, sin duración ni hora de
+          salida. El equipo elige la mesa y confirma cada reserva desde Agenda.
+        </p>
+      ) : (
+        <Services
+          identity={identity}
+          resources={resources.filter((r) => r.kind !== "table")}
+        />
+      )}
       <AvailabilitySettings
         identity={identity}
         resources={resources}
         onSaved={onSaved}
       />
-      <Publication identity={identity} onSaved={onSaved} />
+      <Publication panel={publication} onSaved={onSaved} />
     </div>
   );
 }
@@ -277,8 +296,9 @@ function AvailabilitySettings({
     >
       <h2 className="text-lg font-semibold">Disponibilidad</h2>
       <p className="text-sm text-kova-muted">
-        Define días y horarios de atención. Las citas ocupadas se descuentan
-        automáticamente.
+        {resources.some((r) => r.kind === "table")
+          ? "Define cuándo recibir solicitudes para cada mesa. El equipo revisa las reservas y confirma cada llegada."
+          : "Define días y horarios de atención. Las citas ocupadas se descuentan automáticamente."}
       </p>
       <Label htmlFor="availability-resource">Persona o espacio</Label>
       <Select
@@ -656,16 +676,12 @@ function AvailabilityEditor({
   );
 }
 function Publication({
-  identity,
+  panel,
   onSaved,
 }: {
-  identity: WorkspaceIdentity;
+  panel: ReturnType<typeof useOperationsPanel<BookingPage>>;
   onSaved: () => void;
 }) {
-  const panel = useOperationsPanel<BookingPage>(
-    "/api/v1/appointments/booking-page",
-    identity,
-  );
   const [draft, setDraft] = useState<BookingPage | null>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState("");
@@ -765,6 +781,7 @@ function Publication({
                 "",
                 "PUT",
                 {
+                  ...(draft.mode ? { mode: draft.mode } : {}),
                   enabled: draft.enabled,
                   expected_version: draft.version,
                   horizon_days: draft.horizon_days,
@@ -783,6 +800,30 @@ function Publication({
           }}
         >
           <fieldset disabled={panel.busy} className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="booking-mode">¿Qué podrán reservar?</Label>
+              <Select
+                id="booking-mode"
+                value={draft.mode ?? "appointments"}
+                onChange={(e) =>
+                  setDraft((d) =>
+                    d
+                      ? {
+                          ...d,
+                          mode: e.target.value as "appointments" | "tables",
+                        }
+                      : d,
+                  )
+                }
+              >
+                <option value="appointments">
+                  Servicios con cita y duración
+                </option>
+                <option value="tables">
+                  Mesas con confirmación del negocio
+                </option>
+              </Select>
+            </div>
             <label className="flex min-h-11 items-center gap-3 text-sm sm:col-span-2">
               <input
                 type="checkbox"
@@ -840,8 +881,9 @@ function Publication({
             ))}
           </fieldset>
           <p className="text-sm text-kova-muted">
-            Se confirma al reservar. La confirmación aparece en pantalla; el
-            equipo contacta al cliente cuando sea necesario.
+            {draft.mode === "tables"
+              ? "El cliente envía una solicitud. El equipo revisa la disponibilidad y confirma la mesa; no se fija una hora de salida. No se envían mensajes automáticos."
+              : "Se confirma al reservar. La confirmación aparece en pantalla; el equipo contacta al cliente cuando sea necesario."}
           </p>
           <Button disabled={panel.busy || !panel.online}>
             Guardar reservas en línea

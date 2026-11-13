@@ -32,7 +32,7 @@ export type CustomerActivity = {
   branch_id: string;
   sections: {
     source: CustomerActivitySource;
-    items: { id: string; booking_id?: string | null; title: string; state: string; created_at: string; due_at: string | null }[];
+    items: { id: string; booking_id?: string | null; table_id?: string | null; title: string; state: string; created_at: string; due_at: string | null }[];
     has_more: boolean;
   }[];
 };

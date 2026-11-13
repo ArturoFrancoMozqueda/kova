@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { customerActivity, type CustomerActivity, type CustomerActivitySource } from "./api";
+import { tableStatusText } from "@/bookings/tableStatus";
+import type { TableStatus } from "@/appointments/bookingTypes";
 
 const sources: Record<CustomerActivitySource, { title: string; href: (id: string) => string }> = {
   appointments: { title: "Citas", href: (id) => `/appointments?appointmentId=${encodeURIComponent(id)}` },
@@ -37,11 +39,11 @@ function ActivitySource({ section }: { section: ActivitySection }) {
       <ul className="mt-2 divide-y">
         {items.map((item) => (
           <li key={item.id} className="py-2">
-            <Link to={item.booking_id ? `/appointments?bookingId=${encodeURIComponent(item.booking_id)}` : source.href(item.id)} className="break-words text-sm font-medium text-primary underline underline-offset-4">
+            <Link to={item.table_id ? `/appointments?tableId=${encodeURIComponent(item.table_id)}` : item.booking_id ? `/appointments?bookingId=${encodeURIComponent(item.booking_id)}` : source.href(item.id)} className="break-words text-sm font-medium text-primary underline underline-offset-4">
               {item.title}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {activityState(section.source, item.state)}
+              {item.table_id ? tableStatusText[item.state as TableStatus] ?? "Consultar estado" : activityState(section.source, item.state)}
               {item.due_at ? ` · ${new Date(item.due_at).toLocaleString("es-MX")}` : ""}
             </p>
           </li>

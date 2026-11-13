@@ -21,6 +21,7 @@ from app.bookings.models import (
     BookingService,
     BookingServiceResource,
     PublicBooking,
+    TableReservation,
 )
 from app.branches.models import Branch
 from app.branches.scope import active_branch_id, bind_branch
@@ -132,6 +133,7 @@ def resolve_page(db, token):
 
 def describe_page(page):
     return {
+        "mode": page.mode if page else "appointments",
         "enabled": page.enabled if page else False,
         "version": page.version if page else 0,
         "horizon_days": page.horizon_days if page else 30,
@@ -176,6 +178,7 @@ def save_page(db, tenant, actor, body, key):
     row = _page(db, tenant)
     if body.expected_version != (row.version if row else 0):
         raise conflict("La configuración cambió. Vuelve a consultarla.")
+    mode = body.mode or (row.mode if row else "appointments")
     if body.enabled:
         configured = {
             a.resource_id
@@ -183,13 +186,27 @@ def save_page(db, tenant, actor, body, key):
             if any(day.get("windows") for day in [*a.weekly, *a.exceptions])
         }
         active_resources = {
-            r.id for r in _scope(db, tenant, AppointmentResource).filter_by(is_active=True).all()
+            r.id
+            for r in _scope(db, tenant, AppointmentResource)
+            .filter_by(is_active=True, kind="table" if mode == "tables" else "appointment")
+            .all()
         }
         available_resources = configured & active_resources
+        if mode == "tables":
+            table_zones = {
+                r.timezone
+                for r in _scope(db, tenant, AppointmentResource)
+                .filter_by(is_active=True, kind="table")
+                .all()
+            }
+            if len(table_zones) > 1:
+                raise bad_request("Las mesas de esta sucursal deben usar la misma zona horaria.")
         active_services = {
             s.id for s in _scope(db, tenant, BookingService).filter_by(is_active=True).all()
         }
-        if (
+        if mode == "tables" and not available_resources:
+            raise bad_request("Agrega una mesa activa y sus horarios antes de recibir solicitudes.")
+        if mode == "appointments" and (
             not _scope(db, tenant, BookingServiceResource)
             .filter(
                 BookingServiceResource.service_id.in_(active_services),
@@ -214,6 +231,7 @@ def save_page(db, tenant, actor, body, key):
     ):
         setattr(row, name, getattr(body, name))
     row.authorized_by_user_id = actor
+    row.mode = mode
     row.version += 1
     if body.rotate_link:
         row.link_version += 1
@@ -260,7 +278,11 @@ def save_service(db, tenant, actor, body, key, service_id=None):
         raise conflict("El servicio cambió. Consulta su configuración.")
     for resource_id in sorted(body.resource_ids):
         agenda._lock(db, tenant, resource_id)
-        agenda._resource(db, tenant, resource_id, lock=True)
+        if agenda._resource(db, tenant, resource_id, lock=True).kind == "table":
+            raise bad_request(
+                "Las mesas reciben solicitudes sin duración fija; "
+                "no se asignan a servicios con cita."
+            )
     if row is None:
         if _scope(db, tenant, BookingService).count() >= 200:
             raise bad_request("Puedes configurar hasta 200 servicios por sucursal.")
@@ -339,14 +361,24 @@ def context(db, token):
     branch = db.query(Branch).filter_by(tenant_id=page.tenant_id, id=page.branch_id).one()
     resources = agenda.resources(db, page.tenant_id)["items"]
     return {
+        "mode": page.mode,
+        "timezone": next(
+            (r["timezone"] for r in resources if r["kind"] == "table" and r["is_active"]), None
+        )
+        if page.mode == "tables"
+        else None,
         "business_name": profile.public_name if profile else tenant.name,
         "branch_name": branch.name,
         "services": [
             {k: v for k, v in s.items() if k not in {"version", "is_active"}}
-            for s in services(db, page.tenant_id, public=True)
+            for s in (
+                services(db, page.tenant_id, public=True) if page.mode == "appointments" else []
+            )
         ],
         "resources": [
-            {k: r[k] for k in ("id", "name", "timezone")} for r in resources if r["is_active"]
+            {k: r[k] for k in ("id", "name", "timezone")}
+            for r in resources
+            if r["is_active"] and r["kind"] == "appointment" and page.mode == "appointments"
         ],
         "horizon_days": page.horizon_days,
         "manage_cutoff_hours": page.manage_cutoff_hours,
@@ -363,7 +395,7 @@ def _selection(db, page, service_id, resource_id):
         .first()
     )
     resource = agenda._resource(db, page.tenant_id, resource_id)
-    if not service or not assignment or not resource.is_active:
+    if not service or not assignment or not resource.is_active or resource.kind != "appointment":
         raise not_found("El servicio o la persona ya no están disponibles.")
     return service, resource
 
@@ -630,6 +662,8 @@ def create(db, body, key):
         if not hmac.compare_digest(existing.request_hash, request_hash):
             raise conflict("Esta reserva ya se envió con otros datos.")
         return receipt(db, page, existing, with_link=True)
+    if page.mode != "appointments":
+        raise bad_request("Esta página recibe solicitudes de mesa, pendientes de confirmación.")
     customer_id = _identity(db, page, body.identity_token)
     selected_service, resource = _selection(db, page, body.service_id, body.resource_id)
     start = body.starts_at.astimezone(UTC)
@@ -804,6 +838,17 @@ def calendar(db, tenant, start, end, resource_id=None):
         .limit(1001)
         .all()
     )
+    table_rows = (
+        _scope(db, tenant, TableReservation)
+        .filter(
+            TableReservation.starts_at >= start,
+            TableReservation.starts_at < end,
+            *([TableReservation.resource_id == resource_id] if resource_id else []),
+        )
+        .order_by(TableReservation.starts_at, TableReservation.id)
+        .limit(1001)
+        .all()
+    )
     resources = {r.id: r for r in _scope(db, tenant, AppointmentResource).all()}
     from app.customers.models import Customer
 
@@ -812,7 +857,9 @@ def calendar(db, tenant, start, end, resource_id=None):
         for c in db.query(Customer)
         .filter(
             Customer.tenant_id == tenant,
-            Customer.id.in_({r.customer_id for r in [*internal, *public] if r.customer_id}),
+            Customer.id.in_(
+                {r.customer_id for r in [*internal, *public, *table_rows] if r.customer_id}
+            ),
         )
         .all()
     }
@@ -835,9 +882,26 @@ def calendar(db, tenant, start, end, resource_id=None):
         }
         for r in [*internal, *public]
     ]
+    items.extend(
+        {
+            "id": str(r.id),
+            "source": "table",
+            "title": "Reserva de mesa",
+            "resource_id": str(r.resource_id) if r.resource_id else None,
+            "resource_name": resources[r.resource_id].name if r.resource_id else "Mesa por asignar",
+            "timezone": r.timezone,
+            "starts_at": r.starts_at.isoformat(),
+            "ends_at": None,
+            "status": r.status,
+            "customer_id": str(r.customer_id) if r.customer_id else None,
+            "customer_name": customers.get(r.customer_id, r.guest_name),
+            "version": r.version,
+        }
+        for r in table_rows
+    )
     return {
         "items": sorted(items, key=lambda r: (r["starts_at"], r["id"])),
-        "has_more": len(internal) > 1000 or len(public) > 1000,
+        "has_more": len(internal) > 1000 or len(public) > 1000 or len(table_rows) > 1000,
     }
 
 

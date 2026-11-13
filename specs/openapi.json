@@ -458,6 +458,15 @@
       "AppointmentResourceCreate": {
         "additionalProperties": false,
         "properties": {
+          "kind": {
+            "default": "appointment",
+            "enum": [
+              "appointment",
+              "table"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "name": {
             "maxLength": 120,
             "minLength": 1,
@@ -510,6 +519,15 @@
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
+          },
+          "kind": {
+            "default": "appointment",
+            "enum": [
+              "appointment",
+              "table"
+            ],
+            "title": "Kind",
+            "type": "string"
           },
           "name": {
             "title": "Name",
@@ -3816,6 +3834,18 @@
           "state": {
             "title": "State",
             "type": "string"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Id"
           },
           "title": {
             "title": "Title",
@@ -12674,6 +12704,21 @@
             "title": "Manage Cutoff Hours",
             "type": "integer"
           },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "appointments",
+                  "tables"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
           "notice_minutes": {
             "default": 120,
             "maximum": 525600.0,
@@ -14320,6 +14365,15 @@
             "title": "Manage Cutoff Hours",
             "type": "integer"
           },
+          "mode": {
+            "default": "appointments",
+            "enum": [
+              "appointments",
+              "tables"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "resources": {
             "items": {
               "$ref": "#/components/schemas/PublicResource"
@@ -14333,6 +14387,17 @@
             },
             "title": "Services",
             "type": "array"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
           }
         },
         "required": [
@@ -18515,6 +18580,585 @@
         "title": "SupplierResponse",
         "type": "object"
       },
+      "TableAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "confirm",
+              "decline",
+              "cancel",
+              "seat",
+              "release",
+              "no_show",
+              "revoke"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          }
+        },
+        "required": [
+          "expected_version",
+          "action"
+        ],
+        "title": "TableAction",
+        "type": "object"
+      },
+      "TableArrival": {
+        "properties": {
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "starts_at",
+          "timezone"
+        ],
+        "title": "TableArrival",
+        "type": "object"
+      },
+      "TableArrivals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TableArrival"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TableArrivals",
+        "type": "object"
+      },
+      "TableDetail": {
+        "properties": {
+          "calendar_uid": {
+            "title": "Calendar Uid",
+            "type": "string"
+          },
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/TableHistoryItem"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "manage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manage Path"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
+          },
+          "seated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seated At"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "requested",
+              "confirmed",
+              "seated",
+              "completed",
+              "declined",
+              "cancelled",
+              "no_show"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "default": "Reserva de mesa",
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "starts_at",
+          "timezone",
+          "party_size",
+          "resource_name",
+          "status",
+          "version",
+          "can_manage",
+          "calendar_uid",
+          "id",
+          "name",
+          "phone",
+          "resource_id",
+          "customer_id",
+          "seated_at",
+          "released_at",
+          "history"
+        ],
+        "title": "TableDetail",
+        "type": "object"
+      },
+      "TableHistoryItem": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "requested",
+              "confirmed",
+              "seated",
+              "completed",
+              "declined",
+              "cancelled",
+              "no_show"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "starts_at",
+          "status",
+          "created_at"
+        ],
+        "title": "TableHistoryItem",
+        "type": "object"
+      },
+      "TableList": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TableSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "TableList",
+        "type": "object"
+      },
+      "TableReceipt": {
+        "properties": {
+          "calendar_uid": {
+            "title": "Calendar Uid",
+            "type": "string"
+          },
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "manage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manage Path"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "requested",
+              "confirmed",
+              "seated",
+              "completed",
+              "declined",
+              "cancelled",
+              "no_show"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "default": "Reserva de mesa",
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "starts_at",
+          "timezone",
+          "party_size",
+          "resource_name",
+          "status",
+          "version",
+          "can_manage",
+          "calendar_uid"
+        ],
+        "title": "TableReceipt",
+        "type": "object"
+      },
+      "TableRequestWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "identity_token": {
+            "anyOf": [
+              {
+                "maxLength": 2500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Token"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "page_token": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Page Token",
+            "type": "string"
+          },
+          "party_size": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "phone": {
+            "maxLength": 30,
+            "minLength": 7,
+            "pattern": "^[+0-9 ()-]+$",
+            "title": "Phone",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page_token",
+          "starts_at",
+          "party_size",
+          "name",
+          "phone"
+        ],
+        "title": "TableRequestWrite",
+        "type": "object"
+      },
+      "TableSummary": {
+        "properties": {
+          "calendar_uid": {
+            "title": "Calendar Uid",
+            "type": "string"
+          },
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "manage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manage Path"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
+          },
+          "seated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seated At"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "requested",
+              "confirmed",
+              "seated",
+              "completed",
+              "declined",
+              "cancelled",
+              "no_show"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "default": "Reserva de mesa",
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "starts_at",
+          "timezone",
+          "party_size",
+          "resource_name",
+          "status",
+          "version",
+          "can_manage",
+          "calendar_uid",
+          "id",
+          "name",
+          "phone",
+          "resource_id",
+          "customer_id",
+          "seated_at",
+          "released_at"
+        ],
+        "title": "TableSummary",
+        "type": "object"
+      },
       "TaskWrite": {
         "additionalProperties": false,
         "properties": {
@@ -21253,6 +21897,304 @@
           }
         },
         "summary": "Update Service",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/table-reservations": {
+      "get": {
+        "operationId": "list_tables_api_v1_appointments_table_reservations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "requested",
+                    "confirmed",
+                    "seated",
+                    "completed",
+                    "declined",
+                    "cancelled",
+                    "no_show"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "starts_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Starts From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "starts_until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Starts Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resource Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tables",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/table-reservations/{reservation_id}": {
+      "get": {
+        "operationId": "table_detail_api_v1_appointments_table_reservations__reservation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Table Detail",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/table-reservations/{reservation_id}/action": {
+      "post": {
+        "operationId": "table_action_api_v1_appointments_table_reservations__reservation_id__action_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Table Action",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/table-reservations/{reservation_id}/review": {
+      "get": {
+        "operationId": "table_review_api_v1_appointments_table_reservations__reservation_id__review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Table Review",
         "tags": [
           "bookings"
         ]
@@ -33192,6 +34134,272 @@
           }
         },
         "summary": "Slots",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/table-arrivals": {
+      "get": {
+        "operationId": "table_arrivals_api_v1_public_bookings_table_arrivals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page_token",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Page Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableArrivals"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Table Arrivals",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/table-manage": {
+      "post": {
+        "operationId": "manage_table_api_v1_public_bookings_table_manage_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manage Table",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/table-manage/arrivals": {
+      "post": {
+        "operationId": "manage_table_arrivals_api_v1_public_bookings_table_manage_arrivals_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableArrivals"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manage Table Arrivals",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/table-manage/read": {
+      "post": {
+        "operationId": "read_table_api_v1_public_bookings_table_manage_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Table",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/table-requests": {
+      "post": {
+        "operationId": "request_table_api_v1_public_bookings_table_requests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableRequestWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Table",
         "tags": [
           "bookings"
         ]

@@ -1,4 +1,11 @@
-import type { BookingReceipt } from "@/appointments/bookingTypes";
+type CalendarReceipt = {
+  title: string;
+  resource_name: string | null;
+  starts_at: string;
+  ends_at?: string | null;
+  timezone: string;
+  calendar_uid?: string;
+};
 const escape = (v: string) =>
   v
     .replace(/\\/g, "\\\\")
@@ -10,18 +17,18 @@ const stamp = (v: string) =>
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d{3}/, "");
-export function calendarFile(receipt: BookingReceipt): string {
+export function calendarFile(receipt: CalendarReceipt): string {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Kova//Reservas//ES",
     "BEGIN:VEVENT",
-    `UID:${receipt.calendar_uid ?? `${stamp(receipt.starts_at)}-${stamp(receipt.ends_at)}@kovasuite.com`}`,
+    `UID:${receipt.calendar_uid ?? `${stamp(receipt.starts_at)}-${receipt.ends_at ? stamp(receipt.ends_at) : "arrival"}@kovasuite.com`}`,
     `DTSTAMP:${stamp(new Date().toISOString())}`,
     `DTSTART:${stamp(receipt.starts_at)}`,
-    `DTEND:${stamp(receipt.ends_at)}`,
+    ...(receipt.ends_at ? [`DTEND:${stamp(receipt.ends_at)}`] : []),
     `SUMMARY:${escape(receipt.title)}`,
-    `DESCRIPTION:${escape(`Cita con ${receipt.resource_name}. Horario de ${receipt.timezone}.`)}`,
+    `DESCRIPTION:${escape(receipt.ends_at ? `Cita con ${receipt.resource_name}. Horario de ${receipt.timezone}.` : `Hora de llegada. Sin hora de salida fijada. Horario de ${receipt.timezone}.`)}`,
     "END:VEVENT",
     "END:VCALENDAR",
     "",
@@ -40,7 +47,7 @@ export function calendarFile(receipt: BookingReceipt): string {
     })
     .join("\r\n");
 }
-export function downloadCalendar(receipt: BookingReceipt) {
+export function downloadCalendar(receipt: CalendarReceipt) {
   const url = URL.createObjectURL(
     new Blob([calendarFile(receipt)], { type: "text/calendar;charset=utf-8" }),
   );
