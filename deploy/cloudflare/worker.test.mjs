@@ -110,9 +110,27 @@ test("public pages render their own HTML while application routes use an empty s
   }
 });
 
+test("booking JWT addresses open the application on direct GET and HEAD requests", async () => {
+  // Synthetic shape only: no real tenant, publication or valid credential.
+  const token = `eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJrb3ZhLWJvb2tpbmctcGFnZSJ9.${"x".repeat(43)}`;
+  const env = assets({ "/app-shell.html": '<div id="root"></div>' });
+  for (const method of ["GET", "HEAD"]) {
+    for (const suffix of ["", "/", "?utm_source=test"]) {
+      const response = await handleRequest(new Request(`https://kovasuite.com/reservar/${token}${suffix}`, { method }), env);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), method === "HEAD" ? "" : '<div id="root"></div>');
+      assert.match(response.headers.get("content-type"), /text\/html/);
+      assert.equal(response.headers.get("cache-control"), "no-cache");
+      assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+    }
+  }
+});
+
 test("missing JS, precache files and Vercel endpoints stay 404", async () => {
   const env = assets({ "/app-shell.html": "shell" });
-  for (const path of ["/assets/missing.js", "/sw.js", "/_vercel/insights/script.js"]) {
+  for (const path of ["/assets/missing.js", "/sw.js", "/_vercel/insights/script.js",
+    "/reservar/missing.js", "/reservar/bundle.hash.js", "/reservar/token.file.js.map",
+    "/reservar/header.payload.signature/assets/missing.js"]) {
     const response = await handleRequest(new Request(`https://kovasuite.com${path}`), env);
     assert.equal(response.status, 404);
     assert.match(response.headers.get("cache-control"), /no-store/);
