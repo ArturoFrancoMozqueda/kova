@@ -53,7 +53,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
@@ -283,7 +283,7 @@ export default function ShiftView() {
               <Clock className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.shiftView.activeShift}</h2>
             </div>
-            <Badge variant="success">{copy.shiftView.badgeOpen}</Badge>
+            <StatusBadge domain="shift" value="open" label={copy.shiftView.badgeOpen} />
           </CardHeader>
           <CardContent className="space-y-4">
             {(() => {
@@ -496,13 +496,9 @@ export default function ShiftView() {
                       </div>
                     </div>
                     {shift.reconciliation_status ? (
-                      <Badge
-                        variant={shift.reconciliation_status === "balanced" ? "success" : "warning"}
-                      >
-                        {localizeReconciliationStatus(shift.reconciliation_status)}
-                      </Badge>
+                      <StatusBadge domain="reconciliation" value={shift.reconciliation_status} label={localizeReconciliationStatus(shift.reconciliation_status)} />
                     ) : (
-                      <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
+                      <StatusBadge domain="shift" value="closed" label={copy.shiftView.badgeClosed} />
                     )}
                   </div>
                   <div className="mt-3 flex gap-2">
@@ -577,17 +573,9 @@ export default function ShiftView() {
                       </td>
                       <td className="py-3 px-4">
                         {shift.reconciliation_status ? (
-                          <Badge
-                            variant={
-                              shift.reconciliation_status === "balanced"
-                                ? "success"
-                                : "warning"
-                            }
-                          >
-                            {localizeReconciliationStatus(shift.reconciliation_status)}
-                          </Badge>
+                          <StatusBadge domain="reconciliation" value={shift.reconciliation_status} label={localizeReconciliationStatus(shift.reconciliation_status)} />
                         ) : (
-                          <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
+                          <StatusBadge domain="shift" value="closed" label={copy.shiftView.badgeClosed} />
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -658,6 +646,8 @@ export default function ShiftView() {
       {activeModal === "close" && currentShift && (
         <CloseShiftModal
           shift={currentShift}
+          businessName={businessName}
+          paperWidthMm={paperWidthMm}
           pending={operationPending}
           onSubmit={submitCloseShift}
           onCancel={() => setActiveModal(null)}

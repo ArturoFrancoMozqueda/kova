@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiErrorDetail, apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -234,14 +234,12 @@ export default function OrderDetail() {
             actions={
               <div className="flex items-center gap-2 flex-wrap">
                 {canPrepareInvoice && order.status === "completed" && receipt.status === "completed" && !receipt.void && receipt.refunds.length === 0 && <Link to={`/settings/integrations?order_id=${encodeURIComponent(order.id)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Preparar factura</Link>}
-                <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
-                  {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
-                </Badge>
+                <StatusBadge domain="sale" value={isVoided ? "voided" : "completed"} label={isVoided ? copy.orderDetail.voided : copy.orderDetail.completed} className="text-sm" />
                 {!isVoided && refundState === "partial" && (
-                  <Badge variant="warning" className="text-sm">{copy.orderDetail.refundedPartial}</Badge>
+                  <StatusBadge domain="refund" value="partial" label={copy.orderDetail.refundedPartial} className="text-sm" />
                 )}
                 {!isVoided && refundState === "full" && (
-                  <Badge variant="destructive" className="text-sm">{copy.orderDetail.refundedFull}</Badge>
+                  <StatusBadge domain="refund" value="full" label={copy.orderDetail.refundedFull} className="text-sm" />
                 )}
               </div>
             }

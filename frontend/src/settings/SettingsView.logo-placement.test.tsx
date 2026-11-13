@@ -152,4 +152,17 @@ describe("SettingsView business logo placement", () => {
       expect.objectContaining({ paper_width_mm: 58 }),
     ));
   });
+
+  it("shows the default tax on the sample receipt while the owner types it", async () => {
+    const { container } = renderSettings("/settings/receipt");
+    const rate = await screen.findByLabelText("Impuesto adicional predeterminado (%)");
+    const receipt = () => container.querySelector(".receipt-template");
+    expect(receipt()).not.toHaveTextContent("Impuesto adicional");
+    fireEvent.change(rate, { target: { value: "16" } });
+    expect(receipt()).toHaveTextContent("Impuesto adicional (16%)");
+    expect(receipt()).toHaveTextContent("$19.20");
+    expect(receipt()).toHaveTextContent("$139.20");
+    fireEvent.change(rate, { target: { value: "abc" } });
+    expect(receipt()).not.toHaveTextContent("Impuesto adicional");
+  });
 });

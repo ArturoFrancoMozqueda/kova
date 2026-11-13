@@ -11,9 +11,11 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ProductPhoto, type ProductPhotoData } from "./ProductPhoto";
+import { MenuPreview } from "./MenuPreview";
 
 type Settings = { enabled: boolean; title: string; description: string | null; whatsapp_phone: string | null; product_ids: string[]; version: number; share_path: string | null };
-type Product = ProductPhotoData & { id: string; name: string; price_amount: string; is_active: boolean };
+type Product = ProductPhotoData & { id: string; name: string; description?: string | null; price_amount: string; is_active: boolean };
+const nameOrder = new Intl.Collator("es-MX", { sensitivity: "base", numeric: true });
 const money = (amount: string) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(amount));
 
 export default function CatalogPublishView() {
@@ -87,7 +89,10 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Cargar versión actual" />}
     {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice}</p>}
     {!settings && !error && <SectionSkeleton label="Cargando publicación…" variant="form" />}
-    {settings && <form onSubmit={event => void save(event)} className="space-y-6">
+    {settings && <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+    <MenuPreview className="order-first lg:order-last" title={settings.title} description={settings.description} whatsappPhone={settings.whatsapp_phone} enabled={settings.enabled}
+      products={products.filter(product => settings.product_ids.includes(product.id)).sort((a, b) => nameOrder.compare(a.name, b.name) || a.id.localeCompare(b.id))} />
+    <form onSubmit={event => void save(event)} className="min-w-0 space-y-6">
       <fieldset disabled={busy || !online} className="space-y-5 rounded-2xl border border-kova-border bg-white p-5 sm:p-7">
         <legend className="px-2 font-semibold">Información pública</legend>
         <div><Label htmlFor="public-title">Nombre del menú o negocio</Label><Input id="public-title" required maxLength={160} value={settings.title} onChange={e => setSettings({ ...settings, title: e.target.value })} /></div>
@@ -103,7 +108,8 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <p className="mt-4 text-sm text-kova-muted">{settings.product_ids.length} seleccionados. Costos, márgenes y cantidades exactas de inventario permanecen privados.</p>
       </fieldset>
       <Button disabled={busy || !online || !settings.title.trim()} type="submit">{busy ? "Guardando…" : "Guardar publicación"}</Button>
-    </form>}
+    </form>
+    </div>}
     {settings?.share_path && <section aria-label="Enlace publicado" className="space-y-3 rounded-2xl border border-kova-border p-5"><h2 className="font-semibold">Un mismo enlace para tus clientes</h2><p className="text-sm text-kova-muted">Comparte esta dirección para todas tus actualizaciones. Al abrir o recargar el menú, tus clientes ven la publicación guardada y los precios, fotos y disponibilidad actuales de tus productos.</p><a href={settings.share_path} target="_blank" rel="noreferrer" className="inline-block text-kova-blue underline">Abrir catálogo público</a><label className="block text-sm" htmlFor="public-catalog-link">Enlace público</label><Input ref={shareInput} id="public-catalog-link" readOnly value={new URL(settings.share_path, window.location.origin).href} /><Button type="button" variant="outline" onClick={() => void copyLink()}>Copiar enlace</Button>{copyNotice && <p role="status" className="text-sm">{copyNotice}</p>}<p className="text-sm text-kova-muted">Para revisar pedidos y consultas, abre <Link to="/commercial-requests" className="text-kova-blue underline">Ver solicitudes del catálogo</Link>.</p>{qr && <div><img src={qr} alt="Código QR del catálogo público" className="h-48 w-48" width={192} height={192} /><a href={qr} download="catalogo-kova.png" className="inline-block py-3 text-sm underline">Descargar código QR</a></div>}</section>}
   </ViewLayout>;
 }

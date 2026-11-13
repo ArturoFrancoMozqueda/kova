@@ -17,15 +17,22 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Lock, TrendingDown, TrendingUp, Minus, AlertTriangle } from "lucide-react";
 import { useSyncQueue } from "@/offline/useSyncQueue";
+import { LivePreview } from "@/components/ui/live-preview";
+import { TicketPaper } from "@/components/ui/ticket";
+import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
+import { CorteTemplate } from "./CorteTemplate";
 
 interface CloseShiftModalProps {
   shift: Shift;
+  /** When present, the modal shows the corte that will be printed. */
+  businessName?: string;
+  paperWidthMm?: ReceiptPaperWidth;
   pending: boolean;
   onSubmit: (payload: ShiftClosePayload) => void;
   onCancel: () => void;
 }
 
-export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShiftModalProps) {
+export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const { pendingCount, failedEntries } = useSyncQueue(shift.id);
@@ -57,11 +64,22 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
   const variance = actualAmount - expectedCash;
   const variancePercentage = expectedCash > 0 ? ((variance / expectedCash) * 100).toFixed(2) : "0.00";
 
+  // Preview of the corte with the counted cash, using the server's rule
+  // (shifts/calculator.py): variance = actual − expected, in centavos.
+  const toCents = (value: string | null | undefined) => Math.round(Number(value ?? 0) * 100);
+  const previewVarianceCents = toCents(actualCash) - toCents(shift.expected_cash_amount);
+  const previewShift: Shift = {
+    ...shift,
+    actual_cash_amount: actualCash,
+    variance_amount: (previewVarianceCents / 100).toFixed(2),
+    reconciliation_status: previewVarianceCents === 0 ? "balanced" : previewVarianceCents > 0 ? "overage" : "shortage",
+  };
+
   const VarianceIcon =
     variance === 0 ? Minus : variance > 0 ? TrendingUp : TrendingDown;
 
   return (
-    <Dialog open onClose={onCancel}>
+    <Dialog open onClose={onCancel} className={businessName ? "lg:max-w-4xl" : undefined}>
       <form onSubmit={handleSubmit}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -73,7 +91,8 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <div className={cn("py-4", businessName && "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]")}>
+        <div className="min-w-0 space-y-4">
           {unsyncedCount > 0 && (
             <div
               role="alert"
@@ -186,6 +205,21 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
               </p>
             )}
           </div>
+        </div>
+        {businessName && (
+          <LivePreview
+            label="Vista previa del corte de caja"
+            title={actualCash ? "Vista previa del corte" : "Así saldrá tu corte"}
+            summary={actualCash
+              ? `Corte con ${formatMoney(actualAmount)} contados y una diferencia de ${formatMoney(previewVarianceCents / 100)}.`
+              : "Captura el efectivo contado para ver el corte completo."}
+            note={<p>Las horas y montos finales los fija Kova al cerrar el turno.</p>}
+          >
+            <TicketPaper className="mx-auto" style={{ width: paperWidthMm === 58 ? "218px" : "302px", maxWidth: "100%" }}>
+              <CorteTemplate businessName={businessName} shift={previewShift} paperWidthMm={paperWidthMm} />
+            </TicketPaper>
+          </LivePreview>
+        )}
         </div>
 
         <DialogFooter>

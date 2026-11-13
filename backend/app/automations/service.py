@@ -118,6 +118,7 @@ def _rule_response(key: str, row: AutomationRule | None) -> RuleResponse:
         template_key=key,
         title=template["title"],
         description=template["description"],
+        task=template["task"],
         enabled=bool(row and row.enabled),
         version=row.version if row else 0,
     )

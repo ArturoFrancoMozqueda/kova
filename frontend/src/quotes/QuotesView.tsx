@@ -33,6 +33,8 @@ import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { CrmData, Opportunity } from "@/crm/types";
 import type { Quote, QuotesPage } from "./types";
+import { QuotePreview } from "./QuotePreview";
+import { formatTenantName } from "@/lib/formatTenantName";
 
 const money = (amount: string) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
@@ -54,12 +56,12 @@ export default function QuotesView() {
   const { state } = useAuth();
   return (
     <OperationsSession>
-      {(identity) => <QuotesWorkspace identity={identity} canCreate={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "quotes")} />}
+      {(identity) => <QuotesWorkspace identity={identity} businessName={formatTenantName(state.status === "authenticated" ? state.tenantName : "")} canCreate={hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "quotes")} />}
     </OperationsSession>
   );
 }
 
-function QuotesWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; canCreate: boolean }) {
+function QuotesWorkspace({ identity, businessName, canCreate }: { identity: WorkspaceIdentity; businessName: string; canCreate: boolean }) {
   const request = useOperationsRequest("/api/v1", identity);
   const online = useOnline();
   const location = useLocation();
@@ -376,8 +378,19 @@ function QuotesWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity;
         <form
           onSubmit={create}
           aria-label="Nueva cotización"
-          className="space-y-5 rounded-2xl border bg-card p-5"
+          className="grid items-start gap-5 rounded-2xl border bg-card p-5 lg:grid-cols-[minmax(0,1fr)_20rem]"
         >
+          <QuotePreview
+            className="order-last lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1"
+            businessName={businessName || "Tu negocio"}
+            customerName={customerId ? (customers.find((row) => row.id === customerId)?.name ?? (sourceOpportunity?.customer_id === customerId ? sourceOpportunity.customer_name : null) ?? "Cliente seleccionado") : null}
+            expiresAt={expiresAt}
+            lines={items.flatMap((item) => {
+              const product = products.find((row) => row.id === item.product_id);
+              return product ? [{ id: item.product_id, name: product.name, quantity: item.quantity, unitPrice: product.price_amount }] : [];
+            })}
+          />
+          <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
           <h2 className="text-lg font-semibold">Prepara la propuesta</h2>
           <fieldset
             disabled={busy || !online}
@@ -549,6 +562,7 @@ function QuotesWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity;
           >
             Crear cotización
           </Button>
+          </div>
         </form>
       )}
       {page && (

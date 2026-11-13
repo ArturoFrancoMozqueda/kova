@@ -72,6 +72,9 @@ def test_defaults_disabled_and_capabilities_are_honest(client):
     assert result.status_code == 200, result.text
     assert len(result.json()["rules"]) == 4
     assert all(not rule["enabled"] and rule["version"] == 0 for rule in result.json()["rules"])
+    tasks = {rule["template_key"]: rule["task"] for rule in result.json()["rules"]}
+    assert tasks["order_ready"] == "Revisa la entrega del pedido listo"
+    assert all(task.strip() for task in tasks.values())
     assert result.json()["runs"] == []
     assert result.json()["capabilities"] == {
         "internal_tasks": True,

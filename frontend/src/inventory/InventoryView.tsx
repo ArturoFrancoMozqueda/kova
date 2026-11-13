@@ -12,6 +12,7 @@ import type { InventoryReasonCode, InventoryVelocityItem, MovementHistoryItem, S
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -584,9 +585,9 @@ function StockCard({
             </div>
           </div>
           {isOut ? (
-            <Badge variant="destructive">{copy.inventoryView.outBadge}</Badge>
+            <StatusBadge domain="stock" value="out" label={copy.inventoryView.outBadge} />
           ) : isLow ? (
-            <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
+            <StatusBadge domain="stock" value="low" label={copy.inventoryView.lowBadge} />
           ) : null}
         </div>
         <div className="lg:text-right">

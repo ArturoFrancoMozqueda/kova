@@ -23,6 +23,8 @@ class RuleResponse(BaseModel):
     template_key: TemplateKey
     title: str
     description: str
+    # Internal task text this rule creates in Pendientes; shown as a preview.
+    task: str
     enabled: bool
     version: int
 

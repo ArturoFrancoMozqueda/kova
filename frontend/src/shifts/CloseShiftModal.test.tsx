@@ -69,3 +69,29 @@ describe("CloseShiftModal offline sale guard", () => {
     expect(onSubmit).toHaveBeenCalledWith({ actual_cash_amount: "550.00" });
   });
 });
+
+describe("CloseShiftModal corte preview", () => {
+  beforeEach(() => {
+    syncQueue.pendingCount = 0;
+    syncQueue.failedEntries = [];
+  });
+
+  it("draws the corte that will be printed with the counted cash and the server's variance rule", () => {
+    render(<CloseShiftModal shift={{ ...shift, opened_at: "2026-11-13T09:00:00Z", closed_at: null }} businessName="Panadería Lupita" pending={false} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+    const preview = screen.getByRole("complementary", { name: "Vista previa del corte de caja" });
+    expect(preview).toHaveTextContent("Panadería Lupita");
+    expect(preview).toHaveTextContent("Captura el efectivo contado");
+
+    fireEvent.change(screen.getByLabelText(copy.closeShiftModal.enterActualCash), { target: { value: "540.10" } });
+    expect(preview).toHaveTextContent("-$9.90");
+    expect(preview).toHaveTextContent("Corte con $540.10 contados y una diferencia de -$9.90.");
+
+    fireEvent.change(screen.getByLabelText(copy.closeShiftModal.enterActualCash), { target: { value: "550" } });
+    expect(preview).toHaveTextContent(/Corte con \$550\.00 contados y una diferencia de \$0\.00/);
+  });
+
+  it("keeps the compact modal when no business context is given", () => {
+    render(<CloseShiftModal shift={shift} pending={false} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByRole("complementary", { name: "Vista previa del corte de caja" })).not.toBeInTheDocument();
+  });
+});

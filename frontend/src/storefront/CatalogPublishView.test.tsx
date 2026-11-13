@@ -112,3 +112,33 @@ it("selects the shareable link for manual copying when clipboard access is denie
     expect(input.selectionEnd).toBe(input.value.length);
   } finally { vi.unstubAllGlobals(); }
 });
+
+it("shows the unsaved menu as customers will see it while the owner edits it", async () => {
+  request.mockImplementation(async (path) => {
+    if (path === "/storefront/settings") return { ...settings, enabled: false, product_ids: [] };
+    return [
+      { id: "product-2", name: "Pan de nuez", price_amount: "45.00", is_active: true },
+      { id: "product-1", name: "Concha", price_amount: "18.50", is_active: true },
+    ];
+  });
+  render(<MemoryRouter><CatalogPublishView /></MemoryRouter>);
+  const preview = await screen.findByRole("complementary", { name: "Vista previa del menú público" });
+  expect(preview).toHaveTextContent("Así lo ven tus clientes");
+  expect(preview).toHaveTextContent("Aún no está publicado");
+  expect(preview).toHaveTextContent("Marca los productos que quieres mostrar");
+
+  fireEvent.change(screen.getByLabelText("Nombre del menú o negocio"), { target: { value: "Panadería Lupita" } });
+  fireEvent.change(screen.getByLabelText("WhatsApp público (opcional)"), { target: { value: "525512345678" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /Pan de nuez/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Concha/ }));
+
+  expect(preview).toHaveTextContent("Panadería Lupita");
+  expect(preview).toHaveTextContent("Consultar por WhatsApp");
+  expect(preview).toHaveTextContent("2 productos");
+  const names = Array.from(preview.querySelectorAll("h3")).map(node => node.textContent);
+  expect(names).toEqual(["Concha", "Pan de nuez"]);
+  // The rendered cards are decorative copies: no duplicate tab stops for the owner.
+  expect(preview.querySelector("[inert]")).not.toBeNull();
+  expect(preview).toHaveTextContent(/Menú sin publicar con el título Panadería Lupita, 2 productos y botón para consultar por WhatsApp/);
+  expect(request).not.toHaveBeenCalledWith("/storefront/settings", "PUT", expect.anything(), expect.anything());
+});

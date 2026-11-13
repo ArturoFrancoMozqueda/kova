@@ -9,6 +9,7 @@ import { INVENTORY_ADJUST_PERMISSION, usePermission } from "@/auth/permissions";
 import { listProducts } from "@/catalog/api";
 import type { Product } from "@/catalog/types";
 import { Button } from "@/components/ui/button";
+import { semanticIcon } from "@/components/ui/semantic-icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,10 @@ import { cancelPurchase, createPurchase, createSupplier, listPurchases, listSupp
 import { formatPurchaseTotal } from "./formatPurchaseTotal";
 import { resolveUserFacingError } from "@/lib/apiError";
 
+function PurchaseStatusIcon({ status }: { status: string }) {
+  const { icon: Icon, tone } = semanticIcon("purchase", status);
+  return <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone === "success" ? "bg-kova-growth/15 text-kova-growth-strong" : tone === "warning" ? "bg-warning/20 text-warning-foreground" : "bg-kova-mist text-kova-ink"}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>;
+}
 const statusLabel = { pending: "Pendiente", partial: "Recibida parcialmente", received: "Recibida", cancelled: "Cancelada" };
 const purchaseDate = (value: string) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 type DraftLine = { product_id: string; quantity: number; unit_cost: string };
@@ -135,7 +140,7 @@ export default function PurchasingView() {
       {loading && <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Cargando compras…</p>{[0, 1].map(i => <Card key={i}><CardContent className="space-y-3 pt-6"><Skeleton className="h-5 w-56" /><Skeleton className="h-4 w-72" /></CardContent></Card>)}</div>}
       {!loading && !error && purchases.length === 0 && <ViewEmpty icon={<Truck className="h-6 w-6" />} title="No hay compras en esta página." body="Cuando prepares una compra, aquí podrás recibir la mercancía que llegó y ver lo pendiente." />}
       {purchases.map(purchase => <Card key={purchase.id} ref={purchase.id === linkedPurchaseId ? linkedPurchaseRef : undefined} tabIndex={purchase.id === linkedPurchaseId ? -1 : undefined} role="region" aria-label={`Compra de ${purchase.supplier_name} · ${purchaseDate(purchase.created_at)}`} className={purchase.id === linkedPurchaseId ? "border-kova-blue ring-2 ring-kova-blue/20 focus:outline-none" : undefined}><CardContent className="space-y-3 pt-6">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{purchaseDate(purchase.created_at)}</span></div>
+        <div className="flex flex-wrap justify-between gap-2"><h3 className="inline-flex items-center gap-2 font-semibold"><PurchaseStatusIcon status={purchase.status} />{purchase.supplier_name} · {statusLabel[purchase.status]}</h3><span className="text-sm text-muted-foreground">{purchaseDate(purchase.created_at)}</span></div>
         {purchase.notes && <p className="text-sm text-muted-foreground">{purchase.notes}</p>}
         <ul className="space-y-1 text-sm">{purchase.items.map(item => <li key={item.id}>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></li>)}</ul>
         {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}

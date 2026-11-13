@@ -16623,6 +16623,10 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
           "template_key": {
             "enum": [
               "order_ready",
@@ -16646,6 +16650,7 @@
           "template_key",
           "title",
           "description",
+          "task",
           "enabled",
           "version"
         ],
