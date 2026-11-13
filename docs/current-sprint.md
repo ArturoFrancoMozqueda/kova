@@ -63,7 +63,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el challenge del callback. Verificación del titular en revisión; faltan permisos de la app, configuración de Login for Business y aceptación de entrada/respuesta/entrega con un número autorizado ([alta](runbooks/whatsapp-embedded-signup.md), [piloto](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
-| Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-017](adr/ADR-017-asistente-respuestas-ancladas.md)). |
+| Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-034](adr/ADR-034-asistente-cloudflare-consumo-verificado.md)). Qwen/Cloudflare ya tiene ruta anclada, reportes con una llamada, límites 256/128 y conciliación verificable sin liberar incertidumbre. Selector real validado dentro de cuota gratuita; faltan corpus/revisión humana y recorrido/carga alojados con proveedor. Evidencia en el [runbook](runbooks/assistant-acceptance.md); cambios locales no acreditan publicación ni activación. |
 | Gastos y margen | Detrás de `margin_reports` ([ADR-015](adr/ADR-015-expenses-standard-plan-rollout.md)). |
 | Cajón de dinero | Código publicado; sin evidencia física de un modelo real ([contrato](../specs/shifts/cash_drawer.md)). |
 | Terminal bancaria | No contratada; Caja registra tarjeta manual. |

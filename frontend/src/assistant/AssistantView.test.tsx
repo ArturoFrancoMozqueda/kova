@@ -29,6 +29,43 @@ describe("tenant assistant review and privacy", () => {
     expect(vi.mocked(fetch).mock.calls.every(([,init]) => init?.method === "GET")).toBe(true);
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();
   });
+  it("recovers failed capability loading without a permanent loading state", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    let failed = false;
+    vi.mocked(fetch).mockImplementation(async (...args) => {
+      if (String(args[0]).endsWith("/capabilities") && !failed) {
+        failed = true;
+        return new Response(JSON.stringify({ detail: "Servicio temporalmente no disponible." }), { status: 503 });
+      }
+      return original(...args);
+    });
+    mount();
+    await screen.findByRole("alert");
+    expect(screen.queryByText("Cargando el asistente…")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Volver a cargar" }));
+    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("hides unavailable configuration and uploads while keeping follow-up usable", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (...args) => String(args[0]).endsWith("/capabilities")
+      ? new Response(JSON.stringify({ enabled: true, inference_ready: false, local_answers_ready: true, configuration: false, documents: false, email: false }))
+      : original(...args));
+    mount();
+    await screen.findByRole("button", { name: "Preferencias" });
+    expect(screen.queryByRole("button", { name: "Configurar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Archivos" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Seguimiento" })).toBeVisible();
+  });
+  it("does not describe an unconfigured inference budget as exhausted capacity", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (...args) => String(args[0]).endsWith("/usage")
+      ? new Response(JSON.stringify({ tenant_used: 0, tenant_limit: 0, user_used: 0, user_limit: 0, limit_kind: "provider_monthly", reset_at: "2026-12-01T00:00:00Z" }))
+      : original(...args));
+    mount();
+    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    expect(screen.queryByText(/capacidad mensual compartida/i)).toBeNull();
+  });
   it("requires a separate explicit confirmation after preparing a configuration", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "Configurar" }));
@@ -41,6 +78,37 @@ describe("tenant assistant review and privacy", () => {
     const [,init] = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/confirm"))!;
     expect(JSON.parse(String(init?.body))).toEqual({ fingerprint: "a".repeat(64) });
     expect(new Headers(init?.headers).get("X-Kova-Expected-Tenant")).toBe("tenant-a");
+  });
+  it("recovers a failed poll without resending the question or losing its explanation", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    let runReads = 0;
+    let posts = 0;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const path = String(input).split("/assistant")[1];
+      if (path === "/runs/recovered-run" && ++runReads === 1) {
+        return new Response(JSON.stringify({ detail: "Consulta temporalmente no disponible." }), { status: 503 });
+      }
+      let result: unknown;
+      if (path === "/capabilities") result = { enabled: true, inference_ready: true };
+      else if (path === "/preferences") result = { chat_consent: true };
+      else if (path === "/conversations" && init?.method === "POST") result = { id: "recovered-chat", data: {} };
+      else if (path === "/conversations/recovered-chat/messages") {
+        posts++;
+        result = { id: "recovered-run", status: "queued", data: {} };
+      } else if (path === "/runs/recovered-run") result = { id: "recovered-run", status: "completed", data: {} };
+      else if (path === "/conversations/recovered-chat") result = { messages: runReads > 1 ? [{ id: "answer", data: { role: "assistant", run_id: "recovered-run", content: "Consulta recuperada con sus fuentes." } }] : [] };
+      else return original(input, init);
+      return new Response(JSON.stringify(result));
+    });
+    mount();
+    const field = await screen.findByRole("textbox", { name: "Tu pregunta" });
+    fireEvent.change(field, { target: { value: "Revisa mis ventas" } });
+    fireEvent.click(screen.getByRole("button", { name: "Consultar" }));
+    await screen.findByRole("button", { name: "Volver a cargar" }, { timeout: 4000 });
+    fireEvent.click(screen.getByRole("button", { name: "Volver a cargar" }));
+    await screen.findByText("Consulta recuperada con sus fuentes.");
+    expect(posts).toBe(1);
+    expect(screen.queryByText("Preparando tu consulta…")).toBeNull();
   });
   it("refreshes real follow-up when opening its section", async () => {
     mount();

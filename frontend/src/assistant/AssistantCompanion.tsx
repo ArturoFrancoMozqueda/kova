@@ -50,6 +50,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
   const pending = useRef<{ content: string; key: string } | null>(null);
   const alive = useRef(true);
   const generating = !!run && ["queued", "running"].includes(run.status);
@@ -102,7 +103,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
         }
       }).catch(e => { if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos cargar el asistente.")); });
     return () => { stopped = true; };
-  }, [open, api, conversation, runId]);
+  }, [open, api, conversation, runId, reload]);
   useEffect(() => {
     if (!open || !runId) return;
     let stopped = false;
@@ -113,18 +114,27 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
       try {
         const result = await api<Resource>(`/runs/${runId}`);
         if (stopped || !alive.current) return;
-        setRun(result);
-        if (["queued", "running"].includes(result.status)) { timer = setTimeout(() => void poll(), attempts++ < 3 ? 2000 : 5000); return; }
-        if (conversation) {
-          const [data, used] = await Promise.all([api<{ messages: Resource[] }>(`/conversations/${conversation}`), api<Usage>("/usage")]);
-          if (!stopped && alive.current) { setMessages(data.messages); setUsage(used); }
+        if (["queued", "running"].includes(result.status)) { setRun(result); timer = setTimeout(() => void poll(), attempts++ < 3 ? 2000 : 5000); return; }
+        const [history, used] = await Promise.allSettled([
+          conversation ? api<{ messages: Resource[] }>(`/conversations/${conversation}`) : Promise.resolve(null),
+          api<Usage>("/usage"),
+        ]);
+        if (stopped || !alive.current) return;
+        // Recover the answer before publishing the terminal run (which cleans
+        // up polling). A quota failure must not discard a completed answer.
+        if (history.status === "fulfilled" && history.value) setMessages(history.value.messages);
+        if (used.status === "fulfilled") setUsage(used.value);
+        if (history.status === "rejected" || used.status === "rejected") {
+          const reason = history.status === "rejected" ? history.reason : used.status === "rejected" ? used.reason : null;
+          setError(resolveUserFacingError(reason, "No pudimos actualizar la consulta. Vuelve a cargar para recuperar su estado."));
         }
+        setRun(result);
       } catch (e) { if (!stopped && alive.current) setError(resolveUserFacingError(e, "No pudimos recuperar la consulta.")); }
     };
     // Also recover a run that finished while the companion was closed.
     timer = setTimeout(() => void poll(), generating ? 2000 : 0);
     return () => { stopped = true; clearTimeout(timer); };
-  }, [api, open, runId, generating, conversation]);
+  }, [api, open, runId, generating, conversation, reload]);
 
   const act = async (action: () => Promise<void>) => {
     if (busy) return;
@@ -166,12 +176,12 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
         <Button size="icon" variant="ghost" aria-label="Cerrar asistente" onClick={close} className="text-kova-muted"><X /></Button>
       </header>
       <AssistantConversation compact messages={messages} run={run} busy={busy} onCancel={() => void act(async () => { if (!run) return; const result = await api<Resource>(`/runs/${run.id}/cancel`, "POST"); if (alive.current) setRun(result); })} empty={caps?.enabled && prefs ? <AssistantWelcome compact disabled={busy || generating} suggestion={caps.inference_ready ? surface.suggestion : surface.localSuggestion} onSuggestion={text => { setQuestion(text); document.getElementById(`${panelId}-question`)?.focus(); }} /> : null}>
-        {error ? <p role="alert" className="text-sm text-kova-danger">{error}</p> : null}
-        {!caps || !prefs ? <p role="status" className="py-4 text-sm text-kova-muted">Cargando el asistente…</p> : !caps.enabled ? <p className="text-sm">El asistente aún no está habilitado para este negocio.</p> : <>
+        {error ? <div className="space-y-2"><p role="alert" className="text-sm text-kova-danger">{error}</p><Button variant="outline" disabled={busy} onClick={() => { setError(""); setReload(value => value + 1); }}>Volver a cargar</Button></div> : null}
+        {!caps || !prefs ? !error ? <p role="status" className="py-4 text-sm text-kova-muted">Cargando el asistente…</p> : null : !caps.enabled ? <p className="text-sm">El asistente aún no está habilitado para este negocio.</p> : <>
           {run?.data.proposal_id ? <p className="rounded-kova-md bg-kova-mist p-3 text-sm leading-6">Preparé una propuesta. Abre el asistente completo para revisar y confirmar cada cambio.</p> : null}
           {!prefs.chat_consent ? <div className="space-y-3 rounded-xl border border-kova-border bg-kova-mist/50 p-4"><p className="flex items-center gap-2 text-xs font-medium"><LockKeyhole size={14} />Conversación privada · Sucursal activa</p><p className="text-sm leading-6 text-kova-muted">Para responder, enviaremos a {caps.provider_name ?? "el proveedor de IA"} tu pregunta y el contexto autorizado mínimo del negocio. Puedes retirar el permiso en Preferencias.</p><Button disabled={busy} className="w-full bg-kova-blue hover:bg-kova-blue/90" onClick={() => void act(async () => { const saved = await api<Preferences>("/preferences", "PUT", { ...prefs, chat_consent: true }); if (alive.current) setPrefs(saved); })}>Aceptar y habilitar consultas</Button></div> : null}
           {!caps.inference_ready ? <p className="text-xs leading-5 text-kova-muted">La IA aún no está conectada. Puedes preguntar cuánto vendiste hoy, qué productos se venden más o cómo importar tu catálogo.</p> : null}
-          {usage && messages.length > 0 ? <AssistantUsage usage={usage} /> : null}
+          {usage && caps.inference_ready && messages.length > 0 ? <AssistantUsage usage={usage} /> : null}
         </>}
       </AssistantConversation>
       {caps?.enabled && prefs?.chat_consent ? <AssistantComposer compact id={`${panelId}-question`} value={question} onChange={setQuestion} onSubmit={send} disabled={busy || generating} ready={caps.inference_ready || !!caps.local_answers_ready} /> : null}

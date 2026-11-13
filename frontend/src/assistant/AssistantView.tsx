@@ -10,9 +10,11 @@ import { getActiveBranchId } from "@/branches/activeBranch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
+import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { ConfigurationDraft } from "./ConfigurationDraft";
 import { AssistantComposer, AssistantConversation, AssistantUsage, AssistantWelcome } from "./AssistantChat";
-import { LogoMark } from "@/components/brand/Logo";
 import { assistantApi, type Capabilities, type Identity, type Preferences, type Resource, type Step, type Usage } from "./api";
 
 const DEFAULT_PREFS: Preferences = { chat_consent: false, document_consent: false, email_opt_in: false, frequency: "weekly" };
@@ -60,9 +62,9 @@ export default function AssistantView() {
   useDocumentTitle("Asistente");
   const { state } = useAuth();
   if (state.status !== "authenticated") return null;
-  if (!["owner", "manager"].includes(state.user.role)) return <p className="p-6">El asistente está disponible para administradores.</p>;
-  if (state.sessionMode === "offline") return <Card className="m-5 p-5">Conéctate para usar el asistente. Puedes seguir registrando ventas offline.</Card>;
-  if (!hasPlanFeature(state.commercialAccess, "advanced_reports")) return <div className="p-6"><PlanFeatureNotice>El asistente de análisis está incluido en Gestión. Tus reportes de ventas siguen disponibles.</PlanFeatureNotice></div>;
+  if (!["owner", "manager"].includes(state.user.role)) return <ViewPermissionDenied title="Asistente" description="El asistente está disponible para administradores." />;
+  if (state.sessionMode === "offline") return <ViewLayout width="focused" className="space-y-5"><ViewHeader title="Asistente" /><ViewEmpty icon={<MessageCircle />} title="Conéctate para consultar" body="El asistente necesita conexión. Puedes seguir registrando ventas offline." primaryCta={{ label: "Ir a Caja", to: "/register" }} /></ViewLayout>;
+  if (!hasPlanFeature(state.commercialAccess, "advanced_reports")) return <ViewLayout width="focused" className="space-y-5"><ViewHeader title="Asistente" /><PlanFeatureNotice>El asistente de análisis está incluido en Gestión. Tus reportes de ventas siguen disponibles.</PlanFeatureNotice></ViewLayout>;
   const identity = { tenantId: state.tenantId, userId: state.user.id, branchId: getActiveBranchId(state.tenantId, state.user.id) };
   return <AssistantWorkspace key={`${identity.tenantId}:${identity.userId}:${identity.branchId}:${state.user.role}`} identity={identity} tenantName={state.tenantName} />;
 }
@@ -80,6 +82,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   const initialConversation = useRef(params.get("conversation"));
   const initialRun = useRef(params.get("run"));
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("chat");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -131,22 +134,27 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
     setConversation(id); setMessages(data.messages); setRun(null); pendingTurn.current = null;
     setParams({ conversation: id }, { replace: true });
   }, [api, setParams]);
-  useEffect(() => {
-    void (async () => {
+  const initialize = useCallback(async () => {
+      setLoading(true); setError("");
       try {
         const caps = await api<Capabilities>("/capabilities");
         if (!alive.current) return;
         setCapabilities(caps);
         if (!caps.enabled) return;
         await refresh();
-        if (initialConversation.current) await loadConversation(initialConversation.current);
+        if (initialConversation.current) {
+          await loadConversation(initialConversation.current);
+          initialConversation.current = null;
+        }
         if (initialRun.current) {
           const recovered = await api<Resource>(`/runs/${initialRun.current}`);
           if (alive.current) setRun(recovered);
+          initialRun.current = null;
         }
       } catch (e) { if (alive.current && !(e instanceof DOMException && e.name === "AbortError")) setError(resolveUserFacingError(e, "No pudimos cargar el asistente.")); }
-    })();
+      finally { if (alive.current) setLoading(false); }
   }, [api, refresh, loadConversation]);
+  useEffect(() => { void initialize(); }, [initialize]);
 
   useEffect(() => {
     if (!run || !["queued", "running"].includes(run.status)) return;
@@ -220,6 +228,17 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
     });
   };
   const savePreferences = () => void act(async () => { await api("/preferences", "PUT", preferences); await refresh(); });
+  const recover = async () => {
+    await initialize();
+    // Read the terminal run before its conversation, just like normal polling:
+    // otherwise a completion between those reads could hide its explanation.
+    const currentRun = run ? await api<Resource>(`/runs/${run.id}`) : null;
+    if (conversation) {
+      const current = await api<{ messages: Resource[] }>(`/conversations/${conversation}`);
+      if (alive.current) setMessages(current.messages);
+    }
+    if (currentRun && alive.current) setRun(currentRun);
+  };
   const confirm = () => void act(async () => {
     if (!selectedProposal) return;
     const result = await api<Resource>(`/proposals/${selectedProposal.id}/confirm`, "POST", { fingerprint: selectedProposal.data.fingerprint });
@@ -230,16 +249,13 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   });
   const generating = run && ["queued", "running"].includes(run.status);
 
-  return <main className="mx-auto w-full min-w-0 max-w-6xl space-y-5 p-4 sm:p-6">
-    <header className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-kova-blue/10 bg-kova-grad-sky text-kova-blue"><LogoMark size={30} /></span><div><h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tu asistente de negocio</h1><p className="mt-1 text-xs text-kova-muted">{tenantName} · Sucursal activa</p></div></div>
-      {usage ? <AssistantUsage usage={usage} /> : null}
-    </header>
-    {error ? <div role="alert" className="rounded-kova-md border border-kova-danger/30 bg-kova-danger/5 p-4 text-sm">{error}<Button variant="ghost" onClick={() => void act(refresh)} className="ml-2">Volver a cargar</Button></div> : null}
-    {!capabilities ? <Card className="p-5" role="status">Cargando el asistente…</Card> : !capabilities.enabled ? <Card className="p-6"><h2 className="font-semibold">Disponible próximamente para tu negocio</h2><p className="mt-2 text-sm text-kova-muted">El asistente se habilita después de verificar aislamiento, calidad y capacidad. Tus herramientas actuales siguen disponibles.</p><Link className="mt-4 inline-flex min-h-11 items-center text-kova-blue underline" to="/settings">Abrir configuración</Link></Card> : <>
+  return <ViewLayout width="focused" className="min-w-0 space-y-5">
+    <ViewHeader title="Tu asistente de negocio" meta={`${tenantName} · Sucursal activa`} actions={usage && capabilities?.inference_ready ? <AssistantUsage usage={usage} /> : undefined} />
+    {error ? <ViewError message={error} onRetry={() => void act(recover)} retryLabel="Volver a cargar" /> : null}
+    {!capabilities ? loading ? <Card className="p-5" role="status" aria-busy="true">Cargando el asistente…</Card> : null : !capabilities.enabled ? <ViewEmpty icon={<ShieldCheck />} title="Disponible próximamente para tu negocio" body="El asistente se habilita después de verificar aislamiento, calidad y capacidad. Tus herramientas actuales siguen disponibles." primaryCta={{ label: "Abrir configuración", to: "/settings" }} /> : <>
       <nav aria-label="Secciones del asistente" className="flex gap-1 overflow-x-auto border-b border-kova-border pb-2">{[
         ["chat", "Conversaciones", MessageCircle], ["configuration", "Configurar", ShieldCheck], ["files", "Archivos", FileText], ["memory", "Memoria y objetivos", Brain], ["followup", "Seguimiento", Target], ["preferences", "Preferencias", Settings2],
-      ].map(([key, label, Icon]) => { const Glyph = Icon as typeof Brain; return <Button key={String(key)} variant="ghost" className={tab === key ? "bg-kova-blue/10 text-kova-blue hover:bg-kova-blue/10" : "text-kova-muted"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(String(key))}><Glyph size={16} />{String(label)}</Button>; })}</nav>
+      ].filter(([key]) => key === "configuration" ? capabilities.configuration : key === "files" ? capabilities.documents || documents.length > 0 : true).map(([key, label, Icon]) => { const Glyph = Icon as typeof Brain; return <Button key={String(key)} variant="ghost" className={tab === key ? "bg-kova-blue/10 text-kova-blue hover:bg-kova-blue/10" : "text-kova-muted"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(String(key))}><Glyph size={16} />{String(label)}</Button>; })}</nav>
       {tab === "chat" ? <div className="overflow-hidden rounded-2xl border border-kova-border bg-white shadow-kova-card lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="border-b border-kova-border bg-kova-mist/50 p-3 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:p-4">
           <Button variant="outline" className="w-full justify-start" disabled={busy || !!generating} onClick={() => { setConversation(null); setMessages([]); setRun(null); pendingTurn.current = null; setParams({}, { replace: true }); }}><Plus />Nueva conversación</Button>
@@ -285,5 +301,5 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
         <div className="mt-5 flex flex-wrap gap-3">{!editingProposal && selectedProposal && ["pending_approval", "partial", "approved"].includes(selectedProposal.status) ? <>{selectedProposal.status === "pending_approval" ? <Button variant="outline" disabled={busy} onClick={() => setEditingProposal(true)}>Corregir propuesta</Button> : null}<Button disabled={busy} onClick={confirm}>{busy ? "Aplicando…" : selectedProposal.status === "partial" ? "Confirmar pasos pendientes" : "Aplicar configuración"}</Button><Button variant="outline" disabled={busy} onClick={() => void act(async () => { await api(`/proposals/${selectedProposal.id}/reject`, "POST"); if (alive.current) setSelectedProposal(null); await refresh(); })}>Rechazar pendientes</Button></> : <Button variant="outline" onClick={() => setSelectedProposal(null)}>Cerrar</Button>}</div>
       </Dialog>
     </>}
-  </main>;
+  </ViewLayout>;
 }

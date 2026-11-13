@@ -33,6 +33,25 @@ describe("floating Kova companion", () => {
       return new Response(JSON.stringify(data), { status: 200 });
     }));
   });
+  it("can retry loading after a network failure without granting consent", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    let failed = false;
+    vi.mocked(fetch).mockImplementation(async (...args) => {
+      if (String(args[0]).endsWith("/capabilities") && !failed) {
+        failed = true;
+        throw new TypeError("Network failed");
+      }
+      return original(...args);
+    });
+    render(<Host />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
+    await screen.findByRole("alert");
+    expect(screen.queryByText("Cargando el asistente…")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Volver a cargar" }));
+    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  });
   it("opens a logo button without navigating, granting consent or starting inference", async () => {
     render(<Host />);
     const trigger = screen.getByRole("button", { name: "Abrir asistente Kova" });
@@ -99,6 +118,34 @@ describe("floating Kova companion", () => {
       const request = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/messages"));
       expect(JSON.parse(String(request?.[1]?.body))).toEqual({ content: "¿Cómo importar mi catálogo?" });
     });
+  });
+  it.each([false, true])("keeps the completed answer if refreshing quota fails: %s", async quotaFails => {
+    consent = true; ready = true;
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    let completed = false;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const path = String(input).split("/assistant")[1];
+      if (path === "/runs/run-a") {
+        completed = true;
+        return new Response(JSON.stringify({ id: "run-a", status: "completed", data: {} }));
+      }
+      if (path === "/usage" && completed && quotaFails) {
+        return new Response(JSON.stringify({ detail: "No pudimos actualizar el uso." }), { status: 503 });
+      }
+      if (path === "/conversations/chat-a" && completed) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+        return new Response(JSON.stringify({ messages: [{ id: "completed-answer", data: {
+          role: "assistant", run_id: "run-a", content: "Respuesta conservada con sus fuentes.",
+        } }] }));
+      }
+      return original(input, init);
+    });
+    render(<Host />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "Tu pregunta" }), { target: { value: "Revisa mis ventas" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pregunta" }));
+    await screen.findByText("Respuesta conservada con sus fuentes.", {}, { timeout: 4000 });
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/messages"))).toHaveLength(1);
   });
   it("allows direct questions when inference is unavailable", async () => {
     consent = true; localReady = true;

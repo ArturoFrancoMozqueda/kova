@@ -30,11 +30,46 @@ FAQ = {
     "que es el ticket promedio": (8, "El ticket promedio relaciona la venta neta con los "
         "tickets completados. Revísalo junto con el número de ventas y los productos "
         "vendidos antes de decidir una acción."),
+    "como registrar una venta offline": (5, "Registra la venta en Caja y verifica los "
+        "pendientes en el dispositivo original. Las ventas offline aparecen en Análisis "
+        "después de sincronizar; no registres otra vez una venta para hacerla aparecer."),
+    "mi venta offline no aparece en analisis": (3, "Las ventas offline aparecen en Análisis "
+        "después de sincronizar. Revisa la conexión y los pendientes en el dispositivo "
+        "original; no vuelvas a capturar la misma venta."),
+    "como revisar mi inventario": (7, "En Inventario revisa las existencias de la sucursal "
+        "activa. Análisis muestra alertas de reposición cuando hay datos suficientes. "
+        "Verifica las existencias físicas antes de registrar un ajuste."),
+    "como configurar el stock bajo": (7, "Configura el umbral de stock bajo en Catálogo "
+        "para los productos con control de inventario. Revisa las existencias de la "
+        "sucursal activa en Inventario."),
+    "donde veo mis ventas": (3, "Consulta las ventas registradas en Ventas y sus métricas "
+        "en Análisis. Revisa la sucursal y el periodo; las ventas offline se incluyen "
+        "después de sincronizar."),
+    "como cambio de sucursal": (4, "Selecciona la sucursal antes de operar. Ventas, caja "
+        "e inventario se consultan por sucursal; catálogo, precios y permisos pertenecen "
+        "al negocio. La comparación requiere autorización para reportes."),
+    "puedo calcular utilidad sin costos": (8, "Las ventas no equivalen a utilidad. Sin "
+        "costos o gastos suficientes no hay una cifra confiable de ganancia. Revisa "
+        "la disponibilidad del reporte y los datos registrados; capturarlos no garantiza "
+        "que ese cálculo esté disponible."),
+}
+ALIASES = {
+    "como vender sin internet": "como registrar una venta offline",
+    "como registrar una venta sin conexion": "como registrar una venta offline",
+    "por que no aparece mi venta offline": "mi venta offline no aparece en analisis",
+    "como consultar existencias": "como revisar mi inventario",
+    "donde veo mi inventario": "como revisar mi inventario",
+    "donde configuro el stock bajo": "como configurar el stock bajo",
+    "donde consulto mis ventas": "donde veo mis ventas",
+    "cuanto gane si no tengo costos ni gastos registrados": "puedo calcular utilidad sin costos",
+    "puedo calcular utilidad sin costos ni gastos": "puedo calcular utilidad sin costos",
 }
 QUERIES = {
     "cuanto vendi": "get_sales", "cuanto he vendido": "get_sales",
     "como van mis ventas": "get_sales", "muestra mis ventas": "get_sales",
     "revisa mis ventas": "get_sales",
+    "cuanto vendimos": "get_sales", "muestrame mis ventas": "get_sales",
+    "muestrame las ventas": "get_sales", "cuales fueron mis ventas": "get_sales",
     "que producto se vende mas": "get_top_products",
     "que producto es el que mas se vende": "get_top_products",
     "que productos se venden mas": "get_top_products",
@@ -43,11 +78,16 @@ QUERIES = {
     "cuales son mis productos mas vendidos": "get_top_products",
     "que productos debo reponer": "get_inventory",
     "que productos tienen stock bajo": "get_inventory",
+    "cuales productos debo reponer": "get_inventory",
     "que sucursal vende mas": "compare_branches",
+    "cual sucursal vende mas": "compare_branches",
 }
 PERIODS = {"": "hoy", "hoy": "hoy", "ayer": "ayer",
            "esta semana": "esta semana", "este mes": "este mes",
-           "de esta semana": "esta semana", "de este mes": "este mes"}
+           "de esta semana": "esta semana", "de este mes": "este mes",
+           "de hoy": "hoy", "de ayer": "ayer",
+           "la semana pasada": "semana pasada", "de la semana pasada": "semana pasada",
+           "el mes pasado": "mes pasado", "del mes pasado": "mes pasado"}
 HISTORY_PERIODS = ("en todo mi historico", "en todo mi historial", "en todo el historico",
                    "en todo el historial", "de todo mi historial", "historicamente")
 
@@ -60,6 +100,13 @@ def normalize(content):
 
 def match(content):
     query = normalize(content)
+    # Remove only bounded polite wrappers around a complete known question.
+    # Never search inside instructions, negations, extra questions or followups.
+    query = re.sub(r"^(?:por favor[, ]+|me puedes decir |puedes decirme )", "", query,
+                   count=1)
+    query = query.removeprefix("¿")
+    query = re.sub(r"[, ]+por favor$", "", query, count=1)
+    query = ALIASES.get(query, query)
     if query in FAQ:
         return "faq", query, None
     for suffix in HISTORY_PERIODS:
@@ -87,13 +134,20 @@ def answer(db, tenant, user, matched):
             start = today - timedelta(days=today.weekday())
         elif key == "este mes":
             start = today.replace(day=1)
+        elif key == "semana pasada":
+            end = today - timedelta(days=today.weekday() + 1)
+            start = end - timedelta(days=6)
+        elif key == "mes pasado":
+            end = today.replace(day=1) - timedelta(days=1)
+            start = end.replace(day=1)
         arguments = {"all_history": True} if key == "historico" else {
             "start_date": start.isoformat(), "end_date": end.isoformat(),
         }
         result = tools.call(db, tenant, user, name, arguments)
         guide = 4 if name == "compare_branches" else 3
         period = {"hoy": "hoy", "ayer": "ayer", "esta semana": "esta semana",
-                  "este mes": "lo que va del mes", "historico": "todo el histórico"}[key]
+                  "este mes": "lo que va del mes", "historico": "todo el histórico",
+                  "semana pasada": "la semana pasada", "mes pasado": "el mes pasado"}[key]
         if name == "get_sales":
             metrics = result
             content = f"Estas son tus ventas de {period} en la sucursal activa. "

@@ -13,8 +13,8 @@ const AnswerContent = lazy(() => import("./AnswerContent"));
 const suggestions = [
   { title: "Entender mis ventas", question: "Revisa mis ventas de este mes", icon: BarChart3 },
   { title: "Revisar mi inventario", question: "¿Qué productos necesitan mi atención?", icon: Package },
-  { title: "Preparar mi negocio", question: "Ayúdame a configurar mi negocio", icon: ShieldCheck },
-  { title: "Organizar mis pendientes", question: "¿Qué pendientes tengo?", icon: Check },
+  { title: "Conocer mis productos", question: "¿Qué productos se venden más?", icon: BarChart3 },
+  { title: "Preparar el cierre", question: "¿Cómo cerrar un turno?", icon: ShieldCheck },
 ];
 
 const localSuggestions = [
@@ -137,7 +137,7 @@ export function AssistantComposer({ id, value, onChange, onSubmit, disabled, rea
         }} placeholder="Cuéntame qué necesitas resolver…" className="block min-h-11 w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 text-kova-ink placeholder:text-kova-muted focus:ring-0 focus-visible:outline-none disabled:opacity-50" />
         <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-[11px] text-kova-muted"><Sparkles size={13} className="shrink-0" />{compact ? "Con tus datos reales" : "Tus datos, una conversación más clara"}</span><Button type="submit" size={compact ? "icon" : "default"} aria-label={compact ? "Enviar pregunta" : "Consultar"} disabled={disabled || !value.trim() || !ready} className="shrink-0 rounded-lg bg-kova-blue hover:bg-kova-blue/90"><ArrowUp size={16} />{compact ? null : "Consultar"}</Button></div>
       </div>
-      {!compact ? <p className="mt-2 text-center text-[11px] leading-5 text-kova-muted"><span className="hidden sm:inline">Enter para enviar · Shift + Enter para otra línea. </span>Los cambios requieren tu confirmación.</p> : null}
+      {!compact ? <p className="mt-2 text-center text-[11px] leading-5 text-kova-muted"><span className="hidden sm:inline">Enter para enviar · Shift + Enter para otra línea. </span>Revisa los cambios en la pantalla correspondiente.</p> : null}
     </div>
   </form>;
 }

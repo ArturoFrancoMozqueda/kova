@@ -1,12 +1,14 @@
 """A separate runtime process. No privileged DB or tenant-agnostic content dispatch."""
 
+import logging
+import time
 from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import text
 
-from app.assistant import direct, documents, generation, notifications, provider, storage
+from app.assistant import deadline, direct, documents, generation, notifications, provider, storage
 from app.assistant import repository as repo
 from app.assistant.access import bind_user, cohort, enabled
 from app.assistant.budget import reset_at
@@ -67,6 +69,8 @@ def process_job(db, user, member, candidate):
     job.status = "running"
     job.updated_at = now()
     db.commit()
+    started = time.monotonic()
+    queue_ms = max(0, (now() - job.created_at).total_seconds() * 1000)
     try:
         if job.kind == "run":
             generation.run(db, (user, member, session), job)
@@ -105,6 +109,15 @@ def process_job(db, user, member, candidate):
             db.commit()
     finally:
         release(db, candidate.id)
+        if job is not None and job.kind == "run":
+            # Operational measurements only. No question, answer, source, key or
+            # provider error body may enter the log, including on failed calls.
+            mode = job.data.get("response_mode")
+            logging.getLogger(__name__).info(
+                "assistant_run status=%s mode=%s queue_ms=%.0f duration_ms=%.0f",
+                job.status, mode if mode in {"direct", "grounded", "model"} else "none",
+                queue_ms, (time.monotonic() - started) * 1000,
+            )
     return True
 
 
@@ -172,6 +185,8 @@ def process_once(*, workload="all", tenant_id=None, maximum_jobs=None) -> int:
                 ):
                     continue
                 for kind in kinds:
+                    if kind == "run" and provider.grounded_answers():
+                        deadline.expire_pending(db, tenant, user.id)
                     for stale in repo.records(db, tenant, user.id, kind).filter(
                         AssistantRecord.status.in_(["running", "indexing"]),
                         AssistantRecord.updated_at < now() - timedelta(minutes=11),

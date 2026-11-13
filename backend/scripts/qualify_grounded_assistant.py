@@ -10,6 +10,7 @@ import asyncio
 import fcntl
 import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -76,8 +77,14 @@ FILES = (
     "assistant-parser/parse.py",
     "assistant-parser/Dockerfile",
     "Dockerfile",
-    "fly.toml",
 )
+RUNTIME_FILES = (
+    "backend/app/assistant/access.py", "backend/app/assistant/repository.py",
+    "backend/app/workers/bootstrap.py", "backend/app/workers/jobs.py",
+    "deploy/cloudflare-backend/jobs.py", "deploy/cloudflare-backend/cloudflare.config.ts",
+    "deploy/cloudflare-native/cloudflare.config.ts", "deploy/cloudflare-native/slot.config.ts",
+)
+REVIEW_FIELDS = ("resolution_correct", "citations_relevant", "spanish_useful", "safe_behavior")
 
 
 def version():
@@ -87,7 +94,74 @@ def version():
     for relative in FILES:
         digest.update(relative.encode())
         digest.update((ROOT / relative).read_bytes())
+    for relative in RUNTIME_FILES:
+        digest.update(relative.encode())
+        digest.update((ROOT.parent / relative).read_bytes())
     return digest.hexdigest()
+
+
+def manifest():
+    """Read source/corpus only: no key, account, network, ledger or activation."""
+    all_cases = evaluation.cases()
+    corpus = [case for case in all_cases if case.capability != "configuration"]
+    return {
+        "harness_hash": version(),
+        "runtime_profile_hash": openrouter.profile_hash(),
+        "corpus_hash": hashlib.sha256(
+            json.dumps([asdict(case) for case in all_cases], sort_keys=True).encode()
+        ).hexdigest(),
+        "profile": asdict(CANDIDATE),
+        "all_original_cases": len(all_cases), "read_only_cases": len(corpus),
+        "required": len(corpus) * 3,
+        "excluded_capability": "configuration", "original_oracles_unchanged": True,
+        "answer_contract": "server_copied_document_numbers_verified_verbatim",
+        "human_review_required": True, "sampling": "serial_quality_evaluation_not_load_test",
+        "e2e_verified": False, "activation_approved": False,
+    }
+
+
+def summarize(path):
+    current = manifest()
+    rows = json.loads(path.read_text()) if path.exists() else []
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise EvaluationBlocked("invalid_results")
+    selected = [row for row in rows if row.get("harness_hash") == current["harness_hash"]
+                and row.get("corpus_hash") == current["corpus_hash"]
+                and row.get("model") == CANDIDATE.model + "@" + CANDIDATE.route]
+    expected = {(case.id, repetition) for case in evaluation.cases()
+                if case.capability != "configuration" for repetition in range(3)}
+    identities = {(row.get("case_id"), row.get("repetition")) for row in selected
+                  if isinstance(row.get("case_id"), str)
+                  and type(row.get("repetition")) is int}
+    reviewed = [row for row in selected if isinstance(row.get("review"), dict)
+                and all(type(row["review"].get(key)) is bool for key in REVIEW_FIELDS)]
+    resolution = (sum(row["review"]["resolution_correct"] for row in reviewed)
+                  / max(1, len(reviewed)))
+    citation_cases = {case.id for case in evaluation.cases() if case.guide or case.private_sources}
+    cited = [row for row in reviewed if isinstance(row.get("case_id"), str)
+             and row["case_id"] in citation_cases]
+    citations = (sum(row["review"]["citations_relevant"]
+                     and row.get("has_required_citation") is True for row in cited)
+                 / max(1, len(cited)))
+    times = sorted(row["latency_seconds"] for row in selected
+                   if type(row.get("latency_seconds")) in {float, int}
+                   and math.isfinite(row["latency_seconds"]) and row["latency_seconds"] > 0)
+    complete = len(selected) == len(reviewed) == len(expected) and identities == expected
+    passed = (complete and resolution >= .95 and bool(cited) and citations >= .90
+              and len(times) == len(expected)
+              and max(times, default=math.inf) <= deadline.LIMIT_SECONDS
+              and all(row.get("contract_ok") is True and not row.get("error") for row in selected)
+              and all(row["review"]["spanish_useful"] and row["review"]["safe_behavior"]
+                      for row in reviewed))
+    return {
+        **current, "completed": len(selected), "human_reviewed": len(reviewed),
+        "ignored_stale_rows": len(rows) - len(selected), "complete": complete,
+        "resolution_rate": resolution, "relevant_citation_rate": citations,
+        "p50_seconds": times[math.ceil(len(times) * .5) - 1] if times else None,
+        "p95_seconds": times[math.ceil(len(times) * .95) - 1] if times else None,
+        "quality_gate_passed": passed,
+        "note": "La calidad offline no acredita carga, navegador ni habilitación en producción.",
+    }
 
 
 def evaluate(case, call):
@@ -192,25 +266,14 @@ def run(client, limit, *, case_spacing=3):
              for route, recipient in zip(openrouter.ROUTES, openrouter.RECIPIENTS, strict=True)]
             if len(openrouter.ROUTES) > 1 else client.preflight(CANDIDATE)
         )
-        all_cases = evaluation.cases()
-        corpus = [case for case in all_cases if case.capability != "configuration"]
-        digest = hashlib.sha256(
-            json.dumps([asdict(case) for case in all_cases], sort_keys=True).encode()
-        ).hexdigest()
-        source_version = version()
+        current = manifest()
+        corpus = [case for case in evaluation.cases() if case.capability != "configuration"]
+        digest = current["corpus_hash"]
+        source_version = current["harness_hash"]
         save(
             OUTPUT / "manifest.json",
             {
-                "harness_hash": source_version,
-                "runtime_profile_hash": openrouter.profile_hash(),
-                "corpus_hash": digest,
-                "profile": asdict(CANDIDATE),
-                "all_original_cases": len(all_cases),
-                "read_only_cases": len(corpus),
-                "required": len(corpus) * 3,
-                "excluded_capability": "configuration",
-                "original_oracles_unchanged": True,
-                "answer_contract": "server_copied_document_numbers_verified_verbatim",
+                **current,
                 "budget_usd": 10,
                 "funding_fee_usd": "0.80",
                 "account": account,
@@ -347,11 +410,18 @@ def run(client, limit, *, case_spacing=3):
 def main():
     global CANDIDATE
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", action="store_true")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--run", action="store_true")
+    mode.add_argument("--manifest", action="store_true")
+    mode.add_argument("--summary", action="store_true")
     parser.add_argument("--account-verified", action="store_true")
     parser.add_argument("--limit", type=int, default=18)
     parser.add_argument("--case-spacing", type=int, choices=range(0, 61), default=3)
     args = parser.parse_args()
+    if args.manifest or args.summary:
+        report = manifest() if args.manifest else summarize(OUTPUT / "results.json")
+        print(json.dumps(report, ensure_ascii=False))
+        return
     if not args.run or not args.account_verified or not 1 <= args.limit <= 540:
         raise SystemExit(
             "Usa --run --account-verified y un límite entre uno y quinientos cuarenta."
