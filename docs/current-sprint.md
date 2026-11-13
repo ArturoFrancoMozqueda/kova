@@ -7,9 +7,10 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La baseline publicada y verificada es `3be0dac411e4f3de85fa55e228d616b13140b2fb`,
-[release 43279827960](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43279827960).
-API y frontend sirven ese mismo SHA; proxy, base, oferta y 25 contratos nativos aprobaron.
+La baseline publicada y verificada es `e76f997921fe3e46f19914242b221909a2b0a5ad`,
+[release 43341276814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43341276814).
+API, frontend y proxy sirven ese mismo SHA; sitio y base accesibles. El release y la revisión
+autenticada de Clientes, lealtad y Agenda aprobaron. [Evidencia](testing-clients-booking.md#ci-y-publicación).
 La corrección del drenado y del monitor de recuperación permitió publicar el alta de WhatsApp
 con su gate comercial apagado. [Evidencia e incidente anterior](despliegue.md#recuperación-verificada-el-12-de-noviembre-de-2026).
 Esencial $399/Gestión $699 MXN mensuales y el Portal básico están ON; los acuerdos Standard de
@@ -60,6 +61,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Función | Estado |
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
+| Reservas públicas | Publicadas sin anticipo; desactivadas inicialmente por sucursal. Requieren personas/espacios, servicios y disponibilidad reales antes de habilitarse. |
 | WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el callback; Login for Business, configuración de WhatsApp y ajustes privados preparados. `public_profile` confirmado con acceso avanzado; verificación del titular en revisión. Faltan acceso avanzado de los dos permisos de WhatsApp, video/revisión de la app, aviso de privacidad completo para WhatsApp y aceptación de entrada/respuesta/entrega con un número autorizado ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
@@ -151,11 +153,14 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    acuerdos y revisión profesional del [gate operativo](runbooks/ops-beta-gate.md#ops-6--legal-y-comercial).
    Es aceptación comercial y operativa, no código.
 
-## Clientes y reservas: cambio local pendiente de publicación
+## Clientes y reservas: publicado, activación por negocio
 
 La reorganización de Clientes y atención, el diseñador de lealtad y la reserva pública sin anticipo
-están implementados localmente. No cambia la baseline publicada. Las reservas comienzan desactivadas
-por sucursal y requieren servicios y disponibilidad configurados. Contratos:
+se publicaron en el [PR #349](https://github.com/ArturoFrancoMozqueda/kova/pull/349).
+Se verificaron ficha/búsqueda, borrador con logo y regla en vivo, calendario semanal/diario,
+ausencia de errores visibles y reservas apagadas, a 390 y 1440 px. No se guardaron configuraciones
+ni se crearon operaciones productivas durante QA. Las reservas requieren servicios y disponibilidad
+configurados antes de activarse. Contratos:
 [reservas](../specs/appointments/public-booking.md), [lealtad](../specs/loyalty/program-designer.md),
 [ADR-032](adr/ADR-032-public-booking-and-loyalty-program.md). Validación y límites del cambio en
 [validación local](testing-clients-booking.md).
