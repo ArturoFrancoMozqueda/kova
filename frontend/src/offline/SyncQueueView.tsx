@@ -98,7 +98,7 @@ export default function SyncQueueView() {
       </div>
 
       {pendingCount === 0 && failedEntries.length === 0 && quarantinedCount === 0 && (
-        <ViewEmpty
+        <ViewEmpty illustration="register"
           icon={<Inbox className="h-6 w-6" />}
           title={copy.syncQueue.empty}
           body={copy.syncQueue.emptyBody}

@@ -1,5 +1,5 @@
 import type { CommercialAccess } from "@/auth/types";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -74,9 +74,27 @@ describe("ExpensesView", () => {
       },
     ]);
     renderView();
-    expect(await screen.findAllByText("$425.50")).toHaveLength(2);
-    expect(screen.getByText("Servicios")).toBeInTheDocument();
+    // Period total, category breakdown and the expense row.
+    expect(await screen.findAllByText("$425.50")).toHaveLength(3);
+    expect(screen.getAllByText("Servicios")).toHaveLength(2);
     expect(screen.getByText(/Recibo de luz/)).toBeInTheDocument();
+  });
+
+  it("ranks the period's expenses by category with exact cent totals", async () => {
+    const row = (id: string, category: string, amount: string) => ({
+      id, category, amount, expense_date: "2026-07-10", note: null,
+      created_by_user_id: "user-1", created_at: "2026-07-10T12:00:00Z", updated_at: "2026-07-10T12:00:00Z",
+    });
+    (listExpenses as Mock).mockResolvedValue([
+      row("a", "servicios", "0.10"), row("b", "servicios", "0.20"), row("c", "renta", "5000.00"),
+    ]);
+    renderView();
+    const breakdown = await screen.findByRole("list", { name: "Gastos registrados en este periodo por categoría" });
+    const items = within(breakdown).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Renta$5,000.00");
+    expect(items[0]).toHaveTextContent("1 registro · 100% del total");
+    expect(items[1]).toHaveTextContent("Servicios$0.30");
+    expect(items[1]).toHaveTextContent("2 registros · 0% del total");
   });
 
   it("does not present an unknown total as zero while expenses are loading", () => {
@@ -94,7 +112,7 @@ describe("ExpensesView", () => {
       updated_at: "2026-07-10T12:00:00Z",
     }]).mockRejectedValueOnce(new Error("Network unavailable"));
     renderView();
-    expect(await screen.findAllByText("$425.50")).toHaveLength(2);
+    expect(await screen.findAllByText("$425.50")).toHaveLength(3);
     fireEvent.change(screen.getByLabelText(copy.expenses.endDate), { target: { value: "2026-07-20" } });
     expect(await screen.findByText(copy.expenses.loadError)).toBeVisible();
     expect(screen.queryByText(copy.expenses.periodTotal)).not.toBeInTheDocument();
@@ -140,7 +158,7 @@ describe("expense period request ordering", () => {
     expect(await screen.findByText(/Periodo nuevo/)).toBeVisible();
     await act(async () => { finishOld([expense("Periodo anterior", "900.00")]); });
     expect(screen.queryByText(/Periodo anterior/)).not.toBeInTheDocument();
-    expect(screen.getAllByText("$125.00")).toHaveLength(2);
+    expect(screen.getAllByText("$125.00")).toHaveLength(3);
   });
 
   it("ignores an old failure after the latest period loaded successfully", async () => {

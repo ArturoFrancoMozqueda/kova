@@ -85,3 +85,18 @@ it("keeps the small cancellation sample neutral in collapsed and expanded detail
   expect(screen.getByText("Sin devoluciones registradas.")).toBeVisible();
   expect(screen.queryByText(/Una devolución aislada/)).not.toBeInTheDocument();
 });
+
+it("ranks refund reasons as bars above the detail table", () => {
+  const base = makeStory();
+  render(<RefundsAndCancellations story={makeStory({
+    summary: { ...base.summary, refund_count: 8, refund_total: "900", gross_sales: "10000" },
+    refunds_by_reason: [
+      { reason: "wrong_order", refund_count: 3, refunded_amount: "300" },
+      { reason: "damaged_item", refund_count: 5, refunded_amount: "600" },
+    ],
+  })} />);
+  const bars = screen.getByRole("list", { name: "Importe devuelto por motivo" });
+  expect(bars).toHaveTextContent("67% del importe");
+  expect(bars).toHaveTextContent("33% del importe");
+  expect(bars.compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

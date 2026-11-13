@@ -5,6 +5,7 @@ import { copy } from "@/i18n/messages";
 import { Button } from "@/components/ui/button";
 import { formatMoney, reasonLabel } from "@/orders/format";
 import { cn } from "@/lib/utils";
+import { RankBars } from "@/components/visual";
 import type { BusinessStoryReport } from "../types";
 import {
   type OpsSeverity as Severity,
@@ -167,6 +168,22 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
         />
       </div>
 
+      {topReasons.length > 1 ? (
+        // The table keeps counts and exact amounts; the bars answer "which
+        // reason costs the most" at a glance with the same refunded amounts.
+        <RankBars
+          className="mt-4"
+          label="Importe devuelto por motivo"
+          emptyLabel={copy.reportsView.refundsCleanState}
+          tone="warning"
+          rows={topReasons.map((row) => ({
+            id: row.reason,
+            label: reasonLabel(row.reason),
+            value: Number(row.refunded_amount),
+            valueLabel: `${refundTotal > 0 ? Math.round((Number(row.refunded_amount) / refundTotal) * 100) : 0}% del importe`,
+          }))}
+        />
+      ) : null}
       {topReasons.length > 0 ? (
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scrolling table region needs keyboard focus to reach every column.
         <div role="region" aria-label={copy.reportsView.refundsSectionTitle} tabIndex={0}

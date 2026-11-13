@@ -46,7 +46,9 @@ test("owner registers an operating expense and sees the exact total", async ({ p
   await page.getByRole("button", { name: /guardar gasto/i }).click();
 
   await expect(page.getByText("Gasto registrado.")).toBeVisible();
-  await expect(page.getByText("Renta", { exact: true })).toBeVisible();
+  // The category shows in the new "En qué se fue el dinero" breakdown and in the expense row.
+  await expect(page.getByText("Renta", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Renta", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("$1,250.00").first()).toBeVisible();
   expect(posted).toEqual({
     category: "renta",

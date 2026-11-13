@@ -23,6 +23,7 @@ import { currentMonthStartInTimezone, todayInTimezone } from "@/i18n/date";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
+import { RankBars } from "@/components/visual";
 import { createExpense, deleteExpense, listExpenses, updateExpense } from "./api";
 import type { Expense, ExpenseCategory, ExpensePayload } from "./types";
 
@@ -147,8 +148,10 @@ export default function ExpensesView() {
         </CardContent>
       </Card> : null}
 
+      {!loading && !error && expenses.length > 0 ? <ExpenseCategoryBreakdown expenses={expenses} /> : null}
+
       {loading ? <ExpenseSkeleton /> : error ? <ViewError message={copy.expenses.loadError} onRetry={() => void load()} retryLabel={copy.expenses.retry} /> : expenses.length === 0 ? (
-        <ViewEmpty icon={<ReceiptText className="h-6 w-6" />} title={copy.expenses.emptyTitle} body={copy.expenses.emptyBody} primaryCta={canCreate ? { label: copy.expenses.add, onClick: () => setEditing("new") } : undefined} />
+        <ViewEmpty illustration="receipt" icon={<ReceiptText className="h-6 w-6" />} title={copy.expenses.emptyTitle} body={copy.expenses.emptyBody} primaryCta={canCreate ? { label: copy.expenses.add, onClick: () => setEditing("new") } : undefined} />
       ) : (
         <div className="divide-y divide-kova-border rounded-kova-lg border-[0.5px] border-kova-border bg-white shadow-kova-card">
           {expenses.map((expense) => (
@@ -192,6 +195,43 @@ function ExpenseDialog({ timezone, expense, busy, onCancel, onSave }: { timezone
         <DialogFooter><Button type="button" variant="outline" onClick={onCancel} disabled={busy}>{copy.expenses.cancel}</Button><Button type="submit" disabled={busy || !valid}>{busy ? copy.expenses.saving : copy.expenses.save}</Button></DialogFooter>
       </form>
     </Dialog>
+  );
+}
+
+/**
+ * Where the money went, from the same rows listed below (the API returns the
+ * whole selected period, not a page). Sums in cents to avoid float drift.
+ */
+export function ExpenseCategoryBreakdown({ expenses }: { expenses: Expense[] }) {
+  const rows = useMemo(() => {
+    const byCategory = new Map<ExpenseCategory, { cents: number; count: number }>();
+    for (const expense of expenses) {
+      const current = byCategory.get(expense.category) ?? { cents: 0, count: 0 };
+      current.cents += Math.round(Number(expense.amount) * 100);
+      current.count += 1;
+      byCategory.set(expense.category, current);
+    }
+    const totalCents = [...byCategory.values()].reduce((sum, row) => sum + row.cents, 0);
+    return [...byCategory.entries()]
+      .sort(([, a], [, b]) => b.cents - a.cents)
+      .map(([category, row]) => ({
+        id: category,
+        label: copy.expenses.categories[category],
+        value: row.cents,
+        valueLabel: formatMoney(row.cents / 100),
+        detail: `${row.count === 1 ? "1 registro" : `${row.count} registros`}${totalCents > 0 ? ` · ${Math.round((row.cents / totalCents) * 100)}% del total` : ""}`,
+      }));
+  }, [expenses]);
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div>
+          <h2 className="text-base font-semibold text-kova-ink">En qué se fue el dinero</h2>
+          <p className="text-xs text-kova-muted">Gastos registrados en este periodo, por categoría.</p>
+        </div>
+        <RankBars rows={rows} label="Gastos registrados en este periodo por categoría" emptyLabel="Sin gastos en este periodo." />
+      </CardContent>
+    </Card>
   );
 }
 

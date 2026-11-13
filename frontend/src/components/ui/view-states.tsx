@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { EmptyIllustration, type IllustrationName } from "@/components/visual/illustrations";
 import { AlertCircle, RefreshCw, ShieldOff } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -56,8 +57,11 @@ export function ViewEmpty({
   primaryCta,
   secondaryCta,
   bare,
+  illustration,
 }: {
   icon: ReactNode;
+  /** Decorative spot illustration shown instead of the icon tile. */
+  illustration?: IllustrationName;
   title: string;
   body: string;
   primaryCta?: ViewEmptyCta;
@@ -66,9 +70,9 @@ export function ViewEmpty({
 }) {
   const content = (
     <>
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue">
+      {illustration ? <EmptyIllustration name={illustration} /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue">
         {icon}
-      </div>
+      </div>}
       <div className="flex-1">
         <h2 className="text-base font-semibold">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>

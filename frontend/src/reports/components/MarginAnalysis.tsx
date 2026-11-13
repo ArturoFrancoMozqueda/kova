@@ -5,7 +5,60 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
+import { RankBars } from "@/components/visual";
 import type { BusinessStoryReport } from "../types";
+
+type MarginDay = NonNullable<BusinessStoryReport["margin"]>["by_day"][number];
+
+const formatPct = (value: string) =>
+  `${Number(value).toLocaleString("es-MX", { maximumFractionDigits: 1 })}%`;
+const shortDate = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+
+/** Exact gross profit per day as light bars. Days with sold products without
+ * cost have no exact profit: they keep their slot as an empty column instead
+ * of being drawn as $0. */
+function MarginTrend({ days }: { days: MarginDay[] }) {
+  if (days.length < 2) return null;
+  const exact = days.filter((day) => day.complete && day.gross_profit !== null);
+  if (exact.length === 0) return null;
+  const values = exact.map((day) => Number(day.gross_profit));
+  const high = Math.max(1, ...values);
+  const low = Math.min(0, ...values);
+  const span = high - low;
+  const width = 100 / days.length;
+  const zero = (high / span) * 100;
+  const best = exact.reduce((top, day) => (Number(day.gross_profit) > Number(top.gross_profit) ? day : top));
+  const incomplete = days.length - exact.length;
+  const summary = `Utilidad bruta por día. Mejor día ${shortDate(best.date)} con ${formatMoney(best.gross_profit!)}`
+    + (incomplete > 0 ? `; ${incomplete} ${incomplete === 1 ? "día sin" : "días sin"} costo completo.` : ".");
+  return (
+    <div className="mt-4 rounded-kova-md border border-kova-border p-3" data-testid="margin-trend">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-kova-ink">Utilidad bruta por día</p>
+        <p className="text-xs text-kova-muted">Mejor día: {shortDate(best.date)} · {formatMoney(best.gross_profit!)}</p>
+      </div>
+      <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="mt-3 h-24 w-full" role="img" aria-label={summary}>
+        <line x1="0" x2="100" y1={(zero / 100) * 60} y2={(zero / 100) * 60} stroke="var(--kova-border)" vectorEffect="non-scaling-stroke" />
+        {days.map((day, index) => {
+          const x = index * width + width * 0.15;
+          const barWidth = width * 0.7;
+          if (!day.complete || day.gross_profit === null) {
+            return <rect key={day.date} x={x} y={2} width={barWidth} height={56} rx={1} fill="none" stroke="var(--kova-border)" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />;
+          }
+          const value = Number(day.gross_profit);
+          const top = ((high - Math.max(0, value)) / span) * 60;
+          const height = (Math.abs(value) / span) * 60;
+          return <rect key={day.date} x={x} y={value >= 0 ? top : (zero / 100) * 60} width={barWidth} height={Math.max(0.5, height)} rx={1}
+            fill={value < 0 ? "var(--kova-danger)" : day.date === best.date ? "var(--kova-growth)" : "color-mix(in srgb, var(--kova-growth) 45%, white)"} />;
+        })}
+      </svg>
+      <div aria-hidden="true" className="mt-1 flex justify-between text-[11px] tabular-nums text-kova-muted">
+        <span>{shortDate(days[0].date)}</span><span>{shortDate(days[days.length - 1].date)}</span>
+      </div>
+      {incomplete > 0 ? <p className="mt-1 text-[11px] text-kova-muted">Las columnas punteadas son días con productos sin costo.</p> : null}
+    </div>
+  );
+}
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -88,6 +141,7 @@ export function MarginAnalysis({ story }: { story: BusinessStoryReport }) {
               value={summary.cogs === null ? copy.reportsView.notAvailable : formatMoney(summary.cogs)}
             />
           </div>
+          <MarginTrend days={margin.by_day} />
           <p className="mt-3 text-xs text-kova-muted">{copy.reportsView.marginMethodNote}</p>
         </div>
 
@@ -119,17 +173,23 @@ export function MarginAnalysis({ story }: { story: BusinessStoryReport }) {
               <p className="mb-2 text-sm font-semibold text-kova-ink">
                 {copy.reportsView.marginByProduct}
               </p>
-              <div className="divide-y divide-kova-border rounded-kova-md border border-kova-border">
-                {rankedProducts.map((product) => (
-                  <div key={product.product_id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                    <span className="truncate text-sm text-kova-ink">{product.product_name}</span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-kova-ink">
-                      {product.gross_profit === null
-                        ? copy.reportsView.productWithoutCost
-                        : formatMoney(product.gross_profit)}
-                    </span>
-                  </div>
-                ))}
+              <div className="rounded-kova-md border border-kova-border p-3">
+                <RankBars
+                  label={copy.reportsView.marginByProduct}
+                  emptyLabel={copy.reportsView.notAvailable}
+                  tone="growth"
+                  rows={rankedProducts.map((product) => ({
+                    id: product.product_id,
+                    label: product.product_name,
+                    value: Number(product.gross_profit ?? 0),
+                    valueLabel: product.gross_profit === null
+                      ? copy.reportsView.productWithoutCost
+                      : formatMoney(product.gross_profit),
+                    detail: product.gross_margin_pct === null
+                      ? undefined
+                      : `Margen ${formatPct(product.gross_margin_pct)}`,
+                  }))}
+                />
               </div>
             </div>
           ) : null}

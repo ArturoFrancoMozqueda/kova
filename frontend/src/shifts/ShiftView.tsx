@@ -444,6 +444,7 @@ export default function ShiftView() {
       ) : (
         <ViewEmpty
           icon={<Clock className="h-6 w-6" />}
+          illustration="receipt"
           title={copy.shiftView.noOpenShift}
           body={canOpen ? copy.shiftView.noOpenShiftBody : copy.shiftView.noOpenShiftAskManager}
           primaryCta={canOpen ? { label: copy.shiftView.openShift, onClick: () => setActiveModal("open") } : undefined}

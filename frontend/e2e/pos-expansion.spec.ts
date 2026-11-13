@@ -165,6 +165,13 @@ test("mobile owner creates a customer and reviews purchases and refunds", async 
       },
     }),
   );
+  // Server-computed purchase summary for the customer detail (completed sale minus its refund).
+  await page.route(`**/api/v1/customers/${customerId}/summary`, (route) =>
+    route.fulfill({ json: {
+      customer_id: customerId, branch_id: tenantId, purchase_count: 1,
+      net_spent_amount: "100.00", average_ticket_amount: "100.00", last_purchase_at: createdAt,
+    } }),
+  );
   await page.goto("/customers");
   // Once the empty list loads, the header action and the empty-state CTA both
   // read "Nuevo cliente"; wait for it so the click never races the load.

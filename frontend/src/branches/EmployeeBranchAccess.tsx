@@ -1,4 +1,5 @@
 import { resolveUserFacingError } from "@/lib/apiError";
+import { InitialsAvatar } from "@/components/visual";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,9 +96,12 @@ export function EmployeeBranchAccess() {
           .filter((row) => row.is_active && row.role !== "owner")
           .map((row) => (
             <div key={row.membership_id} className="grid gap-2">
-              <Label htmlFor={`employee-branch-${row.membership_id}`}>
-                {row.email}
-              </Label>
+              <div className="flex min-w-0 items-center gap-2">
+                <InitialsAvatar name={row.email} size="sm" />
+                <Label className="min-w-0 break-all" htmlFor={`employee-branch-${row.membership_id}`}>
+                  {row.email}
+                </Label>
+              </div>
               <Select
                 id={`employee-branch-${row.membership_id}`}
                 value={row.allowed_branch_id ?? ""}

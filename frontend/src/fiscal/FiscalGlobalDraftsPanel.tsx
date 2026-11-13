@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Archive,
   CalendarClock,
   CircleAlert,
+  CircleSlash,
+  ReceiptText,
   Download,
   FileCheck2,
   FileSpreadsheet,
@@ -511,7 +514,7 @@ export function FiscalGlobalDraftsPanel({
           {preview ? (
             <PreviewSummary preview={preview} />
           ) : !previewBusy ? (
-            <ViewEmpty
+            <ViewEmpty illustration="calendar"
               bare
               icon={<CalendarClock className="h-6 w-6" />}
               title={copy.settings.fiscalPreviewEmptyTitle}
@@ -547,7 +550,7 @@ export function FiscalGlobalDraftsPanel({
         </CardHeader>
         <CardContent>
           {batches.length === 0 ? (
-            <ViewEmpty
+            <ViewEmpty illustration="receipt"
               bare
               icon={<FileCheck2 className="h-6 w-6" />}
               title={copy.settings.fiscalHistoryEmptyTitle}
@@ -569,7 +572,12 @@ export function FiscalGlobalDraftsPanel({
                         {copy.settings.fiscalOrdersCount(batch.order_count)} · {formatMoney(batch.total_amount)}
                       </p>
                     </div>
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="gap-1">
+                      {batch.package_schema_version === "accountant-package-v2" ? (
+                        <FileCheck2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      ) : (
+                        <Archive className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      )}
                       {batch.package_schema_version === "accountant-package-v2"
                         ? copy.settings.fiscalInternalDraftBadge
                         : copy.settings.fiscalLegacyBadge}
@@ -659,8 +667,8 @@ function AccountantReport({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{copy.settings.fiscalOperationalReceiptBadge}</Badge>
-          <Badge variant="secondary">{copy.settings.fiscalNotIssuedBadge}</Badge>
+          <Badge variant="secondary" className="gap-1"><ReceiptText className="h-3 w-3 shrink-0" aria-hidden="true" />{copy.settings.fiscalOperationalReceiptBadge}</Badge>
+          <Badge variant="secondary" className="gap-1"><CircleSlash className="h-3 w-3 shrink-0" aria-hidden="true" />{copy.settings.fiscalNotIssuedBadge}</Badge>
         </div>
       </div>
 
@@ -742,7 +750,7 @@ function PreviewSummary({ preview }: { preview: FiscalDraftPreview }) {
             {formatDate(preview.period_start)} – {formatDate(preview.period_end)} · {frequencyLabels[preview.frequency]}
           </p>
         </div>
-        <Badge variant="secondary">{copy.settings.fiscalInternalDraftBadge}</Badge>
+        <Badge variant="secondary" className="gap-1"><FileCheck2 className="h-3 w-3 shrink-0" aria-hidden="true" />{copy.settings.fiscalInternalDraftBadge}</Badge>
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Metric label={copy.settings.fiscalGross} value={formatMoney(preview.gross_amount)} />

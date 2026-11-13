@@ -278,6 +278,7 @@ export default function OrderListView() {
         ) : (
           <ViewEmpty
             icon={<Inbox className="h-6 w-6" />}
+            illustration="receipt"
             title={copy.orderList.empty}
             body={copy.orderList.emptyBody}
             primaryCta={{ label: copy.orderList.emptyCta, to: "/register" }}

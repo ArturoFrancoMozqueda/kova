@@ -64,6 +64,7 @@ export function EmptyBusinessState({ onPickToday }: { onPickToday?: () => void }
   return (
     <ViewEmpty
       icon={<ShoppingCart className="h-6 w-6" />}
+      illustration="chart"
       title={copy.reportsView.emptyStoryTitle}
       body={copy.reportsView.emptyStoryBody}
       primaryCta={{ label: copy.reportsView.emptyStoryCta, to: "/register" }}

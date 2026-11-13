@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { InitialsAvatar } from "@/components/visual";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import type { WorkspaceIdentity } from "@/automations/workspace";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,10 @@ export function CalendarBoard({
       <span className="block break-words text-sm font-semibold">
         {event.title}
       </span>
-      <span className="block break-words text-xs">{event.customer_name}</span>
+      <span className="flex min-w-0 items-center gap-1.5 text-xs">
+        <InitialsAvatar name={event.customer_name} size="sm" className="h-5 w-5 text-[9px]" />
+        <span className="min-w-0 break-words">{event.customer_name}</span>
+      </span>
       <span className="block break-words text-xs text-kova-muted">
         {event.resource_name}
       </span>

@@ -3,6 +3,9 @@ import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CheckCircle2, Handshake, Inbox, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { InitialsAvatar } from "@/components/visual";
 import {
   OperationsSession,
   type WorkspaceIdentity,
@@ -39,6 +42,22 @@ const labels = {
   dismissed: "Descartada",
   accepted: "Pedido creado",
 };
+const statusChips = {
+  new: { icon: Inbox, variant: "warning" },
+  converted: { icon: Handshake, variant: "secondary" },
+  dismissed: { icon: XCircle, variant: "secondary" },
+  accepted: { icon: CheckCircle2, variant: "success" },
+} as const;
+function RequestStatus({ status }: { status: RequestRow["status"] }) {
+  const chip = statusChips[status];
+  const Icon = chip.icon;
+  return (
+    <Badge variant={chip.variant} className="gap-1">
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {labels[status]}
+    </Badge>
+  );
+}
 export default function CommercialRequestsView() {
   useDocumentTitle("Solicitudes del catálogo");
   return (
@@ -155,11 +174,12 @@ function RequestsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             key={row.id}
             className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5"
           >
-            <div className="flex flex-wrap justify-between gap-2">
-              <h2 className="break-words font-semibold">{row.name}</h2>
-              <span className="text-sm text-kova-muted">
-                {labels[row.status]}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <InitialsAvatar name={row.name} size="sm" />
+                <h2 className="min-w-0 break-words font-semibold">{row.name}</h2>
+              </div>
+              <RequestStatus status={row.status} />
             </div>
             <p className="break-words text-sm">{row.contact}</p>
             <p className="whitespace-pre-wrap break-words text-sm">

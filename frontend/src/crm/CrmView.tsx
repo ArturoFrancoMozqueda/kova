@@ -35,14 +35,10 @@ import type {
   Opportunity,
   OpportunityStage,
 } from "./types";
+import { CrmStageFunnel, stageLabels } from "./CrmStageFunnel";
+import { InitialsAvatar } from "@/components/visual";
 
-const stages: Record<OpportunityStage, string> = {
-  new: "Nueva",
-  contacted: "En contacto",
-  proposal: "Propuesta",
-  won: "Ganada",
-  lost: "Perdida",
-};
+const stages = stageLabels;
 const money = (amount: string) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
     Number(amount),
@@ -561,12 +557,14 @@ function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; ca
               Oportunidades del negocio
             </h2>
             {data.opportunities.length === 0 ? (
-              <ViewEmpty
+              <ViewEmpty illustration="clipboard"
                 icon={<Handshake className="h-6 w-6" />}
                 title="El próximo pedido empieza aquí"
                 body="Registra qué necesita un cliente y el siguiente paso para que ninguna conversación quede olvidada."
               />
             ) : (
+              <>
+              <CrmStageFunnel opportunities={data.opportunities} hasMore={data.opportunities_has_more} />
               <div className="grid gap-4 lg:grid-cols-2">
                 {data.opportunities
                   .filter((row) => row.id !== linked.record?.id)
@@ -581,6 +579,7 @@ function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; ca
                     />
                   ))}
               </div>
+              </>
             )}
           </section>
           <section
@@ -806,8 +805,9 @@ function OpportunityCard({
 }) {
   return (
     <article className="min-w-0 rounded-2xl border bg-card p-5">
-      <p className="text-xs text-muted-foreground break-words">
-        {row.customer_name}
+      <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+        <InitialsAvatar name={row.customer_name} size="sm" />
+        <span className="min-w-0 break-words">{row.customer_name}</span>
       </p>
       <h3 className="mt-1 font-semibold break-words">{row.title}</h3>
       <p className="mt-3 text-lg font-semibold">

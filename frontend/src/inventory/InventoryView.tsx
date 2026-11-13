@@ -25,13 +25,14 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
-import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown } from "lucide-react";
+import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown, CalendarClock } from "lucide-react";
 import { inventoryVelocityAttention, isActionableInventoryVelocity } from "./attention";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ActionDisclosure } from "@/components/ui/action-disclosure";
 import { listProducts } from "@/catalog/api";
 import type { Product } from "@/catalog/types";
-import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
+import { ProductThumbnail } from "@/catalog/ProductThumbnail";
+import { Meter, type VisualTone } from "@/components/visual";
 
 type LoadState =
   | { status: "loading" }
@@ -57,6 +58,22 @@ type ModalState =
   | null;
 
 type StockFilter = "all" | "low" | "healthy";
+
+function thumbnailProduct(name: string, product?: Product) {
+  return product ?? { name, image_url: null, image_position_x: 50, image_position_y: 50, image_zoom: 1 };
+}
+
+function ThumbnailSlot({ name, product, pending }: { name: string; product?: Product; pending: boolean }) {
+  return pending
+    ? <Skeleton className="h-12 w-12 shrink-0 lg:h-11 lg:w-11" />
+    : <div className="shrink-0"><ProductThumbnail product={thumbnailProduct(name, product)} /></div>;
+}
+
+const coverageDays = (velocity?: InventoryVelocityItem) => {
+  if (!velocity?.days_until_out || velocity.stock_on_hand <= 0) return null;
+  const days = Math.ceil(Number(velocity.days_until_out));
+  return Number.isFinite(days) && days >= 0 ? days : null;
+};
 type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
 
 // Match backend/app/shared/validation.py and the persisted INTEGER quantities.
@@ -360,7 +377,10 @@ export default function InventoryView() {
                 .map((item) => (
                   <div key={item.id} className="rounded-kova-md border border-kova-border bg-kova-mist/60 p-3 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_auto] lg:items-center lg:gap-4 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-0 lg:py-2">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold">{item.title}</p>
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <ThumbnailSlot name={item.title} product={loadState.productsById[item.productId]} pending={loadState.productsPending} />
+                        <p className="text-sm font-semibold">{item.title}</p>
+                      </div>
                       <Badge
                         variant={item.tone}
                         title={item.id.startsWith("velocity-") ? copy.inventoryView.velocityBasis : undefined}
@@ -404,6 +424,7 @@ export default function InventoryView() {
       {loadState.stock.length === 0 ? (
         <ViewEmpty
           icon={<Package className="h-6 w-6" />}
+          illustration="box"
           title={copy.inventoryView.noStock}
           body={copy.inventoryView.noStockBody}
           primaryCta={{ label: copy.inventoryView.activateInventory, to: "/catalog?inventory=activate" }}
@@ -480,6 +501,7 @@ export default function InventoryView() {
                   key={item.product_id}
                   item={item}
                   product={loadState.productsById[item.product_id]}
+                  velocity={loadState.velocity.find((entry) => entry.product_id === item.product_id)}
                   imagePending={loadState.productsPending}
                   canAdjust={canAdjust}
                   onModal={setModal}
@@ -520,12 +542,14 @@ function reasonCodeLabel(code: InventoryReasonCode): string {
 function StockCard({
   item,
   product,
+  velocity,
   imagePending,
   canAdjust,
   onModal,
 }: {
   item: StockItem;
   product?: Product;
+  velocity?: InventoryVelocityItem;
   imagePending: boolean;
   canAdjust: boolean;
   onModal: (modal: ModalState) => void;
@@ -553,6 +577,11 @@ function StockCard({
 
   const isOut = item.stock_on_hand <= 0;
   const isLow = item.is_low_stock && !isOut;
+  const days = coverageDays(velocity);
+  const threshold = item.low_stock_threshold ?? 0;
+  // Older cached rows may lack available_quantity; on-hand stock is the same rule the detail text uses.
+  const available = item.available_quantity ?? item.stock_on_hand;
+  const meterTone: VisualTone = isOut || available <= 0 ? "danger" : isLow ? "warning" : "growth";
 
   return (
     <Card
@@ -565,23 +594,16 @@ function StockCard({
       <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(180px,1fr)_88px_88px_270px] lg:items-center lg:gap-4 lg:py-3">
         <div className="flex items-start justify-between gap-3 lg:items-center">
           <div className="flex min-w-0 items-center gap-3">
-            {imagePending ? <Skeleton className="h-12 w-12 shrink-0" /> : product?.image_url ? (
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-kova-md bg-kova-mist">
-                <img
-                  src={productImageSrc(product.image_url, 160)}
-                  srcSet={productImageSrcSet(product.image_url)}
-                  sizes="48px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full"
-                  style={productImageStyle(product)}
-                />
-              </div>
-            ) : null}
+            <ThumbnailSlot name={item.product_name} product={product} pending={imagePending} />
             <div className="min-w-0">
               <h3 className="truncate font-semibold text-sm">{item.product_name}</h3>
               <p className="truncate text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
+              {days !== null && (
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-kova-mist px-2 py-0.5 text-[11px] font-medium text-kova-ink" title={copy.inventoryView.velocityBasis}>
+                  <CalendarClock aria-hidden="true" className="h-3 w-3 shrink-0 text-kova-blue" />
+                  {days === 1 ? "1 día de cobertura" : `${days} días de cobertura`}
+                </p>
+              )}
             </div>
           </div>
           {isOut ? (
@@ -602,6 +624,19 @@ function StockCard({
           </span>
           <span className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.onHand}</span>
         </div>
+        {(threshold > 0 || isOut) && (
+          <Meter
+            size="sm"
+            className="mt-1.5 w-full max-w-[200px] lg:ml-auto lg:max-w-none"
+            label={`Disponible de ${item.product_name}`}
+            value={Math.max(0, available)}
+            max={Math.max(threshold * 2, available, 1)}
+            valueLabel={`${available} disponibles`}
+            marker={threshold > 0 ? threshold : undefined}
+            markerLabel={threshold > 0 ? `mínimo ${threshold}` : undefined}
+            tone={meterTone}
+          />
+        )}
         {item.reserved_quantity > 0 && <p className="mt-1 text-xs text-muted-foreground">{item.available_quantity} disponibles · {item.reserved_quantity} reservados</p>}
         </div>
         <p className="text-xs text-muted-foreground lg:text-right lg:text-sm lg:tabular-nums">

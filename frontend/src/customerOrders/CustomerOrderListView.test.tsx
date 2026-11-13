@@ -96,6 +96,22 @@ describe("CustomerOrderListView", () => {
     expect(initial).toHaveFocus();
   });
 
+  it("draws each order's lifecycle and the real status pipeline", async () => {
+    const ready = { ...order("PED-LISTO"), status: "ready" as const };
+    const cancelled = { ...order("PED-CANCELADO"), status: "cancelled" as const };
+    mocks.list.mockResolvedValue({
+      ...list([ready, cancelled]),
+      status_counts: { new: 3, confirmed: 1, in_progress: 0, ready: 2, fulfilled: 5, cancelled: 4 },
+    });
+    renderList();
+    const strip = await screen.findByRole("list", { name: "Avance del pedido PED-LISTO: Listo" });
+    expect(within(strip).getByText("Listo (actual)")).toBeInTheDocument();
+    expect(within(strip).getByText("En preparación (completado)")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /PED-CANCELADO/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Pedidos por estado: Nuevo 3, Confirmado 1, En preparación 0, Listo 2, Entregado 5" })).toBeInTheDocument();
+    expect(screen.getByText(/4 cancelados/)).toBeInTheDocument();
+  });
+
   it("reports an online query failure and recovers on retry without claiming the device is offline", async () => {
     mocks.list.mockRejectedValueOnce(new Error("Unavailable"));
     renderList();

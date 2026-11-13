@@ -1,6 +1,10 @@
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { useEffect, useState, type FormEvent } from "react";
+import { CircleMinus, CirclePlus } from "lucide-react";
+import { InitialsAvatar } from "@/components/visual";
+import { RewardProgress } from "./RewardProgress";
+import type { Reward } from "./rewards/api";
 import { useSearchParams, Link } from "react-router-dom";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useAuth } from "@/auth/useAuth";
@@ -92,6 +96,7 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
   const [customerAttempt, setCustomerAttempt] = useState(0);
   const [customerId, setCustomerId] = useState(() => params.get("customerId") ?? "");
   const [ledger, setLedger] = useState<LoyaltyLedger | null>(null);
+  const [reward, setReward] = useState<Reward | null>(null);
   const [ledgerError, setLedgerError] = useState("");
   const [ledgerOffset, setLedgerOffset] = useState(0);
   const [ledgerRevision, setLedgerRevision] = useState(0);
@@ -234,12 +239,14 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
               className="min-w-0 space-y-2 rounded-2xl border border-kova-border bg-white p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-kova-blue"
               onClick={() => chooseCustomer(row.customer_id)}
             >
-              <span className="block break-words font-medium">
-                {row.customer_name}
+              <span className="flex min-w-0 items-center gap-2 font-medium">
+                <InitialsAvatar name={row.customer_name} size="sm" />
+                <span className="min-w-0 break-words">{row.customer_name}</span>
               </span>
               <span className="block text-2xl font-semibold">
                 {points(row.balance)} puntos
               </span>
+              <RewardProgress reward={reward} balance={row.balance} size="sm" />
               <span className="block text-xs text-kova-muted">
                 Consultar movimientos
               </span>
@@ -268,7 +275,7 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
           </Button>
         </nav>)}
       </section>
-      {canManageProgram && <ProgramWizard identity={identity} onSaved={() => void panel.load()} />}
+      {canManageProgram && <ProgramWizard identity={identity} onSaved={() => void panel.load()} onReward={setReward} />}
       <section
         className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
         aria-label="Consultar cliente"
@@ -318,15 +325,19 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           aria-label="Movimientos del cliente"
         >
-          <h2 className="break-words text-xl font-semibold">
-            {ledger.customer_name}
-          </h2>
+          <div className="flex min-w-0 items-center gap-3">
+            <InitialsAvatar name={ledger.customer_name} size="lg" />
+            <h2 className="min-w-0 break-words text-xl font-semibold">
+              {ledger.customer_name}
+            </h2>
+          </div>
           <output
             aria-label="Saldo de puntos"
             className="block text-3xl font-semibold"
           >
             {points(ledger.balance)} puntos
           </output>
+          <RewardProgress reward={reward} balance={ledger.balance} />
           {canManageProgram && <DigitalCardShare key={ledger.customer_id} identity={identity} customerId={ledger.customer_id} online={panel.online} disabled={panel.busy} />}
           {ledger.adjustments_pending && (
             <p role="status" className="text-sm text-warning-strong">
@@ -368,8 +379,15 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
                 className="min-w-0 space-y-2 rounded-xl bg-kova-mist p-4"
               >
                 <div className="flex flex-wrap justify-between gap-2">
-                  <p className="font-medium">{kinds[entry.kind]}</p>
-                  <p className="font-semibold">
+                  <p className="flex items-center gap-2 font-medium">
+                    {entry.points >= 0 ? (
+                      <CirclePlus className="h-4 w-4 shrink-0 text-kova-growth" aria-hidden="true" />
+                    ) : (
+                      <CircleMinus className="h-4 w-4 shrink-0 text-kova-danger" aria-hidden="true" />
+                    )}
+                    {kinds[entry.kind]}
+                  </p>
+                  <p className="font-semibold tabular-nums">
                     {entry.points > 0 ? "+" : ""}
                     {points(entry.points)} puntos
                   </p>

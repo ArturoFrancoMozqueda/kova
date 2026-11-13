@@ -25,7 +25,9 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { copy } from "@/i18n/messages";
+import { InitialsAvatar } from "@/components/visual";
 import { CustomerActivityPanel } from "./CustomerActivityPanel";
+import { CustomerSummaryKpis } from "./CustomerSummaryKpis";
 import {
   customerHistory,
   getCustomer,
@@ -341,6 +343,7 @@ function CustomersWorkspace() {
           icon={q ? <Search className="h-6 w-6" /> : <Users className="h-6 w-6" />}
           title={q ? t.noResultsTitle : t.emptyTitle}
           body={q ? t.noResultsBody : t.emptyBody}
+          illustration={q ? undefined : "people"}
           primaryCta={!q && canManage ? { label: t.newCustomer, onClick: () => edit(null) } : undefined}
         />
       ) : (
@@ -351,6 +354,8 @@ function CustomersWorkspace() {
                 key={customer.id}
                 className="flex flex-wrap items-center justify-between gap-3 p-4"
               >
+                <div className="flex min-w-0 items-center gap-3">
+                <InitialsAvatar name={customer.name} />
                 <div className="min-w-0">
                   <p className="font-medium text-kova-ink">
                     {customer.name}
@@ -365,6 +370,7 @@ function CustomersWorkspace() {
                       .filter(Boolean)
                       .join(" · ") || t.noContact}
                   </p>
+                </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(
@@ -408,14 +414,18 @@ function CustomersWorkspace() {
         <Card>
           <section className="space-y-4 p-5" aria-label="Ficha del cliente" aria-busy={profileLoading}>
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="flex min-w-0 items-center gap-3">
+                {selected && <InitialsAvatar name={selected.name} size="lg" />}
+                <div className="min-w-0">
                 <h2 ref={profileHeading} tabIndex={-1} className="text-lg font-semibold outline-none">{selected?.name ?? "Ficha del cliente"}</h2>
                 {selected && <p className="text-sm text-muted-foreground">{[selected.email, selected.phone].filter(Boolean).join(" · ") || t.noContact}</p>}
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
             </div>
             {profileLoading && <SectionSkeleton label="Cargando cliente…" variant="form" />}
             {profileError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive-strong">{profileError}</p><Button variant="outline" size="sm" disabled={profileLoading} onClick={() => setRevision((value) => value + 1)}>Reintentar cliente</Button></div>}
+            {selected && canHistory && <CustomerSummaryKpis key={selected.id} customerId={selected.id} />}
             {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
             {selected?.is_active && <div className="flex flex-wrap gap-2">
               {canSell && <Link className={buttonVariants()} to={`/register?customerId=${encodeURIComponent(selected.id)}`}>Nueva venta</Link>}

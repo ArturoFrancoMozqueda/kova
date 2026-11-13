@@ -423,3 +423,57 @@ it("keeps checkout reconciliation running when focus and visibility return durin
     expect(within(screen.getByRole("main")).queryByText(copy.billingView.checkoutConfirmingTitle)).not.toBeInTheDocument();
   } finally { visibility.mockRestore(); }
 });
+
+describe("BillingView visual progress and plan cards", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("draws the remaining signup trial days against the trial length", async () => {
+    vi.useFakeTimers({ now: new Date("2026-07-05T00:00:00Z"), toFake: ["Date"] });
+    getBillingSubscription.mockResolvedValue(billing(null));
+    renderBilling();
+    const meter = await screen.findByRole("meter", { name: "Días de prueba restantes: 3 de 7 días" });
+    expect(meter).toHaveAttribute("aria-valuenow", "3");
+    expect(meter).toHaveAttribute("aria-valuemax", "7");
+  });
+
+  it("draws the verified billing period from its real start and end", async () => {
+    vi.useFakeTimers({ now: new Date("2026-11-11T12:00:00Z"), toFake: ["Date"] });
+    getBillingSubscription.mockResolvedValue(activeBilling({ status: "active",
+      current_period_start: "2026-11-01T00:00:00Z", current_period_end: "2026-12-01T00:00:00Z", period_freshness: "verified",
+    }));
+    renderBilling();
+    expect(await screen.findByRole("meter", { name: "Avance del periodo actual: 10 de 30 días" })).toBeInTheDocument();
+  });
+
+  it("omits the period meter while the period is not verified", async () => {
+    getBillingSubscription.mockResolvedValue(activeBilling({ status: "active",
+      current_period_start: "2026-11-01T00:00:00Z", current_period_end: "2026-12-01T00:00:00Z", period_freshness: "stale",
+    }));
+    renderBilling();
+    await screen.findByText(copy.billingView.subscriptionActiveTitle);
+    expect(screen.queryByRole("meter", { name: /Avance del periodo/ })).not.toBeInTheDocument();
+  });
+
+  it("shows server plans as cards with their features and keyboard selection", async () => {
+    const result = billing(null);
+    result.tiered_pricing_enabled = true;
+    result.available_plans = [
+      { code: "esencial", name: "Esencial", amount_minor_units: 39900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "inventory"], limits: { product_image_bytes: 250_000_000 } },
+      { code: "gestion", name: "Gestión", amount_minor_units: 69900, currency: "MXN", interval: "month", tax_inclusive: true, features: ["pos", "purchasing"], limits: { product_image_bytes: 1_073_741_824 } },
+    ];
+    getBillingSubscription.mockResolvedValue(result);
+    renderBilling();
+    const group = await screen.findByRole("radiogroup", { name: "Plan a contratar" });
+    const essential = within(group).getByRole("radio", { name: "Esencial · $399 MXN/mes" });
+    const gestion = within(group).getByRole("radio", { name: "Gestión · $699 MXN/mes" });
+    expect(essential).toHaveAccessibleDescription(/Catálogo y existencias/);
+    expect(gestion).toHaveAccessibleDescription(/Compras y proveedores/);
+    expect(essential).toHaveAttribute("tabindex", "0");
+    expect(gestion).toHaveAttribute("tabindex", "-1");
+    essential.focus();
+    fireEvent.keyDown(essential, { key: "ArrowRight" });
+    expect(gestion).toHaveAttribute("aria-checked", "true");
+    expect(gestion).toHaveFocus();
+    expect(screen.getByRole("button", { name: /Activar por \$699/ })).toBeEnabled();
+  });
+});

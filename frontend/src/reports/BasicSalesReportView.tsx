@@ -1,7 +1,7 @@
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart } from "lucide-react";
+import { Receipt, RotateCcw, ShoppingBag, ShoppingCart, TrendingUp } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "@/auth/permissions";
 import { commercialPlanIdentity } from "@/billing/entitlements";
@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
+import { DonutChart, KpiCard, RankBars } from "@/components/visual";
 import { getDashboardOverview } from "@/dashboard/api";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useTenantTimezone } from "@/hooks/useTenantTimezone";
@@ -75,31 +76,33 @@ export function BasicSalesReportView({ dashboard = false }: { dashboard?: boolea
       {access?.allowed === false ? <SubscriptionInactivePanel /> : <>
         {summary.isError ? <ViewError message="No pudimos cargar el resumen de ventas." onRetry={retry} retryLabel="Reintentar" />
           : summary.data ? <>
-            <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {[["Ventas netas", formatMoney(summary.data.net_sales)], ["Ventas completadas", String(summary.data.order_count)],
-                ["Devoluciones", formatMoney(summary.data.refund_total)], ["Ventas brutas", formatMoney(summary.data.gross_sales)]].map(([label, value]) => (
-                <Card key={label}><CardContent className="p-5"><dt className="text-sm text-muted-foreground">{label}</dt>
-                  <dd className="mt-2 break-words text-2xl font-semibold tabular-nums">{value}</dd></CardContent></Card>
-              ))}
-            </dl>
-            {summary.data.order_count === 0 && <ViewEmpty icon={<ShoppingCart className="h-5 w-5" />} title="Aún no hay ventas en este periodo"
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Resumen de ventas" role="group">
+              <KpiCard emphasis label="Ventas netas" value={formatMoney(summary.data.net_sales)} icon={<TrendingUp />} note="Después de devoluciones" />
+              <KpiCard label="Ventas completadas" value={summary.data.order_count.toLocaleString("es-MX")} icon={<ShoppingBag />} note="En el periodo" />
+              <KpiCard label="Devoluciones" value={formatMoney(summary.data.refund_total)} icon={<RotateCcw />}
+                note={`${summary.data.refund_count.toLocaleString("es-MX")} ${summary.data.refund_count === 1 ? "devolución" : "devoluciones"}`} />
+              <KpiCard label="Ventas brutas" value={formatMoney(summary.data.gross_sales)} icon={<Receipt />} note="Antes de devoluciones" />
+            </div>
+            {summary.data.order_count === 0 && <ViewEmpty icon={<ShoppingCart className="h-5 w-5" />} illustration="chart" title="Aún no hay ventas en este periodo"
               body="Elige otro periodo o registra una venta para ver aquí sus resultados." />}
           </> : <SectionLoading label="Cargando resumen de ventas" />}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card><CardContent className="space-y-4 p-5"><h2 className="font-semibold">Formas de pago</h2>
             {payments.isError ? <ViewError message="No pudimos cargar las formas de pago." onRetry={() => void payments.refetch()} retryLabel="Reintentar" />
-              : payments.data ? payments.data.payments.length ? <dl className="space-y-3">
-                {payments.data.payments.map((payment) => <div key={payment.method} className="flex items-center justify-between gap-3">
-                  <dt>{paymentLabel(payment.method)}</dt><dd className="font-medium tabular-nums">{formatMoney(payment.net_amount)}</dd></div>)}
-              </dl> : <p className="text-sm text-muted-foreground">No hay cobros en este periodo.</p> : <SectionLoading label="Cargando formas de pago" />}
+              : payments.data ? payments.data.payments.length ? <DonutChart label="Cobros netos por forma de pago"
+                centerLabel="Cobros" centerValue={formatMoney(payments.data.net_total)} emptyLabel="No hay cobros en este periodo."
+                slices={payments.data.payments.map((payment) => ({ id: payment.method, label: paymentLabel(payment.method),
+                  value: Number(payment.net_amount), valueLabel: formatMoney(payment.net_amount) }))} />
+                : <p className="text-sm text-muted-foreground">No hay cobros en este periodo.</p> : <SectionLoading label="Cargando formas de pago" />}
           </CardContent></Card>
           <Card><CardContent className="space-y-4 p-5"><h2 className="font-semibold">Productos más vendidos</h2>
             {products.isError ? <ViewError message="No pudimos cargar los productos vendidos." onRetry={() => void products.refetch()} retryLabel="Reintentar" />
-              : products.data ? products.data.products.length ? <ol className="space-y-3">
-                {products.data.products.map((product) => <li key={product.product_id} className="flex justify-between gap-3 text-sm">
-                  <span className="min-w-0 break-words">{product.product_name}<span className="block text-muted-foreground">{product.quantity_sold} unidades</span></span>
-                  <span className="shrink-0 font-medium tabular-nums">{formatMoney(product.gross_sales)}</span></li>)}
-              </ol> : <p className="text-sm text-muted-foreground">No hay productos vendidos en este periodo.</p> : <SectionLoading label="Cargando productos vendidos" />}
+              : products.data ? products.data.products.length ? <RankBars label="Productos más vendidos por importe bruto"
+                emptyLabel="No hay productos vendidos en este periodo."
+                rows={products.data.products.map((product) => ({ id: product.product_id, label: product.product_name,
+                  value: Number(product.gross_sales), valueLabel: formatMoney(product.gross_sales),
+                  detail: `${product.quantity_sold.toLocaleString("es-MX")} ${product.quantity_sold === 1 ? "unidad" : "unidades"}` }))} />
+                : <p className="text-sm text-muted-foreground">No hay productos vendidos en este periodo.</p> : <SectionLoading label="Cargando productos vendidos" />}
           </CardContent></Card>
         </div>
         <PlanFeatureNotice>Tu plan incluye estos reportes de ventas. Gestión añade análisis del negocio y recomendaciones.</PlanFeatureNotice>

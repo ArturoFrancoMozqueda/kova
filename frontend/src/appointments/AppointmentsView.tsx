@@ -4,6 +4,7 @@ import { TableReservations } from "./TableReservations";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { CalendarDays } from "lucide-react";
+import { InitialsAvatar } from "@/components/visual";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
@@ -683,7 +684,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </form>
         {panel.loading && <SectionSkeleton label="Consultando agenda…" variant="list" />}
         {!panel.loading && !panel.error && visibleAppointments.length === 0 && !linked.loading && (
-          <ViewEmpty
+          <ViewEmpty illustration="calendar"
             icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
             title="No hay citas en este período."
             body="Crea una cita o consulta otras fechas."
@@ -701,8 +702,11 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   {statuses[row.status]}
                 </span>
               </div>
-              <p className="break-words text-sm">
-                {row.customer_name} · {row.resource_name}
+              <p className="flex min-w-0 items-center gap-2 text-sm">
+                <InitialsAvatar name={row.customer_name} size="sm" />
+                <span className="min-w-0 break-words">
+                  {row.customer_name} · {row.resource_name}
+                </span>
               </p>
               <p className="text-sm font-medium">
                 {formatAppointmentTime(row.starts_at, row.timezone)} →{" "}

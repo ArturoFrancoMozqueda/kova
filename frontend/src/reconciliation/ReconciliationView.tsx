@@ -5,7 +5,9 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { FileCheck2, Upload } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, CircleDashed, CircleDot, CreditCard, FileCheck2, Lightbulb, Undo2, Upload, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Meter } from "@/components/visual";
 import { Link } from "react-router-dom";
 import {
   OperationsError,
@@ -43,6 +45,16 @@ const matchLabels = {
   confirmed: "Confirmado",
   rejected: "Rechazado",
   reversed: "Revertido",
+};
+const entryChips = {
+  unmatched: { icon: CircleDashed, variant: "warning" },
+  partially_matched: { icon: CircleDot, variant: "warning" },
+  matched: { icon: CheckCircle2, variant: "success" },
+} as const;
+const matchIcons = { suggested: Lightbulb, confirmed: CheckCircle2, rejected: XCircle, reversed: Undo2 };
+const toCents = (amount: string) => {
+  const value = Number(amount);
+  return Number.isFinite(value) ? Math.round(value * 100) : 0;
 };
 const methodLabel = (method: string) =>
   method === "manual_card" ? "Tarjeta manual" : "Transferencia";
@@ -447,7 +459,7 @@ function ReconciliationWorkspace({
         </h2>
         {loading && !page && <p role="status">Cargando movimientos…</p>}
         {page?.entries.length === 0 && (
-          <ViewEmpty
+          <ViewEmpty illustration="receipt"
             icon={<FileCheck2 className="h-6 w-6" />}
             title="Empieza con una liquidación real"
             body="Prepara un CSV en el formato de Kova. Podrás revisar los datos antes de importar y confirmar sus vínculos con pagos."
@@ -463,13 +475,19 @@ function ReconciliationWorkspace({
                 <h3 className="font-semibold">
                   {entry.external_reference_masked}
                 </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {methodLabel(entry.payment_method)} ·{" "}
-                  {new Date(entry.settled_at).toLocaleString("es-MX")}
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {entry.payment_method === "manual_card" ? (
+                    <CreditCard className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  <span>
+                    {methodLabel(entry.payment_method)} ·{" "}
+                    {new Date(entry.settled_at).toLocaleString("es-MX")}
+                  </span>
                 </p>
-                <span className="mt-2 inline-block rounded-full bg-muted px-2 py-1 text-xs">
-                  {entryLabels[entry.status]}
-                </span>
+                <EntryStatus status={entry.status} />
+                <LinkedProgress net={entry.net_amount} remaining={entry.remaining_amount} />
               </div>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div>
@@ -520,9 +538,12 @@ function ReconciliationWorkspace({
                 {entry.matches.map((match) => (
                   <li key={match.id} className="space-y-3 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-medium">
-                        {money(match.matched_amount)} ·{" "}
-                        {matchLabels[match.status]}
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        <MatchIcon status={match.status} />
+                        <span>
+                          {money(match.matched_amount)} ·{" "}
+                          {matchLabels[match.status]}
+                        </span>
                       </p>
                       <Link
                         to={`/orders/${match.order_id}`}
@@ -644,5 +665,40 @@ function ReconciliationWorkspace({
         </nav>
       )}
     </ViewLayout>
+  );
+}
+
+function EntryStatus({ status }: { status: keyof typeof entryLabels }) {
+  const chip = entryChips[status];
+  const Icon = chip.icon;
+  return (
+    <Badge variant={chip.variant} className="mt-2 gap-1">
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {entryLabels[status]}
+    </Badge>
+  );
+}
+
+function MatchIcon({ status }: { status: keyof typeof matchLabels }) {
+  const Icon = matchIcons[status];
+  return <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />;
+}
+
+/** Net received already linked to sales, from the entry's own amounts. */
+function LinkedProgress({ net, remaining }: { net: string; remaining: string }) {
+  const netCents = toCents(net);
+  if (netCents <= 0) return null;
+  const linkedCents = Math.max(0, netCents - toCents(remaining));
+  return (
+    <Meter
+      className="mt-3 w-56 max-w-full"
+      label="Neto vinculado a ventas"
+      value={linkedCents}
+      max={netCents}
+      valueLabel={`${money((linkedCents / 100).toFixed(2))} de ${money(net)}`}
+      tone={linkedCents >= netCents ? "growth" : "blue"}
+      size="sm"
+      showLabel
+    />
   );
 }

@@ -1,11 +1,24 @@
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Activity,
+  BellRing,
   CalendarDays,
+  CircleDot,
+  CircleDashed,
   ClipboardCheck,
+  Clock,
+  ClockAlert,
+  FileText,
   Handshake,
   LifeBuoy,
+  MessageCircle,
+  RotateCcw,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { InitialsAvatar } from "@/components/visual";
 import { Link } from "react-router-dom";
 import {
   OperationsSession,
@@ -77,6 +90,12 @@ const stateLabels: Record<OperationsQueueSource, Record<string, string>> = {
   },
   followups: { pending: "Pendiente" },
   appointment_reminders: { pending: "Pendiente de revisión" },
+};
+const stateIcons: Record<OperationsQueueSource, Record<string, LucideIcon>> = {
+  service_cases: { open: CircleDot, in_progress: Activity, reopened: RotateCcw },
+  opportunities: { new: Sparkles, contacted: MessageCircle, proposal: FileText },
+  followups: { pending: Clock },
+  appointment_reminders: { pending: BellRing },
 };
 const date = (value: string, timezone: string) =>
   new Date(value).toLocaleString("es-MX", { timeZone: timezone });
@@ -290,21 +309,28 @@ function QueueSection({
                   Abrir registro: {item.title}
                 </Link>
               )}
-              <p className="break-words text-sm">{item.customer_name}</p>
-              <p className="text-xs font-medium text-kova-muted">
-                {stateLabels[config.source][item.state] ??
-                  "Consulta el estado en el módulo de origen"}
+              <p className="flex min-w-0 items-center gap-2 text-sm">
+                <InitialsAvatar name={item.customer_name} size="sm" />
+                <span className="min-w-0 break-words">{item.customer_name}</span>
               </p>
+              <QueueState source={config.source} state={item.state} />
               {item.due_at ? (
                 <p
                   className={
                     item.overdue
-                      ? "text-sm font-medium text-warning-strong"
-                      : "text-sm text-kova-muted"
+                      ? "flex items-center gap-1.5 text-sm font-medium text-warning-strong"
+                      : "flex items-center gap-1.5 text-sm text-kova-muted"
                   }
                 >
-                  {item.overdue ? "Fecha vencida" : "Fecha de seguimiento"}:{" "}
-                  {date(item.due_at, timezone)}
+                  {item.overdue ? (
+                    <ClockAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  )}
+                  <span>
+                    {item.overdue ? "Fecha vencida" : "Fecha de seguimiento"}:{" "}
+                    {date(item.due_at, timezone)}
+                  </span>
                 </p>
               ) : (
                 <p className="text-sm text-kova-muted">
@@ -329,5 +355,16 @@ function QueueSection({
           : `Abrir ${config.title}`}
       </Link>
     </section>
+  );
+}
+
+function QueueState({ source, state }: { source: OperationsQueueSource; state: string }) {
+  const label = stateLabels[source][state];
+  const Icon = (label && stateIcons[source][state]) || CircleDashed;
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label ?? "Consulta el estado en el módulo de origen"}
+    </Badge>
   );
 }

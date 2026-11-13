@@ -210,3 +210,13 @@ it("keeps an existing purchase receivable after downgrade while preventing new p
   fireEvent.click(screen.getByRole("button", { name: "Recibir mercancía" }));
   expect(screen.getByRole("button", { name: "Confirmar recepción" })).toBeEnabled();
 });
+
+it("draws received vs. ordered units per line and for the whole purchase", async () => {
+  mount();
+  expect(await screen.findByText(/3 de 10 recibidas/)).toBeInTheDocument();
+  const line = screen.getByRole("meter", { name: "Harina, unidades recibidas: 3 de 10" });
+  expect(line).toHaveAttribute("aria-valuenow", "3");
+  expect(line).toHaveAttribute("aria-valuemax", "10");
+  expect(screen.getByRole("meter", { name: "Avance de la recepción: 3 de 10 unidades" })).toBeInTheDocument();
+  expect(screen.getByText("3 de 10 unidades")).toBeInTheDocument();
+});

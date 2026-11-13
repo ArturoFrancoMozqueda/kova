@@ -20,6 +20,7 @@ import { copy } from "../i18n/messages";
 import { formatMoney, formatMoneyDelta } from "../orders/format";
 import { applyPreset } from "../onboarding/api";
 import type { PresetName } from "../onboarding/api";
+import { PresetPicker } from "./PresetPicker";
 import {
   createCategory,
   createModifierGroup,
@@ -344,7 +345,7 @@ export default function CatalogView() {
 
       {/* Preset banner — shown only when catalog is empty and user can create */}
       {activeProducts.length === 0 && canCreate && (
-        <div className="rounded-kova-lg border border-kova-blue/20 bg-kova-blue/[0.03] p-5 animate-fade-in">
+        <div className="rounded-kova-lg border border-kova-blue/20 bg-kova-blue/[0.03] p-5">
           <div className="flex items-start gap-3 mb-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-kova-md bg-kova-blue/10 shrink-0">
               <Sparkles className="h-5 w-5 text-kova-blue" />
@@ -354,34 +355,7 @@ export default function CatalogView() {
               <p className="text-sm text-muted-foreground mt-0.5">{copy.onboarding.presetSubtitle}</p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {([
-              {
-                preset: "abarrotes" as PresetName,
-                label: copy.onboarding.presetGroceries,
-                desc: copy.onboarding.presetGroceriesDesc,
-              },
-              { preset: "cafe" as PresetName, label: copy.onboarding.presetCafe, desc: copy.onboarding.presetCafeDesc },
-              { preset: "bakery" as PresetName, label: copy.onboarding.presetBakery, desc: copy.onboarding.presetBakeryDesc },
-              { preset: "retail" as PresetName, label: copy.onboarding.presetRetail, desc: copy.onboarding.presetRetailDesc },
-            ] as const).map(({ preset, label, desc }) => (
-              <button
-                key={preset}
-                type="button"
-                disabled={presetApplying}
-                onClick={() => void handleApplyPreset(preset)}
-                className="flex flex-col rounded-kova-lg border-2 border-kova-border bg-white p-4 text-left transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/40 hover:shadow-kova-card-hover disabled:opacity-60"
-              >
-                <p className="font-semibold text-sm">{label}</p>
-                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-              </button>
-            ))}
-            {/* Blank / dismiss */}
-            <div className="flex flex-col rounded-kova-lg border-2 border-dashed border-kova-border bg-white p-4 text-left sm:col-span-2 xl:col-span-4">
-              <p className="font-semibold text-sm text-muted-foreground">{copy.onboarding.presetBlank}</p>
-              <p className="text-xs text-muted-foreground mt-1">{copy.onboarding.presetBlankDesc}</p>
-            </div>
-          </div>
+          <PresetPicker disabled={presetApplying} onApply={preset => void handleApplyPreset(preset)} />
           {presetApplying && (
             <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

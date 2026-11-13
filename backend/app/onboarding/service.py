@@ -23,6 +23,23 @@ def _load_preset(preset_name: str) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def get_preset_preview(preset_name: str) -> dict[str, Any]:
+    data = _load_preset(preset_name)
+    return {
+        "preset": preset_name,
+        "label": data.get("label", preset_name),
+        "categories": [category["name"] for category in data["categories"]],
+        "products": [
+            {
+                "name": product["name"],
+                "category": product.get("category"),
+                "price_amount": Decimal(product["price_amount"]),
+            }
+            for product in data["products"]
+        ],
+    }
+
+
 def _has_products(db: Session, *, tenant_id: UUID) -> bool:
     return (
         db.query(Product)

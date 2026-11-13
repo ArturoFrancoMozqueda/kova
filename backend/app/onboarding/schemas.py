@@ -1,12 +1,30 @@
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel
 
 from app.shared.validation import StrictModel
 
+PresetName = Literal["cafe", "bakery", "retail", "abarrotes"]
+
 
 class PresetApplyRequest(StrictModel):
-    preset: Literal["cafe", "bakery", "retail", "abarrotes"]
+    preset: PresetName
+
+
+class PresetProductPreview(BaseModel):
+    name: str
+    category: str | None
+    price_amount: Decimal
+
+
+class PresetPreviewResponse(BaseModel):
+    """Read-only contents of a starter catalog, shown before the owner applies it."""
+
+    preset: str
+    label: str
+    categories: list[str]
+    products: list[PresetProductPreview]
 
 
 class PresetApplyResponse(BaseModel):

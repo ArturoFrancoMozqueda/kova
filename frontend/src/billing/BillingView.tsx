@@ -8,7 +8,10 @@ import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, startBillingPortal, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
 import { PLAN_FEATURE_LABELS, type PlanCode } from "./entitlements";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Meter } from "@/components/visual";
+import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
+import { BILLING_TRIAL_DAYS } from "./trial";
+import type { CommercialPlan } from "./types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -122,6 +125,112 @@ function daysUntil(value: string | null): number | null {
   const ms = new Date(value).getTime() - Date.now();
   if (Number.isNaN(ms)) return null;
   return Math.max(0, Math.ceil(ms / 86_400_000));
+}
+
+const DAY_MS = 86_400_000;
+
+/** Days left in the signup trial, out of the advertised trial length. */
+function TrialMeter({ trialEndsAt }: { trialEndsAt: string }) {
+  const left = daysUntil(trialEndsAt);
+  if (left === null) return null;
+  return (
+    <Meter
+      className="mt-3"
+      size="sm"
+      label="Días de prueba restantes"
+      value={left}
+      max={BILLING_TRIAL_DAYS}
+      valueLabel={`${left} de ${Math.max(BILLING_TRIAL_DAYS, left)} días`}
+      tone={left <= 1 ? "danger" : left <= 3 ? "warning" : "blue"}
+      showLabel
+    />
+  );
+}
+
+/** How far the verified billing period has run, from its real start and end. */
+function PeriodMeter({ start, end }: { start: string | null; end: string | null }) {
+  if (!start || !end) return null;
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return null;
+  const totalDays = Math.max(1, Math.round((endMs - startMs) / DAY_MS));
+  const elapsedDays = Math.min(totalDays, Math.max(0, Math.floor((Date.now() - startMs) / DAY_MS)));
+  return (
+    <Meter
+      className="mt-3"
+      size="sm"
+      label="Avance del periodo actual"
+      value={elapsedDays}
+      max={totalDays}
+      valueLabel={`${elapsedDays} de ${totalDays} días`}
+      showLabel
+    />
+  );
+}
+
+/**
+ * Plans the server offers, as selectable cards (ARIA radiogroup with roving
+ * focus). Names, prices and features come only from `available_plans`.
+ */
+function PlanCards({ plans, value, onValueChange }: {
+  plans: CommercialPlan[];
+  value: PlanCode | null;
+  onValueChange: (code: PlanCode) => void;
+}) {
+  const focusable = value ?? plans[0]?.code;
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Plan a contratar"
+      tabIndex={-1}
+      className="grid gap-3 sm:grid-cols-2"
+      onKeyDown={(event) => {
+        if (!focusable) return;
+        handleRadioGroupKeyDown(event, plans.map((plan) => ({ value: plan.code })), focusable, onValueChange);
+      }}
+    >
+      {plans.map((plan) => {
+        const checked = plan.code === value;
+        const features = plan.features.map((feature) => PLAN_FEATURE_LABELS[feature]).filter(Boolean);
+        const featuresId = `plan-features-${plan.code}`;
+        return (
+          <button
+            key={plan.code}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            aria-label={`${plan.name} · ${formatPlanPrice(plan)}`}
+            aria-describedby={features.length ? featuresId : undefined}
+            data-radio-value={String(plan.code)}
+            tabIndex={plan.code === focusable ? 0 : -1}
+            onClick={() => onValueChange(plan.code)}
+            className={cn(
+              "flex min-h-11 flex-col rounded-kova-lg border-2 bg-white p-4 text-left transition-[border-color,box-shadow] duration-hover ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/40",
+              checked ? "border-kova-blue shadow-kova-card-hover" : "border-kova-border hover:border-kova-blue/40",
+            )}
+          >
+            <span className="flex items-start justify-between gap-3">
+              <span className="font-semibold text-kova-ink">{plan.name}</span>
+              <span aria-hidden="true" className={cn("mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2", checked ? "border-kova-blue" : "border-kova-border")}>
+                {checked && <span className="h-2 w-2 rounded-full bg-kova-blue" />}
+              </span>
+            </span>
+            <span className="mt-1 text-xl font-bold tracking-tight tabular-nums text-kova-ink">{formatPlanPrice(plan)}</span>
+            {features.length > 0 && (
+              <span id={featuresId} className="mt-3 block space-y-1.5">
+                {features.map((feature) => (
+                  <span key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-kova-blue" aria-hidden="true" />
+                    <span>{feature}</span>
+                  </span>
+                ))}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function accessStatusLabel(billing: BillingSubscription): string {
@@ -586,7 +695,9 @@ export default function BillingView() {
                     </p>
                   <div className="mt-3">
                     {signupTrial && periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {signupTrial && periodDate && <TrialMeter trialEndsAt={periodDate} />}
                     {verifiedPeriod && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {verifiedPeriod && subscription && <PeriodMeter start={subscription.current_period_start} end={subscription.current_period_end} />}
                     {!signupTrial && !verifiedPeriod && (
                       <p className="text-sm text-muted-foreground">{loadState.billing.access.reason === "verification_required"
                         ? copy.billingView.verificationSuspended : copy.billingView.periodVerifying}</p>
@@ -609,10 +720,8 @@ export default function BillingView() {
               {requiresPlanSelection && !hasCheckoutBlockingSubscription(loadState.billing) && (
                 <section className="space-y-4" aria-label="Elegir plan">
                   <h2 className="text-lg font-semibold">Elige el plan para tu negocio</h2>
-                  <SegmentedControl
-                    ariaLabel="Plan a contratar"
-                    className="max-w-full [&>div]:flex-wrap [&_button]:h-auto [&_button]:min-h-11 [&_button]:whitespace-normal"
-                    options={tieredPlans.map((plan) => ({ value: plan.code, label: `${plan.name} · ${formatPlanPrice(plan)}` }))}
+                  <PlanCards
+                    plans={tieredPlans}
                     value={selectedPlan?.code ?? null}
                     onValueChange={setSelectedPlanCode}
                   />

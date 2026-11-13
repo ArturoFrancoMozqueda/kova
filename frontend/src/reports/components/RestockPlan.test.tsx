@@ -99,3 +99,10 @@ describe("RestockPlan", () => {
     });
   });
 });
+
+it("draws available stock against the horizon target as a labelled meter", () => {
+  renderPlan();
+  const meter = screen.getByRole("meter", { name: "Disponible para 7 días: 6 de 14" });
+  expect(meter).toHaveAttribute("aria-valuenow", "6");
+  expect(meter).toHaveAttribute("aria-valuemax", "14");
+});
