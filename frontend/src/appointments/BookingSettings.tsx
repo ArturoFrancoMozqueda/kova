@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarClock, Globe, Scissors } from "lucide-react";
 import { SectionHeadingIcon } from "@/components/ui/section-heading-icon";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
@@ -14,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ViewError } from "@/components/ui/view-states";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { appointmentTimezoneLabel } from "./timezone";
-import { AvailabilityPreview, PublicationPreview } from "./BookingPreviews";
+import { BookingPagePreview, type LoadBookingPreview } from "./BookingPreviews";
+import type { BookingPreviewData } from "@/bookings/PublicBookingView";
 import type { AppointmentResource } from "./types";
 import type { Availability, BookingPage, BookingService } from "./bookingTypes";
 import { resolveUserFacingError } from "@/lib/apiError";
@@ -41,6 +42,11 @@ export function BookingSettings({
     "/api/v1/appointments/booking-page",
     identity,
   );
+  const previewRequest = useOperationsRequest("/api/v1/appointments", identity);
+  const loadPreview = useCallback<LoadBookingPreview>(
+    (draft) => previewRequest<BookingPreviewData>("/booking-preview", "POST", draft),
+    [previewRequest],
+  );
   return (
     <div className="space-y-4">
       {publication.loading && !publication.data ? (
@@ -62,10 +68,10 @@ export function BookingSettings({
       <AvailabilitySettings
         identity={identity}
         resources={resources}
-        slotMinutes={publication.data?.slot_minutes ?? 15}
+        loadPreview={loadPreview}
         onSaved={onSaved}
       />
-      <Publication panel={publication} onSaved={onSaved} />
+      <Publication panel={publication} loadPreview={loadPreview} onSaved={onSaved} />
     </div>
   );
 }
@@ -286,12 +292,12 @@ function Services({
 function AvailabilitySettings({
   identity,
   resources,
-  slotMinutes,
+  loadPreview,
   onSaved,
 }: {
   identity: WorkspaceIdentity;
   resources: AppointmentResource[];
-  slotMinutes: number;
+  loadPreview: LoadBookingPreview;
   onSaved: () => void;
 }) {
   const [resource, setResource] = useState("");
@@ -324,7 +330,7 @@ function AvailabilitySettings({
           key={resource}
           resource={resources.find((r) => r.id === resource)!}
           identity={identity}
-          slotMinutes={slotMinutes}
+          loadPreview={loadPreview}
           onSaved={onSaved}
         />
       )}
@@ -334,12 +340,12 @@ function AvailabilitySettings({
 function AvailabilityEditor({
   identity,
   resource,
-  slotMinutes,
+  loadPreview,
   onSaved,
 }: {
   identity: WorkspaceIdentity;
   resource: AppointmentResource;
-  slotMinutes: number;
+  loadPreview: LoadBookingPreview;
   onSaved: () => void;
 }) {
   const panel = useOperationsPanel<Availability>(
@@ -395,12 +401,11 @@ function AvailabilityEditor({
         <SectionSkeleton label="Consultando disponibilidad…" variant="form" />
       )}
       {draft && (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <AvailabilityPreview
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <BookingPagePreview
           className="lg:order-last"
-          weekly={draft.weekly}
-          slotMinutes={slotMinutes}
-          resourceName={resource.name}
+          load={loadPreview}
+          draft={{ availability: { resource_id: resource.id, weekly: draft.weekly, exceptions: draft.exceptions.filter((x) => x.date) } }}
         />
         <form
           className="min-w-0 space-y-4"
@@ -694,9 +699,11 @@ function AvailabilityEditor({
 }
 function Publication({
   panel,
+  loadPreview,
   onSaved,
 }: {
   panel: ReturnType<typeof useOperationsPanel<BookingPage>>;
+  loadPreview: LoadBookingPreview;
   onSaved: () => void;
 }) {
   const [draft, setDraft] = useState<BookingPage | null>(null);
@@ -788,8 +795,13 @@ function Publication({
         </div>
       )}
       {open && draft && (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <PublicationPreview className="lg:order-last" draft={draft} />
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <BookingPagePreview
+          className="lg:order-last"
+          load={loadPreview}
+          enabled={draft.enabled}
+          draft={{ page: { mode: draft.mode ?? "appointments", horizon_days: draft.horizon_days, notice_minutes: draft.notice_minutes, slot_minutes: draft.slot_minutes, manage_cutoff_hours: draft.manage_cutoff_hours } }}
+        />
         <form
           id="booking-publication-form"
           className="min-w-0 space-y-4"

@@ -24,6 +24,12 @@ import { addDays, dateKey, DatePicker } from "./DatePicker";
 import { downloadCalendar } from "./calendarFile";
 import { PublicTableRequest } from "./PublicTableRequest";
 
+export type BookingContext = Context;
+export type BookingPreviewData = {
+  context: Context;
+  selection: { service_id: string; resource_id: string; day: string } | null;
+  slots: Slot[];
+};
 type Context = {
   mode?: "appointments" | "tables";
   timezone?: string | null;
@@ -38,8 +44,12 @@ export default function PublicBookingView() {
   const { token = "" } = useParams();
   return <BookingPage key={token} token={token} />;
 }
-function BookingPage({ token }: { token: string }) {
-  useDocumentTitle("Reserva una cita");
+/**
+ * The public booking page. With `preview`, it renders server-built preview data
+ * for the owner (unsaved settings) without calling public endpoints.
+ */
+export function BookingPage({ token, preview }: { token: string; preview?: BookingPreviewData }) {
+  useDocumentTitle(preview ? false : "Reserva una cita");
   const online = useOnline();
   const [context, setContext] = useState<Context | null>(null);
   const [error, setError] = useState("");
@@ -77,6 +87,13 @@ function BookingPage({ token }: { token: string }) {
     };
   }, []);
   useEffect(() => {
+    if (preview) {
+      setContext(preview.context);
+      setServiceId(preview.selection?.service_id ?? "");
+      setResourceId(preview.selection?.resource_id ?? "");
+      setDay(preview.selection?.day ?? "");
+      return;
+    }
     const controller = new AbortController();
     setError("");
     setContext(null);
@@ -94,7 +111,7 @@ function BookingPage({ token }: { token: string }) {
           );
       });
     return () => controller.abort();
-  }, [token, attempt]);
+  }, [token, attempt, preview]);
   useEffect(() => {
     if (!menu) return;
     const controller = new AbortController();
@@ -138,6 +155,11 @@ function BookingPage({ token }: { token: string }) {
     setSlots([]);
     setSelected(null);
     setSlotError("");
+    if (preview) {
+      setSlots(preview.slots);
+      setSlotLoading(false);
+      return;
+    }
     if (!serviceId || !resourceId || !day) {
       setSlotLoading(false);
       return;
@@ -165,7 +187,7 @@ function BookingPage({ token }: { token: string }) {
         if (!controller.signal.aborted) setSlotLoading(false);
       });
     return () => controller.abort();
-  }, [token, serviceId, resourceId, day, slotAttempt]);
+  }, [token, serviceId, resourceId, day, slotAttempt, preview]);
   const submit = async () => {
     if (locked.current || !selected || !online || !identityReady) return;
     const body = {
@@ -207,6 +229,7 @@ function BookingPage({ token }: { token: string }) {
     return (
       <PublicTableRequest
         token={token}
+        preview={Boolean(preview)}
         context={context}
         identityToken={identity.current}
         identityReady={identityReady}

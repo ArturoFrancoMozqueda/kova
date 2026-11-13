@@ -58,6 +58,7 @@ export function PublicTableRequest({
   identityReady,
   identityError,
   onGuest,
+  preview = false,
 }: {
   token: string;
   context: {
@@ -70,8 +71,10 @@ export function PublicTableRequest({
   identityReady: boolean;
   identityError: string;
   onGuest: () => void;
+  /** Owner preview: never changes the document title. */
+  preview?: boolean;
 }) {
-  useDocumentTitle("Solicitar una mesa");
+  useDocumentTitle(preview ? false : "Solicitar una mesa");
   const online = useOnline();
   const [day, setDay] = useState("");
   const [arrivals, setArrivals] = useState<TableArrival[]>([]);

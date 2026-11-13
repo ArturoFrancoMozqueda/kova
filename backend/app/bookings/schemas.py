@@ -63,8 +63,7 @@ class ExceptionDay(StrictModel):
     windows: list[Window] = Field(max_length=10)
 
 
-class AvailabilityWrite(StrictModel):
-    expected_version: int = Field(ge=0)
+class AvailabilityDraft(StrictModel):
     weekly: list[Day] = Field(max_length=7)
     exceptions: list[ExceptionDay] = Field(max_length=366)
 
@@ -79,6 +78,33 @@ class AvailabilityWrite(StrictModel):
             if any(a.end > b.start for a, b in zip(windows, windows[1:], strict=False)):
                 raise ValueError("Los horarios de atención no deben cruzarse")
         return self
+
+
+class AvailabilityWrite(AvailabilityDraft):
+    expected_version: int = Field(ge=0)
+
+
+class PreviewPage(StrictModel):
+    mode: Literal["appointments", "tables"] = "appointments"
+    horizon_days: int = Field(default=30, ge=1, le=366)
+    notice_minutes: int = Field(default=120, ge=0, le=525600)
+    slot_minutes: int = Field(default=15, ge=5, le=120)
+    manage_cutoff_hours: int = Field(default=24, ge=0, le=720)
+
+
+class PreviewAvailability(AvailabilityDraft):
+    resource_id: UUID
+
+
+class BookingPreviewRequest(StrictModel):
+    """Unsaved booking settings rendered as the public page for the owner."""
+
+    page: PreviewPage | None = None
+    availability: PreviewAvailability | None = None
+    service_id: UUID | None = None
+    resource_id: UUID | None = None
+    day: date | None = None
+
 
 
 class PublicSelection(StrictModel):
@@ -297,3 +323,15 @@ class TableDetail(TableSummary):
 class TableList(BaseModel):
     items: list[TableSummary]
     has_more: bool
+
+
+class PreviewSelection(BaseModel):
+    service_id: UUID
+    resource_id: UUID
+    day: date
+
+
+class BookingPreview(BaseModel):
+    context: PublicContext
+    selection: PreviewSelection | None
+    slots: list[PublicSlot]

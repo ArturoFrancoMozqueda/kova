@@ -943,9 +943,9 @@
           }
         },
         "required": [
-          "expected_version",
           "weekly",
-          "exceptions"
+          "exceptions",
+          "expected_version"
         ],
         "title": "AvailabilityWrite",
         "type": "object"
@@ -1121,6 +1121,101 @@
           "access"
         ],
         "title": "BillingSubscriptionResponse",
+        "type": "object"
+      },
+      "BookingPreview": {
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/PublicContext"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreviewSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSlot"
+            },
+            "title": "Slots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "context",
+          "selection",
+          "slots"
+        ],
+        "title": "BookingPreview",
+        "type": "object"
+      },
+      "BookingPreviewRequest": {
+        "additionalProperties": false,
+        "description": "Unsaved booking settings rendered as the public page for the owner.",
+        "properties": {
+          "availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreviewAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreviewPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          }
+        },
+        "title": "BookingPreviewRequest",
         "type": "object"
       },
       "BookingReceipt": {
@@ -13305,6 +13400,39 @@
         "title": "PresetApplyResponse",
         "type": "object"
       },
+      "PreviewAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/ExceptionDay"
+            },
+            "maxItems": 366,
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "resource_id": {
+            "format": "uuid",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "weekly": {
+            "items": {
+              "$ref": "#/components/schemas/Day"
+            },
+            "maxItems": 7,
+            "title": "Weekly",
+            "type": "array"
+          }
+        },
+        "required": [
+          "weekly",
+          "exceptions",
+          "resource_id"
+        ],
+        "title": "PreviewAvailability",
+        "type": "object"
+      },
       "PreviewLine": {
         "properties": {
           "discount_amount": {
@@ -13384,6 +13512,50 @@
           "total_amount"
         ],
         "title": "PreviewLine",
+        "type": "object"
+      },
+      "PreviewPage": {
+        "additionalProperties": false,
+        "properties": {
+          "horizon_days": {
+            "default": 30,
+            "maximum": 366.0,
+            "minimum": 1.0,
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "manage_cutoff_hours": {
+            "default": 24,
+            "maximum": 720.0,
+            "minimum": 0.0,
+            "title": "Manage Cutoff Hours",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "appointments",
+            "enum": [
+              "appointments",
+              "tables"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "notice_minutes": {
+            "default": 120,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Notice Minutes",
+            "type": "integer"
+          },
+          "slot_minutes": {
+            "default": 15,
+            "maximum": 120.0,
+            "minimum": 5.0,
+            "title": "Slot Minutes",
+            "type": "integer"
+          }
+        },
+        "title": "PreviewPage",
         "type": "object"
       },
       "PreviewRequest": {
@@ -13529,6 +13701,32 @@
           "row_fingerprint"
         ],
         "title": "PreviewRow",
+        "type": "object"
+      },
+      "PreviewSelection": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "resource_id": {
+            "format": "uuid",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "resource_id",
+          "day"
+        ],
+        "title": "PreviewSelection",
         "type": "object"
       },
       "ProcessResponse": {
@@ -21124,6 +21322,48 @@
           }
         },
         "summary": "Save Page",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/booking-preview": {
+      "post": {
+        "description": "Owner preview of the public booking page for unsaved settings. Read-only.",
+        "operationId": "booking_preview_api_v1_appointments_booking_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Booking Preview",
         "tags": [
           "bookings"
         ]

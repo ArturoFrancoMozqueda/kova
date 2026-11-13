@@ -498,3 +498,59 @@ def test_team_can_reschedule_a_confirmed_guest_without_creating_or_matching_cust
     assert db.query(BookingHistory).count() == 2
     token = created["manage_path"].split("#")[1]
     assert datetime.fromisoformat(manage_read(client, token).json()["starts_at"]) == start
+
+
+def test_owner_preview_matches_public_page_and_applies_unsaved_settings(client):
+    _account, _customer, r, svc, page, body = configure(client)
+    token = body["page_token"]
+    tomorrow = (datetime.now(ZoneInfo(r["timezone"])) + timedelta(days=2)).date()
+    public_context = client.get(PUBLIC + "/context", params={"page_token": token}).json()
+    public_slots = client.get(PUBLIC + "/slots", params={
+        "page_token": token, "service_id": svc["id"], "resource_id": r["id"], "day": str(tomorrow),
+    }).json()["items"]
+
+    same = client.post(BASE + "/booking-preview", json={
+        "service_id": svc["id"], "resource_id": r["id"], "day": str(tomorrow),
+    })
+    assert same.status_code == 200, same.text
+    assert same.headers["Cache-Control"] == "private, no-store"
+    assert same.json()["context"] == public_context
+    assert same.json()["slots"] == public_slots
+
+    # Unsaved hours and spacing change the offer without touching saved settings.
+    draft = client.post(BASE + "/booking-preview", json={
+        "page": {"horizon_days": 7, "notice_minutes": 0, "slot_minutes": 60, "manage_cutoff_hours": 2},
+        "availability": {
+            "resource_id": r["id"],
+            "weekly": [{"weekday": tomorrow.weekday(), "windows": [{"start": "10:00", "end": "12:00"}]}],
+            "exceptions": [],
+        },
+        "day": str(tomorrow),
+    }).json()
+    assert draft["context"]["horizon_days"] == 7
+    assert draft["context"]["manage_cutoff_hours"] == 2
+    assert draft["selection"] == {"service_id": svc["id"], "resource_id": r["id"], "day": str(tomorrow)}
+    starts = [datetime.fromisoformat(s["starts_at"]).astimezone(ZoneInfo(r["timezone"])).strftime("%H:%M") for s in draft["slots"]]
+    assert starts == ["10:00", "11:00"]
+    saved = client.get(BASE + "/booking-page").json()
+    assert (saved["slot_minutes"], saved["horizon_days"], saved["version"]) == (15, 30, page["version"])
+    assert client.get(BASE + f"/availability/{r['id']}").json()["version"] == 1
+
+    # Without a day, the preview picks the first day that customers could book.
+    suggested = client.post(BASE + "/booking-preview", json={}).json()
+    assert suggested["selection"]["service_id"] == svc["id"]
+    assert suggested["slots"]
+
+
+def test_owner_preview_is_private_validated_and_read_only(client, db):
+    configure(client)
+    invalid = client.post(BASE + "/booking-preview", json={"availability": {
+        "resource_id": str(uuid4()), "weekly": [{"weekday": 1, "windows": [{"start": "12:00", "end": "10:00"}]}], "exceptions": [],
+    }})
+    assert invalid.status_code == 422
+    assert client.post(BASE + "/booking-preview", json={"page": {"slot_minutes": 1}}).status_code == 422
+    before = db.query(PublicBooking).count()
+    assert client.post(BASE + "/booking-preview", json={}).status_code == 200
+    assert db.query(PublicBooking).count() == before
+    client.cookies.clear()
+    assert client.post(BASE + "/booking-preview", json={}).status_code in {401, 403}

@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.bookings import service, tables
 from app.bookings.schemas import (
     AvailabilityWrite,
+    BookingPreview,
+    BookingPreviewRequest,
     BookingReceipt,
     BookingWrite,
     InviteWrite,
@@ -67,6 +69,18 @@ def save_page(
     ctx=Depends(require_crm),
 ):
     return service.save_page(db, ctx[1].tenant_id, ctx[0].id, body, key)
+
+
+@router.post(PRIVATE + "/booking-preview", response_model=BookingPreview)
+def booking_preview(
+    body: BookingPreviewRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    """Owner preview of the public booking page for unsaved settings. Read-only."""
+    private_response(response)
+    return service.preview(db, ctx[1].tenant_id, body)
 
 
 @router.get(PRIVATE + "/services")
