@@ -66,12 +66,14 @@ test.describe("Mesas sin duración: solicitudes y confirmación con PostgreSQL/R
       await markFirstUseToursSeen(page, account.tenant_id);
       await page.goto("/appointments");
       for (let i = 1; i <= 5; i++) {
+        // During the resource refresh the duplicate action inside <details>
+        // can fold. Target the header's stable form control instead.
         await page
           .getByRole("button", {
             name: "Agregar persona o espacio",
             exact: true,
           })
-          .first()
+          .and(page.locator('[aria-controls="appointment-resource-form"]'))
           .click();
         await page.getByLabel("Tipo", { exact: true }).selectOption("table");
         await page
