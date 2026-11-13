@@ -71,6 +71,9 @@ inmutables. Downgrade vacío reversible; rechaza descartar registros. Citas inte
 Privadas bajo `/api/v1/appointments`: `booking-page`, `services`, `availability/{id}`, `calendar`,
 `booking-invites`, `bookings/{id}` y acciones `customer`, `reschedule`, `cancel`, `revoke`. Escrituras con sesión,
 CSRF, permisos y claves de idempotencia salvo emisión de un enlace personal de lectura/autorización.
+`POST booking-preview` (mismos permisos que la configuración) devuelve el contexto público y los horarios
+que vería un cliente con ajustes o disponibilidad sin guardar, aplicando las reglas de `slots` y las citas ya
+agendadas. Es de solo lectura: no guarda, no publica y no crea reservas.
 Públicas bajo `/api/v1/public/bookings`: `context`, `slots`, POST raíz, `manage/read`,
 `manage/slots`, `manage`. Intercambio de membresía en
 `/api/v1/public/loyalty/membership/booking-grant`, con su cookie original y origen confiable.

@@ -364,7 +364,14 @@ test("positive comparisons and completed priorities retain accessible contrast",
     }),
   });
   await page.goto("/reports");
-  await page.getByRole("group", { name: "Periodo de análisis" }).getByRole("button", { name: "7 días", exact: true }).click();
+  // The shell can remount the route once the session resolves; a click landing
+  // during that remount is lost and the page stays on "Hoy" (compared against
+  // the same fixture). Retry until the period is really selected.
+  const sevenDays = page.getByRole("group", { name: "Periodo de análisis" }).getByRole("button", { name: "7 días", exact: true });
+  await expect(async () => {
+    await sevenDays.click();
+    await expect(sevenDays).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+  }).toPass();
   await expect(page.getByText(/13% del total · 1 orden ·/)).toBeVisible();
   await expect(page.getByText("+100% vs. periodo anterior", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Marcar como hecha", exact: true }).click();

@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 from datetime import UTC, datetime, time, timedelta
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -355,7 +356,11 @@ def save_availability(db, tenant, actor, resource_id, body, key):
 
 
 def context(db, token):
-    page = resolve_page(db, token)
+    return _context(db, resolve_page(db, token))
+
+
+def _context(db, page):
+    """Public context for a page; the owner preview passes an unsaved draft."""
     profile = db.query(BusinessProfile).filter_by(tenant_id=page.tenant_id).first()
     tenant = db.query(Tenant).filter_by(id=page.tenant_id).one()
     branch = db.query(Branch).filter_by(tenant_id=page.tenant_id, id=page.branch_id).one()
@@ -434,22 +439,28 @@ def busy_intervals(
     return [(row.starts_at, row.ends_at) for row in [*internal.all(), *public.all()]]
 
 
-def slots(db, page, service_id, resource_id, day, *, excluding=None):
+def slots(db, page, service_id, resource_id, day, *, excluding=None, availability=None):
     service, resource = _selection(db, page, service_id, resource_id)
     zone = ZoneInfo(resource.timezone)
     stamp = datetime.now(UTC)
     today = stamp.astimezone(zone).date()
     if not today <= day <= today + timedelta(days=page.horizon_days):
         return []
-    configured = (
-        _scope(db, page.tenant_id, BookingAvailability).filter_by(resource_id=resource_id).first()
+    if availability is None:
+        configured = (
+            _scope(db, page.tenant_id, BookingAvailability)
+            .filter_by(resource_id=resource_id)
+            .first()
+        )
+        if not configured:
+            return []
+        availability = {"weekly": configured.weekly, "exceptions": configured.exceptions}
+    windows = next(
+        (d["windows"] for d in availability["exceptions"] if d["date"] == str(day)), None
     )
-    if not configured:
-        return []
-    windows = next((d["windows"] for d in configured.exceptions if d["date"] == str(day)), None)
     if windows is None:
         windows = next(
-            (d["windows"] for d in configured.weekly if d["weekday"] == day.weekday()), []
+            (d["windows"] for d in availability["weekly"] if d["weekday"] == day.weekday()), []
         )
     start = datetime.combine(day, time.min, zone).astimezone(UTC)
     end = datetime.combine(day + timedelta(days=1), time.min, zone).astimezone(UTC)
@@ -489,6 +500,69 @@ def slots(db, page, service_id, resource_id, day, *, excluding=None):
                     )
             local += timedelta(minutes=page.slot_minutes)
     return sorted(result, key=lambda item: item["starts_at"])
+
+
+PREVIEW_SCAN_DAYS = 31
+
+
+def preview(db, tenant, body):
+    """Render unsaved settings with the public page's own rules. Read-only:
+    nothing is stored, and real appointments still block their slots."""
+    saved = _page(db, tenant)
+    draft = body.page
+    page = SimpleNamespace(
+        tenant_id=tenant,
+        branch_id=active_branch_id(db, tenant),
+        mode=draft.mode if draft else (saved.mode if saved else "appointments"),
+        horizon_days=draft.horizon_days if draft else (saved.horizon_days if saved else 30),
+        notice_minutes=draft.notice_minutes if draft else (saved.notice_minutes if saved else 120),
+        slot_minutes=draft.slot_minutes if draft else (saved.slot_minutes if saved else 15),
+        manage_cutoff_hours=(
+            draft.manage_cutoff_hours if draft else (saved.manage_cutoff_hours if saved else 24)
+        ),
+    )
+    public = _context(db, page)
+    empty = {"context": public, "selection": None, "slots": []}
+    if page.mode != "appointments" or not public["services"]:
+        return empty
+    resource_ids = {r["id"] for r in public["resources"]}
+    override = body.availability.model_dump(mode="json") if body.availability else None
+    preferred = override["resource_id"] if override else None
+    eligible = [
+        s for s in public["services"] if any(r in resource_ids for r in s["resource_ids"])
+    ]
+    chosen = next((s for s in eligible if str(body.service_id) == s["id"]), None) or next(
+        (s for s in eligible if preferred in s["resource_ids"]), None
+    ) or (eligible[0] if eligible else None)
+    if not chosen:
+        return empty
+    candidates = [r for r in chosen["resource_ids"] if r in resource_ids]
+    resource_id = next(
+        (r for r in candidates if r in {str(body.resource_id), preferred}), candidates[0]
+    )
+    resource = next(r for r in public["resources"] if r["id"] == resource_id)
+    today = datetime.now(UTC).astimezone(ZoneInfo(resource["timezone"])).date()
+    last = today + timedelta(days=page.horizon_days)
+    draft_windows = override if override and override["resource_id"] == resource_id else None
+
+    def offered(day):
+        return slots(db, page, chosen["id"], resource_id, day, availability=draft_windows)
+
+    if body.day and today <= body.day <= last:
+        day, items = body.day, offered(body.day)
+    else:
+        day, items = today, []
+        for offset in range(min(page.horizon_days, PREVIEW_SCAN_DAYS) + 1):
+            candidate = today + timedelta(days=offset)
+            items = offered(candidate)
+            if items:
+                day = candidate
+                break
+    return {
+        "context": public,
+        "selection": {"service_id": chosen["id"], "resource_id": resource_id, "day": day},
+        "slots": items,
+    }
 
 
 def _identity(db, page, token):

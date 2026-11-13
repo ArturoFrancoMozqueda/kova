@@ -20,11 +20,17 @@ export function DevicePreview({
   device,
   title,
   children,
+  scrollTo,
+  scrollKey,
   className,
 }: {
   device: PreviewDevice;
   title: string;
   children: ReactNode;
+  /** CSS selector inside the page to scroll to, e.g. the part being configured. */
+  scrollTo?: string;
+  /** Change it to scroll again after new content arrives. */
+  scrollKey?: string;
   className?: string;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -65,6 +71,17 @@ export function DevicePreview({
   }, []);
 
   const bezel = 12;
+  useEffect(() => {
+    if (!mount || !scrollTo) return;
+    const view = mount.ownerDocument.defaultView;
+    const frameId = view?.requestAnimationFrame(() => {
+      const target = mount.querySelector(scrollTo);
+      // Scroll only the iframe's own document, never the owner's page.
+      if (target && view) view.scrollTo({ top: target.getBoundingClientRect().top + view.scrollY - 8 });
+    });
+    return () => { if (frameId !== undefined) view?.cancelAnimationFrame(frameId); };
+  }, [mount, scrollTo, scrollKey, device]);
+
   const scale = available > bezel ? Math.min(1, (available - bezel) / width) : 1;
   return (
     <div ref={box} className={className}>
