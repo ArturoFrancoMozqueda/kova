@@ -62,6 +62,9 @@ panel interno de operación, Sentry del navegador, higiene de turnos, cuarentena
 plataforma, autorización por comercio y revisión de efectos externos inciertos. Estado y límites
 en el [contrato](../specs/integrations/whatsapp-embedded-signup.md).
 
+[Revisión de la app de WhatsApp](runbooks/whatsapp-meta-app-review.md): configuración preparada,
+justificación de permisos y recorrido de video, con bloqueos de Meta y evidencia aún pendiente.
+
 [Aceptación de equipos](runbooks/pos-hardware-acceptance.md): equipo de prueba, impresión térmica,
 lector, cajón y pruebas offline en los dispositivos reales de cada negocio.
 
@@ -79,3 +82,5 @@ en `specs/` (`.feature`) y se ejecutan desde `backend/app/tests/bdd/`.
   vigentes pasan a un documento base, ADR o runbook y el archivo se borra. Git conserva el
   historial.
 - No dupliques lo que ya dice el código. Enlaza el archivo en su lugar.
+
+- [Validación local de Clientes, lealtad y reservas](testing-clients-booking.md).

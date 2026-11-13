@@ -161,7 +161,9 @@ def create_resource(db, tenant, actor, body, key):
         raise conflict("Esta sucursal alcanzó el límite de 200 recursos")
     if _scope(db, tenant, AppointmentResource).filter_by(name=body.name).first():
         raise conflict("Ya existe un recurso con ese nombre")
-    row = AppointmentResource(tenant_id=tenant, name=body.name, timezone=body.timezone)
+    row = AppointmentResource(
+        tenant_id=tenant, name=body.name, timezone=body.timezone, kind=body.kind
+    )
     db.add(row)
     db.flush()
     return _finish(
@@ -225,6 +227,8 @@ def _validate_interval(starts_at, ends_at):
 
 
 def _ensure_free(db, tenant, resource_id, starts_at, ends_at, excluding=None):
+    if _resource(db, tenant, resource_id).kind == "table":
+        raise bad_request("Esta mesa se gestiona desde las solicitudes de mesa, sin duración fija.")
     query = _scope(db, tenant, Appointment).filter(
         Appointment.resource_id == resource_id,
         Appointment.status == "scheduled",
@@ -233,7 +237,20 @@ def _ensure_free(db, tenant, resource_id, starts_at, ends_at, excluding=None):
     )
     if excluding is not None:
         query = query.filter(Appointment.id != excluding)
-    if query.first():
+    from app.bookings.models import PublicBooking
+
+    public = (
+        _scope(db, tenant, PublicBooking)
+        .filter(
+            PublicBooking.resource_id == resource_id,
+            PublicBooking.status == "scheduled",
+            PublicBooking.appointment_id.is_(None),
+            PublicBooking.starts_at < ends_at,
+            PublicBooking.ends_at > starts_at,
+        )
+        .first()
+    )
+    if public or query.first():
         raise conflict("El recurso ya tiene una cita que se cruza con ese horario")
 
 
@@ -421,7 +438,34 @@ def history(db, tenant, appointment_id):
         for name in ("starts_at", "ends_at", "created_at"):
             fields[name] = _utc(fields[name])
         result.append(AppointmentHistoryResponse(**fields).model_dump(mode="json"))
-    return {"items": result}
+    from app.bookings.models import BookingHistory, PublicBooking
+
+    public = (
+        _scope(db, tenant, BookingHistory)
+        .join(
+            PublicBooking,
+            (PublicBooking.id == BookingHistory.booking_id)
+            & (PublicBooking.tenant_id == BookingHistory.tenant_id)
+            & (PublicBooking.branch_id == BookingHistory.branch_id),
+        )
+        .filter(
+            PublicBooking.appointment_id == appointment_id, BookingHistory.actor_user_id.is_(None)
+        )
+        .order_by(BookingHistory.version)
+        .all()
+    )
+    return {
+        "items": result,
+        "public_changes": [
+            {
+                "action": row.action,
+                "starts_at": row.starts_at,
+                "ends_at": row.ends_at,
+                "created_at": row.created_at,
+            }
+            for row in public
+        ],
+    }
 
 
 def get_reminder(db, tenant, reminder_id):

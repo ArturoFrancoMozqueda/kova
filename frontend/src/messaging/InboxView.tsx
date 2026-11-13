@@ -92,7 +92,7 @@ const errorLabels: Record<string, string> = {
 };
 const fieldClass = "mt-1 min-w-0";
 export default function InboxView() {
-  useDocumentTitle("Bandeja de atención");
+  useDocumentTitle("Conversaciones");
   return (
     <OperationsSession>
       {(identity) => <InboxWorkspace identity={identity} />}
@@ -254,8 +254,8 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     <ViewLayout className="space-y-6">
       <ViewHeader
         eyebrow="Atención al cliente"
-        title="Bandeja de atención"
-        meta="Conserva el contexto, prepara respuestas y controla cuándo interviene el equipo."
+        title="Conversaciones"
+        meta="Consulta conversaciones, organiza notas y prepara la respuesta al cliente."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button

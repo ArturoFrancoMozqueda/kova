@@ -7,9 +7,10 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La baseline publicada y verificada es `3be0dac411e4f3de85fa55e228d616b13140b2fb`,
-[release 43279827960](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43279827960).
-API y frontend sirven ese mismo SHA; proxy, base, oferta y 25 contratos nativos aprobaron.
+La baseline publicada y verificada es `e76f997921fe3e46f19914242b221909a2b0a5ad`,
+[release 43341276814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43341276814).
+API, frontend y proxy sirven ese mismo SHA; sitio y base accesibles. El release y la revisión
+autenticada de Clientes, lealtad y Agenda aprobaron. [Evidencia](testing-clients-booking.md#ci-y-publicación).
 La corrección del drenado y del monitor de recuperación permitió publicar el alta de WhatsApp
 con su gate comercial apagado. [Evidencia e incidente anterior](despliegue.md#recuperación-verificada-el-12-de-noviembre-de-2026).
 Esencial $399/Gestión $699 MXN mensuales y el Portal básico están ON; los acuerdos Standard de
@@ -60,7 +61,8 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | Función | Estado |
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
-| WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el challenge del callback. Verificación del titular en revisión; faltan permisos de la app, configuración de Login for Business y aceptación de entrada/respuesta/entrega con un número autorizado ([alta](runbooks/whatsapp-embedded-signup.md), [piloto](runbooks/whatsapp-assisted-pilot.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
+| Reservas públicas | Publicadas sin anticipo; desactivadas inicialmente por sucursal. Requieren personas/espacios, servicios y disponibilidad reales antes de habilitarse. |
+| WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el callback; Login for Business, configuración de WhatsApp y ajustes privados preparados. `public_profile` confirmado con acceso avanzado; verificación del titular en revisión. Faltan acceso avanzado de los dos permisos de WhatsApp, video/revisión de la app, aviso de privacidad completo para WhatsApp y aceptación de entrada/respuesta/entrega con un número autorizado ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
 | Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-034](adr/ADR-034-asistente-cloudflare-consumo-verificado.md)). Qwen/Cloudflare ya tiene ruta anclada, reportes con una llamada, límites 256/128 y conciliación verificable sin liberar incertidumbre. Selector real validado dentro de cuota gratuita; faltan corpus/revisión humana y recorrido/carga alojados con proveedor. Evidencia en el [runbook](runbooks/assistant-acceptance.md); cambios locales no acreditan publicación ni activación. |
@@ -150,6 +152,18 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    ([spec](../specs/reports/analysis_activation.md)). Definir responsables/soporte y cerrar los
    acuerdos y revisión profesional del [gate operativo](runbooks/ops-beta-gate.md#ops-6--legal-y-comercial).
    Es aceptación comercial y operativa, no código.
+
+## Clientes y reservas: publicado, activación por negocio
+
+La reorganización de Clientes y atención, el diseñador de lealtad y la reserva pública sin anticipo
+se publicaron en el [PR #349](https://github.com/ArturoFrancoMozqueda/kova/pull/349).
+Se verificaron ficha/búsqueda, borrador con logo y regla en vivo, calendario semanal/diario,
+ausencia de errores visibles y reservas apagadas, a 390 y 1440 px. No se guardaron configuraciones
+ni se crearon operaciones productivas durante QA. Las reservas requieren servicios y disponibilidad
+configurados antes de activarse. Contratos:
+[reservas](../specs/appointments/public-booking.md), [lealtad](../specs/loyalty/program-designer.md),
+[ADR-032](adr/ADR-032-public-booking-and-loyalty-program.md). Validación y límites del cambio en
+[validación local](testing-clients-booking.md).
 
 ## Reglas de este archivo
 

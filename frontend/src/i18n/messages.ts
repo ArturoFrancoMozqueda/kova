@@ -117,7 +117,7 @@ export const copy = {
           items: [
             { title: "Clientes con historial", body: "Liga cada venta a un cliente y consulta qué compra y cada cuánto.", feature: null },
             { title: "Puntos y recompensas", body: "Tus clientes acumulan puntos y los canjean en caja con su tarjeta digital por QR.", feature: "loyalty" },
-            { title: "Seguimiento comercial", body: "Oportunidades, próxima acción y seguimientos de postventa para que nadie se quede sin respuesta.", feature: "customer_orders" },
+            { title: "Oportunidades", body: "Oportunidades, próxima acción y seguimientos de postventa para que nadie se quede sin respuesta.", feature: "customer_orders" },
           ],
         },
         {
@@ -2439,10 +2439,10 @@ export const copy = {
     serviceCases: "Casos de atención",
     appointments: "Agenda",
     loyalty: "Lealtad de clientes",
-    inbox: "Bandeja de atención",
+    inbox: "Conversaciones",
     commercialRequests: "Solicitudes del catálogo",
-    followups: "Seguimientos de postventa",
-    crm: "Seguimiento comercial",
+    followups: "Seguimiento después de la venta",
+    crm: "Oportunidades",
     quotes: "Cotizaciones",
     automations: "Automatizaciones",
     publicCatalog: "Catálogo público",

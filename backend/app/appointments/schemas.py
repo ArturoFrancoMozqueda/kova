@@ -33,6 +33,7 @@ class _Text(StrictModel):
 class AppointmentResourceCreate(_Text):
     name: str = Field(min_length=1, max_length=120)
     timezone: AppointmentResourceTimezone
+    kind: Literal["appointment", "table"] = "appointment"
 
 
 class AppointmentResourceUpdate(_Text):
@@ -92,6 +93,7 @@ class AppointmentResourceResponse(BaseModel):
     id: UUID
     name: str
     timezone: AppointmentResourceTimezone
+    kind: Literal["appointment", "table"] = "appointment"
     is_active: bool
     version: int
 
@@ -154,7 +156,15 @@ class AppointmentHistoryResponse(BaseModel):
     created_at: datetime
 
 
+class PublicAppointmentChange(BaseModel):
+    action: str
+    starts_at: datetime
+    ends_at: datetime
+    created_at: datetime
+
+
 class AppointmentHistoryList(BaseModel):
+    public_changes: list[PublicAppointmentChange] = Field(default_factory=list)
     items: list[AppointmentHistoryResponse]
 
 

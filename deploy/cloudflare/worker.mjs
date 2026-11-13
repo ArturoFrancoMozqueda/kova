@@ -91,9 +91,12 @@ export async function handleRequest(request, env, fetcher = fetch, ctx) {
   }
   const asset = await env.ASSETS.fetch(request);
   if (asset.status !== 404) return secure(asset, { html: path.endsWith(".html") });
+  // Booking addresses contain an HS256 JWT. Its dots belong to a React route,
+  // not a file extension. The API still validates publication and the signature.
+  const bookingPage = /^\/reservar\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}\/?$/.test(path);
   // Missing assets must stay 404. Returning HTML would break module loading
   // and can poison a service worker precache during a release.
-  if (/\.[^/]+$/.test(path) || path.startsWith("/_vercel/")) return secure(asset, { api: true });
+  if ((!bookingPage && /\.[^/]+$/.test(path)) || path.startsWith("/_vercel/")) return secure(asset, { api: true });
   url.pathname = "/app-shell.html";
   const shell = secure(await env.ASSETS.fetch(new Request(url, request)), { html: true });
   shell.headers.set("X-Robots-Tag", "noindex, nofollow");

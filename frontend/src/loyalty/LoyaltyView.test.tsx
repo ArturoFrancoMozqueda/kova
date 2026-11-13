@@ -59,12 +59,12 @@ const overview = {
   accounts: [account],
   accounts_has_more: false,
 };
+const program = { business_name: "Negocio", policy: overview.policy, reward: null,
+  enrollment: { enabled: false, version: 0 }, appearance: { color: "#0F1117", use_business_logo: true, version: 0, logo_url: null } };
 const route = async (url: RequestInfo | URL) =>
-  String(url).includes("/api/v1/customers?")
-    ? json([customer])
-    : String(url).includes("/loyalty/customers/")
-      ? json(ledger)
-      : json(overview);
+  String(url).includes("/loyalty/program") ? json(program) :
+  String(url).includes("/api/v1/customers?") ? json([customer]) :
+  String(url).includes("/loyalty/customers/") ? json(ledger) : json(overview);
 beforeEach(() => {
   vi.clearAllMocks();
   session.role = "owner";
@@ -77,47 +77,21 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockImplementation(route);
 });
-it("starts with no invented monetary rule and requires an explicit opt-in", async () => {
+it("starts with no invented monetary rule and saves the complete reviewed program", async () => {
   render(<LoyaltyView />);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Revisar regla de puntos" }),
-  );
-  expect(
-    screen.getByLabelText("Compra necesaria por bloque (MXN)"),
-  ).toHaveValue(null);
-  expect(screen.getByLabelText("Puntos por bloque de compra")).toHaveValue(
-    null,
-  );
-  expect(
-    screen.getByLabelText("Acumular puntos en nuevas ventas elegibles"),
-  ).not.toBeChecked();
-  fireEvent.change(screen.getByLabelText("Compra necesaria por bloque (MXN)"), {
-    target: { value: "100.00" },
-  });
-  fireEvent.change(screen.getByLabelText("Puntos por bloque de compra"), {
-    target: { value: "5" },
-  });
-  fireEvent.click(
-    screen.getByLabelText("Acumular puntos en nuevas ventas elegibles"),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Confirmar regla de puntos" }),
-  );
-  await waitFor(() =>
-    expect(
-      fetchMock.mock.calls.some(
-        ([url, init]) =>
-          url === "/api/v1/loyalty/policy" &&
-          init?.body ===
-            JSON.stringify({
-              expected_version: 0,
-              enabled: true,
-              spend_amount: "100.00",
-              points_per_step: 5,
-            }),
-      ),
-    ).toBe(true),
-  );
+  fireEvent.click(await screen.findByRole("button", { name: "Crear mi tarjeta" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+  expect(screen.getByLabelText("Por cada compra de (MXN)")).toHaveValue("");
+  expect(screen.getByLabelText("El cliente suma estos puntos")).toHaveValue(null);
+  fireEvent.change(screen.getByLabelText("Por cada compra de (MXN)"), { target: { value: "100.00" } });
+  fireEvent.change(screen.getByLabelText("El cliente suma estos puntos"), { target: { value: "5" } });
+  expect(screen.getByText("5 puntos por cada $100.00")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+  expect(screen.getByLabelText("Activar acumulación de puntos")).not.toBeChecked();
+  fireEvent.click(screen.getByLabelText("Activar acumulación de puntos"));
+  fireEvent.click(screen.getByRole("button", { name: "Guardar tarjeta y programa" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => url === "/api/v1/loyalty/program" && init?.method === "PUT" && JSON.parse(String(init.body)).policy.enabled)).toBe(true));
 });
 
 it("links to the source sale without presenting its internal identifier as customer-facing copy", async () => {
@@ -240,13 +214,13 @@ it("discards another branch's account snapshot", async () => {
   const previousSignal = fetchMock.mock.calls[0][1]?.signal;
   session.branch = "branch-2";
   fetchMock.mockImplementation(async (url) =>
-    String(url).includes("/customers?")
+    String(url).includes("/loyalty/program") ? json(program) : String(url).includes("/customers?")
       ? json([])
       : json({ ...overview, accounts: [] }),
   );
   view.rerender(<LoyaltyView />);
   expect(
-    await screen.findByText(/No hay movimientos de puntos en esta página/),
+    await screen.findByRole("button", { name: "Crear mi tarjeta" }),
   ).toBeVisible();
   expect(previousSignal?.aborted).toBe(true);
   expect(

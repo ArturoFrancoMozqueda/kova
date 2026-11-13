@@ -46,27 +46,27 @@ const areas = [
   {
     key: "agenda", path: "/appointments", title: "Agenda del negocio", action: "Nueva cita",
     empty: "No hay citas en este período.", form: "appointment-booking-form",
-    fields: ["Recurso de la cita", "Cliente de la cita", "Motivo de la cita", "Inicio de la cita", "Fin de la cita", "Nota interna de la cita"],
+    fields: ["Persona o espacio de la cita", "Cliente de la cita", "Motivo de la cita", "Inicio de la cita", "Fin de la cita", "Nota interna de la cita"],
   },
   {
-    key: "atencion", path: "/service-cases", title: "Atención postventa", action: "Nueva atención postventa",
+    key: "atencion", path: "/service-cases", title: "Casos de atención", action: "Nueva atención postventa",
     empty: "No hay atenciones con estos filtros.", form: "service-case-create-form",
     fields: ["Buscar cliente", "Cliente de la atención", "Asunto de la atención", "Nota inicial privada", "Responsable de la atención", "Vencimiento de la atención (opcional)"],
   },
   {
-    key: "seguimiento", path: "/followups", title: "Postventa y seguimiento", action: "Registrar incidencia",
+    key: "seguimiento", path: "/followups", title: "Seguimiento después de la venta", action: "Registrar incidencia",
     empty: "No hay tareas de postventa en esta página.", form: "followup-incident-form",
     fields: ["Buscar cliente", "Cliente de la incidencia", "Asunto de la incidencia", "Nota interna", "Fecha de seguimiento"],
   },
   {
-    key: "bandeja", path: "/inbox", title: "Bandeja de atención", action: "Nueva conversación interna",
+    key: "bandeja", path: "/inbox", title: "Conversaciones", action: "Nueva conversación interna",
     empty: "Todavía no hay conversaciones.", form: "inbox-conversation-form",
     fields: ["Buscar cliente", "Cliente registrado", "Asunto de la conversación"],
   },
 ] as const;
 
 const selectLabels = new Set([
-  "Recurso de la cita", "Cliente de la cita", "Cliente de la atención",
+  "Persona o espacio de la cita", "Cliente de la cita", "Cliente de la atención",
   "Responsable de la atención", "Cliente de la incidencia", "Cliente registrado",
 ]);
 
@@ -86,6 +86,7 @@ for (const width of [390, 1440]) {
       });
 
       await page.goto(area.path);
+      if (area.key === "agenda") await page.getByText("Detalle de citas y actividad anterior", { exact: true }).click();
       const heading = page.getByRole("heading", { name: area.title, level: 1, exact: true });
       await expect(heading).toBeVisible();
       await expect(page.getByRole("heading", { name: area.empty, exact: true })).toBeVisible();
@@ -103,7 +104,7 @@ for (const width of [390, 1440]) {
       const form = page.locator(`form#${area.form}`);
       await expect(form).toBeVisible();
       if (area.key === "agenda") {
-        await form.getByRole("combobox", { name: "Recurso de la cita", exact: true }).selectOption("resource-1");
+        await form.getByRole("combobox", { name: "Persona o espacio de la cita", exact: true }).selectOption("resource-1");
       }
       for (const label of area.fields) {
         const control = selectLabels.has(label)
@@ -147,7 +148,7 @@ for (const width of [390, 1440]) {
       await header.getByRole("button", { name: area.action, exact: true }).click();
       await expect(form.getByLabel(draftLabel, { exact: true })).toHaveValue(draft);
       if (area.key === "agenda") {
-        await expect(form.getByRole("combobox", { name: "Recurso de la cita", exact: true })).toHaveValue("resource-1");
+        await expect(form.getByRole("combobox", { name: "Persona o espacio de la cita", exact: true })).toHaveValue("resource-1");
         await expect(form.getByLabel("Inicio de la cita", { exact: true })).toHaveValue("2099-10-25T10:00");
       }
       await noHorizontalOverflow(page);

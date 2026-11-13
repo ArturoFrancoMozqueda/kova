@@ -51,7 +51,7 @@ const selectClass =
   "mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm";
 
 export default function CrmView() {
-  useDocumentTitle("Seguimiento comercial");
+  useDocumentTitle("Oportunidades");
   const { state } = useAuth();
   return (
     <OperationsSession>
@@ -345,8 +345,8 @@ function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; ca
       {!canCreate && <PlanFeatureNotice />}
       <ViewHeader
         eyebrow="Relación con tus clientes"
-        title="Seguimiento comercial"
-        meta="Cada oportunidad con su siguiente paso. Cada contacto con un permiso claro."
+        title="Oportunidades"
+        meta="Da seguimiento a clientes interesados hasta que estén listos para hacer un pedido."
         actions={
           <Button
             disabled={busy || !online || (!data && !createOpen) || !canCreate}

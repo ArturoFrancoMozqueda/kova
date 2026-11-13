@@ -1,3 +1,4 @@
+import { openLoyaltyDesigner } from "./loyalty-program-helpers";
 import { expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 import axe from "axe-core";
@@ -116,6 +117,8 @@ for (const width of [1440, 768, 390, 320]) {
       }),
     );
     await page.goto("/appointments");
+    await page.getByRole("button", { name: "Configurar agenda", exact: true }).click();
+    await page.getByText("Detalle de citas y actividad anterior", { exact: true }).click();
     const resources = page.locator("details").filter({
       has: page.locator("summary", { hasText: "Personas y espacios para las citas" }),
     });
@@ -124,9 +127,9 @@ for (const width of [1440, 768, 390, 320]) {
     await expect(resources).not.toHaveAttribute("open");
     await resources.locator("summary").click();
     await expect(resources).toHaveAttribute("open", "");
-    await page.getByRole("button", { name: "Agregar recurso" }).click();
+    await page.getByRole("button", { name: "Agregar persona o espacio", exact: true }).last().click();
     await page.getByRole("button", { name: "Nueva cita" }).click();
-    await page.getByLabel("Recurso de la cita").selectOption(resource.id);
+    await page.getByLabel("Persona o espacio de la cita").selectOption(resource.id);
     await page.getByLabel("Cliente de la cita").selectOption("customer-1");
     await page.getByLabel("Motivo de la cita").fill("Consulta de sabores");
     await page.getByLabel("Inicio de la cita").fill("2099-10-20T10:00");
@@ -183,9 +186,9 @@ for (const width of [1440, 768, 390, 320]) {
       }),
     );
     await page.goto("/loyalty");
-    await page.getByRole("button", { name: "Revisar regla de puntos" }).click();
+    await openLoyaltyDesigner(page);
     await expect(
-      page.getByLabel("Compra necesaria por bloque (MXN)"),
+      page.getByLabel("Por cada compra de (MXN)"),
     ).toHaveValue("");
     await page
       .getByRole("button", { name: /Cliente de prueba.*50 puntos/ })

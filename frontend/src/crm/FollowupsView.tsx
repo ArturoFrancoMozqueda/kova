@@ -54,7 +54,7 @@ const statuses = {
 };
 const fieldClass = "mt-1 min-w-0";
 export default function FollowupsView() {
-  useDocumentTitle("Postventa y seguimiento");
+  useDocumentTitle("Seguimiento después de la venta");
   const { state } = useAuth();
   return (
     <OperationsSession>
@@ -168,8 +168,8 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
       {!canConfigure && <PlanFeatureNotice />}
       <ViewHeader
         eyebrow="Relación con clientes"
-        title="Postventa y seguimiento"
-        meta="Organiza reseñas, recompra e incidencias a partir de ventas reales."
+        title="Seguimiento después de la venta"
+        meta="Revisa a quién contactar después de una compra: una opinión, una próxima visita o un pendiente."
         actions={panel.data ? (
           <Button
             className="h-auto min-h-11 whitespace-normal"
@@ -210,48 +210,6 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
         </p>
       )}
       {panel.loading && <SectionSkeleton label="Cargando seguimiento…" />}
-      {panel.data && (
-        <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
-          <h2 className="text-xl font-semibold">Regla de postventa</h2>
-          <p className="text-sm">
-            {panel.data.policy.enabled
-              ? "Activa para generar pendientes"
-              : "Desactivada"}
-            . Sólo considera ventas elegibles desde su activación.
-          </p>
-          <p className="text-sm text-kova-muted">
-            Se solicita una opinión de manera neutral. Registrar una incidencia
-            no bloquea ni condiciona la solicitud de reseña.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              className="h-auto min-h-11 whitespace-normal text-left"
-              variant="outline"
-              disabled={panel.busy || !canConfigure}
-              onClick={() => setPolicy({ ...panel.data!.policy })}
-            >
-              Revisar regla
-            </Button>
-            <Button
-              className="h-auto min-h-11 whitespace-normal text-left"
-              variant="outline"
-              disabled={
-                panel.busy || !panel.online || !canConfigure || !panel.data.policy.enabled
-              }
-              onClick={() =>
-                void panel.mutate(
-                  "/crm/followups/process",
-                  "POST",
-                  {},
-                  "Se revisaron las ventas elegibles; los pendientes nuevos aparecen abajo.",
-                )
-              }
-            >
-              Generar pendientes
-            </Button>
-          </div>
-        </section>
-      )}
       {canConfigure && policy && (
         <form
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
@@ -449,6 +407,48 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
             ))}
         </div>
       </section>
+      {panel.data && (
+        <details className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
+          <summary className="min-h-11 cursor-pointer font-semibold">Configurar tareas después de una venta</summary>
+          <p className="text-sm">
+            {panel.data.policy.enabled
+              ? "Activa para generar pendientes"
+              : "Desactivada"}
+            . Sólo considera ventas elegibles desde su activación.
+          </p>
+          <p className="text-sm text-kova-muted">
+            Se solicita una opinión de manera neutral. Registrar una incidencia
+            no bloquea ni condiciona la solicitud de reseña.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              className="h-auto min-h-11 whitespace-normal text-left"
+              variant="outline"
+              disabled={panel.busy || !canConfigure}
+              onClick={() => setPolicy({ ...panel.data!.policy })}
+            >
+              Revisar regla
+            </Button>
+            <Button
+              className="h-auto min-h-11 whitespace-normal text-left"
+              variant="outline"
+              disabled={
+                panel.busy || !panel.online || !canConfigure || !panel.data.policy.enabled
+              }
+              onClick={() =>
+                void panel.mutate(
+                  "/crm/followups/process",
+                  "POST",
+                  {},
+                  "Se revisaron las ventas elegibles; los pendientes nuevos aparecen abajo.",
+                )
+              }
+            >
+              Generar pendientes
+            </Button>
+          </div>
+        </details>
+      )}
       {selected && (
         <section
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"

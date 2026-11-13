@@ -1,3 +1,6 @@
+import { BookingSettings } from "./BookingSettings";
+import { CalendarBoard } from "./CalendarBoard";
+import { TableReservations } from "./TableReservations";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { CalendarDays } from "lucide-react";
@@ -56,6 +59,8 @@ export default function AppointmentsView() {
 }
 function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const fieldId = useId();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsVisited, setSettingsVisited] = useState(false);
   const [reminderRevision, setReminderRevision] = useState(0);
   const linked = useLinkedRecord<Appointment>(identity, "appointmentId", "/api/v1/appointments");
   const [params, setParams] = useSearchParams();
@@ -88,6 +93,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceOpen, setResourceOpen] = useState(false);
   const [resourceName, setResourceName] = useState("");
+  const [resourceKind, setResourceKind] = useState<"appointment" | "table">("appointment");
   const [resourceTimezone, setResourceTimezone] = useState(
     "America/Mexico_City",
   );
@@ -123,7 +129,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       .catch((e: unknown) => {
         if (active)
           setResourceError(
-            resolveUserFacingError(e, "No pudimos cargar los recursos."),
+            resolveUserFacingError(e, "No pudimos cargar las personas y espacios."),
           );
       }).finally(() => { if (active) setResourceLoading(false); });
     return () => {
@@ -171,7 +177,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const visibleAppointments = linked.record
     ? [linked.record, ...(panel.data?.items ?? []).filter((row) => row.id !== linked.record?.id)]
     : panel.data?.items ?? [];
-  const hasActiveResource = resources.some(row => row.is_active);
+  const hasTables = resources.some(row => row.kind === "table");
+  const hasActiveResource = resources.some(row => row.is_active && row.kind !== "table");
   const resourceNameInput = useRef<HTMLInputElement>(null);
   useEffect(() => { if (resourceOpen) resourceNameInput.current?.focus(); }, [resourceOpen]);
   const createResource = async (event: FormEvent) => {
@@ -180,8 +187,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       await panel.mutate(
         "/resources",
         "POST",
-        { name: resourceName.trim(), timezone: resourceTimezone },
-        "Recurso creado con su zona horaria.",
+        { name: resourceName.trim(), timezone: resourceTimezone, ...(resourceKind === "table" ? { kind: resourceKind } : {}) },
+        "Persona o espacio guardado con su zona horaria.",
       )
     ) {
       setResourceOpen(false);
@@ -194,7 +201,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     setFormError("");
     try {
       if (!formTimezone)
-        throw new Error("Elige un recurso y confirma su zona horaria.");
+        throw new Error("Elige una persona o espacio y confirma su zona horaria.");
       const start = zonedInputToUtc(startsAt, formTimezone);
       const end = zonedInputToUtc(endsAt, formTimezone);
       if (new Date(end).getTime() - new Date(start).getTime() > 86400000)
@@ -259,9 +266,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       <ViewHeader
         eyebrow="Servicio y atención"
         title="Agenda del negocio"
-        meta="Reserva el tiempo del equipo sin cruces de horario."
+        meta={hasTables ? "Revisa solicitudes de mesa y organiza las llegadas." : "Reserva el tiempo del equipo sin cruces de horario."}
         actions={
-          <Button
+          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" aria-expanded={settingsOpen} aria-controls="agenda-settings" onClick={() => { setSettingsVisited(true); setSettingsOpen(v => !v); }}>Configurar agenda</Button><Button
             className={buttonClass}
             aria-expanded={hasActiveResource ? bookingOpen : resourceOpen}
             aria-controls={hasActiveResource ? "appointment-booking-form" : "appointment-resource-form"}
@@ -270,7 +277,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               !panel.online || resourceLoading || Boolean(resourceError)
             }
             onClick={() => {
-              if (!hasActiveResource) { setResourceOpen(true); return; }
+              if (!hasActiveResource) { setSettingsVisited(true); setSettingsOpen(true); setResourceOpen(true); return; }
               setFormError("");
               if (editing) {
                 setEditing(null);
@@ -287,12 +294,11 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             }}
           >
             {hasActiveResource || resourceLoading ? "Nueva cita" : "Agregar persona o espacio"}
-          </Button>
+          </Button></div>
         }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Organiza las citas en el horario de cada persona o espacio. El equipo contacta
-        al cliente; el cobro se registra por separado en Caja.
+        {hasTables ? "El equipo confirma cada solicitud de mesa y registra la salida cuando el cliente se retira." : "Organiza las citas en el horario de cada persona o espacio."} El equipo contacta al cliente; el cobro se registra por separado en Caja.
       </p>
       {incomingCustomerError && <p role="alert">{incomingCustomerError}</p>}
       <LinkedRecordNotice linked={linked}>
@@ -314,17 +320,20 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <ViewError
           message={resourceError}
           onRetry={() => setResourceRevision((value) => value + 1)}
-          retryLabel="Consultar recursos"
+          retryLabel="Consultar personas y espacios"
         />
       )}
+      {hasTables && <TableReservations identity={identity} revision={reminderRevision + resourceRevision} />}
+      <CalendarBoard identity={identity} resources={resources} revision={reminderRevision + resourceRevision} onTableSaved={() => setReminderRevision(v => v + 1)} />
+      {settingsVisited && <div id="agenda-settings" hidden={!settingsOpen} className="space-y-4">
       <details className="space-y-4 rounded-2xl border border-kova-border bg-white p-6" open={resources.length === 0 || resourceOpen}>
         <summary className="min-h-11 cursor-pointer font-semibold">Personas y espacios para las citas</summary>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold">Recursos disponibles</h2>
+            <h2 className="text-xl font-semibold">Personas y espacios</h2>
             <p className="mt-2 text-sm text-kova-muted">
-              Una persona, mesa de atención o espacio que puede recibir una cita
-              a la vez.
+              Una persona o espacio recibe una cita a la vez. Las mesas reciben
+              solicitudes de llegada y el equipo registra cuándo se desocupan.
             </p>
           </div>
           <Button
@@ -333,12 +342,12 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             disabled={panel.busy || !panel.online}
             onClick={() => setResourceOpen((value) => !value)}
           >
-            Agregar recurso
+            Agregar persona o espacio
           </Button>
         </div>
         {resources.length === 0 && !resourceError && !resourceLoading && (
           <p className="text-sm text-kova-muted">
-            Agrega el primer recurso para empezar a programar citas.
+            Agrega a quien atiende o el espacio que reservas; por ejemplo, Ana o Cabina 1.
           </p>
         )}
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -348,6 +357,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               className="min-w-0 space-y-2 rounded-xl bg-kova-mist p-4"
             >
               <p className="break-words font-medium">{row.name}</p>
+              {row.kind === "table" && <p className="text-xs text-kova-muted">Mesa · Sin duración fija</p>}
               <p className="text-sm text-kova-muted">
                 {zoneLabel(row.timezone)} ·{" "}
                 {row.is_active ? "Disponible" : "Inactivo"}
@@ -366,7 +376,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                         expected_version: row.version,
                         is_active: !row.is_active,
                       },
-                      "Disponibilidad del recurso actualizada.",
+                      "Disponibilidad actualizada.",
                     )
                     .then((ok) => {
                       if (ok) setResourceRevision((value) => value + 1);
@@ -385,9 +395,16 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
           onSubmit={(event) => void createResource(event)}
         >
-          <h2 className="text-xl font-semibold">Nuevo recurso</h2>
+          <h2 className="text-xl font-semibold">Nueva persona o espacio</h2>
+          <div className="space-y-2">
+            <Label htmlFor={`${fieldId}-kind`}>Tipo</Label>
+            <Select id={`${fieldId}-kind`} value={resourceKind} onChange={e => setResourceKind(e.target.value as "appointment" | "table")}>
+              <option value="appointment">Persona o espacio para citas</option>
+              <option value="table">Mesa sin hora de salida</option>
+            </Select>
+          </div>
           <Label htmlFor={`${fieldId}-1`} className="block text-sm">
-            Nombre del recurso
+            Nombre de la persona o espacio
             <Input id={`${fieldId}-1`} ref={resourceNameInput}
               className={fieldClass}
               required
@@ -397,7 +414,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             />
           </Label>
           <Label htmlFor={`${fieldId}-2`} className="block text-sm">
-            Zona horaria del recurso
+            Zona horaria de atención
             <Select id={`${fieldId}-2`}
               className={fieldClass}
               value={resourceTimezone}
@@ -405,21 +422,21 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             >
               {appointmentTimezones.map((zone) => (
                 <option key={zone.value} value={zone.value}>
-                  {zone.label} ({zone.value})
+                  {zone.label}
                 </option>
               ))}
             </Select>
           </Label>
           <p className="text-sm text-kova-muted">
-            Confirma la zona donde se prestará el servicio. Después de crear el
-            recurso, su zona se conserva para proteger las citas.
+            Confirma la zona donde se prestará el servicio. Después de guardar la
+            persona o espacio, su zona se conserva para proteger las citas.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button
               className={buttonClass}
               disabled={panel.busy || !panel.online || !resourceName.trim()}
             >
-              Crear recurso
+              Guardar persona o espacio
             </Button>
             <Button
               className={buttonClass}
@@ -432,6 +449,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </div>
         </form>
       )}
+      <BookingSettings identity={identity} resources={resources} onSaved={() => setReminderRevision(v => v + 1)} />
+      </div>}
       {bookingOpen && (
         <form
           id="appointment-booking-form"
@@ -454,7 +473,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           ) : (
             <>
               <Label htmlFor={`${fieldId}-3`} className="block text-sm">
-                Recurso de la cita
+                Persona o espacio de la cita
                 <Select id={`${fieldId}-3`}
                   className={fieldClass}
                   required
@@ -465,9 +484,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     setEndsAt("");
                   }}
                 >
-                  <option value="">Elige un recurso</option>
+                  <option value="">Elige una persona o espacio</option>
                   {resources
-                    .filter((row) => row.is_active)
+                    .filter((row) => row.is_active && row.kind !== "table")
                     .map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name} · {zoneLabel(row.timezone)}
@@ -514,8 +533,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           )}
           <p className="rounded-xl bg-kova-mist p-4 text-sm">
             {formTimezone
-              ? `Escribe las horas de ${zoneLabel(formTimezone)} (${formTimezone}). La zona del dispositivo no modifica esta cita.`
-              : "Selecciona primero el recurso para conocer la zona de la cita."}
+              ? `Escribe las horas de ${zoneLabel(formTimezone)}. La zona del dispositivo no modifica esta cita.`
+              : "Selecciona una persona o espacio para conocer la zona de la cita."}
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Label htmlFor={`${fieldId}-7`} className="text-sm">
@@ -580,6 +599,8 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </form>
       )}
       <AppointmentReminders revision={reminderRevision} identity={identity} />
+      <details id="appointment-detail" className="space-y-4" open={linked.requested}>
+        <summary className="min-h-11 cursor-pointer py-3 font-semibold">Detalle de citas y actividad anterior</summary>
       <section className="space-y-4" aria-label="Citas del negocio">
         <h2 className="text-xl font-semibold">Próximas citas y actividad</h2>
         <form
@@ -612,7 +633,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         >
           <p className="text-sm text-kova-muted">
             El período usa la zona que elijas abajo e incluye días completos.
-            Cada cita conserva la hora local de su recurso.
+            Cada cita conserva la hora local de la persona o espacio.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <Label htmlFor={`${fieldId}-10`} className="min-w-0 flex-1 text-sm">
@@ -688,7 +709,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 {formatAppointmentTime(row.ends_at, row.timezone)}
               </p>
               <p className="break-words text-xs text-kova-muted">
-                Hora de {zoneLabel(row.timezone)} ({row.timezone})
+                Hora de {zoneLabel(row.timezone)}
               </p>
               <Link className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline" to={`/customers?customerId=${row.customer_id}`}>Ver cliente y su historial</Link>
               <AppointmentSalePanel appointment={row} identity={identity} busy={panel.busy} online={panel.online} onLink={async (saleId) => {
@@ -766,6 +787,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           ))}
         </div>
       </section>
+      </details>
       {transition && (
         <section
           className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
@@ -865,7 +887,7 @@ function AppointmentHistory({
   identity: WorkspaceIdentity;
   appointment: Appointment;
 }) {
-  const panel = useOperationsPanel<{ items: HistoryEntry[] }>(
+  const panel = useOperationsPanel<{ items: HistoryEntry[]; public_changes?: { action: string; starts_at: string; ends_at: string; created_at: string }[] }>(
     `/api/v1/appointments/${appointment.id}/history`,
     identity,
   );
@@ -883,6 +905,7 @@ function AppointmentHistory({
           retryLabel="Consultar historial"
         />
       )}
+      {Boolean(panel.data?.public_changes?.length) && <section aria-label="Cambios desde el enlace privado" className="space-y-2"><h4 className="font-medium">Reservas y cambios del cliente</h4><ul className="space-y-2">{panel.data?.public_changes?.map((change, i) => <li key={i} className="text-sm"><p>{change.action === "cancel" ? "Cita cancelada desde el enlace privado" : change.action === "reschedule" ? "Horario cambiado desde el enlace privado" : "Reserva confirmada en línea"}</p><p className="text-xs text-kova-muted">{formatAppointmentTime(change.starts_at, appointment.timezone)} · Registrado {new Date(change.created_at).toLocaleString("es-MX")}</p></li>)}</ul></section>}
       <ol className="space-y-3">
         {panel.data?.items.map((row) => (
           <li key={row.id} className="min-w-0 space-y-1 text-sm">

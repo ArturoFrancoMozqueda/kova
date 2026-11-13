@@ -127,6 +127,7 @@ it("activates followup only after reviewing and confirming its policy", async ()
       : json({ policy, tasks: [], has_more: false }),
   );
   mount(<FollowupsView />);
+  fireEvent.click(await screen.findByText("Configurar tareas después de una venta"));
   fireEvent.click(await screen.findByRole("button", { name: "Revisar regla" }));
   expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
     false,

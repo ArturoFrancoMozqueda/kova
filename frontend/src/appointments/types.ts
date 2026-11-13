@@ -4,6 +4,7 @@ export type AppointmentResource = {
   timezone: string;
   is_active: boolean;
   version: number;
+  kind?: "appointment" | "table";
 };
 export type AppointmentSale = {
   id: string;

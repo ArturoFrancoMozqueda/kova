@@ -50,6 +50,15 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "loyalty_reward_redemptions": {"SELECT", "INSERT"},
     "loyalty_enrollment_policies": {"SELECT", "INSERT"},
     "loyalty_members": {"SELECT", "INSERT"},
+    "loyalty_appearances": {"SELECT", "INSERT"},
+    "booking_pages": {"SELECT", "INSERT"},
+    "booking_services": {"SELECT", "INSERT"},
+    "booking_service_resources": {"SELECT", "INSERT", "DELETE"},
+    "booking_availability": {"SELECT", "INSERT"},
+    "public_bookings": {"SELECT", "INSERT"},
+    "booking_history": {"SELECT", "INSERT"},
+    "table_reservations": {"SELECT", "INSERT"},
+    "table_reservation_history": {"SELECT", "INSERT"},
     # New E2E domains remain private to FastAPI's runtime role. Snapshot and
     # ledger mutations are deliberately column-scoped below, not full UPDATE.
     "automation_rules": {"SELECT", "INSERT"},
@@ -161,6 +170,21 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "loyalty_appearances": {"color", "use_business_logo", "version"},
+    "booking_pages": {
+        "enabled", "version", "link_version", "horizon_days", "notice_minutes",
+        "slot_minutes", "manage_cutoff_hours", "authorized_by_user_id", "mode",
+    },
+    "booking_services": {"name", "description", "duration_minutes", "is_active", "version"},
+    "booking_availability": {"weekly", "exceptions", "version"},
+    "table_reservations": {
+        "resource_id", "starts_at", "status", "version", "manage_version",
+        "seated_at", "released_at",
+    },
+    "public_bookings": {
+        "customer_id", "appointment_id", "starts_at", "ends_at", "status", "version",
+        "manage_version",
+    },
     "service_cases": {
         "status", "assigned_user_id", "due_at", "version", "updated_at", "resolved_at",
     },
@@ -366,6 +390,15 @@ _SEMANTIC_INSERT_ORDER = (
     "loyalty_reward_redemptions",
     "loyalty_enrollment_policies",
     "loyalty_members",
+    "loyalty_appearances",
+    "booking_pages",
+    "booking_services",
+    "booking_service_resources",
+    "booking_availability",
+    "public_bookings",
+    "booking_history",
+    "table_reservations",
+    "table_reservation_history",
     "service_cases",
     "service_case_events",
 )
@@ -399,7 +432,19 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             return "open"
         if table.name == "service_case_events" and name == "kind":
             return "created"
-    if table.name in {"appointments", "appointment_history"}:
+    if table.name == "loyalty_appearances" and name == "color":
+        return "#161616"
+    if table.name == "booking_pages" and name == "slot_minutes":
+        return 15
+    if table.name == "booking_services" and name == "duration_minutes":
+        return 30
+    if table.name in {"table_reservations", "table_reservation_history"} and name == "status":
+        return "requested"
+    if table.name in {"public_bookings", "booking_history", "table_reservations"} and name in {
+        "operation_hash", "request_hash",
+    }:
+        return _semantic_uuid(f"{table.name}.{name}", tenant, variant).hex * 2
+    if table.name in {"appointments", "appointment_history", "public_bookings", "booking_history"}:
         if name == "starts_at":
             return datetime(2026, 10, 20, 10, tzinfo=UTC) + timedelta(days=variant)
         if name == "ends_at":

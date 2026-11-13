@@ -34,3 +34,7 @@ No se mezclan clientes por teléfono ni se amplían permisos. Cookies, CSRF, gat
 aislamiento, no-store y limpieza de respuestas tardías permanecen. Los formularios y la ficha
 se reinician al cambiar negocio, usuario, rol o sucursal; fallar actividad no bloquea Caja ni
 presenta vacíos falsos como resultados confirmados.
+
+La fuente `appointments` incluye también reservas públicas reconocidas todavía no materializadas,
+con `booking_id` opcional para abrir `/appointments?bookingId=...`. Una vez materializada, solo aparece
+la cita interna. No se vinculan reservas por nombre o teléfono; se conserva el límite de diez elementos.

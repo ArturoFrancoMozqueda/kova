@@ -82,6 +82,16 @@ expectStatus("/api/v1/integrations/cfdi/documents", "post", "201");
 expectStatus("/api/v1/integrations/cfdi/documents/{document_id}/reconcile", "post", "200");
 expectStatus("/api/v1/integrations/cfdi/documents/{document_id}/xml", "get", "200");
 
+expectProperties("TableRequestWrite", ["page_token", "starts_at", "party_size", "name", "phone", "identity_token"]);
+expectProperties("TableReceipt", ["status", "starts_at", "timezone", "can_manage", "version", "manage_path"]);
+expectProperties("TableAction", ["expected_version", "action", "resource_id"]);
+expectStatus("/api/v1/public/bookings/table-requests", "post", "201");
+expectStatus("/api/v1/public/bookings/table-arrivals", "get", "200");
+expectStatus("/api/v1/public/bookings/table-manage/read", "post", "200");
+expectStatus("/api/v1/public/bookings/table-manage", "post", "200");
+expectStatus("/api/v1/appointments/table-reservations", "get", "200");
+expectStatus("/api/v1/appointments/table-reservations/{reservation_id}/action", "post", "200");
+
 if (errors.length) {
   console.error(`Contrato frontend/backend incompatible:\n- ${errors.join("\n- ")}`);
   process.exit(1);

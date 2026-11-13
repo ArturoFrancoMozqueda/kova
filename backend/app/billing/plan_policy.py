@@ -46,7 +46,7 @@ def route_feature(method: str, path: str) -> str | None:
         }:
             return "customer_orders"
         if path in {
-            "/api/v1/loyalty/policy", "/api/v1/loyalty/rewards",
+            "/api/v1/loyalty/program", "/api/v1/loyalty/policy", "/api/v1/loyalty/rewards",
             "/api/v1/loyalty/enrollment-policy",
             "/api/v1/loyalty/customers/{customer_id}/digital-card",
         }:

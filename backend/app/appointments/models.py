@@ -37,6 +37,9 @@ class AppointmentResource(BranchScoped, Base):
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     timezone: Mapped[str] = mapped_column(String(48), nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="appointment", server_default="appointment"
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

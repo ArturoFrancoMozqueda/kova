@@ -47,7 +47,7 @@ def test_card_is_read_only_real_points_projection_without_customer_identity(clie
     body = response.json()
     assert set(body) == {
         "business_name", "branch_name", "balance", "adjustments_pending", "policy",
-        "expires_at", "catalog_path", "reward",
+        "expires_at", "catalog_path", "reward", "appearance", "booking_path",
     }
     assert body["balance"] == 6
     assert body["adjustments_pending"] is False

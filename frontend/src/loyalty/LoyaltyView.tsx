@@ -1,7 +1,7 @@
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useAuth } from "@/auth/useAuth";
 import {
@@ -17,8 +17,7 @@ import { ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Customer } from "@/customers/api";
 import { DigitalCardShare } from "./DigitalCardShare";
-import { RewardSettings } from "./rewards/RewardSettings";
-import { EnrollmentSettings } from "@/loyaltyCard/EnrollmentSettings";
+import { ProgramWizard } from "./ProgramWizard";
 
 type LoyaltyPolicy = {
   enabled: boolean;
@@ -59,10 +58,6 @@ const kinds = {
 const fieldClass =
   "mt-1 min-h-11 w-full rounded-lg border border-input bg-white p-3";
 const buttonClass = "h-auto min-h-11 whitespace-normal";
-const money = (value: string) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(
-    Number(value),
-  );
 const points = (value: number) => new Intl.NumberFormat("es-MX").format(value);
 export default function LoyaltyView() {
   useDocumentTitle("Lealtad de clientes");
@@ -81,6 +76,7 @@ export default function LoyaltyView() {
   );
 }
 function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceIdentity; canManageProgram: boolean }) {
+  const [params] = useSearchParams();
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<LoyaltyOverview>(
     "/api/v1/loyalty",
@@ -89,17 +85,12 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
   );
   const { request } = panel;
   const customersRequest = useOperationsRequest("/api/v1/customers", identity);
-  const [policyOpen, setPolicyOpen] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [spendAmount, setSpendAmount] = useState("");
-  const [pointsPerStep, setPointsPerStep] = useState("");
-  const [policyVersion, setPolicyVersion] = useState(0);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [customerError, setCustomerError] = useState("");
   const [customerLoading, setCustomerLoading] = useState(true);
   const [customerAttempt, setCustomerAttempt] = useState(0);
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(() => params.get("customerId") ?? "");
   const [ledger, setLedger] = useState<LoyaltyLedger | null>(null);
   const [ledgerError, setLedgerError] = useState("");
   const [ledgerOffset, setLedgerOffset] = useState(0);
@@ -165,35 +156,6 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
     setRedeemPoints("");
     setBenefit("");
   };
-  const editPolicy = () => {
-    if (!panel.data || !canManageProgram) return;
-    const row = panel.data.policy;
-    setPolicyVersion(row.version);
-    setEnabled(row.enabled);
-    setSpendAmount(row.spend_amount ?? "");
-    setPointsPerStep(
-      row.points_per_step == null ? "" : String(row.points_per_step),
-    );
-    setPolicyOpen(true);
-  };
-  const savePolicy = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canManageProgram) return;
-    if (
-      await panel.mutate(
-        "/policy",
-        "PUT",
-        {
-          expected_version: policyVersion,
-          enabled,
-          spend_amount: spendAmount,
-          points_per_step: Number(pointsPerStep),
-        },
-        "Regla de lealtad actualizada. Los movimientos anteriores conservan su regla original.",
-      )
-    )
-      setPolicyOpen(false);
-  };
   const redeem = async (event: FormEvent) => {
     event.preventDefault();
     if (!ledger || !confirmed) return;
@@ -234,6 +196,8 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
         eyebrow="Relación con clientes"
         title="Lealtad de clientes"
         meta="Consulta puntos respaldados por ventas y conserva el historial de cada canje."
+        actions={<Button variant="outline" disabled={panel.busy || !panel.online || !panel.data} onClick={() => { void panel.mutate("/process", "POST", {}, "Movimientos revisados con las ventas, devoluciones y anulaciones disponibles.").then(ok => { if (ok) setLedgerRevision(v => v + 1); }); }}>Actualizar movimientos de puntos</Button>}
+
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Los puntos no son dinero ni saldo a favor. Las recompensas de caja se
@@ -253,131 +217,10 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
         </p>
       )}
       {!canManageProgram && <PlanFeatureNotice>Los puntos ya acumulados se conservan y pueden canjearse. Para configurar el programa o acumular nuevos puntos necesitas Gestión.</PlanFeatureNotice>}
-      {canManageProgram && <RewardSettings key={`${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />}
-      {canManageProgram && <EnrollmentSettings key={`enrollment:${identity.tenantId}:${identity.userId}:${identity.branchId}`} identity={identity} />}
       {panel.loading && <p role="status">Consultando lealtad…</p>}
-      {panel.data && (
-        <section className="space-y-4 rounded-2xl border border-kova-border bg-white p-6">
-          <div className="flex flex-wrap justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold">Regla de acumulación</h2>
-              <p className="mt-2 text-sm">
-                {!canManageProgram ? "Acumulación suspendida por el plan actual" : panel.data.policy.enabled ? "Activa" : "Desactivada"}
-              </p>
-            </div>
-            <Button
-              className={buttonClass}
-              variant="outline"
-              disabled={panel.busy || !panel.online || !canManageProgram}
-              onClick={editPolicy}
-            >
-              Revisar regla de puntos
-            </Button>
-          </div>
-          <p className="text-sm">
-            {panel.data.policy.spend_amount &&
-            panel.data.policy.points_per_step != null
-              ? `${points(panel.data.policy.points_per_step)} puntos por cada ${money(panel.data.policy.spend_amount)} de compra elegible.`
-              : "Todavía no has definido una regla de acumulación."}
-          </p>
-          <p className="text-sm text-kova-muted">
-            Sólo acumulan las ventas elegibles con cliente registrado después de
-            activar la regla. Las devoluciones y anulaciones pueden reducir los
-            puntos, incluso con la regla desactivada.
-          </p>
-          <Button
-            className={buttonClass}
-            variant="outline"
-            disabled={panel.busy || !panel.online}
-            onClick={() =>
-              void panel
-                .mutate(
-                  "/process",
-                  "POST",
-                  {},
-                  "Movimientos revisados con las ventas, devoluciones y anulaciones disponibles.",
-                )
-                .then((ok) => {
-                  if (ok) setLedgerRevision((value) => value + 1);
-                })
-            }
-          >
-            Actualizar movimientos de puntos
-          </Button>
-        </section>
-      )}
-      {canManageProgram && policyOpen && (
-        <form
-          className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
-          onSubmit={(event) => void savePolicy(event)}
-        >
-          <h2 className="text-xl font-semibold">Confirmar regla de puntos</h2>
-          <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(event) => setEnabled(event.target.checked)}
-            />
-            Acumular puntos en nuevas ventas elegibles
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm">
-              Compra necesaria por bloque (MXN)
-              <input
-                className={fieldClass}
-                required
-                type="number"
-                inputMode="decimal"
-                min="0.01"
-                max="1000000"
-                step="0.01"
-                value={spendAmount}
-                onChange={(event) => setSpendAmount(event.target.value)}
-              />
-            </label>
-            <label className="text-sm">
-              Puntos por bloque de compra
-              <input
-                className={fieldClass}
-                required
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max="10000"
-                step="1"
-                value={pointsPerStep}
-                onChange={(event) => setPointsPerStep(event.target.value)}
-              />
-            </label>
-          </div>
-          <p className="text-sm text-kova-muted">
-            Define tu regla antes de activarla. Cambiarla no recalcula la
-            acumulación de ventas anteriores.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              className={buttonClass}
-              disabled={
-                panel.busy || !panel.online || !spendAmount || !pointsPerStep
-              }
-            >
-              Confirmar regla de puntos
-            </Button>
-            <Button
-              className={buttonClass}
-              variant="ghost"
-              type="button"
-              disabled={panel.busy}
-              onClick={() => setPolicyOpen(false)}
-            >
-              Cancelar edición
-            </Button>
-          </div>
-        </form>
-      )}
       <section className="space-y-4" aria-label="Puntos por cliente">
-        <h2 className="text-xl font-semibold">Puntos por cliente</h2>
-        {panel.data?.accounts.length === 0 && (
+        {Boolean(panel.data?.policy.version || panel.data?.accounts.length) && <h2 className="text-xl font-semibold">Puntos por cliente</h2>}
+        {panel.data?.accounts.length === 0 && Boolean(panel.data.policy.version) && (
           <p className="rounded-2xl border border-kova-border bg-white p-6 text-sm text-kova-muted">
             No hay movimientos de puntos en esta página. Configura la regla y
             registra ventas con cliente para comenzar.
@@ -403,7 +246,7 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
             </button>
           ))}
         </div>
-        <nav
+        {(offset > 0 || panel.data?.accounts_has_more) && (        <nav
           aria-label="Páginas de cuentas de lealtad"
           className="flex flex-wrap gap-3"
         >
@@ -423,8 +266,9 @@ function LoyaltyWorkspace({ identity, canManageProgram }: { identity: WorkspaceI
           >
             Más cuentas
           </Button>
-        </nav>
+        </nav>)}
       </section>
+      {canManageProgram && <ProgramWizard identity={identity} onSaved={() => void panel.load()} />}
       <section
         className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
         aria-label="Consultar cliente"

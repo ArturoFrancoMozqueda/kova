@@ -128,6 +128,15 @@ BEGIN
             ('crm_catalog_requests', 'SELECT, INSERT'),
             ('service_cases', 'SELECT, INSERT'),
             ('service_case_events', 'SELECT, INSERT'),
+            ('loyalty_appearances', 'SELECT, INSERT'),
+            ('booking_pages', 'SELECT, INSERT'),
+            ('booking_services', 'SELECT, INSERT'),
+            ('booking_service_resources', 'SELECT, INSERT, DELETE'),
+            ('booking_availability', 'SELECT, INSERT'),
+            ('public_bookings', 'SELECT, INSERT'),
+            ('booking_history', 'SELECT, INSERT'),
+            ('table_reservations', 'SELECT, INSERT'),
+            ('table_reservation_history', 'SELECT, INSERT'),
             ('appointment_resources', 'SELECT, INSERT'),
             ('appointments', 'SELECT, INSERT'),
             ('appointment_sales', 'SELECT, INSERT'),
@@ -276,6 +285,13 @@ DO $$ BEGIN
     END IF;
 END $$;
 
+DO $$ BEGIN
+    IF to_regclass('public.table_reservations') IS NOT NULL THEN
+        GRANT UPDATE(mode) ON booking_pages TO kova_app;
+        GRANT UPDATE(resource_id,starts_at,status,version,manage_version,seated_at,released_at) ON table_reservations TO kova_app;
+    END IF;
+END $$;
+
 -- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE. Limiting it
 -- to immutable id columns permits row locks while triggers reject mutation.
 DO
@@ -324,3 +340,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON assistant_records, assistant_chunks TO k
 GRANT USAGE ON SCHEMA assistant_control, extensions TO kova_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA assistant_control TO kova_app;
 GRANT EXECUTE ON FUNCTION extensions.cosine_distance(extensions.vector,extensions.vector) TO kova_app;
+
+-- Scheduling writes are restricted to workflow columns; ownership and guest snapshots are immutable.
+DO $$ BEGIN
+    IF to_regclass('public.booking_pages') IS NOT NULL THEN
+        GRANT UPDATE(color,use_business_logo,version) ON loyalty_appearances TO kova_app;
+        GRANT UPDATE(enabled,version,link_version,horizon_days,notice_minutes,slot_minutes,manage_cutoff_hours,authorized_by_user_id) ON booking_pages TO kova_app;
+        GRANT UPDATE(name,description,duration_minutes,is_active,version) ON booking_services TO kova_app;
+        GRANT UPDATE(weekly,exceptions,version) ON booking_availability TO kova_app;
+        GRANT UPDATE(customer_id,appointment_id,starts_at,ends_at,status,version,manage_version) ON public_bookings TO kova_app;
+    END IF;
+END $$;

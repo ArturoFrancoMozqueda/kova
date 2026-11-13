@@ -81,3 +81,7 @@ export function appointmentDateRange(
     throw new Error("Consulta un período de hasta 366 días.");
   return { start: starts_from, end: starts_until };
 }
+
+export function appointmentTimezoneLabel(value: string): string {
+  return appointmentTimezones.find(zone => zone.value === value)?.label ?? value;
+}

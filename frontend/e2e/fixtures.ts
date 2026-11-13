@@ -81,6 +81,15 @@ export const test = base.extend<GuardFixtures>({
             } });
             return;
           }
+          if (request.method() === "GET" && pathname === "/api/v1/loyalty/program") {
+            await route.fulfill({ json: { business_name: "Negocio de prueba", policy: { enabled: false, spend_amount: null, points_per_step: null, version: 0 }, reward: null, enrollment: { enabled: false, version: 0 }, appearance: { color: "#0F1117", use_business_logo: true, version: 0, logo_url: null } } }); return;
+          }
+          if (request.method() === "GET" && ["/api/v1/appointments/calendar", "/api/v1/appointments/services"].includes(pathname)) {
+            await route.fulfill({ json: { items: [], has_more: false } }); return;
+          }
+          if (request.method() === "GET" && pathname === "/api/v1/appointments/booking-page") {
+            await route.fulfill({ json: { enabled: false, version: 0, horizon_days: 30, notice_minutes: 120, slot_minutes: 15, manage_cutoff_hours: 24, share_path: null } }); return;
+          }
           const sharedBackground = SHARED_BACKGROUND_ALLOWLIST.find(
             (entry) => entry.method === request.method() && entry.path.test(pathname),
           );

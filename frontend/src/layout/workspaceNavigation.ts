@@ -10,7 +10,7 @@ export type WorkspaceNavigationContext = {
 // destinations already allowed by role, feature, permission and session mode.
 export const workspaceGroups: readonly { id: WorkspaceGroupId; paths: readonly string[] }[] = [
   { id: "sales", paths: ["/settings/public-catalog", "/commercial-requests", "/quotes", "/shifts"] },
-  { id: "customers", paths: ["/customers", "/crm", "/inbox", "/appointments", "/service-cases", "/followups", "/loyalty"] },
+  { id: "customers", paths: ["/customers", "/appointments", "/loyalty", "/crm", "/inbox", "/service-cases", "/followups"] },
   { id: "operation", paths: ["/operations-queue", "/catalog", "/inventory", "/purchasing", "/replenishment"] },
   { id: "analysis", paths: ["/reports", "/expenses", "/reconciliation", "/assistant"] },
   { id: "settings", paths: ["/settings", "/automations", "/settings/billing", "/settings/integrations", "/settings/channels"] },
