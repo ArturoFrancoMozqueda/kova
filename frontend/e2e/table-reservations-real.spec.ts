@@ -203,6 +203,15 @@ test.describe("Mesas sin duración: solicitudes y confirmación con PostgreSQL/R
           month: "long",
           timeZone: "UTC",
         }).format(new Date(`${date}T12:00:00Z`));
+        if (
+          !(await visitor
+            .getByRole("button", { name: dayLabel, exact: true })
+            .count())
+        ) {
+          await visitor
+            .getByRole("button", { name: "Mes siguiente", exact: true })
+            .click();
+        }
         await visitor
           .getByRole("button", { name: dayLabel, exact: true })
           .click();
@@ -319,6 +328,15 @@ test.describe("Mesas sin duración: solicitudes y confirmación con PostgreSQL/R
         await visitor
           .getByRole("button", { name: "Solicitar otra hora", exact: true })
           .click();
+        if (
+          !(await visitor
+            .getByRole("button", { name: dayLabel, exact: true })
+            .count())
+        ) {
+          await visitor
+            .getByRole("button", { name: "Mes siguiente", exact: true })
+            .click();
+        }
         await visitor
           .getByRole("button", { name: dayLabel, exact: true })
           .click();
