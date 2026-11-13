@@ -8,6 +8,7 @@ export type BookingService = {
   version: number;
 };
 export type BookingPage = {
+  mode?: "appointments" | "tables";
   enabled: boolean;
   version: number;
   horizon_days: number;
@@ -25,13 +26,13 @@ export type Availability = {
 };
 export type CalendarEvent = {
   id: string;
-  source: "appointment" | "booking";
+  source: "appointment" | "booking" | "table";
   title: string;
-  resource_id: string;
+  resource_id: string | null;
   resource_name: string;
   timezone: string;
   starts_at: string;
-  ends_at: string;
+  ends_at: string | null;
   status: string;
   customer_id: string | null;
   customer_name: string;
@@ -50,3 +51,40 @@ export type BookingReceipt = {
   manage_path?: string;
 };
 export type Slot = { starts_at: string; ends_at: string; timezone: string };
+
+export type TableStatus =
+  | "requested"
+  | "confirmed"
+  | "seated"
+  | "completed"
+  | "declined"
+  | "cancelled"
+  | "no_show";
+export type TableArrival = { starts_at: string; timezone: string };
+export type TableReceipt = TableArrival & {
+  title: string;
+  party_size: number;
+  resource_name: string | null;
+  status: TableStatus;
+  version: number;
+  can_manage: boolean;
+  calendar_uid: string;
+  manage_path?: string | null;
+};
+export type TableReservation = TableReceipt & {
+  id: string;
+  name: string;
+  phone: string;
+  resource_id: string | null;
+  customer_id: string | null;
+  seated_at: string | null;
+  released_at: string | null;
+};
+export type TableDetail = TableReservation & {
+  history: {
+    action: string;
+    starts_at: string;
+    status: TableStatus;
+    created_at: string;
+  }[];
+};

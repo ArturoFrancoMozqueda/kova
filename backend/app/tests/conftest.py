@@ -147,6 +147,7 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
+                "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "
                 "service_cases service_case_events "
@@ -182,7 +183,8 @@ def _provision_kova_app() -> None:
         )
         conn.execute(text("GRANT DELETE ON booking_service_resources TO kova_app"))
         conn.execute(text("GRANT UPDATE(color,use_business_logo,version) ON loyalty_appearances TO kova_app"))
-        conn.execute(text("GRANT UPDATE(enabled,version,link_version,horizon_days,notice_minutes,slot_minutes,manage_cutoff_hours,authorized_by_user_id) ON booking_pages TO kova_app"))
+        conn.execute(text("GRANT UPDATE(mode,enabled,version,link_version,horizon_days,notice_minutes,slot_minutes,manage_cutoff_hours,authorized_by_user_id) ON booking_pages TO kova_app"))
+        conn.execute(text("GRANT UPDATE(resource_id,starts_at,status,version,manage_version,seated_at,released_at) ON table_reservations TO kova_app"))
         conn.execute(text("GRANT UPDATE(name,description,duration_minutes,is_active,version) ON booking_services TO kova_app"))
         conn.execute(text("GRANT UPDATE(weekly,exceptions,version) ON booking_availability TO kova_app"))
         conn.execute(text("GRANT UPDATE(customer_id,appointment_id,starts_at,ends_at,status,version,manage_version) ON public_bookings TO kova_app"))

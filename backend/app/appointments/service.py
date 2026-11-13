@@ -161,7 +161,9 @@ def create_resource(db, tenant, actor, body, key):
         raise conflict("Esta sucursal alcanzó el límite de 200 recursos")
     if _scope(db, tenant, AppointmentResource).filter_by(name=body.name).first():
         raise conflict("Ya existe un recurso con ese nombre")
-    row = AppointmentResource(tenant_id=tenant, name=body.name, timezone=body.timezone)
+    row = AppointmentResource(
+        tenant_id=tenant, name=body.name, timezone=body.timezone, kind=body.kind
+    )
     db.add(row)
     db.flush()
     return _finish(
@@ -225,6 +227,8 @@ def _validate_interval(starts_at, ends_at):
 
 
 def _ensure_free(db, tenant, resource_id, starts_at, ends_at, excluding=None):
+    if _resource(db, tenant, resource_id).kind == "table":
+        raise bad_request("Esta mesa se gestiona desde las solicitudes de mesa, sin duración fija.")
     query = _scope(db, tenant, Appointment).filter(
         Appointment.resource_id == resource_id,
         Appointment.status == "scheduled",

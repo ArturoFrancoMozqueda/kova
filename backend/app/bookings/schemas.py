@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -15,6 +16,7 @@ class PageWrite(StrictModel):
     slot_minutes: int = Field(default=15, ge=5, le=120)
     manage_cutoff_hours: int = Field(default=24, ge=0, le=720)
     rotate_link: bool = False
+    mode: Literal["appointments", "tables"] | None = None
 
 
 class ServiceWrite(_Text):
@@ -165,6 +167,8 @@ class PublicContext(BaseModel):
     resources: list[PublicResource]
     horizon_days: int
     manage_cutoff_hours: int
+    mode: Literal["appointments", "tables"] = "appointments"
+    timezone: str | None = None
 
 
 class PublicSlot(BaseModel):
@@ -200,3 +204,96 @@ class StaffBookingReschedule(StrictModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("Incluye la zona horaria de la cita")
         return value
+
+
+TableStatus = Literal[
+    "requested", "confirmed", "seated", "completed", "declined", "cancelled", "no_show"
+]
+
+
+class TableRequestWrite(StrictModel):
+    page_token: str = Field(min_length=1, max_length=2000)
+    starts_at: datetime
+    party_size: int = Field(ge=1, le=50)
+    name: str = Field(min_length=1, max_length=160)
+    phone: str = Field(min_length=7, max_length=30, pattern=r"^[+0-9 ()-]+$")
+    identity_token: str | None = Field(default=None, max_length=2500)
+
+    @field_validator("starts_at")
+    @classmethod
+    def aware(cls, value):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("Elige una hora de llegada")
+        return value
+
+    @field_validator("name", "phone")
+    @classmethod
+    def plain(cls, value):
+        from app.shared.validation import reject_html
+
+        value = reject_html(value.strip())
+        if not value:
+            raise ValueError("Completa tus datos para solicitar una mesa")
+        return value
+
+
+class TableAction(StrictModel):
+    expected_version: int = Field(ge=1)
+    action: Literal["confirm", "decline", "cancel", "seat", "release", "no_show", "revoke"]
+    resource_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def selected_table(self):
+        if self.action == "confirm" and self.resource_id is None:
+            raise ValueError("Elige la mesa que vas a confirmar")
+        if self.action != "confirm" and self.resource_id is not None:
+            raise ValueError("La mesa se asigna al confirmar")
+        return self
+
+
+class TableArrival(BaseModel):
+    starts_at: datetime
+    timezone: str
+
+
+class TableArrivals(BaseModel):
+    items: list[TableArrival]
+
+
+class TableReceipt(BaseModel):
+    title: str = "Reserva de mesa"
+    starts_at: datetime
+    timezone: str
+    party_size: int
+    resource_name: str | None
+    status: TableStatus
+    version: int
+    can_manage: bool
+    calendar_uid: str
+    manage_path: str | None = None
+
+
+class TableHistoryItem(BaseModel):
+    action: str
+    starts_at: datetime
+    status: TableStatus
+    created_at: datetime
+
+
+class TableSummary(TableReceipt):
+    id: UUID
+    name: str
+    phone: str
+    resource_id: UUID | None
+    customer_id: UUID | None
+    seated_at: datetime | None
+    released_at: datetime | None
+
+
+class TableDetail(TableSummary):
+    history: list[TableHistoryItem]
+
+
+class TableList(BaseModel):
+    items: list[TableSummary]
+    has_more: bool

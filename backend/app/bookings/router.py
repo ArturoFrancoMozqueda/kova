@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 
-from app.bookings import service
+from app.bookings import service, tables
 from app.bookings.schemas import (
     AvailabilityWrite,
     BookingReceipt,
@@ -19,12 +19,19 @@ from app.bookings.schemas import (
     PublicSlots,
     ServiceWrite,
     StaffBookingReschedule,
+    TableAction,
+    TableArrivals,
+    TableDetail,
+    TableList,
+    TableReceipt,
+    TableRequestWrite,
+    TableStatus,
     VersionWrite,
 )
 from app.crm.router import require_crm
 from app.db import get_db
 from app.middleware.rate_limit import rate_limit
-from app.shared.exceptions import forbidden
+from app.shared.exceptions import forbidden, not_found
 from app.shared.origin import trusted_origins
 
 router = APIRouter(tags=["bookings"])
@@ -168,6 +175,8 @@ def slots(
 ):
     private_response(response)
     page = service.resolve_page(db, page_token)
+    if page.mode != "appointments":
+        raise not_found(service.UNAVAILABLE)
     return {"items": service.slots(db, page, service_id, resource_id, day)}
 
 
@@ -279,3 +288,131 @@ def reschedule_booking(
     ctx=Depends(require_crm),
 ):
     return service.staff_reschedule(db, ctx[1].tenant_id, ctx[0].id, booking_id, body, key)
+
+
+@router.get(PRIVATE + "/table-reservations", response_model=TableList)
+def list_tables(
+    status: TableStatus | None = None,
+    starts_from: datetime | None = None,
+    starts_until: datetime | None = None,
+    resource_id: UUID | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=10000),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    return tables.listing(
+        db,
+        ctx[1].tenant_id,
+        status=status,
+        start=starts_from,
+        end=starts_until,
+        resource_id=resource_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(PRIVATE + "/table-reservations/{reservation_id}", response_model=TableDetail)
+def table_detail(reservation_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    return tables.detail(db, ctx[1].tenant_id, reservation_id)
+
+
+@router.get(PRIVATE + "/table-reservations/{reservation_id}/review", response_model=TableList)
+def table_review(
+    reservation_id: UUID, resource_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)
+):
+    return tables.review(db, ctx[1].tenant_id, reservation_id, resource_id)
+
+
+@router.post(PRIVATE + "/table-reservations/{reservation_id}/action", response_model=TableDetail)
+def table_action(
+    reservation_id: UUID,
+    body: TableAction,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    return tables.act(db, ctx[1].tenant_id, ctx[0].id, reservation_id, body, key)
+
+
+@router.get(
+    PUBLIC + "/table-arrivals",
+    response_model=TableArrivals,
+    dependencies=[Depends(rate_limit(60, window_seconds=60, key="table-arrivals"))],
+)
+def table_arrivals(
+    response: Response,
+    page_token: str = Query(min_length=1, max_length=2000),
+    day: date = Query(),
+    db: Session = Depends(get_db),
+):
+    private_response(response)
+    return {"items": tables.arrivals(db, service.resolve_page(db, page_token), day)}
+
+
+@router.post(
+    PUBLIC + "/table-requests",
+    response_model=TableReceipt,
+    status_code=201,
+    dependencies=[Depends(rate_limit(10, window_seconds=60, key="table-create"))],
+)
+def request_table(
+    body: TableRequestWrite,
+    request: Request,
+    response: Response,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+):
+    origin(request)
+    private_response(response)
+    return tables.create(db, body, key)
+
+
+@router.post(
+    PUBLIC + "/table-manage/read",
+    response_model=TableReceipt,
+    dependencies=[Depends(rate_limit(60, window_seconds=60, key="table-read"))],
+)
+def read_table(
+    body: ManageRead, request: Request, response: Response, db: Session = Depends(get_db)
+):
+    origin(request)
+    private_response(response)
+    page, row = tables.resolve_manage(db, body.token)
+    return tables.receipt(db, page, row)
+
+
+@router.post(
+    PUBLIC + "/table-manage/arrivals",
+    response_model=TableArrivals,
+    dependencies=[Depends(rate_limit(60, window_seconds=60, key="table-manage-arrivals"))],
+)
+def manage_table_arrivals(
+    body: ManageRead, request: Request, response: Response, day: date, db: Session = Depends(get_db)
+):
+    origin(request)
+    private_response(response)
+    page, row = tables.resolve_manage(db, body.token)
+    if not tables.receipt(db, page, row)["can_manage"]:
+        from app.shared.exceptions import conflict
+
+        raise conflict("Para cambiar esta solicitud, contacta al negocio.")
+    return {"items": tables.arrivals(db, page, day)}
+
+
+@router.post(
+    PUBLIC + "/table-manage",
+    response_model=TableReceipt,
+    dependencies=[Depends(rate_limit(20, window_seconds=60, key="table-manage"))],
+)
+def manage_table(
+    body: ManageWrite,
+    request: Request,
+    response: Response,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+):
+    origin(request)
+    private_response(response)
+    return tables.manage(db, body, key)

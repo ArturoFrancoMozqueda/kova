@@ -40,6 +40,9 @@ class BookingPage(BranchScoped, Base):
     slot_minutes: Mapped[int] = mapped_column(Integer, default=15)
     manage_cutoff_hours: Mapped[int] = mapped_column(Integer, default=24)
     authorized_by_user_id: Mapped[UUID] = mapped_column()
+    mode: Mapped[str] = mapped_column(
+        String(16), default="appointments", server_default="appointments"
+    )
 
 
 class BookingService(BranchScoped, Base):
@@ -168,3 +171,74 @@ class BookingHistory(BranchScoped, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     status: Mapped[str] = mapped_column(String(16))
     details: Mapped[str] = mapped_column(Text, default="")
+
+
+class TableReservation(BranchScoped, Base):
+    __tablename__ = "table_reservations"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "branch_id", "id"),
+        UniqueConstraint("operation_hash"),
+        ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "resource_id"],
+            [
+                "appointment_resources.tenant_id",
+                "appointment_resources.branch_id",
+                "appointment_resources.id",
+            ],
+        ),
+        ForeignKeyConstraint(["tenant_id", "customer_id"], ["customers.tenant_id", "customers.id"]),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(index=True)
+    resource_id: Mapped[UUID | None] = mapped_column()
+    customer_id: Mapped[UUID | None] = mapped_column()
+    guest_name: Mapped[str] = mapped_column(String(160))
+    phone: Mapped[str] = mapped_column(String(30))
+    party_size: Mapped[int] = mapped_column(Integer)
+    timezone: Mapped[str] = mapped_column(String(48))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="requested")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    manage_version: Mapped[int] = mapped_column(Integer, default=1)
+    operation_hash: Mapped[str] = mapped_column(String(64))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    seated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TableReservationHistory(BranchScoped, Base):
+    __tablename__ = "table_reservation_history"
+    __table_args__ = (
+        UniqueConstraint("reservation_id", "version"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "reservation_id"],
+            [
+                "table_reservations.tenant_id",
+                "table_reservations.branch_id",
+                "table_reservations.id",
+            ],
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "actor_user_id"], ["memberships.tenant_id", "memberships.user_id"]
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "resource_id"],
+            [
+                "appointment_resources.tenant_id",
+                "appointment_resources.branch_id",
+                "appointment_resources.id",
+            ],
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(index=True)
+    reservation_id: Mapped[UUID] = mapped_column()
+    version: Mapped[int] = mapped_column(Integer)
+    action: Mapped[str] = mapped_column(String(32))
+    actor_user_id: Mapped[UUID | None] = mapped_column()
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    resource_id: Mapped[UUID | None] = mapped_column()
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
