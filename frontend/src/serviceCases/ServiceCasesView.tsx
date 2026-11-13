@@ -1,6 +1,8 @@
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
-import { ClipboardCheck } from "lucide-react";
+import { Activity, CheckCircle2, CircleDot, ClipboardCheck, Clock, ClockAlert, RotateCcw, XCircle } from "lucide-react";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { InitialsAvatar } from "@/components/visual";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
@@ -31,6 +33,23 @@ import {
   type ServiceCaseStatus,
 } from "./types";
 
+const statusChips: Record<ServiceCaseStatus, { icon: typeof CircleDot; variant: NonNullable<BadgeProps["variant"]> }> = {
+  open: { icon: CircleDot, variant: "warning" },
+  in_progress: { icon: Activity, variant: "secondary" },
+  resolved: { icon: CheckCircle2, variant: "success" },
+  reopened: { icon: RotateCcw, variant: "warning" },
+  cancelled: { icon: XCircle, variant: "secondary" },
+};
+function CaseStatus({ status }: { status: ServiceCaseStatus }) {
+  const chip = statusChips[status];
+  const Icon = chip.icon;
+  return (
+    <Badge variant={chip.variant} className="gap-1">
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {serviceCaseStatuses[status]}
+    </Badge>
+  );
+}
 const fieldClass = "mt-1 min-w-0";
 const buttonClass = "h-auto min-h-11 whitespace-normal";
 const date = (value: string) => new Date(value).toLocaleString("es-MX");
@@ -543,7 +562,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </div>
         {panel.loading && <SectionSkeleton label="Consultando atenciones…" />}
         {!panel.loading && !panel.error && panel.data?.items.length === 0 && (
-          <ViewEmpty
+          <ViewEmpty illustration="tasks"
             icon={<ClipboardCheck className="h-6 w-6" aria-hidden="true" />}
             title="No hay atenciones con estos filtros."
             body="Registra una incidencia cuando necesites dar seguimiento o consulta otros estados."
@@ -555,32 +574,46 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               key={row.id}
               className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5"
             >
-              <div className="flex flex-wrap justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <h3 className="break-words font-semibold">{row.title}</h3>
-                <span className="text-sm text-kova-muted">
-                  {serviceCaseStatuses[row.status]}
-                </span>
+                <CaseStatus status={row.status} />
               </div>
-              <p className="break-words text-sm">{row.customer_name}</p>
-              <p className="break-words text-sm text-kova-muted">
-                {row.assigned_user_id
-                  ? `${
-                      assignees.find(
-                        (person) => person.user_id === row.assigned_user_id,
-                      )?.email ?? "Responsable asignado"
-                    }${row.assignee_active ? "" : " · Sin acceso actual a la sucursal"}`
-                  : "Sin responsable asignado"}
+              <p className="flex min-w-0 items-center gap-2 text-sm">
+                <InitialsAvatar name={row.customer_name} size="sm" />
+                <span className="min-w-0 break-words">{row.customer_name}</span>
               </p>
+              {(() => {
+                const email = row.assigned_user_id
+                  ? assignees.find((person) => person.user_id === row.assigned_user_id)?.email
+                  : undefined;
+                return (
+                  <p className="flex min-w-0 items-center gap-2 break-words text-sm text-kova-muted">
+                    {email && <InitialsAvatar name={email} size="sm" />}
+                    <span className="min-w-0 break-words">
+                      {row.assigned_user_id
+                        ? `${email ?? "Responsable asignado"}${row.assignee_active ? "" : " · Sin acceso actual a la sucursal"}`
+                        : "Sin responsable asignado"}
+                    </span>
+                  </p>
+                );
+              })()}
               {row.due_at && (
                 <p
                   className={
                     row.overdue
-                      ? "text-sm font-medium text-warning-strong"
-                      : "text-sm"
+                      ? "flex items-center gap-1.5 text-sm font-medium text-warning-strong"
+                      : "flex items-center gap-1.5 text-sm"
                   }
                 >
-                  {row.overdue ? "Vencida desde" : "Vencimiento"}:{" "}
-                  {date(row.due_at)}
+                  {row.overdue ? (
+                    <ClockAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  )}
+                  <span>
+                    {row.overdue ? "Vencida desde" : "Vencimiento"}:{" "}
+                    {date(row.due_at)}
+                  </span>
                 </p>
               )}
               <p className="text-xs text-kova-muted">

@@ -45,3 +45,19 @@ it("shows a failed section as an error while preserving the loaded summary", asy
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No pudimos cargar los productos vendidos."));
   expect(screen.queryByText("No hay productos vendidos en este periodo.")).not.toBeInTheDocument();
 });
+it("draws the basic panel with KPI cards, a payment donut and ranked product bars from loaded data", async () => {
+  api.dashboard.mockResolvedValue({ story: null, summary, advanced_reports_available: false });
+  api.payments.mockResolvedValue({ start_date: "2026-11-02", end_date: "2026-11-02", gross_total: "150.00", refund_total: "10.00", net_total: "140.00",
+    payments: [{ method: "cash", amount: "110.00", refunded_amount: "10.00", net_amount: "100.00", payment_count: 2 },
+      { method: "card", amount: "40.00", refunded_amount: "0.00", net_amount: "40.00", payment_count: 1 }] });
+  api.products.mockResolvedValue({ start_date: "2026-11-02", end_date: "2026-11-02",
+    products: [{ product_id: "p1", product_name: "Concha", quantity_sold: 3, gross_sales: "90.00" }, { product_id: "p2", product_name: "Café", quantity_sold: 1, gross_sales: "60.00" }] });
+  mount(true);
+  const kpis = await screen.findByRole("group", { name: "Resumen de ventas" });
+  expect(kpis).toHaveTextContent("Ventas netas$140.00");
+  expect(kpis).toHaveTextContent("Devoluciones$10.001 devolución");
+  expect(await screen.findByRole("img", { name: "Cobros netos por forma de pago: Efectivo 71%, Tarjeta 29%" })).toBeInTheDocument();
+  const ranking = await screen.findByRole("list", { name: "Productos más vendidos por importe bruto" });
+  expect(ranking).toHaveTextContent("Concha$90.003 unidades");
+  expect(ranking).toHaveTextContent("Café$60.001 unidad");
+});

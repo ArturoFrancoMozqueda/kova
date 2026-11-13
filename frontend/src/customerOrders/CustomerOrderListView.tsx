@@ -22,7 +22,8 @@ import { useIsOnline } from "@/offline/useSyncQueue";
 import { formatDateTime, formatMoney } from "@/orders/format";
 import { listCustomerOrders } from "./api";
 import { readCustomerOrderCache, saveCustomerOrderList } from "./cache";
-import { fulfillmentLabels, paymentLabels, statusLabels } from "./labels";
+import { fulfillmentLabels, orderedStatuses, paymentLabels, statusLabels } from "./labels";
+import { StackedBar, StepStrip, type VisualTone } from "@/components/visual";
 import { SemanticLabel, StatusBadge } from "@/components/ui/status-badge";
 import type { CustomerOrderListResponse, CustomerOrderPaymentStatus, CustomerOrderStatus, FulfillmentType } from "./types";
 
@@ -45,6 +46,42 @@ const statuses: Array<CustomerOrderStatus | undefined> = [
   "fulfilled",
   "cancelled",
 ];
+
+const pipelineTone: Record<Exclude<CustomerOrderStatus, "cancelled">, VisualTone> = {
+  new: "blue",
+  confirmed: "ink",
+  in_progress: "warning",
+  ready: "growth",
+  fulfilled: "muted",
+};
+
+const lifecycleSteps = orderedStatuses.map((value) => ({ id: value, label: statusLabels[value] }));
+
+/** Lifecycle position; a delivered order shows every step completed. */
+function lifecycleIndex(status: CustomerOrderStatus) {
+  return status === "fulfilled" ? orderedStatuses.length : orderedStatuses.indexOf(status);
+}
+
+function StatusPipeline({ counts }: { counts: Record<CustomerOrderStatus, number> }) {
+  const segments = orderedStatuses.map((value) => ({
+    id: value,
+    label: statusLabels[value],
+    value: counts[value] ?? 0,
+    tone: pipelineTone[value as Exclude<CustomerOrderStatus, "cancelled">],
+  }));
+  if (!segments.some((segment) => segment.value > 0)) return null;
+  return (
+    <Card className="mb-4">
+      <CardContent className="space-y-2 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold">Avance de tus pedidos</p>
+          <p className="text-xs text-muted-foreground">Todos los pedidos del negocio, sin filtros{counts.cancelled ? ` · ${counts.cancelled} cancelados` : ""}</p>
+        </div>
+        <StackedBar label="Pedidos por estado" segments={segments} />
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CustomerOrderListView() {
   useDocumentTitle("Pedidos");
@@ -197,6 +234,8 @@ export default function CustomerOrderListView() {
         </form>
       </div>
 
+      {data ? <StatusPipeline counts={data.status_counts} /> : null}
+
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Select aria-label="Filtrar por pago" value={paymentStatus} onChange={(event) => { setPaymentStatus(event.target.value as CustomerOrderPaymentStatus | ""); setOffset(0); }}>
           <option value="">Cualquier estado de pago</option>
@@ -218,6 +257,7 @@ export default function CustomerOrderListView() {
       ) : visibleItems.length === 0 ? (
         <ViewEmpty
           icon={<ClipboardList className="h-6 w-6" />}
+          illustration="clipboard"
           title="No hay pedidos con estos filtros"
           body="Crea un pedido para reservar producto, prepararlo y cobrarlo después."
           primaryCta={isOnline && canCreate ? { label: "Crear pedido", to: "/pedidos/nuevo" } : undefined}
@@ -247,6 +287,11 @@ export default function CustomerOrderListView() {
                       <SemanticLabel domain="fulfillment" value={order.fulfillment_type} label={fulfillmentLabels[order.fulfillment_type]} />
                       <SemanticLabel domain="attention" value="scheduled" label={order.promised_at ? formatDateTime(order.promised_at) : "Lo antes posible"} />
                     </p>
+                    {order.status !== "cancelled" ? (
+                      <div className="mt-3 max-w-xs">
+                        <StepStrip steps={lifecycleSteps} current={lifecycleIndex(order.status)} label={`Avance del pedido ${order.folio}: ${statusLabels[order.status]}`} />
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex items-center justify-between gap-4 sm:block sm:text-right">
                     <p className="text-lg font-bold tabular-nums">{formatMoney(order.total_amount)}</p>

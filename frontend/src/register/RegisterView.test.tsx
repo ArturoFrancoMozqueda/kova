@@ -249,6 +249,15 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(image.getAttribute("srcset")).toContain(`${imageUrl}&w=160 160w`);
     fireEvent.click(card);
     expect(await screen.findByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+    const cartThumb = screen.getByTestId("cart-line-thumbnail");
+    expect(within(cartThumb).getByAltText(copy.catalog.productImageAlt(product.name))).toHaveAttribute("width", "48");
+  });
+
+  it("shows a placeholder thumbnail for cart lines without a photo", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+    expect(within(screen.getByTestId("cart-line-thumbnail")).getByText("Sin fotografía")).toBeInTheDocument();
   });
 
   it("opens the drawer only after the current cash sale is acknowledged by the server", async () => {

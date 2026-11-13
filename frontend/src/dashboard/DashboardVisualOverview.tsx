@@ -5,6 +5,7 @@ import { calculateSafeGrowth, MIN_MONEY_BASE } from "@/lib/growth";
 import type { BusinessStoryReport, SalesByHourRow, SalesSummary } from "@/reports/types";
 import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
 import { cn } from "@/lib/utils";
+import { chartPalette, RankBars } from "@/components/visual";
 import { DashboardAttention, DashboardViewLink } from "./DashboardSupervision";
 import { salesTrendPoints } from "./visualData";
 import type { DashboardControl } from "./controlTypes";
@@ -32,11 +33,11 @@ function SalesTrend({ story, hourly, byHour }: { story: BusinessStoryReport; hou
         <div className="relative hidden h-56 w-10 shrink-0 text-right text-[11px] tabular-nums text-kova-muted sm:block" aria-hidden="true">{[high, (high + low) / 2, low].map((value, index) => <span key={index} className="absolute right-0 -translate-y-1/2" style={{ top: `${y(value) / 195 * 100}%` }}>{new Intl.NumberFormat("es-MX", { notation: "compact", maximumFractionDigits: 1 }).format(value)}</span>)}</div>
         <div className="min-w-0 flex-1">
           <svg viewBox="45 0 660 195" preserveAspectRatio="none" className="h-44 w-full sm:h-56" role="img" aria-label={`Gráfica de ventas netas ${byHour ? "por hora" : "por día"}`}>
-            <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3868ff" stopOpacity="0.22" /><stop offset="100%" stopColor="#3868ff" stopOpacity="0.02" /></linearGradient></defs>
-            {[low, (high + low) / 2, high].map((value, index) => <line key={index} x1="52" x2="694" y1={y(value)} y2={y(value)} stroke="#dfe4ee" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />)}
+            <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--kova-blue)" stopOpacity="0.22" /><stop offset="100%" stopColor="var(--kova-blue)" stopOpacity="0.02" /></linearGradient></defs>
+            {[low, (high + low) / 2, high].map((value, index) => <line key={index} x1="52" x2="694" y1={y(value)} y2={y(value)} stroke="var(--kova-border)" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />)}
             <polygon points={`${x(0)},${base} ${line} ${x(points.length - 1)},${base}`} fill={`url(#${gradient})`} />
-            <polyline points={line} fill="none" stroke="#3868ff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            {selected && <line x1={x(points.indexOf(selected))} x2={x(points.indexOf(selected))} y1="20" y2="182" stroke="#3868ff" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
+            <polyline points={line} fill="none" stroke="var(--kova-blue)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            {selected && <line x1={x(points.indexOf(selected))} x2={x(points.indexOf(selected))} y1="20" y2="182" stroke="var(--kova-blue)" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
           </svg>
           <div className="mb-3 flex justify-between gap-2 text-[11px] tabular-nums text-kova-muted" aria-hidden="true">{labelIndices.map(index => <span key={index}>{byHour ? points[index].label : `${points[index].id.slice(8)}/${points[index].id.slice(5, 7)}`}</span>)}</div>
         </div>
@@ -91,23 +92,19 @@ export function DashboardSalesMix({ story, hourly, control }: { story: BusinessS
   const products = story.product_drivers.slice(0, 3);
   const hours = topHoursByNetSales(hourly, 3);
   const payments = story.payment_mix.filter(payment => Number(payment.amount) > 0);
-  const colors = ["#3868ff", "#11141d", "#10a888", "#8659d9", "#b46d12"];
+  const colors = chartPalette;
   const paymentTotal = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
   let offset = 0;
   const slices = payments.map((payment, index) => {
     const start = offset; offset += Number(payment.amount) / paymentTotal * 100;
     return `${colors[index % colors.length]} ${start}% ${offset}%`;
   });
-  const ranks = (rows: { id: string; label: string; value: number }[]) => {
-    const max = Math.max(1, ...rows.map(row => row.value));
-    return rows.length ? <ol className="space-y-4">{rows.map((row, index) => <li key={row.id}>
-      <div className="mb-2 flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate">{row.label}</span><strong className="shrink-0 font-semibold tabular-nums">{formatMoney(row.value)}</strong></div>
-      <div className="h-2 rounded-full bg-kova-mist" aria-hidden="true"><div className={cn("h-full rounded-full", index === 0 ? "bg-kova-blue" : "bg-kova-blue/35")} style={{ width: `${Math.max(0, row.value) / max * 100}%` }} /></div>
-    </li>)}</ol> : <p className="py-5 text-sm text-kova-muted">Sin ventas registradas en este desglose.</p>;
-  };
+  const ranks = (label: string, rows: { id: string; label: string; value: number }[]) => <RankBars label={label}
+    emptyLabel="Sin ventas registradas en este desglose." className="space-y-4"
+    rows={rows.map(row => ({ ...row, valueLabel: formatMoney(row.value) }))} />;
   return <div className="mb-5 grid gap-4 lg:grid-cols-3">
-    <VisualCard title="Productos más vendidos" control={control}>{ranks(products.map(product => ({ id: product.product_id, label: product.product_name, value: Number(product.gross_sales) })))}<p className="mt-4 text-[11px] text-kova-muted">Por importe bruto del periodo.</p></VisualCard>
-    <VisualCard title="Horas con más venta" control={control}>{ranks(hours.map(hour => ({ id: String(hour.hour), label: formatHourRange(hour.hour), value: Number(hour.net_sales) })))}</VisualCard>
+    <VisualCard title="Productos más vendidos" control={control}>{ranks("Productos más vendidos por importe bruto", products.map(product => ({ id: product.product_id, label: product.product_name, value: Number(product.gross_sales) })))}<p className="mt-4 text-[11px] text-kova-muted">Por importe bruto del periodo.</p></VisualCard>
+    <VisualCard title="Horas con más venta" control={control}>{ranks("Horas con más venta por ventas netas", hours.map(hour => ({ id: String(hour.hour), label: formatHourRange(hour.hour), value: Number(hour.net_sales) })))}</VisualCard>
     <VisualCard title="Cómo te pagaron" control={control}>{paymentTotal > 0 ? <div className="flex flex-wrap items-center gap-5">
       <div className="relative h-28 w-28 shrink-0 rounded-full" style={{ background: `conic-gradient(${slices.join(",")})` }} role="img" aria-label="Distribución de cobros brutos por método de pago"><div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white"><span className="text-[10px] text-kova-muted">Cobros</span><strong className="text-xs tabular-nums">{formatMoney(paymentTotal)}</strong></div></div>
       <ul className="min-w-0 flex-1 space-y-2">{payments.map((payment, index) => <li key={payment.method} className="flex items-center gap-2 text-xs"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} aria-hidden="true" /><span className="flex-1">{reasonLabel(payment.method)}</span><strong className="tabular-nums">{Math.round(Number(payment.amount) / paymentTotal * 100)}%</strong><span className="sr-only">{formatMoney(payment.amount)}</span></li>)}</ul>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Package, Table2 } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Package, Table2 } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
@@ -72,10 +72,12 @@ function TrendChip({ trend }: { trend?: ProductTrendRow }) {
   return (
     <span
       className={cn(
-        "text-xs font-medium tabular-nums",
+        "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
         chip.tone === "up" ? "text-kova-growth-strong" : chip.tone === "down" ? "text-destructive" : "text-kova-muted",
       )}
     >
+      {chip.tone === "up" ? <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        : chip.tone === "down" ? <ArrowDownRight className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
       {chip.label}
     </span>
   );

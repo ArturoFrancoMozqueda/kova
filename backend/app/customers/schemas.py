@@ -57,6 +57,17 @@ class CustomerHistory(BaseModel):
     has_more: bool
 
 
+class CustomerSummary(BaseModel):
+    """Completed purchases of the active branch, net of their refunds."""
+
+    customer_id: UUID
+    branch_id: UUID
+    purchase_count: int
+    net_spent_amount: Decimal
+    average_ticket_amount: Decimal | None
+    last_purchase_at: datetime | None
+
+
 class CustomerActivityItem(BaseModel):
     booking_id: UUID | None = None
     table_id: UUID | None = None

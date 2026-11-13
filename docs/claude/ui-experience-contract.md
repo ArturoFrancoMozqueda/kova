@@ -14,6 +14,28 @@ Guía para mantener una experiencia común entre módulos. Conserva los contrato
 
 Caja conserva su disposición especializada para vender rápido; comparte controles y significado financiero con el cobro de Pedidos. El menú público conserva su experiencia de cliente y no expone cantidades exactas, costos ni herramientas administrativas.
 
+## Lenguaje visual: muéstralo, no lo describas
+
+Cada pantalla presenta las cosas como son, con las mismas piezas en toda la app:
+
+| Qué se comunica | Pieza | Dónde vive |
+|---|---|---|
+| Algo que verá un cliente o el equipo (menú, reserva, recibo, tarjeta, corte, cotización, permisos) | Vista previa con el componente real, alimentada por el borrador | `components/ui/live-preview.tsx`, `device-preview.tsx` |
+| Página pública con su diseño de teléfono o computadora | `DevicePreview` (iframe vacío, sin URL ni relajar cabeceras) | `components/ui/device-preview.tsx` |
+| Estado de un registro | `StatusBadge` / `SemanticLabel` con un ícono por concepto | `components/ui/semantic-icons.ts`, `status-badge.tsx` |
+| Cantidad contra un máximo o mínimo | `Meter` | `components/visual` |
+| Ranking o reparto | `RankBars`, `DonutChart`, `StackedBar` | `components/visual` |
+| Avance por pasos | `StepStrip` | `components/visual` |
+| Persona sin foto | `InitialsAvatar` | `components/visual` |
+| Cifra clave | `KpiCard` | `components/visual` |
+| Estado vacío | `ViewEmpty` con `illustration` | `components/visual/illustrations.tsx` |
+
+Reglas: solo datos reales de la API de la pantalla (si el dato es de una página, se rotula así);
+el texto acompaña siempre al ícono o gráfica y existe un equivalente para lectores de pantalla;
+sin animación de entrada en gráficas; sin librerías de gráficas fuera de `/reports`; una vista
+previa no simula lo que decide el servidor (inventario, citas ocupadas): lo pide al servidor o lo
+explica en una nota. Revisar en 390 y 1440 px.
+
 ## Densidad de Caja e impresión térmica
 
 - Las tarjetas de Caja muestran nombre y precio con fotografías de altura acotada; no crecen

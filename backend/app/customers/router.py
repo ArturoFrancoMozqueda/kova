@@ -1,4 +1,5 @@
 import hashlib
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response
@@ -11,7 +12,13 @@ from app.branches.scope import active_branch_id
 from app.crm.router import require_crm
 from app.customers.activity import read_activity
 from app.customers.models import Customer
-from app.customers.schemas import CustomerActivity, CustomerHistory, CustomerResponse, CustomerWrite
+from app.customers.schemas import (
+    CustomerActivity,
+    CustomerHistory,
+    CustomerResponse,
+    CustomerSummary,
+    CustomerWrite,
+)
 from app.db import get_db
 from app.idempotency import service as idempotency
 from app.orders.models import Order, Refund
@@ -204,4 +211,57 @@ def customer_history(
         limit=limit,
         offset=offset,
         has_more=len(orders) > limit,
+    )
+
+
+@router.get("/{customer_id}/summary", response_model=CustomerSummary)
+def customer_summary(
+    customer_id: UUID,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_commercial_access(Permission.CUSTOMERS_HISTORY)),
+):
+    """Purchase KPIs over the same branch-scoped orders as the history.
+
+    Voided orders stop counting as sales (docs/report-metric-definitions.md);
+    every refund of a counted order is netted from its total.
+    """
+    _, membership, _ = ctx
+    tenant_id = membership.tenant_id
+    _get(db, tenant_id, customer_id)
+    branch_id = active_branch_id(db, tenant_id)
+    refunds = (
+        db.query(
+            Refund.order_id.label("order_id"),
+            func.sum(Refund.refunded_amount).label("refunded"),
+        )
+        .filter(Refund.tenant_id == tenant_id)
+        .group_by(Refund.order_id)
+        .subquery()
+    )
+    count, net, last = (
+        db.query(
+            func.count(Order.id),
+            func.coalesce(
+                func.sum(Order.total_amount - func.coalesce(refunds.c.refunded, 0)), 0
+            ),
+            func.max(func.coalesce(Order.occurred_at, Order.created_at)),
+        )
+        .outerjoin(refunds, refunds.c.order_id == Order.id)
+        .filter(
+            Order.tenant_id == tenant_id,
+            Order.customer_id == customer_id,
+            Order.branch_id == branch_id,
+            Order.status == "completed",
+        )
+        .one()
+    )
+    net = Decimal(net).quantize(Decimal("0.01"))
+    average = (net / count).quantize(Decimal("0.01")) if count else None
+    return dict(
+        customer_id=customer_id,
+        branch_id=branch_id,
+        purchase_count=count,
+        net_spent_amount=net,
+        average_ticket_amount=average,
+        last_purchase_at=last,
     )

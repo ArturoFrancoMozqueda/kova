@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { RoleAccessPreview } from "./RoleAccessPreview";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { InitialsAvatar } from "@/components/visual";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -560,8 +561,8 @@ export default function SettingsView() {
           <div className="space-y-2">
             {employees.map((employee) => (
               <div key={employee.membership_id} className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-3 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <p className="flex flex-wrap items-center gap-2 font-medium">{employee.email}<StatusBadge domain="role" value={employee.role} label={roleLabel(employee.role)} /></p>
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 break-all font-medium"><InitialsAvatar name={employee.email} size="sm" className={employee.is_active ? undefined : "opacity-50"} />{employee.email}<StatusBadge domain="role" value={employee.role} label={roleLabel(employee.role)} /></p>
                   <p className="text-xs text-muted-foreground">
                     {employee.is_active ? copy.settings.active : copy.settings.inactive}
                   </p>

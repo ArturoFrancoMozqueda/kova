@@ -101,3 +101,17 @@ export async function resolveActiveCustomer(id: string, init?: RequestInit): Pro
   }
   return customer;
 }
+
+/** Completed purchases in the active branch, net of their refunds (server-computed). */
+export type CustomerSummary = {
+  customer_id: string;
+  branch_id: string;
+  purchase_count: number;
+  net_spent_amount: string;
+  average_ticket_amount: string | null;
+  last_purchase_at: string | null;
+};
+
+export function customerSummary(id: string, init?: RequestInit): Promise<CustomerSummary> {
+  return request(`/api/v1/customers/${encodeURIComponent(id)}/summary`, init);
+}

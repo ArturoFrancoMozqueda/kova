@@ -8,6 +8,8 @@ from app.onboarding.schemas import (
     OnboardingStateResponse,
     PresetApplyRequest,
     PresetApplyResponse,
+    PresetName,
+    PresetPreviewResponse,
 )
 from app.rbac.permissions import Permission
 from app.shared.dependencies import get_current_session, require_permission
@@ -24,6 +26,17 @@ def get_state(
     return OnboardingStateResponse(
         **service.get_onboarding_state(db, tenant_id=membership.tenant_id)
     )
+
+
+@router.get("/presets/{preset}", response_model=PresetPreviewResponse)
+def get_preset_preview(
+    preset: PresetName,
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.CATALOG_CREATE)
+    ),
+) -> PresetPreviewResponse:
+    """Static starter-catalog contents; reads no tenant data and writes nothing."""
+    return PresetPreviewResponse(**service.get_preset_preview(preset))
 
 
 @router.post("/apply-preset", response_model=PresetApplyResponse, status_code=200)

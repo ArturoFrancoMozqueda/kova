@@ -161,3 +161,19 @@ it("leaves products without a known cost unselected until the user provides one"
   expect(screen.getByRole("button", { name: "Revisar compra" })).toBeDisabled();
   expect(screen.getByText(/No hay costo registrado/)).toBeVisible();
 });
+
+it("draws available, reserved and incoming units against the minimum", async () => {
+  mount();
+  await screen.findByText("Harina");
+  expect(screen.getByRole("img", { name: "Existencias de Harina: Disponibles 2, Reservados 1, Por recibir 0" })).toBeInTheDocument();
+  const meter = screen.getByRole("meter", { name: "Disponibles y por recibir frente al mínimo: 2 de mínimo 5 · Mínimo 5" });
+  expect(meter).toHaveAttribute("aria-valuenow", "2");
+  expect(screen.getByText("Mínimo: 5. Sugerencia: 4 unidades.")).toBeInTheDocument();
+});
+
+it("shows a guiding empty state when nothing is below the minimum", async () => {
+  fetchMock.mockImplementation(async (url) => String(url).endsWith("/purchasing/suppliers") ? json([supplier]) : json([]));
+  mount();
+  expect(await screen.findByText("Sin productos debajo del mínimo")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Ir a Catálogo" })).toHaveAttribute("href", "/catalog");
+});

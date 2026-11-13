@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
+import { RankBars } from "@/components/visual";
 import type { BusinessStoryReport } from "../types";
 
 export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
@@ -40,15 +41,23 @@ export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
             </p>
           ) : null}
         </div>
-        <div className="divide-y divide-kova-border rounded-kova-md border border-kova-border">
-          {waste.by_reason.map((row) => (
-            <div key={row.reason_code} className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <span className="text-sm text-kova-ink">{copy.inventoryModal.reasonCodes[row.reason_code]}</span>
-              <span className="text-sm font-semibold tabular-nums text-kova-ink">
-                {row.value === null ? copy.reportsView.productWithoutCost : formatMoney(row.value)}
-              </span>
-            </div>
-          ))}
+        <div className="rounded-kova-md border border-kova-border p-4">
+          {/* Bars by valued loss; a reason without cost keeps its units as the
+              visible answer instead of pretending to be $0. */}
+          <RankBars
+            label={copy.reportsView.wasteTitle}
+            emptyLabel={copy.reportsView.notAvailable}
+            tone="danger"
+            rows={[...waste.by_reason]
+              .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
+              .map((row) => ({
+                id: row.reason_code,
+                label: copy.inventoryModal.reasonCodes[row.reason_code],
+                value: Number(row.value ?? 0),
+                valueLabel: row.value === null ? copy.reportsView.productWithoutCost : formatMoney(row.value),
+                detail: `${row.units.toLocaleString("es-MX")} ${row.units === 1 ? "unidad" : "unidades"}`,
+              }))}
+          />
         </div>
       </CardContent>
     </Card>

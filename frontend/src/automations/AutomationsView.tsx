@@ -294,7 +294,7 @@ function AutomationsWorkspace({ identity, canConfigure }: { identity: WorkspaceI
               Pendientes e historial reciente
             </h2>
             {data.runs.length === 0 ? (
-              <ViewEmpty
+              <ViewEmpty illustration="tasks"
                 icon={<CheckCheck className="h-6 w-6" />}
                 title="Todo empieza con un cambio real"
                 body="Activa una regla. Los nuevos eventos elegibles aparecerán aquí con su tarea y estado."

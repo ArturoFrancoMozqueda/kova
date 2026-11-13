@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Meter } from "@/components/visual";
 import { useAuth } from "@/auth/useAuth";
 import { getActiveBranchId } from "./activeBranch";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -134,6 +135,14 @@ export function BranchComparison({
                           maximumFractionDigits: 2,
                         })}
                         % del negocio
+                        <Meter
+                          className="mt-1.5"
+                          label={`Participación de ${branch.branch_name}`}
+                          value={Math.max(0, Number(branch.share_pct) || 0)}
+                          max={100}
+                          valueLabel={`${Number(branch.share_pct).toLocaleString("es-MX", { maximumFractionDigits: 2 })}% del negocio`}
+                          size="sm"
+                        />
                       </dd>
                     </div>}
                     <div>

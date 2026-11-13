@@ -5228,6 +5228,64 @@
         "title": "CustomerResponse",
         "type": "object"
       },
+      "CustomerSummary": {
+        "description": "Completed purchases of the active branch, net of their refunds.",
+        "properties": {
+          "average_ticket_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Ticket Amount"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "last_purchase_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Purchase At"
+          },
+          "net_spent_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Spent Amount",
+            "type": "string"
+          },
+          "purchase_count": {
+            "title": "Purchase Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customer_id",
+          "branch_id",
+          "purchase_count",
+          "net_spent_amount",
+          "average_ticket_amount",
+          "last_purchase_at"
+        ],
+        "title": "CustomerSummary",
+        "type": "object"
+      },
       "CustomerWrite": {
         "additionalProperties": false,
         "properties": {
@@ -13398,6 +13456,72 @@
           "skipped"
         ],
         "title": "PresetApplyResponse",
+        "type": "object"
+      },
+      "PresetPreviewResponse": {
+        "description": "Read-only contents of a starter catalog, shown before the owner applies it.",
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "preset": {
+            "title": "Preset",
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PresetProductPreview"
+            },
+            "title": "Products",
+            "type": "array"
+          }
+        },
+        "required": [
+          "preset",
+          "label",
+          "categories",
+          "products"
+        ],
+        "title": "PresetPreviewResponse",
+        "type": "object"
+      },
+      "PresetProductPreview": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "price_amount"
+        ],
+        "title": "PresetProductPreview",
         "type": "object"
       },
       "PreviewAvailability": {
@@ -28087,6 +28211,50 @@
         ]
       }
     },
+    "/api/v1/customers/{customer_id}/summary": {
+      "get": {
+        "description": "Purchase KPIs over the same branch-scoped orders as the history.\n\nVoided orders stop counting as sales (docs/report-metric-definitions.md);\nevery refund of a counted order is netted from its total.",
+        "operationId": "customer_summary_api_v1_customers__customer_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Customer Summary",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
     "/api/v1/employees": {
       "get": {
         "operationId": "list_employees_api_v1_employees_get",
@@ -33594,6 +33762,55 @@
           }
         },
         "summary": "Apply Preset",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/v1/onboarding/presets/{preset}": {
+      "get": {
+        "description": "Static starter-catalog contents; reads no tenant data and writes nothing.",
+        "operationId": "get_preset_preview_api_v1_onboarding_presets__preset__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "enum": [
+                "cafe",
+                "bakery",
+                "retail",
+                "abarrotes"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Preset Preview",
         "tags": [
           "onboarding"
         ]

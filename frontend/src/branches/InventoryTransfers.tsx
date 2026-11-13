@@ -1,4 +1,5 @@
 import { resolveUserFacingError } from "@/lib/apiError";
+import { ArrowRightLeft } from "lucide-react";
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -285,8 +286,12 @@ export function InventoryTransfers() {
           ) : (
             <ul className="divide-y">
               {history.map((row) => (
-                <li key={row.id} className="py-3">
-                  <p>
+                <li key={row.id} className="flex items-start gap-3 py-3">
+                  <span aria-hidden="true" className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-kova-mist text-kova-ink">
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                  <p className="break-words">
                     {branchName(row.source_branch_id)} →{" "}
                     {branchName(row.destination_branch_id)} · {row.product_name} · {row.quantity}{" "}
                     unidades
@@ -295,6 +300,7 @@ export function InventoryTransfers() {
                     {row.reason} ·{" "}
                     {new Date(row.created_at).toLocaleString("es-MX")}
                   </p>
+                  </div>
                 </li>
               ))}
             </ul>

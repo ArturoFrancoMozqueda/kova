@@ -8,6 +8,14 @@ export type PresetApplyResponse = {
   skipped: boolean;
 };
 
+/** Read-only contents of a starter catalog, shown before the owner applies it. */
+export type PresetPreview = {
+  preset: string;
+  label: string;
+  categories: string[];
+  products: { name: string; category: string | null; price_amount: string }[];
+};
+
 export type OnboardingStep = {
   key: string;
   label: string;
@@ -45,6 +53,10 @@ export function applyPreset(preset: PresetName): Promise<PresetApplyResponse> {
     method: "POST",
     body: JSON.stringify({ preset }),
   });
+}
+
+export function getPresetPreview(preset: PresetName): Promise<PresetPreview> {
+  return requestJson<PresetPreview>(`/api/v1/onboarding/presets/${encodeURIComponent(preset)}`);
 }
 
 export function getOnboardingState(): Promise<OnboardingState> {

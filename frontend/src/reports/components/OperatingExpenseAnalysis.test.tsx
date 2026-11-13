@@ -57,3 +57,14 @@ describe("OperatingExpenseAnalysis", () => {
     expect(screen.getAllByText("$250.00")).toHaveLength(2);
   });
 });
+
+it("shows the expense mix as a donut with an accessible text equivalent", () => {
+  render(<MemoryRouter><OperatingExpenseAnalysis story={makeStory({ operating_expenses: {
+    total: "1250.00", expense_count: 2, approximate_operating_profit: "4750.00", margin_complete: true,
+    by_category: [
+      { category: "renta", amount: "1000.00", expense_count: 1 },
+      { category: "servicios", amount: "250.00", expense_count: 1 },
+    ],
+  } })} /></MemoryRouter>);
+  expect(screen.getByRole("img", { name: "Gastos registrados por categoría: Renta 80%, Servicios 20%" })).toBeInTheDocument();
+});

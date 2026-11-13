@@ -2,7 +2,9 @@ import { useAuth } from "@/auth/useAuth";
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
-import { ClipboardList } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock, Repeat, Star, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { InitialsAvatar } from "@/components/visual";
 import { Link } from "react-router-dom";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
@@ -52,6 +54,12 @@ const statuses = {
   completed: "Completada",
   dismissed: "Descartada",
 };
+const kindIcons = { review: Star, rebuy: Repeat, incident: AlertTriangle };
+const statusChips = {
+  pending: { icon: Clock, variant: "warning" },
+  completed: { icon: CheckCircle2, variant: "success" },
+  dismissed: { icon: XCircle, variant: "secondary" },
+} as const;
 const fieldClass = "mt-1 min-w-0";
 export default function FollowupsView() {
   useDocumentTitle("Seguimiento después de la venta");
@@ -387,7 +395,7 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
       <section className="space-y-4" aria-label="Pendientes de postventa">
         <h2 className="text-xl font-semibold">Pendientes del equipo</h2>
         {!panel.loading && !panel.error && panel.data?.tasks.length === 0 && (
-          <ViewEmpty
+          <ViewEmpty illustration="people"
             icon={<ClipboardList className="h-6 w-6" aria-hidden="true" />}
             title="No hay tareas de postventa en esta página."
             body="Activa la regla cuando estés listo o registra una incidencia."
@@ -526,11 +534,12 @@ function FollowupCard({
 }) {
   return (
     <article className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5">
-      <p className="text-xs text-kova-muted">
-        {kinds[row.kind]} · {statuses[row.status]}
-      </p>
+      <FollowupChips row={row} />
       <h3 className="break-words font-semibold">{row.title}</h3>
-      <p className="break-words text-sm">{row.customer_name}</p>
+      <p className="flex min-w-0 items-center gap-2 text-sm">
+        <InitialsAvatar name={row.customer_name} size="sm" />
+        <span className="min-w-0 break-words">{row.customer_name}</span>
+      </p>
       {row.note && (
         <p className="whitespace-pre-wrap break-words text-sm text-kova-muted">
           {row.note}
@@ -568,5 +577,23 @@ function FollowupCard({
         </Button>
       )}
     </article>
+  );
+}
+
+function FollowupChips({ row }: { row: Task }) {
+  const KindIcon = kindIcons[row.kind];
+  const status = statusChips[row.status];
+  const StatusIcon = status.icon;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-kova-muted">
+      <span className="inline-flex items-center gap-1">
+        <KindIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {kinds[row.kind]}
+      </span>
+      <Badge variant={status.variant} className="gap-1">
+        <StatusIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
+        {statuses[row.status]}
+      </Badge>
+    </div>
   );
 }

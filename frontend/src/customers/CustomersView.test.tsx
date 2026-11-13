@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { CustomersView } from "./CustomersView";
-import { customerActivity, customerHistory, getCustomer, listCustomers, saveCustomer } from "./api";
+import { customerActivity, customerHistory, customerSummary, getCustomer, listCustomers, saveCustomer } from "./api";
 
 let manage = true;
 let historyAccess = true;
@@ -23,6 +23,7 @@ vi.mock("./api", () => ({
   customerHistory: vi.fn(),
   getCustomer: vi.fn(),
   customerActivity: vi.fn(),
+  customerSummary: vi.fn(),
 }));
 const customer = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -46,6 +47,7 @@ describe("Clientes", () => {
     vi.mocked(getCustomer).mockResolvedValue(customer);
     vi.mocked(customerHistory).mockResolvedValue({ customer, limit: 50, offset: 0, has_more: false, purchases: [] });
     vi.mocked(customerActivity).mockResolvedValue({ branch_id: "branch-1", sections: [] });
+    vi.mocked(customerSummary).mockResolvedValue({ customer_id: customer.id, branch_id: "branch-1", purchase_count: 0, net_spent_amount: "0.00", average_ticket_amount: null, last_purchase_at: null });
   });
   it("exposes the page content landmark and its browser title", () => {
     renderCustomers();

@@ -5,6 +5,7 @@ import { ArrowRight, PackageSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { Meter } from "@/components/visual";
 import { copy } from "@/i18n/messages";
 import {
   buildRestockPlan, inventoryProductLink, RESTOCK_HORIZONS, type RestockHorizon,
@@ -90,6 +91,14 @@ export function RestockPlan({
                       {item.available === null || item.reserved === null ? text.countFirst
                         : text.stock(item.stockOnHand, item.reserved, item.available)}
                     </p>
+                    {item.available !== null && item.targetUnits !== null && item.targetUnits > 0 ? (
+                      <Meter showLabel size="sm" className="max-w-md"
+                        label={`Disponible para ${text.horizon(horizon)}`}
+                        value={item.available}
+                        max={item.targetUnits}
+                        valueLabel={`${formatUnits(item.available)} de ${formatUnits(item.targetUnits)}`}
+                        tone={item.suggestedUnits === 0 ? "growth" : item.coverageDays !== null && item.coverageDays <= 3 ? "danger" : "warning"} />
+                    ) : null}
                     {item.suggestedUnits === null ? <p className="text-xs leading-5 text-kova-muted">{text.noEstimate}</p> : null}
                     <Link to={inventoryProductLink(item.productId)}
                       className="inline-flex min-h-11 items-center gap-1 rounded-kova-md text-sm font-medium text-kova-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue"

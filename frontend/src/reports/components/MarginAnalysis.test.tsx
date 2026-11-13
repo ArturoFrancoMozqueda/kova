@@ -82,3 +82,33 @@ describe("MarginAnalysis", () => {
     expect(screen.getByText(/Las ventas anteriores conservan su costo histórico/)).toBeVisible();
   });
 });
+
+it("ranks product profit as bars with its margin and leaves products without cost unvalued", () => {
+  renderMargin(true);
+  const list = screen.getByRole("list", { name: "Utilidad por producto" });
+  expect(list).toHaveTextContent("Concha$24.00Margen 60%");
+  expect(list).toHaveTextContent("MuffinSin costo");
+});
+
+it("draws exact daily gross profit and never charts an incomplete day as zero", () => {
+  render(
+    <MemoryRouter>
+      <MarginAnalysis story={makeStory({
+        margin: {
+          summary: { net_sales: "300.00", cogs: "120.00", gross_profit: "180.00", gross_margin_pct: "60.00", sold_products: 2, sold_products_without_cost: 0, complete: true },
+          by_day: [
+            { date: "2026-07-01", net_sales: "100.00", cogs: "40.00", gross_profit: "60.00", gross_margin_pct: "60.00", products_without_cost: 0, complete: true },
+            { date: "2026-07-02", net_sales: "50.00", cogs: null, gross_profit: null, gross_margin_pct: null, products_without_cost: 1, complete: false },
+            { date: "2026-07-03", net_sales: "200.00", cogs: "80.00", gross_profit: "120.00", gross_margin_pct: "60.00", products_without_cost: 0, complete: true },
+          ],
+          by_product: [],
+        },
+        inventory_valuation: { value: "10.00", known_value: "10.00", tracked_products: 1, products_without_cost: 0, units_without_cost: 0, complete: true },
+      })} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("img", { name: "Utilidad bruta por día. Mejor día 03/07 con $120.00; 1 día sin costo completo." })).toBeInTheDocument();
+  const trend = screen.getByTestId("margin-trend");
+  expect(trend.querySelectorAll("rect[stroke-dasharray]")).toHaveLength(1);
+  expect(screen.getByText("Las columnas punteadas son días con productos sin costo.")).toBeInTheDocument();
+});

@@ -571,7 +571,7 @@ function QuotesWorkspace({ identity, businessName, canCreate }: { identity: Work
             Propuestas y pedidos vinculados
           </h2>
           {page.items.length === 0 ? (
-            <ViewEmpty
+            <ViewEmpty illustration="clipboard"
               icon={<FileText className="h-6 w-6" />}
               title="Una propuesta clara para cada cliente"
               body="Crea una cotización con productos reales del catálogo y una vigencia. Sólo conviértela en pedido después de registrar la aceptación del cliente."

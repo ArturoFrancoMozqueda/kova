@@ -62,6 +62,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
 import { RegisterProductPhoto } from "./RegisterProductPhoto";
+import { ProductThumbnail } from "@/catalog/ProductThumbnail";
 import { exactSkuMatches, skuSearchMatches } from "./skuSearch";
 import { suggestCashBills } from "./cashSuggestions";
 import { ViewEmpty } from "@/components/ui/view-states";
@@ -1614,6 +1615,7 @@ function RegularRegisterView() {
               <ViewEmpty
                 bare
                 icon={<ShoppingBag className="h-6 w-6" />}
+                illustration="register"
                 title={copy.register.catalogPlaceholder}
                 body={copy.register.catalogPlaceholderBody}
                 primaryCta={
@@ -1758,6 +1760,9 @@ function RegularRegisterView() {
                       // row keeps its own look untouched.
                       <div key={cartKey} className="kv-row-collapse" data-state={state}>
                         <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in xl:rounded-none xl:border-x-0 xl:border-t-0 xl:bg-white xl:px-0">
+                          <div className="hidden shrink-0 min-[360px]:block" data-testid="cart-line-thumbnail">
+                            <ProductThumbnail product={item.product} />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">{item.product.name}</p>
                             {item.selectedModifiers.map((m) => (

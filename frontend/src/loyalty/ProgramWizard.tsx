@@ -59,14 +59,20 @@ const steps = ["Apariencia", "Acumulación", "Recompensa", "Revisión y acceso"]
 export function ProgramWizard({
   identity,
   onSaved,
+  onReward,
 }: {
   identity: WorkspaceIdentity;
   onSaved: () => void;
+  /** Shares the saved reward so the loyalty view can show progress toward it. */
+  onReward?: (reward: Reward | null) => void;
 }) {
   const panel = useOperationsPanel<Program>(
     "/api/v1/loyalty/program",
     identity,
   );
+  useEffect(() => {
+    if (panel.data) onReward?.(panel.data.reward);
+  }, [panel.data, onReward]);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);

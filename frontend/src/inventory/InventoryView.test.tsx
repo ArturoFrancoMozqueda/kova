@@ -374,3 +374,24 @@ it("loads core stock and minimum alerts without requesting or awaiting premium v
   expect(screen.queryByText(/No pudimos consultar la rotación/)).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Cargando alertas de inventario")).not.toBeInTheDocument();
 });
+
+it("draws available stock against the minimum and real days of coverage", async () => {
+  const low = { ...item, stock_on_hand: 3, available_quantity: 3, low_stock_threshold: 5, is_low_stock: true };
+  vi.mocked(listStock).mockResolvedValue([low]);
+  vi.mocked(listVelocity).mockResolvedValue([{ product_id: low.product_id, product_name: low.product_name, stock_on_hand: 3, units_per_day_7d: "1.5", days_until_out: "2.0" }]);
+  renderView();
+  const meter = await screen.findByRole("meter", { name: "Disponible de Café: 3 disponibles · mínimo 5" });
+  expect(meter).toHaveAttribute("aria-valuenow", "3");
+  expect(meter.firstElementChild).toHaveClass("bg-warning");
+  expect(await screen.findByText("2 días de cobertura")).toBeVisible();
+  expect(screen.getAllByText("Sin fotografía").length).toBeGreaterThan(0);
+});
+
+it("omits coverage without rotation data and marks depleted stock in danger", async () => {
+  const out = { ...item, stock_on_hand: 0, available_quantity: 0, low_stock_threshold: null, is_low_stock: true };
+  vi.mocked(listStock).mockResolvedValue([out]);
+  renderView();
+  const meter = await screen.findByRole("meter", { name: "Disponible de Café: 0 disponibles" });
+  expect(meter.firstElementChild).toHaveClass("bg-kova-danger");
+  expect(screen.queryByText(/de cobertura/)).not.toBeInTheDocument();
+});

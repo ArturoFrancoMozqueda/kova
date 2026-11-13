@@ -1,5 +1,6 @@
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
-import { MessagesSquare } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Bot, CheckCircle2, CircleDot, MessageCircle, MessagesSquare, PenLine, UserRound } from "lucide-react";
+import { InitialsAvatar } from "@/components/visual";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -374,7 +375,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         <section aria-label="Conversaciones" className="space-y-3">
           <h2 className="text-xl font-semibold">Conversaciones</h2>
           {!panel.loading && !panel.error && panel.data?.items.length === 0 && (
-            <ViewEmpty
+            <ViewEmpty illustration="chat"
               icon={<MessagesSquare className="h-6 w-6" aria-hidden="true" />}
               title="Todavía no hay conversaciones."
               body="Crea una interna para preparar la atención de un cliente."
@@ -398,15 +399,37 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               <span className="block break-words font-semibold">
                 {row.subject}
               </span>
-              <span className="block break-words text-sm">
-                {row.customer_name ?? row.contact_phone ?? "Cliente sin vincular"}
+              <span className="flex min-w-0 items-center gap-2 break-words text-sm">
+                {row.customer_name && <InitialsAvatar name={row.customer_name} size="sm" />}
+                <span className="min-w-0 break-words">
+                  {row.customer_name ?? row.contact_phone ?? "Cliente sin vincular"}
+                </span>
               </span>
-              <span className="block text-xs text-kova-muted">
-                {row.status === "open" ? "Abierta" : "Cerrada"} ·{" "}
-                {row.automation_paused
-                  ? "Atención humana"
-                  : "Automatización permitida"}{" "}
-                · {row.origin === "manual" ? "Interna" : "WhatsApp"}
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-kova-muted">
+                <span className="inline-flex items-center gap-1">
+                  {row.status === "open" ? (
+                    <CircleDot className="h-3.5 w-3.5 shrink-0 text-kova-blue" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  {row.status === "open" ? "Abierta" : "Cerrada"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  {row.automation_paused ? (
+                    <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Bot className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  {row.automation_paused ? "Atención humana" : "Automatización permitida"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  {row.origin === "manual" ? (
+                    <PenLine className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  )}
+                  {row.origin === "manual" ? "Interna" : "WhatsApp"}
+                </span>
               </span>
             </button>
           ))}
@@ -541,9 +564,16 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                     key={message.id}
                     className="min-w-0 space-y-2 rounded-xl bg-kova-mist p-4"
                   >
-                    <p className="text-xs font-medium">
-                      {message.direction === "inbound" ? "Cliente" : "Equipo"} ·{" "}
-                      {stateLabels[message.state]}
+                    <p className="flex items-center gap-1.5 text-xs font-medium">
+                      {message.direction === "inbound" ? (
+                        <ArrowDownLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      ) : (
+                        <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      )}
+                      <span>
+                        {message.direction === "inbound" ? "Cliente" : "Equipo"} ·{" "}
+                        {stateLabels[message.state]}
+                      </span>
                     </p>
                     <p className="whitespace-pre-wrap break-words text-sm">
                       {message.body ?? "Mensaje sin contenido de texto"}

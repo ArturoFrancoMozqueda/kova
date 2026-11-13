@@ -1,4 +1,5 @@
 import { useOptionalAuth } from "@/auth/useAuth";
+import { Store } from "lucide-react";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -108,13 +109,18 @@ export function BranchesSettings() {
                 key={branch.id}
                 className="flex items-center justify-between gap-3 py-3"
               >
-                <div className="min-w-0 break-words">
+                <div className="flex min-w-0 items-start gap-3 break-words">
+                  <span aria-hidden="true" className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-kova-mist text-kova-ink">
+                    <Store className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
                   <p className="font-medium">{branch.name}</p>
                   {branch.address ? (
                     <p className="text-sm text-muted-foreground">
                       {branch.address}
                     </p>
                   ) : null}
+                  </div>
                 </div>
                 <Button
                   variant="outline"
