@@ -186,6 +186,8 @@ test.describe("ciclo del negocio mediante UI con API, Postgres y RLS reales", ()
     const saleHistoryLink = page.locator("main").getByRole("link", { name: "Venta completada", exact: true });
     await expect(saleHistoryLink).toHaveAttribute("href", `/orders/${saleId}`);
     await expect(saleHistoryLink).not.toContainText(saleId.slice(0, 8));
+    await page.getByRole("dialog").press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // The real sidebar connects customer work to after-sales attention. Closing
     // the case never means refunding the sale or contacting the customer.

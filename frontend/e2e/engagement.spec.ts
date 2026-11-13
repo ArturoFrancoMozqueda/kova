@@ -244,6 +244,7 @@ for (const width of [1440, 768, 390, 320]) {
     ).toBeDisabled();
     await check();
     await page.goto("/followups");
+    await page.getByText("Configurar tareas después de una venta", { exact: true }).click();
     await page.getByRole("button", { name: "Revisar regla" }).click();
     await page.getByRole("button", { name: "Registrar incidencia" }).click();
     await expect(page.getByLabel("Asunto de la incidencia")).toBeVisible();

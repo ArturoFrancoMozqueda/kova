@@ -66,3 +66,6 @@ redondeo Decimal, cero puntos, acumulación/canje concurrentes con rol RLS, reve
 refund/void, saldo negativo, presupuesto de 103 devoluciones, billing/RBAC, aislamiento y worker.
 Dos pruebas de migración verifican conservación de ventas, rollback vacío reversible y rechazo
 del downgrade con historial. La validación local no sustituye aceptación productiva autorizada.
+
+La [configuración visual](program-designer.md) agrega un guardado atómico del programa; conserva
+las revisiones y el cálculo aquí descritos.

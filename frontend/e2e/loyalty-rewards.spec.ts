@@ -1,3 +1,4 @@
+import { openLoyaltyDesigner } from "./loyalty-program-helpers";
 import { expect, test, type Page } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 import axe from "axe-core";
@@ -40,14 +41,16 @@ for (const width of [390, 1440]) {
     await page.route("**/api/v1/billing/subscription", route => route.fulfill({ json: { subscription: { status: "active" }, access: { allowed: true, reason: "active", trialing: false } } }));
     await page.route("**/api/v1/loyalty?**", route => route.fulfill({ json: { policy: { enabled: true, spend_amount: "100.00", points_per_step: 5, version: 1 }, accounts: [], accounts_has_more: false } }));
     await page.route("**/api/v1/customers?**", route => route.fulfill({ json: [customer] }));
-    await page.route("**/api/v1/loyalty/rewards", route => {
+    await page.route("**/api/v1/loyalty/program", route => {
       if (route.request().method() === "PUT") {
-        const body = route.request().postDataJSON();
+        const programBody = route.request().postDataJSON();
+        const body = programBody.reward;
+        expect(programBody.policy.expected_version).toBe(1);
         expect(body).toEqual({ expected_version: 0, enabled: true, title: "Gracias por volver", points_cost: 20, discount_amount: "20.00" });
         expect(route.request().headers()["x-kova-expected-user"]).toBe("owner-1");
         reward = { id: "reward-1", version: 1, enabled: true, title: body.title, points_cost: body.points_cost, discount_amount: body.discount_amount };
       }
-      return route.fulfill({ json: reward });
+      return route.fulfill({ json: { business_name: "Café del Patio", policy: { enabled: true, spend_amount: "100.00", points_per_step: 5, version: 1 }, reward, enrollment: { enabled: false, version: 0 }, appearance: { color: "#0F1117", use_business_logo: true, version: 0, logo_url: null } } });
     });
     await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: [product] }));
     await page.route("**/api/v1/catalog/categories", route => route.fulfill({ json: [] }));
@@ -71,15 +74,16 @@ for (const width of [390, 1440]) {
     await page.route("**/api/v1/public/loyalty/cards", route => route.fulfill({ json: { business_name: "Café del Patio", branch_name: "Centro", balance, adjustments_pending: false, policy: { enabled: true, spend_amount: "100.00", points_per_step: 5 }, expires_at: "2099-11-26T12:00:00Z", catalog_path: "/catalogo/cafe-del-patio", reward } }));
 
     await page.goto("/loyalty");
-    await page.getByRole("button", { name: "Definir recompensa" }).click();
+    await openLoyaltyDesigner(page, "reward");
+    await expect(page.getByLabel("Ofrecer una recompensa en caja")).not.toBeChecked();
+    await page.getByLabel("Ofrecer una recompensa en caja").check();
     await expect(page.getByLabel("Nombre de la recompensa")).toHaveValue("");
-    await expect(page.getByLabel("Permitir nuevos canjes en caja")).not.toBeChecked();
     await page.getByLabel("Nombre de la recompensa").fill("Gracias por volver");
     await page.getByLabel("Puntos para canjear").fill("20");
     await page.getByLabel("Descuento en MXN").fill("20.00");
-    await page.getByLabel("Permitir nuevos canjes en caja").check();
-    await page.getByRole("button", { name: "Guardar recompensa" }).click();
-    await expect(page.getByRole("region", { name: "Recompensa en caja", exact: true }).getByRole("status")).toContainText("Recompensa guardada");
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await page.getByRole("button", { name: "Guardar tarjeta y programa" }).click();
+    await expect(page.getByRole("region", { name: "Programa de lealtad", exact: true }).getByRole("status")).toContainText("Programa guardado");
     await check(page);
 
     role = "cashier";

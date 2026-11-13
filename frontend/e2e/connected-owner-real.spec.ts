@@ -47,7 +47,7 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       await expect(profile.getByRole("heading", { name: "Cliente recorrido local", exact: true })).toBeFocused();
       await profile.getByRole("link", { name: "Agendar cita", exact: true }).click();
       await expect(page.getByLabel("Cliente de la cita")).toHaveValue(prepared.customer_id);
-      await page.getByLabel("Recurso de la cita").selectOption(prepared.resource_id);
+      await page.getByLabel("Persona o espacio de la cita").selectOption(prepared.resource_id);
       await page.getByLabel("Motivo de la cita").fill("Atención del recorrido local");
       const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
       await page.getByLabel("Inicio de la cita").fill(`${day}T10:00`);
@@ -62,6 +62,7 @@ test.describe("cliente, cita y venta con API, Postgres y RLS reales", () => {
       expect(booking.sale).toBeNull();
       expect((await (await page.request.get("/api/v1/orders")).json()).total).toBe(0);
 
+      await page.getByText("Detalle de citas y actividad anterior", { exact: true }).click();
       const appointment = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Atención del recorrido local", exact: true }) });
       await appointment.getByRole("link", { name: "Cobrar al cliente", exact: true }).click();
       await expect(page.getByRole("region", { name: "Continuar con el cliente" })).toContainText("Venta para Cliente recorrido local");

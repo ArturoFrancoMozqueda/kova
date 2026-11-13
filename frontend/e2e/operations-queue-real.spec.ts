@@ -308,6 +308,7 @@ test.describe("cola operativa con API, Postgres y RLS reales", () => {
         .getByRole("region", { name: "Registro del enlace" })
         .getByRole("heading", { name: "Revisar una cita vigente de la cola" }),
     ).toBeVisible();
+    await page.getByText("Detalle de citas y actividad anterior", { exact: true }).click();
     await page
       .getByRole("button", {
         name: "Reprogramar Revisar una cita vigente de la cola",

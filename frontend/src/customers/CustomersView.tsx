@@ -1,3 +1,5 @@
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
+import { PersonalBookingLink } from "@/appointments/BookingSettings";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -49,6 +51,7 @@ export function CustomersView() {
 
 function CustomersWorkspace() {
   useDocumentTitle(t.title);
+  const { state } = useAuth();
   const canManage = usePermission(CUSTOMERS_MANAGE_PERMISSION);
   const canHistory = usePermission(CUSTOMERS_HISTORY_PERMISSION);
   const canSell = usePermission(ORDER_CREATE_PERMISSION);
@@ -226,93 +229,6 @@ function CustomersWorkspace() {
           {error}
         </p>
       )}
-      {(profileLoading || profileError || selected) && (
-        <Card>
-          <section className="space-y-4 p-5" aria-label="Ficha del cliente" aria-busy={profileLoading}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 ref={profileHeading} tabIndex={-1} className="text-lg font-semibold outline-none">{selected?.name ?? "Ficha del cliente"}</h2>
-                {selected && <p className="text-sm text-muted-foreground">{[selected.email, selected.phone].filter(Boolean).join(" · ") || t.noContact}</p>}
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
-            </div>
-            {profileLoading && <SectionSkeleton label="Cargando cliente…" variant="form" />}
-            {profileError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive-strong">{profileError}</p><Button variant="outline" size="sm" disabled={profileLoading} onClick={() => setRevision((value) => value + 1)}>Reintentar cliente</Button></div>}
-            {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
-            {selected?.is_active && <div className="flex flex-wrap gap-2">
-              {canSell && <Link className={buttonVariants()} to={`/register?customerId=${encodeURIComponent(selected.id)}`}>Nueva venta</Link>}
-              {canCreatePedido && pedidosEnabled && <Link className={buttonVariants({ variant: "outline" })} to={`/pedidos/nuevo?customerId=${encodeURIComponent(selected.id)}`}>Nuevo pedido</Link>}
-              {canHistory && <Link className={buttonVariants({ variant: "outline" })} to={`/appointments?customerId=${encodeURIComponent(selected.id)}`}>Agendar cita</Link>}
-            </div>}
-            {selected && canHistory && <CustomerActivityPanel key={selected.id} customerId={selected.id} />}
-            {historyLoading && <SectionSkeleton label="Cargando compras del cliente…" />}
-          </section>
-        </Card>
-      )}
-      {selected && canHistory && history?.customer.id === selected.id && (
-        <Card>
-          <section className="space-y-3 p-5" aria-label={t.history}>
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold">
-                {t.historyTitle(history.customer.name)}
-              </h2>
-            </div>
-            <p className="text-sm text-muted-foreground">{t.historyHint}</p>
-            {history.purchases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t.historyEmpty}</p>
-            ) : (
-              <ul className="divide-y">
-                {history.purchases.map((sale) => (
-                  <li key={sale.id} className="flex justify-between gap-3 py-3">
-                    <div>
-                      <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
-                      <Link to={`/orders/${sale.id}`} className="text-xs text-primary underline underline-offset-4">
-                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}
-                      </Link>
-                    </div>
-                    <div className="text-right tabular-nums">
-                      <p className="font-medium">{money(sale.total_amount)}</p>
-                      {Number(sale.refunded_amount) > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          {t.refunded(money(sale.refunded_amount))}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {(history.offset > 0 || history.has_more) && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={history.offset === 0 || historyLoading}
-                  onClick={() =>
-                    void showHistory(
-                      history.customer.id,
-                      Math.max(0, history.offset - history.limit),
-                    )
-                  }
-                >
-                  {t.olderPurchases}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!history.has_more || historyLoading}
-                  onClick={() =>
-                    void showHistory(
-                      history.customer.id,
-                      history.offset + history.limit,
-                    )
-                  }
-                >
-                  {t.morePurchases}
-                </Button>
-              </div>
-            )}
-          </section>
-        </Card>
-      )}
       {editing !== undefined && canManage && (
         <Card>
           <CardContent className="p-5">
@@ -420,7 +336,7 @@ function CustomersWorkspace() {
             ))}
           </CardContent>
         </Card>
-      ) : rows.length === 0 ? (
+      ) : error ? null : rows.length === 0 ? (
         <ViewEmpty
           icon={q ? <Search className="h-6 w-6" /> : <Users className="h-6 w-6" />}
           title={q ? t.noResultsTitle : t.emptyTitle}
@@ -486,6 +402,98 @@ function CustomersWorkspace() {
           </ul>
         </Card>
       )}
+      <Dialog open={Boolean(selectedId)} onClose={() => selectCustomer(null)} className="space-y-5 sm:max-w-3xl">
+        <DialogTitle>Ficha del cliente</DialogTitle>
+      {(profileLoading || profileError || selected) && (
+        <Card>
+          <section className="space-y-4 p-5" aria-label="Ficha del cliente" aria-busy={profileLoading}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 ref={profileHeading} tabIndex={-1} className="text-lg font-semibold outline-none">{selected?.name ?? "Ficha del cliente"}</h2>
+                {selected && <p className="text-sm text-muted-foreground">{[selected.email, selected.phone].filter(Boolean).join(" · ") || t.noContact}</p>}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => selectCustomer(null)}>{t.close}</Button>
+            </div>
+            {profileLoading && <SectionSkeleton label="Cargando cliente…" variant="form" />}
+            {profileError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive-strong">{profileError}</p><Button variant="outline" size="sm" disabled={profileLoading} onClick={() => setRevision((value) => value + 1)}>Reintentar cliente</Button></div>}
+            {selected && !selected.is_active && <p className="text-sm text-muted-foreground">Cliente inactivo. Su historial se conserva; reactívalo para registrar una nueva venta o cita.</p>}
+            {selected?.is_active && <div className="flex flex-wrap gap-2">
+              {canSell && <Link className={buttonVariants()} to={`/register?customerId=${encodeURIComponent(selected.id)}`}>Nueva venta</Link>}
+              {canCreatePedido && pedidosEnabled && <Link className={buttonVariants({ variant: "outline" })} to={`/pedidos/nuevo?customerId=${encodeURIComponent(selected.id)}`}>Nuevo pedido</Link>}
+              {canHistory && <Link className={buttonVariants({ variant: "outline" })} to={`/appointments?customerId=${encodeURIComponent(selected.id)}`}>Agendar cita</Link>}
+            </div>}
+            {selected?.is_active && canHistory && state.status === "authenticated" && <PersonalBookingLink identity={{ tenantId: state.tenantId, userId: state.user.id, branchId: getActiveBranchId(state.tenantId, state.user.id) }} customerId={selected.id} />}
+            {selected && state.status === "authenticated" && state.user.role === "owner" && <Link className="inline-flex min-h-11 items-center text-sm underline" to={`/loyalty?customerId=${encodeURIComponent(selected.id)}`}>Consultar puntos y tarjeta</Link>}
+            {selected && canHistory && <CustomerActivityPanel key={selected.id} customerId={selected.id} />}
+            {historyLoading && <SectionSkeleton label="Cargando compras del cliente…" />}
+          </section>
+        </Card>
+      )}
+      {selected && canHistory && history?.customer.id === selected.id && (
+        <Card>
+          <section className="space-y-3 p-5" aria-label={t.history}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-semibold">
+                {t.historyTitle(history.customer.name)}
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">{t.historyHint}</p>
+            {history.purchases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.historyEmpty}</p>
+            ) : (
+              <ul className="divide-y">
+                {history.purchases.map((sale) => (
+                  <li key={sale.id} className="flex justify-between gap-3 py-3">
+                    <div>
+                      <p className="text-sm">{new Date(sale.occurred_at).toLocaleString("es-MX")}</p>
+                      <Link to={`/orders/${sale.id}`} className="text-xs text-primary underline underline-offset-4">
+                        {sale.status === "voided" ? t.saleVoided : t.saleCompleted}
+                      </Link>
+                    </div>
+                    <div className="text-right tabular-nums">
+                      <p className="font-medium">{money(sale.total_amount)}</p>
+                      {Number(sale.refunded_amount) > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {t.refunded(money(sale.refunded_amount))}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(history.offset > 0 || history.has_more) && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={history.offset === 0 || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      Math.max(0, history.offset - history.limit),
+                    )
+                  }
+                >
+                  {t.olderPurchases}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!history.has_more || historyLoading}
+                  onClick={() =>
+                    void showHistory(
+                      history.customer.id,
+                      history.offset + history.limit,
+                    )
+                  }
+                >
+                  {t.morePurchases}
+                </Button>
+              </div>
+            )}
+          </section>
+        </Card>
+      )}
+      </Dialog>
       {(offset > 0 || rows.length >= 100) && (
         <div className="flex gap-2">
           <Button

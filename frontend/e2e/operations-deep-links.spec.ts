@@ -216,10 +216,14 @@ for (const width of [320, 390, 768, 1440])
       // their rendered colors after finite entrance animations have completed;
       // measuring a partially transparent empty state produces a timing-dependent
       // contrast value instead of the screen's final accessible appearance.
+      // Agenda keeps the previous-activity section folded while a reminder is
+      // open. Its hidden entrance animations wait until that section expands.
       await page.locator("main").evaluate(async (main) => {
-        const entrances = main.getAnimations({ subtree: true }).filter((animation) =>
-          animation.effect?.getComputedTiming().iterations !== Infinity,
-        );
+        const entrances = main.getAnimations({ subtree: true }).filter((animation) => {
+          const target = (animation.effect as KeyframeEffect | null)?.target;
+          return animation.effect?.getComputedTiming().iterations !== Infinity
+            && target instanceof Element && target.checkVisibility();
+        });
         await Promise.all(entrances.map((animation) => animation.finished.catch(() => undefined)));
       });
       await page.addScriptTag({ content: axe.source });

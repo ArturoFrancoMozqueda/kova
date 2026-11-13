@@ -17,6 +17,7 @@ export default function PWAUpdatePrompt() {
     location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname === "/signup" ||
+    location.pathname.startsWith("/reservar/") ||
     location.pathname.startsWith("/catalogo/") ||
     isPrivateCustomerPage(location.pathname) ||
     location.pathname.startsWith("/verify-email");

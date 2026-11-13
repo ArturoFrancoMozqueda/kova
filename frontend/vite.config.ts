@@ -150,6 +150,7 @@ export default defineConfig({
           /^\/privacy/,
           /^\/terms/,
           /^\/cookies/,
+          /^\/reservar\//,
           /^\/lealtad(?:[/?]|$)/,
           /^\/seguimiento(?:[/?]|$)/,
           /^\/catalogo\//,

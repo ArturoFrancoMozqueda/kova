@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.billing.access import require_commercial_access
 from app.db import get_db
-from app.loyalty import rewards, service
+from app.loyalty import program, rewards, service
 from app.loyalty.cards import create_link
+from app.loyalty.program import ProgramResponse, ProgramWrite
 from app.loyalty.schemas import (
     DigitalCardLink,
     LoyaltyAccountResponse,
@@ -33,6 +34,23 @@ def require_loyalty(ctx=Depends(require_commercial_access(Permission.SETTINGS_MA
     return ctx
 
 
+@router.get("/program", response_model=ProgramResponse)
+def read_program(db: Session = Depends(get_db), ctx=Depends(require_loyalty)):
+    return program.read(db, ctx[1].tenant_id)
+
+
+@router.put("/program", response_model=ProgramResponse)
+def save_program(
+    body: ProgramWrite,
+    response: Response,
+    key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_loyalty),
+):
+    response.status_code, result = program.save(db, ctx[1].tenant_id, ctx[0].id, body, key)
+    return result
+
+
 @router.get("/rewards", response_model=LoyaltyRewardResponse | None)
 def reward_policy(db: Session = Depends(get_db), ctx=Depends(require_loyalty)):
     return rewards.describe(rewards.latest(db, ctx[1].tenant_id))
@@ -40,9 +58,11 @@ def reward_policy(db: Session = Depends(get_db), ctx=Depends(require_loyalty)):
 
 @router.put("/rewards", response_model=LoyaltyRewardResponse)
 def save_reward_policy(
-    body: LoyaltyRewardWrite, response: Response,
+    body: LoyaltyRewardWrite,
+    response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
-    db: Session = Depends(get_db), ctx=Depends(require_loyalty),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_loyalty),
 ):
     response.status_code, result = rewards.save(db, ctx[1].tenant_id, ctx[0].id, body, key)
     return result
@@ -50,7 +70,8 @@ def save_reward_policy(
 
 @router.get("/rewards/offer", response_model=LoyaltyRewardOffer)
 def reward_offer(
-    customer_id: UUID, db: Session = Depends(get_db),
+    customer_id: UUID,
+    db: Session = Depends(get_db),
     ctx=Depends(require_commercial_access(Permission.ORDERS_CREATE)),
 ):
     return rewards.offer(db, ctx[1].tenant_id, customer_id)
@@ -58,7 +79,8 @@ def reward_offer(
 
 @router.post("/rewards/checkout", response_model=OrderResponse, status_code=201)
 def reward_checkout(
-    body: LoyaltyRewardCheckout, response: Response,
+    body: LoyaltyRewardCheckout,
+    response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
     ctx=Depends(require_commercial_access(Permission.ORDERS_CREATE)),

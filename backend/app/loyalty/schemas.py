@@ -80,7 +80,16 @@ class PublicCardRead(StrictModel):
     token: str
 
 
+class LoyaltyAppearanceResponse(BaseModel):
+    color: str = "#0F1117"
+    use_business_logo: bool = True
+    version: int = 0
+    logo_url: str | None = None
+
+
 class PublicLoyaltyCard(BaseModel):
+    appearance: LoyaltyAppearanceResponse | None = None
+    booking_path: str | None = None
     business_name: str
     branch_name: str
     balance: int

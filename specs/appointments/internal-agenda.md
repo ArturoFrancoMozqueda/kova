@@ -77,3 +77,6 @@ completa atención ni envía avisos. Dos atribuciones simultáneas de la misma v
 La respuesta de cita añade `sale` nullable con ID, estado vigente, importe original, suma real de
 devoluciones y fecha. Anulaciones/devoluciones posteriores se reflejan al consultar; no se etiqueta
 una cita atendida como pagada. Las listas agregan devoluciones por página, sin una consulta por cita.
+
+La ampliación de calendario y reservas públicas se describe en [reservas públicas](public-booking.md).
+Los contratos internos de este documento permanecen; su bloqueo también protege contra reservas públicas.

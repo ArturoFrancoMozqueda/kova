@@ -194,6 +194,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
     await expect(page.getByRole("status").filter({ hasText: "Oportunidad creada con el cliente que elegiste" })).toBeVisible();
 
     await page.goto("/followups");
+    await page.getByText("Configurar tareas después de una venta", { exact: true }).click();
     await page.getByRole("button", { name: "Revisar regla" }).click();
     await page.getByRole("checkbox", { name: "Crear pendientes a partir de ventas reales" }).check();
     await page.getByRole("button", { name: "Confirmar regla", exact: true }).click();
@@ -268,6 +269,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
     expect(journeyAfter.recorded_payments_amount).toBe("100.00");
     expect(journeyAfter.external_collection_verified).toBe(false);
     await page.goto("/followups");
+    await page.getByText("Configurar tareas después de una venta", { exact: true }).click();
     await page.getByRole("button", { name: "Generar pendientes" }).click();
     await expect(page.getByRole("heading", { name: "Solicitar una reseña honesta sobre la compra" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Revisar si corresponde seguimiento de recompra" })).toBeVisible();

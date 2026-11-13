@@ -6,7 +6,7 @@ import { customerActivity, type CustomerActivity, type CustomerActivitySource } 
 const sources: Record<CustomerActivitySource, { title: string; href: (id: string) => string }> = {
   appointments: { title: "Citas", href: (id) => `/appointments?appointmentId=${encodeURIComponent(id)}` },
   customer_orders: { title: "Pedidos", href: (id) => `/pedidos/${encodeURIComponent(id)}` },
-  opportunities: { title: "Seguimiento comercial", href: (id) => `/crm?opportunity_id=${encodeURIComponent(id)}` },
+  opportunities: { title: "Oportunidades", href: (id) => `/crm?opportunity_id=${encodeURIComponent(id)}` },
   followups: { title: "Postventa", href: (id) => `/followups?task_id=${encodeURIComponent(id)}` },
   service_cases: { title: "Casos de atención", href: (id) => `/service-cases?case_id=${encodeURIComponent(id)}` },
 };
@@ -37,7 +37,7 @@ function ActivitySource({ section }: { section: ActivitySection }) {
       <ul className="mt-2 divide-y">
         {items.map((item) => (
           <li key={item.id} className="py-2">
-            <Link to={source.href(item.id)} className="break-words text-sm font-medium text-primary underline underline-offset-4">
+            <Link to={item.booking_id ? `/appointments?bookingId=${encodeURIComponent(item.booking_id)}` : source.href(item.id)} className="break-words text-sm font-medium text-primary underline underline-offset-4">
               {item.title}
             </Link>
             <p className="text-xs text-muted-foreground">

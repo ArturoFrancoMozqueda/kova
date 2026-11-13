@@ -1,3 +1,4 @@
+import { CardFace, type CardAppearance } from "./CardFace";
 import { useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Copy, Gift, RefreshCw, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,8 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { Reward } from "@/loyalty/rewards/api";
 
 export type PublicLoyaltyCardData = {
+  appearance?: CardAppearance | null;
+  booking_path?: string | null;
   business_name: string;
   branch_name: string;
   balance: number;
@@ -54,14 +57,10 @@ export function LoyaltyCardScreen({ data, loading = false, error = "", missing =
         <p role="alert" className="mt-3 text-sm leading-relaxed text-kova-muted">{error}</p>
         <Button type="button" variant="outline" className="mt-5" onClick={onRefresh}>Volver a intentar</Button>
       </section> : data && <>
-        <section aria-label="Tu saldo de lealtad" className="relative isolate flex aspect-[1.58] min-h-44 flex-col justify-between overflow-hidden rounded-[1.5rem] bg-kova-ink p-5 text-white shadow-[0_12px_30px_-16px_rgba(15,17,23,0.45)] sm:p-6">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,rgba(53,99,208,0.35),transparent_65%)]" aria-hidden="true" />
-          <div className="pointer-events-none absolute -right-14 -top-20 -z-10 h-64 w-64 rounded-full border border-white/10" aria-hidden="true" />
-          <div className="pointer-events-none absolute -bottom-28 -right-6 -z-10 h-56 w-56 rounded-full border border-white/10" aria-hidden="true" />
-          <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/80">Tarjeta de lealtad</p><Gift className="h-5 w-5 text-white/80" aria-hidden="true" /></div>
-          <div className="flex flex-wrap items-baseline gap-x-2 py-3"><output aria-label="Tus puntos" className="max-w-full break-all text-5xl font-semibold leading-none tracking-tight tabular-nums sm:text-6xl">{points(data.balance)}</output><span className="text-base text-white/80">{data.balance === 1 ? "punto" : "puntos"}</span></div>
-          <div className="flex items-center justify-between gap-3 border-t border-white/15 pt-3"><p className="flex items-center gap-2 text-[11px] text-white/85"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${data.adjustments_pending ? "bg-amber-300" : data.policy.enabled ? "bg-[#A9C6FF]" : "bg-white/50"}`} aria-hidden="true" />{data.adjustments_pending ? "Saldo en revisión" : data.policy.enabled ? "Acumulación activa" : "Acumulación pausada por el negocio"}</p><span className="text-[10px] tracking-wide text-white/60" aria-hidden="true">KOVA</span></div>
-        </section>
+        <CardFace label="Tu saldo de lealtad" appearance={data.appearance} businessName={data.business_name}>
+          <div className="flex flex-wrap items-baseline gap-x-2"><output aria-label="Tus puntos" className="max-w-full break-all text-5xl font-semibold leading-none tracking-tight tabular-nums sm:text-6xl">{points(data.balance)}</output><span className="text-base opacity-80">{data.balance === 1 ? "punto" : "puntos"}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/20 pt-3"><p className="text-xs">{data.adjustments_pending ? "Saldo en revisión" : data.policy.enabled ? "Acumulación activa" : "Acumulación pausada por el negocio"}</p><span className="text-[10px] opacity-70" aria-hidden="true">KOVA</span></div>
+        </CardFace>
         {data.reward?.enabled && <section aria-label="Tu próxima recompensa" className="space-y-2 rounded-xl border border-kova-border bg-white p-4 text-sm">
           {readyReward && <p className="flex items-center gap-1.5 text-xs font-medium text-kova-blue"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Disponible para ti</p>}
           <p className="font-semibold">{data.reward.title}</p><p className="text-xs text-kova-muted">{points(data.reward.points_cost)} puntos por {money(data.reward.discount_amount)} MXN de descuento.</p>
@@ -85,6 +84,7 @@ export function LoyaltyCardScreen({ data, loading = false, error = "", missing =
           </details>
         </section>}
         <div className="space-y-2.5">
+          {data.booking_path && /^\/reservar\/[^/?#]+(?:\?menu=[^&#]+)?$/.test(data.booking_path) && <a href={data.booking_path} className="flex min-h-12 items-center justify-between rounded-xl border border-kova-border bg-white px-4 py-3 text-sm font-medium">Reservar una cita<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
           {catalogPath && <a href={catalogPath} className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-kova-blue px-4 py-3 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kova-blue"><span className="inline-flex items-center gap-2"><ShoppingBag className="h-4 w-4" aria-hidden="true" />Ver menú del negocio</span><ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
           <Button type="button" variant="ghost" className="w-full text-kova-muted" onClick={onRefresh}><RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />Actualizar puntos</Button>
         </div>

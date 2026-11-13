@@ -1,6 +1,9 @@
 """Bounded, read-only customer context from the current branch's existing records."""
 
+from sqlalchemy import literal, union_all
+
 from app.appointments.models import Appointment
+from app.bookings.models import PublicBooking
 from app.branches.scope import active_branch_id
 from app.crm.engagement_models import FollowupTask
 from app.crm.models import Opportunity
@@ -25,23 +28,41 @@ def read_activity(db, *, tenant_id, customer_id, include_customer_orders=True):
             ("customer_orders", CustomerOrder, CustomerOrder.status, CustomerOrder.promised_at)
         )
     for source, model, state, due in sources:
-        rows = (
-            db.query(
-                model.id,
-                (model.folio if source == "customer_orders" else model.title).label("title"),
-                state.label("state"),
-                model.created_at,
-                due.label("due_at"),
-            )
-            .filter(
-                model.tenant_id == tenant_id,
-                model.branch_id == branch_id,
-                model.customer_id == customer_id,
-            )
-            .order_by(model.created_at.desc(), model.id)
-            .limit(ACTIVITY_LIMIT + 1)
-            .all()
+        base = db.query(
+            model.id,
+            (model.folio if source == "customer_orders" else model.title).label("title"),
+            state.label("state"),
+            model.created_at,
+            due.label("due_at"),
+            literal(None).label("booking_id"),
+        ).filter(
+            model.tenant_id == tenant_id,
+            model.branch_id == branch_id,
+            model.customer_id == customer_id,
         )
+        if source == "appointments":
+            public = db.query(
+                PublicBooking.id,
+                PublicBooking.title,
+                PublicBooking.status.label("state"),
+                PublicBooking.created_at,
+                PublicBooking.starts_at.label("due_at"),
+                PublicBooking.id.label("booking_id"),
+            ).filter(
+                PublicBooking.tenant_id == tenant_id,
+                PublicBooking.branch_id == branch_id,
+                PublicBooking.customer_id == customer_id,
+                PublicBooking.appointment_id.is_(None),
+            )
+            combined = union_all(base.statement, public.statement).subquery()
+            rows = (
+                db.query(combined)
+                .order_by(combined.c.created_at.desc(), combined.c.id)
+                .limit(ACTIVITY_LIMIT + 1)
+                .all()
+            )
+        else:
+            rows = base.order_by(model.created_at.desc(), model.id).limit(ACTIVITY_LIMIT + 1).all()
         sections.append(
             CustomerActivitySection(
                 source=source,

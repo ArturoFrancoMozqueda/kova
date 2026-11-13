@@ -76,3 +76,5 @@ en `specs/` (`.feature`) y se ejecutan desde `backend/app/tests/bdd/`.
   vigentes pasan a un documento base, ADR o runbook y el archivo se borra. Git conserva el
   historial.
 - No dupliques lo que ya dice el código. Enlaza el archivo en su lugar.
+
+- [Validación local de Clientes, lealtad y reservas](testing-clients-booking.md).

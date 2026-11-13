@@ -1,7 +1,14 @@
 import { MemoryRouter } from "react-router-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import AppointmentsView from "./AppointmentsView";
+// These regressions exercise the retained detailed/list controls, now a secondary view.
+const render = (ui: React.ReactNode) => {
+  const result = renderView(ui);
+  const summary = screen.queryByText("Detalle de citas y actividad anterior");
+  if (summary && !(summary.parentElement as HTMLDetailsElement).open) fireEvent.click(summary);
+  return result;
+};
 const session = vi.hoisted(() => ({
   role: "owner",
   branch: "branch-1",
@@ -78,7 +85,7 @@ it("creates a booking using the selected resource zone, never the device clock",
   );
   fireEvent.click(await screen.findByRole("button", { name: "Nueva cita" }));
   await screen.findByRole("option", { name: customer.name });
-  fireEvent.change(screen.getByLabelText("Recurso de la cita"), {
+  fireEvent.change(screen.getByLabelText("Persona o espacio de la cita"), {
     target: { value: resource.id },
   });
   fireEvent.change(screen.getByLabelText("Cliente de la cita"), {
@@ -127,7 +134,7 @@ it("preserves a new appointment draft when its header action folds and reopens t
   fireEvent.click(action);
   await screen.findByRole("option", { name: customer.name });
   const fields = {
-    "Recurso de la cita": resource.id,
+    "Persona o espacio de la cita": resource.id,
     "Cliente de la cita": customer.id,
     "Motivo de la cita": "Consulta por confirmar",
     "Inicio de la cita": "2099-10-20T10:00",
@@ -162,7 +169,7 @@ it("reprograms with expected version and keeps resource timezone visible", async
   );
   expect(
     screen.getByText(/La zona del dispositivo no modifica/),
-  ).toHaveTextContent("America/Mexico_City");
+  ).toHaveTextContent("Ciudad de México");
   fireEvent.change(screen.getByLabelText("Inicio de la cita"), {
     target: { value: "2099-10-21T10:00" },
   });
@@ -299,7 +306,7 @@ it("keeps an ambiguous clock out of the API", async () => {
   );
   fireEvent.click(await screen.findByRole("button", { name: "Nueva cita" }));
   await screen.findByRole("option", { name: customer.name });
-  fireEvent.change(screen.getByLabelText("Recurso de la cita"), {
+  fireEvent.change(screen.getByLabelText("Persona o espacio de la cita"), {
     target: { value: resource.id },
   });
   fireEvent.change(screen.getByLabelText("Cliente de la cita"), {
@@ -467,8 +474,8 @@ it("guides an empty agenda directly to adding a person or space and focuses the 
   const action = await screen.findByRole("button", { name: "Agregar persona o espacio" });
   expect(action).toBeEnabled();
   fireEvent.click(action);
-  expect(screen.getByLabelText("Nombre del recurso")).toHaveFocus();
-  expect(screen.getByRole("heading", { name: "Nuevo recurso" })).toBeVisible();
+  expect(screen.getByLabelText("Nombre de la persona o espacio")).toHaveFocus();
+  expect(screen.getByRole("heading", { name: "Nueva persona o espacio" })).toBeVisible();
   expect(action).toHaveAttribute("aria-controls", "appointment-resource-form");
   expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
 });

@@ -69,7 +69,7 @@ def test_customer_context_is_branch_and_customer_scoped_with_real_states(client,
         item = rows[source]["items"][0]
         assert item["id"] == str(row.id)
         assert item["state"] == state
-        assert set(item) == {"id", "title", "state", "created_at", "due_at"}
+        assert set(item) == {"id", "title", "state", "created_at", "due_at", "booking_id"}
     for private in (customer.phone, customer.email, "Nota privada", "estimated_amount"):
         assert private not in str(result)
     scoped = client.get(

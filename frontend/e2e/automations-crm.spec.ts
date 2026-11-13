@@ -138,7 +138,7 @@ for (const width of [1440, 768, 390, 320]) {
     );
     await page.goto("/crm");
     await expect(
-      page.getByRole("heading", { name: "Seguimiento comercial", exact: true }),
+      page.getByRole("heading", { name: "Oportunidades", exact: true }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Nueva oportunidad", exact: true })

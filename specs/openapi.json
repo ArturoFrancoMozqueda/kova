@@ -93,6 +93,32 @@
         "title": "AnonymousTelemetrySessionResponse",
         "type": "object"
       },
+      "AppearanceWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "default": "#0F1117",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "use_business_logo": {
+            "default": true,
+            "title": "Use Business Logo",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "AppearanceWrite",
+        "type": "object"
+      },
       "AppointmentCreate": {
         "additionalProperties": false,
         "properties": {
@@ -152,6 +178,13 @@
               "$ref": "#/components/schemas/AppointmentHistoryResponse"
             },
             "title": "Items",
+            "type": "array"
+          },
+          "public_changes": {
+            "items": {
+              "$ref": "#/components/schemas/PublicAppointmentChange"
+            },
+            "title": "Public Changes",
             "type": "array"
           }
         },
@@ -866,6 +899,39 @@
         "title": "AutomationOverview",
         "type": "object"
       },
+      "AvailabilityWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/ExceptionDay"
+            },
+            "maxItems": 366,
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "weekly": {
+            "items": {
+              "$ref": "#/components/schemas/Day"
+            },
+            "maxItems": 7,
+            "title": "Weekly",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_version",
+          "weekly",
+          "exceptions"
+        ],
+        "title": "AvailabilityWrite",
+        "type": "object"
+      },
       "BatchResponse": {
         "properties": {
           "created_at": {
@@ -1037,6 +1103,133 @@
           "access"
         ],
         "title": "BillingSubscriptionResponse",
+        "type": "object"
+      },
+      "BookingReceipt": {
+        "properties": {
+          "calendar_uid": {
+            "title": "Calendar Uid",
+            "type": "string"
+          },
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "manage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manage Path"
+          },
+          "resource_name": {
+            "title": "Resource Name",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calendar_uid",
+          "title",
+          "resource_name",
+          "starts_at",
+          "ends_at",
+          "timezone",
+          "status",
+          "version",
+          "can_manage"
+        ],
+        "title": "BookingReceipt",
+        "type": "object"
+      },
+      "BookingWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "identity_token": {
+            "anyOf": [
+              {
+                "maxLength": 2500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Token"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "page_token": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Page Token",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 30,
+            "minLength": 7,
+            "pattern": "^[+0-9 ()-]+$",
+            "title": "Phone",
+            "type": "string"
+          },
+          "resource_id": {
+            "format": "uuid",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "service_id": {
+            "format": "uuid",
+            "title": "Service Id",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "page_token",
+          "service_id",
+          "resource_id",
+          "starts_at",
+          "name",
+          "phone"
+        ],
+        "title": "BookingWrite",
         "type": "object"
       },
       "BranchComparisonResponse": {
@@ -3586,6 +3779,18 @@
       },
       "CustomerActivityItem": {
         "properties": {
+          "booking_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -5081,6 +5286,31 @@
         "title": "DashboardOverviewResponse",
         "type": "object"
       },
+      "Day": {
+        "additionalProperties": false,
+        "properties": {
+          "weekday": {
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Weekday",
+            "type": "integer"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/Window"
+            },
+            "maxItems": 10,
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "weekday",
+          "windows"
+        ],
+        "title": "Day",
+        "type": "object"
+      },
       "DeepLink": {
         "properties": {
           "label": {
@@ -5680,6 +5910,30 @@
           "environment"
         ],
         "title": "EnvironmentInput",
+        "type": "object"
+      },
+      "ExceptionDay": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/Window"
+            },
+            "maxItems": 10,
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "windows"
+        ],
+        "title": "ExceptionDay",
         "type": "object"
       },
       "ExpenseCreate": {
@@ -8304,6 +8558,21 @@
         "title": "InvitationResponse",
         "type": "object"
       },
+      "InviteWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id"
+        ],
+        "title": "InviteWrite",
+        "type": "object"
+      },
       "InvoiceLinePreparation": {
         "additionalProperties": false,
         "properties": {
@@ -8526,6 +8795,27 @@
           "created_at"
         ],
         "title": "InvoiceRequestResponse",
+        "type": "object"
+      },
+      "LinkCustomer": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "customer_id"
+        ],
+        "title": "LinkCustomer",
         "type": "object"
       },
       "LoginRequest": {
@@ -8963,6 +9253,38 @@
         "title": "LoyaltyAccountSummary",
         "type": "object"
       },
+      "LoyaltyAppearanceResponse": {
+        "properties": {
+          "color": {
+            "default": "#0F1117",
+            "title": "Color",
+            "type": "string"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "use_business_logo": {
+            "default": true,
+            "title": "Use Business Logo",
+            "type": "boolean"
+          },
+          "version": {
+            "default": 0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "title": "LoyaltyAppearanceResponse",
+        "type": "object"
+      },
       "LoyaltyEntryResponse": {
         "properties": {
           "benefit": {
@@ -9372,6 +9694,62 @@
         "title": "LoyaltyRewardWrite",
         "type": "object"
       },
+      "ManageRead": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 2500,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ManageRead",
+        "type": "object"
+      },
+      "ManageWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "pattern": "^(cancel|reschedule)$",
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "token": {
+            "maxLength": 2500,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expected_version",
+          "action"
+        ],
+        "title": "ManageWrite",
+        "type": "object"
+      },
       "MarginDayRow": {
         "properties": {
           "cogs": {
@@ -9732,9 +10110,30 @@
             "title": "Adjustments Pending",
             "type": "boolean"
           },
+          "appearance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyAppearanceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "balance": {
             "title": "Balance",
             "type": "integer"
+          },
+          "booking_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Path"
           },
           "branch_name": {
             "title": "Branch Name",
@@ -9840,6 +10239,29 @@
           "is_active"
         ],
         "title": "MemberCustomer",
+        "type": "object"
+      },
+      "MemberGrant": {
+        "additionalProperties": false,
+        "properties": {
+          "menu_token": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Menu Token",
+            "type": "string"
+          },
+          "page_token": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Page Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "menu_token",
+          "page_token"
+        ],
+        "title": "MemberGrant",
         "type": "object"
       },
       "MemberResolution": {
@@ -12226,6 +12648,59 @@
         "title": "OverviewResponse",
         "type": "object"
       },
+      "PageWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "horizon_days": {
+            "default": 30,
+            "maximum": 366.0,
+            "minimum": 1.0,
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "manage_cutoff_hours": {
+            "default": 24,
+            "maximum": 720.0,
+            "minimum": 0.0,
+            "title": "Manage Cutoff Hours",
+            "type": "integer"
+          },
+          "notice_minutes": {
+            "default": 120,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Notice Minutes",
+            "type": "integer"
+          },
+          "rotate_link": {
+            "default": false,
+            "title": "Rotate Link",
+            "type": "boolean"
+          },
+          "slot_minutes": {
+            "default": 15,
+            "maximum": 120.0,
+            "minimum": 5.0,
+            "title": "Slot Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "enabled"
+        ],
+        "title": "PageWrite",
+        "type": "object"
+      },
       "PairDevice": {
         "additionalProperties": false,
         "properties": {
@@ -13630,6 +14105,79 @@
         "title": "ProductUpdate",
         "type": "object"
       },
+      "ProgramResponse": {
+        "properties": {
+          "appearance": {
+            "$ref": "#/components/schemas/LoyaltyAppearanceResponse"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "enrollment": {
+            "$ref": "#/components/schemas/EnrollmentPolicyResponse"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/LoyaltyPolicyResponse"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "business_name",
+          "appearance",
+          "policy",
+          "reward",
+          "enrollment"
+        ],
+        "title": "ProgramResponse",
+        "type": "object"
+      },
+      "ProgramWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "appearance": {
+            "$ref": "#/components/schemas/AppearanceWrite"
+          },
+          "enrollment": {
+            "$ref": "#/components/schemas/EnrollmentPolicyWrite"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/LoyaltyPolicyWrite"
+          },
+          "reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyRewardWrite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reward_expected_version": {
+            "minimum": 0.0,
+            "title": "Reward Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "policy",
+          "reward_expected_version",
+          "enrollment",
+          "appearance"
+        ],
+        "title": "ProgramWrite",
+        "type": "object"
+      },
       "ProposalCreate": {
         "additionalProperties": false,
         "properties": {
@@ -13647,6 +14195,37 @@
           "steps"
         ],
         "title": "ProposalCreate",
+        "type": "object"
+      },
+      "PublicAppointmentChange": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "starts_at",
+          "ends_at",
+          "created_at"
+        ],
+        "title": "PublicAppointmentChange",
         "type": "object"
       },
       "PublicCardRead": {
@@ -13723,6 +14302,50 @@
         "title": "PublicCatalogResponse",
         "type": "object"
       },
+      "PublicContext": {
+        "properties": {
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "business_name": {
+            "title": "Business Name",
+            "type": "string"
+          },
+          "horizon_days": {
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "manage_cutoff_hours": {
+            "title": "Manage Cutoff Hours",
+            "type": "integer"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/PublicResource"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/PublicService"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "required": [
+          "business_name",
+          "branch_name",
+          "services",
+          "resources",
+          "horizon_days",
+          "manage_cutoff_hours"
+        ],
+        "title": "PublicContext",
+        "type": "object"
+      },
       "PublicEnrollmentWrite": {
         "additionalProperties": false,
         "properties": {
@@ -13758,9 +14381,30 @@
             "title": "Adjustments Pending",
             "type": "boolean"
           },
+          "appearance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoyaltyAppearanceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "balance": {
             "title": "Balance",
             "type": "integer"
+          },
+          "booking_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Path"
           },
           "branch_name": {
             "title": "Branch Name",
@@ -14149,6 +14793,109 @@
           "message"
         ],
         "title": "PublicRequestWrite",
+        "type": "object"
+      },
+      "PublicResource": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "timezone"
+        ],
+        "title": "PublicResource",
+        "type": "object"
+      },
+      "PublicService": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Resource Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "duration_minutes",
+          "resource_ids"
+        ],
+        "title": "PublicService",
+        "type": "object"
+      },
+      "PublicSlot": {
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "starts_at",
+          "ends_at",
+          "timezone"
+        ],
+        "title": "PublicSlot",
+        "type": "object"
+      },
+      "PublicSlots": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSlot"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PublicSlots",
         "type": "object"
       },
       "PublicTrackedItem": {
@@ -16691,6 +17438,57 @@
         "title": "ServiceCaseUpdate",
         "type": "object"
       },
+      "ServiceWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "maximum": 1440.0,
+            "minimum": 5.0,
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "expected_version": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Resource Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "duration_minutes",
+          "resource_ids"
+        ],
+        "title": "ServiceWrite",
+        "type": "object"
+      },
       "SessionProbeResponse": {
         "properties": {
           "authenticated": {
@@ -17271,6 +18069,27 @@
           "status"
         ],
         "title": "SourceHealth",
+        "type": "object"
+      },
+      "StaffBookingReschedule": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "starts_at"
+        ],
+        "title": "StaffBookingReschedule",
         "type": "object"
       },
       "StandardPlanResponse": {
@@ -18712,6 +19531,21 @@
         "title": "VersionInfo",
         "type": "object"
       },
+      "VersionWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "VersionWrite",
+        "type": "object"
+      },
       "VersionedAction": {
         "additionalProperties": false,
         "properties": {
@@ -18997,6 +19831,27 @@
           "recent_failures"
         ],
         "title": "WebhookHealth",
+        "type": "object"
+      },
+      "Window": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "Window",
         "type": "object"
       },
       "app__automations__schemas__Capabilities": {
@@ -19351,6 +20206,602 @@
         ]
       }
     },
+    "/api/v1/appointments/availability/{resource_id}": {
+      "get": {
+        "operationId": "availability_api_v1_appointments_availability__resource_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Availability",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "put": {
+        "operationId": "save_availability_api_v1_appointments_availability__resource_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Availability",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/booking-invites": {
+      "post": {
+        "operationId": "invite_api_v1_appointments_booking_invites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/booking-page": {
+      "get": {
+        "operationId": "page_api_v1_appointments_booking_page_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Page",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "put": {
+        "operationId": "save_page_api_v1_appointments_booking_page_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Page",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/bookings/{booking_id}": {
+      "get": {
+        "operationId": "booking_api_v1_appointments_bookings__booking_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/bookings/{booking_id}/cancel": {
+      "post": {
+        "operationId": "cancel_booking_api_v1_appointments_bookings__booking_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/bookings/{booking_id}/customer": {
+      "post": {
+        "operationId": "link_api_v1_appointments_bookings__booking_id__customer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkCustomer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/bookings/{booking_id}/reschedule": {
+      "post": {
+        "operationId": "reschedule_booking_api_v1_appointments_bookings__booking_id__reschedule_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffBookingReschedule"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reschedule Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/bookings/{booking_id}/revoke": {
+      "post": {
+        "operationId": "revoke_booking_api_v1_appointments_bookings__booking_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/calendar": {
+      "get": {
+        "operationId": "calendar_api_v1_appointments_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "starts_from",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Starts From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "starts_until",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Starts Until",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resource Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calendar",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
     "/api/v1/appointments/reminders": {
       "get": {
         "operationId": "reminders_api_v1_appointments_reminders_get",
@@ -19663,6 +21114,147 @@
         "summary": "Update Resource",
         "tags": [
           "appointments"
+        ]
+      }
+    },
+    "/api/v1/appointments/services": {
+      "get": {
+        "operationId": "services_api_v1_appointments_services_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Services",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "operationId": "new_service_api_v1_appointments_services_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "New Service",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/appointments/services/{service_id}": {
+      "put": {
+        "operationId": "update_service_api_v1_appointments_services__service_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Service",
+        "tags": [
+          "bookings"
         ]
       }
     },
@@ -29663,6 +31255,84 @@
         ]
       }
     },
+    "/api/v1/loyalty/program": {
+      "get": {
+        "operationId": "read_program_api_v1_loyalty_program_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Program",
+        "tags": [
+          "loyalty"
+        ]
+      },
+      "put": {
+        "operationId": "save_program_api_v1_loyalty_program_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgramWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Program",
+        "tags": [
+          "loyalty"
+        ]
+      }
+    },
     "/api/v1/loyalty/rewards": {
       "get": {
         "operationId": "reward_policy_api_v1_loyalty_rewards_get",
@@ -31199,6 +32869,334 @@
         ]
       }
     },
+    "/api/v1/public/bookings": {
+      "post": {
+        "operationId": "create_api_v1_public_bookings_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/context": {
+      "get": {
+        "operationId": "context_api_v1_public_bookings_context_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page_token",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Page Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Context",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/manage": {
+      "post": {
+        "operationId": "manage_api_v1_public_bookings_manage_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manage",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/manage/read": {
+      "post": {
+        "operationId": "read_manage_api_v1_public_bookings_manage_read_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Manage",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/manage/slots": {
+      "post": {
+        "operationId": "manage_slots_api_v1_public_bookings_manage_slots_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSlots"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manage Slots",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/api/v1/public/bookings/slots": {
+      "get": {
+        "operationId": "slots_api_v1_public_bookings_slots_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page_token",
+            "required": true,
+            "schema": {
+              "title": "Page Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Service Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSlots"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Slots",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
     "/api/v1/public/catalog/{token}": {
       "get": {
         "operationId": "read_public_catalog_api_v1_public_catalog__token__get",
@@ -31391,6 +33389,45 @@
         "summary": "Membership",
         "tags": [
           "loyalty"
+        ]
+      }
+    },
+    "/api/v1/public/loyalty/membership/booking-grant": {
+      "post": {
+        "operationId": "member_grant_api_v1_public_loyalty_membership_booking_grant_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Member Grant",
+        "tags": [
+          "bookings"
         ]
       }
     },

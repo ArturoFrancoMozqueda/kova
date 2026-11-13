@@ -313,9 +313,13 @@ def _names(db, catalog):
 def project(db, catalog, member):
     customer = _valid_member(db, catalog, member)
     business, branch = _names(db, catalog)
+    from app.bookings.service import member_booking_path
+    from app.loyalty.program import appearance
     from app.storefront.router import _settings
 
     return MemberCard(
+        appearance=appearance(db, catalog.tenant_id),
+        booking_path=member_booking_path(db, catalog),
         business_name=business,
         branch_name=branch,
         balance=service._balance(db, catalog.tenant_id, customer.id),

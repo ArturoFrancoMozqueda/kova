@@ -58,6 +58,7 @@ class CustomerHistory(BaseModel):
 
 
 class CustomerActivityItem(BaseModel):
+    booking_id: UUID | None = None
     id: UUID
     title: str
     state: str
