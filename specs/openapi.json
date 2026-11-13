@@ -2443,6 +2443,61 @@
         "title": "CatalogOrderPreviewLine",
         "type": "object"
       },
+      "CatalogPreview": {
+        "additionalProperties": false,
+        "description": "Unsaved publication draft rendered as the public menu for the owner.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Product Ids",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "whatsapp_phone": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9][0-9]{9,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CatalogPreview",
+        "type": "object"
+      },
       "CatalogRequestList": {
         "properties": {
           "has_more": {
@@ -37657,6 +37712,48 @@
         "summary": "Close Shift",
         "tags": [
           "shifts"
+        ]
+      }
+    },
+    "/api/v1/storefront/preview": {
+      "post": {
+        "description": "Render an unsaved draft exactly as the public menu would. Read-only: it\nnever stores the draft, changes the link or reveals stock quantities.",
+        "operationId": "preview_catalog_api_v1_storefront_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPreview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Catalog",
+        "tags": [
+          "storefront"
         ]
       }
     },

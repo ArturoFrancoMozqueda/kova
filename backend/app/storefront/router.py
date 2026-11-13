@@ -3,6 +3,7 @@ import io
 import re
 import sys
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 import jwt
@@ -26,6 +27,7 @@ from app.shared.exceptions import bad_request, conflict, not_found
 from app.storefront.links import allocate_link, lookup_link
 from app.storefront.models import PublicCatalog, PublicCatalogItem, PublicCatalogLink
 from app.storefront.schemas import (
+    CatalogPreview,
     CatalogSettings,
     CatalogWrite,
     PublicCatalogResponse,
@@ -202,6 +204,19 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
         .limit(200)
         .all()
     )
+    return _public_response(
+        db,
+        catalog=row,
+        title=row.title,
+        description=row.description,
+        whatsapp_phone=row.whatsapp_phone,
+        products=products,
+    )
+
+
+def _public_response(db, *, catalog, title, description, whatsapp_phone, products):
+    """The exact payload a customer gets. The owner preview reuses it with a draft."""
+    tenant_id = catalog.tenant_id
     ids = [product.id for product in products]
     stock = stock_on_hand_for_products(db, tenant_id=tenant_id, product_ids=ids)
     reserved = (
@@ -222,11 +237,11 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
     from app.loyalty.enrollment import available as enrollment_available
 
     return PublicCatalogResponse(
-        loyalty_available=enrollment_available(db, row),
+        loyalty_available=enrollment_available(db, catalog),
         requests_available=plan_has_feature(db, tenant_id=tenant_id, feature="customer_orders"),
-        title=row.title,
-        description=row.description,
-        whatsapp_phone=row.whatsapp_phone,
+        title=title,
+        description=description,
+        whatsapp_phone=whatsapp_phone,
         products=[
             PublicProduct(
                 id=p.id,
@@ -245,6 +260,44 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
             )
             for p in products
         ],
+    )
+
+
+@router.post("/api/v1/storefront/preview", response_model=PublicCatalogResponse)
+def preview_catalog(
+    body: CatalogPreview,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_commercial_access(Permission.SETTINGS_MANAGE)),
+):
+    """Render an unsaved draft exactly as the public menu would. Read-only: it
+    never stores the draft, changes the link or reveals stock quantities."""
+    tenant_id = ctx[1].tenant_id
+    row = _catalog(db, tenant_id)
+    products = (
+        db.query(Product)
+        .filter(
+            Product.tenant_id == tenant_id,
+            Product.id.in_(body.product_ids),
+            Product.is_active.is_(True),
+        )
+        .order_by(Product.name, Product.id)
+        .limit(200)
+        .all()
+        if body.product_ids
+        else []
+    )
+    draft = SimpleNamespace(
+        tenant_id=tenant_id,
+        branch_id=row.branch_id if row else active_branch_id(db, tenant_id),
+        enabled=body.enabled,
+    )
+    return _public_response(
+        db,
+        catalog=draft,
+        title=body.title,
+        description=body.description,
+        whatsapp_phone=body.whatsapp_phone,
+        products=products,
     )
 
 

@@ -15,6 +15,7 @@ No expone costos, márgenes, cantidades exactas, datos de clientes ni catálogo 
   y sólo admite `false` por compatibilidad con clientes anteriores; `true` devuelve 422 antes
   de modificar datos o crear enlaces. Guardar, retirar y volver a publicar conservan la dirección.
 - `GET /api/v1/storefront/qr` genera PNG privado del origen configurado y enlace vigente.
+- `POST /api/v1/storefront/preview` (sesión, `settings.manage`, billing) devuelve el borrador sin guardar con la misma proyección pública (orden, disponibilidad, lealtad y pedidos). Es de solo lectura: no guarda, no cambia el enlace ni expone existencias.
 - `GET /api/v1/public/catalog/{token}` acepta el nombre legible reservado del negocio.
   `public_catalog_links` sólo permite consultar metadatos de ruta del slug exacto solicitado,
   mediante RLS y contexto transaccional. Después se establece el tenant y se validan publicación,

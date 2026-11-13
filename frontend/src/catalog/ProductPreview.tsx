@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { LivePreview } from "@/components/ui/live-preview";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { RegisterProductCard } from "@/register/RegisterPresentation";
 import { RegisterProductPhoto } from "@/register/RegisterProductPhoto";
-import { MenuProductCard } from "@/storefront/MenuProductCard";
+import { DevicePreview } from "@/components/ui/device-preview";
+import { useOptionalAuth } from "@/auth/useAuth";
+import { hasPlanFeature } from "@/billing/entitlements";
+import { formatTenantName } from "@/lib/formatTenantName";
+import { CatalogContent } from "@/storefront/StorefrontView";
 import { formatMoney } from "@/orders/format";
 
 type Surface = "register" | "menu";
-const noop = () => undefined;
 
 /**
  * Shows the product draft with the exact tiles used by Caja and the public
@@ -42,6 +45,9 @@ export function ProductPreview({
   className?: string;
 }) {
   const [surface, setSurface] = useState<Surface>("register");
+  const auth = useOptionalAuth();
+  const session = auth?.state.status === "authenticated" ? auth.state : null;
+  const businessName = formatTenantName(session?.tenantName ?? "") || "Tu negocio";
   const shownName = name.trim() || "Tu producto";
   const priceValue = Number(price);
   const shownPrice = price.trim() !== "" && Number.isFinite(priceValue) && priceValue >= 0 ? price : "0";
@@ -50,6 +56,7 @@ export function ProductPreview({
   const summary = `${shownName}, ${formatMoney(shownPrice)}, ${imageUrl ? "con fotografía" : "sin fotografía"}${surface === "register" ? ", como se ve en Caja" : ", como se ve en tu menú digital"}.`;
   return (
     <LivePreview
+      selfContained={surface === "menu"}
       label="Vista previa del producto"
       summary={summary}
       className={className}
@@ -64,13 +71,11 @@ export function ProductPreview({
           ]}
         />
       }
-      frame={surface === "register"
-        ? { caption: "Así lo ve tu equipo en Caja", icon: <ShoppingCart className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /> }
-        : { caption: "Así lo ven tus clientes", icon: <UtensilsCrossed className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /> }}
+      frame={surface === "register" ? { caption: "Así lo ve tu equipo en Caja", icon: <ShoppingCart className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /> } : undefined}
       note={<ul className="space-y-1">
         {surface === "register" && trackInventory && Number.isInteger(threshold) && threshold > 0 && <li>Caja lo marcará como “Bajo” cuando queden {threshold} o menos, y como “Agotado” al terminarse.</li>}
         {surface === "register" && modifierGroupNames.length > 0 && <li>Al tocarlo, Caja pedirá: {modifierGroupNames.join(", ")}.</li>}
-        {surface === "menu" && <li>Solo aparece en tu menú digital si lo eliges en Catálogo público.</li>}
+        {surface === "menu" && <li>Así lo ven tus clientes en su teléfono. Solo aparece en tu menú digital si lo eliges en Catálogo público.</li>}
       </ul>}
     >
       <div className="p-3">
@@ -85,16 +90,15 @@ export function ProductPreview({
             />
           </div>
         ) : (
-          <div className="mx-auto max-w-[7.5rem] lg:max-w-none">
-            <MenuProductCard
-              product={{ id: "preview", name: shownName, description: description.trim() || null, price_amount: shownPrice, availability: "available", ...photo }}
-              quantity={0}
-              disabled
-              cannotAdd={false}
-              onQuantityChange={noop}
-              onDetails={noop}
-            />
-          </div>
+          <DevicePreview device="phone" title="Vista previa del producto en tu menú">
+            <main className="min-h-screen bg-[#FAFAF7] text-kova-ink">
+              <CatalogContent token="vista-previa" preview data={{
+                title: businessName, description: null, whatsapp_phone: null, checkout_available: false,
+                requests_available: hasPlanFeature(session?.commercialAccess, "customer_orders"),
+                products: [{ id: "preview", name: shownName, description: description.trim() || null, price_amount: shownPrice, availability: "available", ...photo }],
+              }} />
+            </main>
+          </DevicePreview>
         )}
       </div>
     </LivePreview>

@@ -14,7 +14,7 @@ import {
   type MenuProduct, type MenuSort,
 } from "./menu";
 
-type PublicCatalog = {
+export type PublicCatalog = {
   title: string;
   description: string | null;
   whatsapp_phone: string | null;
@@ -61,7 +61,8 @@ export default function StorefrontView() {
   </main>;
 }
 
-function CatalogContent({ data, token }: { data: PublicCatalog; token: string }) {
+/** The public menu body. `preview` renders it for the owner without contacting public endpoints. */
+export function CatalogContent({ data, token, preview = false }: { data: PublicCatalog; token: string; preview?: boolean }) {
   const requestsAvailable = data.requests_available !== false;
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
@@ -143,7 +144,7 @@ function CatalogContent({ data, token }: { data: PublicCatalog; token: string })
           </div>
         </div>
         {(typeof data.loyalty_available === "boolean" || whatsapp) && <div className="space-y-3 lg:w-80">
-        {typeof data.loyalty_available === "boolean" && <MembershipEntry menuToken={token} businessName={data.title} available={data.loyalty_available} />}
+        {typeof data.loyalty_available === "boolean" && <MembershipEntry menuToken={token} businessName={data.title} available={data.loyalty_available} preview={preview} />}
         {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="hidden min-h-11 w-fit items-center gap-2 rounded-full border border-kova-border px-5 text-sm font-medium lg:inline-flex">
           Consultar por WhatsApp<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </a>}

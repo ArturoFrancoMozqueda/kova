@@ -15,6 +15,7 @@ export function LivePreview({
   note,
   frame,
   controls,
+  selfContained = false,
   className,
   children,
 }: {
@@ -28,10 +29,13 @@ export function LivePreview({
   frame?: { caption: string; icon?: ReactNode };
   /** Interactive controls that stay outside the inert render, e.g. view tabs. */
   controls?: ReactNode;
+  /** The child already isolates itself from focus and clicks (e.g. DevicePreview), so it may scroll. */
+  selfContained?: boolean;
   className?: string;
   children: ReactNode;
 }) {
-  const inert = { inert: "", "aria-hidden": true } as HTMLAttributes<HTMLDivElement>;
+  const inert = (selfContained ? {} : { inert: "", "aria-hidden": true }) as HTMLAttributes<HTMLDivElement>;
+  const contentClass = selfContained ? undefined : "pointer-events-none select-none";
   return (
     <aside
       aria-label={label}
@@ -55,12 +59,12 @@ export function LivePreview({
               {frame.caption}
             </span>
           </div>
-          <div {...inert} className="pointer-events-none select-none">
+          <div {...inert} className={contentClass}>
             {children}
           </div>
         </div>
       ) : (
-        <div {...inert} className="pointer-events-none select-none">
+        <div {...inert} className={contentClass}>
           {children}
         </div>
       )}
