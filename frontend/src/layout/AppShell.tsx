@@ -9,46 +9,24 @@ import { useFeature } from "@/auth/useFeature";
 import {
   BILLING_VIEW_PERMISSION,
   CATALOG_CREATE_PERMISSION,
-  CUSTOMER_ORDER_VIEW_PERMISSION,
   CUSTOMER_ORDER_CREATE_PERMISSION,
+  CUSTOMER_ORDER_VIEW_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
-  INVENTORY_ADJUST_PERMISSION,
   EXPENSES_MANAGE_PERMISSION,
+  INVENTORY_ADJUST_PERMISSION,
   REPORTS_VIEW_ALL_PERMISSION,
   usePermission,
 } from "@/auth/permissions";
 import {
-  ShoppingCart,
-  LayoutGrid,
-  ClipboardList,
   ClipboardCheck,
-  HeartHandshake,
-  ListChecks,
-  Receipt,
   Package,
-  Clock,
-  BarChart3,
-  CreditCard,
-  WalletCards,
-  Users,
-  Truck,
   Settings,
   LogOut,
-  LayoutDashboard,
   Menu,
   X,
   ChevronsLeft,
   ChevronsRight,
   CircleHelp,
-  Sparkles,
-  Workflow,
-  Handshake,
-  Store,
-  FileText,
-  MessagesSquare,
-  CalendarDays,
-  Gift,
-  LifeBuoy,
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -70,60 +48,7 @@ import { discoverSections, sectionDescription } from "./navigationDiscovery";
 import { BusinessNextActions } from "./BusinessNextActions";
 import { buildWorkspaceNavigation, primaryNavigationPaths, workspaceGroupForPath } from "./workspaceNavigation";
 import { NavigationGroups } from "./NavigationGroups";
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-  group: "operation" | "business";
-  permission?: string;
-  feature?: "margin_reports" | "customer_orders";
-};
-
-const adminNavItems: NavItem[] = [
-  { to: "/customers", label: copy.nav.customers, icon: <Users className="h-4.5 w-4.5" />, group: "business", permission: CUSTOMERS_VIEW_PERMISSION },
-
-  { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
-  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/purchasing", label: copy.nav.purchasing, icon: <Truck className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
-  { to: "/settings/integrations", label: copy.nav.integrations, icon: <Receipt className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
-  { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
-  { to: "/assistant", label: copy.nav.assistant, icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
-  { to: "/operations-queue", label: copy.nav.operationsQueue, icon: <ListChecks className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/service-cases", label: copy.nav.serviceCases, icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/loyalty", label: copy.nav.loyalty, icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/inbox", label: copy.nav.inbox, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/commercial-requests", label: copy.nav.commercialRequests, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/followups", label: copy.nav.followups, icon: <HeartHandshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/crm", label: copy.nav.crm, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/quotes", label: copy.nav.quotes, icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/automations", label: copy.nav.automations, icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/settings/public-catalog", label: copy.nav.publicCatalog, icon: <Store className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/reconciliation", label: copy.nav.reconciliation, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/replenishment", label: copy.nav.replenishment, icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
-  { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
-];
-
-const cashierNavItems: NavItem[] = [
-  { to: "/customers", label: copy.nav.customers, icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
-
-  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
-  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
-  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
-];
-
-function isAdminRole(role: string): boolean {
-  return role === "owner" || role === "manager";
-}
+import { isAdminRole, visibleNavItems, workspaceGroupLabels, type NavItem } from "./navItems";
 
 function roleLabel(role: string): string {
   if (role === "owner") return copy.settings.roleOwner;
@@ -189,12 +114,6 @@ export default function AppShell() {
   const userEmail = state.status === "authenticated" ? state.user.email : "";
   const userRole = state.status === "authenticated" ? state.user.role : "";
   const isOfflineSession = state.status === "authenticated" && state.sessionMode === "offline";
-  const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
-  const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
-  const canManageExpenses = usePermission(EXPENSES_MANAGE_PERMISSION);
-  const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
-  const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
-  const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const canCreateCustomerOrders = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION)
     && hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders");
   const advancedReports = hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "advanced_reports");
@@ -246,26 +165,23 @@ export default function AppShell() {
     return () => controller.abort();
   }, [assistantIdentity, commercialBlocked, advancedReports]);
 
-  const navItems = isOfflineSession
-    ? adminNavItems.filter((item) => item.to === "/register")
-    : isAdminRole(userRole)
-      ? adminNavItems
-      : cashierNavItems;
-
-  const filteredNavItems = navItems.filter((item) => {
-    if (commercialBlocked) return item.to === "/settings/billing" && canViewBilling;
-    if (item.to === "/loyalty" && userRole !== "owner") return false;
-    if (item.to === "/assistant" && (!assistantEnabled || !advancedReports)) return false;
-    if (item.to === "/replenishment" && !advancedReports) return false;
-    if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
-    if (item.permission === INVENTORY_ADJUST_PERMISSION && !canAdjustInventory) return false;
-    if (item.permission === "reports.view_all") return canViewReports;
-    if (item.permission === "billing.view") return canViewBilling;
-    if (item.permission === "expenses.manage" && !canManageExpenses) return false;
-    if (item.permission === CUSTOMER_ORDER_VIEW_PERMISSION && !canViewCustomerOrders) return false;
-    if (item.feature === "margin_reports" && !marginReportsEnabled) return false;
-    if (item.feature === "customer_orders" && !customerOrdersEnabled) return false;
-    return true;
+  const sessionPermissions: Record<string, boolean> = {
+    [REPORTS_VIEW_ALL_PERMISSION]: usePermission(REPORTS_VIEW_ALL_PERMISSION),
+    [BILLING_VIEW_PERMISSION]: usePermission(BILLING_VIEW_PERMISSION),
+    [EXPENSES_MANAGE_PERMISSION]: usePermission(EXPENSES_MANAGE_PERMISSION),
+    [CUSTOMERS_VIEW_PERMISSION]: usePermission(CUSTOMERS_VIEW_PERMISSION),
+    [INVENTORY_ADJUST_PERMISSION]: usePermission(INVENTORY_ADJUST_PERMISSION),
+    [CUSTOMER_ORDER_VIEW_PERMISSION]: usePermission(CUSTOMER_ORDER_VIEW_PERMISSION),
+  };
+  const filteredNavItems = visibleNavItems({
+    role: userRole,
+    can: (permission) => sessionPermissions[permission] === true,
+    offline: isOfflineSession,
+    commercialBlocked,
+    assistantEnabled,
+    advancedReports,
+    marginReportsEnabled,
+    customerOrdersEnabled,
   });
   const operationNavItems = ["/register", "/dashboard", "/operations-queue", "/customers", "/orders", "/shifts", "/pedidos"]
     .flatMap(path => filteredNavItems.filter(item => item.to === path && item.group === "operation"));
@@ -292,13 +208,6 @@ export default function AppShell() {
   const sectionResults = searchingSections ? discoverSections(searchDestinations, navigationQuery) : [];
   const workspaceNavigation = buildWorkspaceNavigation(filteredNavItems);
   const activeWorkspace = workspaceGroupForPath(location.pathname);
-  const workspaceLabels = {
-    sales: "Menú y ventas",
-    customers: "Clientes y atención",
-    operation: "Productos y operación",
-    analysis: "Análisis y finanzas",
-    settings: copy.app.settings,
-  };
   const primaryNavItems = primaryNavigationPaths.flatMap(path => filteredNavItems.filter(item => item.to === path));
   const bottomNavItems = commercialBlocked
     ? filteredNavItems.filter(item => item.to === "/settings/billing")
@@ -491,7 +400,7 @@ export default function AppShell() {
             {primaryNavItems.map(item => renderNavItem(item))}
           </div>
           {!isOfflineSession && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [@media(max-height:700px)]:overflow-visible"><NavigationGroups key={navigationPreferenceKey}
-            groups={workspaceNavigation.map(group => ({ ...group, label: workspaceLabels[group.id], icon: group.destination.icon }))}
+            groups={workspaceNavigation.map(group => ({ ...group, label: workspaceGroupLabels[group.id], icon: group.destination.icon }))}
             activeGroup={activeWorkspace} pathname={location.pathname} storageKey={navigationPreferenceKey}
             compact={sidebarCompact} onExpand={toggleSidebarCollapsed}
             renderItem={item => renderNavItem(item, true)} /></div>}

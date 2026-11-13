@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
 
 import { deleteReceiptLogo, getReceiptSettings, uploadReceiptLogo } from "./api";
+import { LogoPlacementPreview } from "./LogoPlacementPreview";
 
 type ReceiptDraft = {
   receipt_business_name: string;
@@ -31,9 +32,11 @@ const MAX_INPUT_BYTES = 10 * 1024 * 1024;
 
 export function LogoUploadField({
   logoUrl,
+  businessName = "",
   setReceipt,
 }: {
   logoUrl: string;
+  businessName?: string;
   setReceipt: Dispatch<SetStateAction<ReceiptDraft>>;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -164,7 +167,7 @@ export function LogoUploadField({
             <p className="font-semibold text-kova-ink">{copy.settings.logoEditorTitle}</p>
             <p className="mt-1 text-sm text-muted-foreground">{copy.settings.logoEditorDescription}</p>
           </div>
-          <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_180px]">
+          <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,260px)]">
             <ImagePositionEditor
               src={selection.previewUrl}
               positionX={positionX}
@@ -180,20 +183,13 @@ export function LogoUploadField({
               frameBadge={copy.settings.logoEditorFrameBadge}
               editorHint={copy.settings.logoEditorHint}
             />
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{copy.settings.logoEditorPreview}</p>
-              <div className="flex items-center gap-3 rounded-kova-md bg-kova-ink p-3 text-white">
-                <span className="h-10 w-10 shrink-0 overflow-hidden rounded-kova-md ring-1 ring-inset ring-white/15">
-                  <img
-                    src={selection.previewUrl}
-                    alt=""
-                    className="h-full w-full"
-                    style={productImageStyle({ image_position_x: positionX, image_position_y: positionY, image_zoom: zoom })}
-                  />
-                </span>
-                <span className="min-w-0 text-sm font-semibold">{copy.settings.logoEditorTenantPlaceholder}</span>
-              </div>
-            </div>
+            <LogoPlacementPreview
+              src={selection.previewUrl}
+              imageStyle={productImageStyle({ image_position_x: positionX, image_position_y: positionY, image_zoom: zoom })}
+              businessName={businessName || copy.settings.logoEditorTenantPlaceholder}
+              saved={false}
+              unsavedTitle={copy.settings.logoEditorPreview}
+            />
           </div>
           <div className="flex flex-col-reverse gap-2 border-t border-kova-border bg-muted/30 px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
             <Button type="button" variant="outline" disabled={isPending} onClick={handleCancelSelection}>
@@ -242,6 +238,11 @@ export function LogoUploadField({
               ) : null}
             </div>
           </div>
+          {logoUrl ? (
+            <div className="mt-4 border-t border-kova-border pt-4">
+              <LogoPlacementPreview src={logoUrl} businessName={businessName} saved />
+            </div>
+          ) : null}
         </div>
       )}
       <input

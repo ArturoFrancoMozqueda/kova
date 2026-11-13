@@ -15,10 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewEmpty } from "@/components/ui/view-states";
-import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, AlertCircle, Inbox, X, ChevronDown, SlidersHorizontal } from "lucide-react";
 
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
@@ -301,19 +301,7 @@ export default function OrderListView() {
                           timeStyle: "short",
                         }).format(new Date(order.created_at))}
                       </p>
-                      <Badge
-                        className="mt-2 gap-1"
-                        variant={order.status === "voided" ? "destructive" : "success"}
-                      >
-                        {order.status === "voided" ? (
-                          <Ban className="h-3 w-3" />
-                        ) : (
-                          <CheckCircle2 className="h-3 w-3" />
-                        )}
-                        {order.status === "voided"
-                          ? copy.orderList.statusVoided
-                          : copy.orderList.statusCompleted}
-                      </Badge>
+                      <StatusBadge className="mt-2" domain="sale" value={order.status === "voided" ? "voided" : "completed"} label={order.status === "voided" ? copy.orderList.statusVoided : copy.orderList.statusCompleted} />
                     </div>
                     <div className="text-right">
                       <p className="font-semibold tabular-nums">{formatMoney(order.total_amount)}</p>
@@ -348,19 +336,7 @@ export default function OrderListView() {
                         {formatDateTime(order.created_at)}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge
-                          className="gap-1"
-                          variant={order.status === "voided" ? "destructive" : "success"}
-                        >
-                          {order.status === "voided" ? (
-                            <Ban className="h-3 w-3" />
-                          ) : (
-                            <CheckCircle2 className="h-3 w-3" />
-                          )}
-                          {order.status === "voided"
-                            ? copy.orderList.statusVoided
-                            : copy.orderList.statusCompleted}
-                        </Badge>
+                        <StatusBadge domain="sale" value={order.status === "voided" ? "voided" : "completed"} label={order.status === "voided" ? copy.orderList.statusVoided : copy.orderList.statusCompleted} />
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">
                         {formatMoney(order.total_amount)}

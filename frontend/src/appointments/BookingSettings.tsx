@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { CalendarClock, Globe, Scissors } from "lucide-react";
+import { SectionHeadingIcon } from "@/components/ui/section-heading-icon";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import {
   useOperationsRequest,
@@ -12,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ViewError } from "@/components/ui/view-states";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import { appointmentTimezoneLabel } from "./timezone";
+import { AvailabilityPreview, PublicationPreview } from "./BookingPreviews";
 import type { AppointmentResource } from "./types";
 import type { Availability, BookingPage, BookingService } from "./bookingTypes";
 import { resolveUserFacingError } from "@/lib/apiError";
@@ -59,6 +62,7 @@ export function BookingSettings({
       <AvailabilitySettings
         identity={identity}
         resources={resources}
+        slotMinutes={publication.data?.slot_minutes ?? 15}
         onSaved={onSaved}
       />
       <Publication panel={publication} onSaved={onSaved} />
@@ -99,7 +103,7 @@ function Services({
     >
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Servicios</h2>
+          <h2 className="flex items-center gap-2.5 text-lg font-semibold"><SectionHeadingIcon icon={Scissors} />Servicios</h2>
           <p className="mt-1 text-sm text-kova-muted">
             Qué pueden reservar, cuánto dura y quién lo atiende.
           </p>
@@ -282,10 +286,12 @@ function Services({
 function AvailabilitySettings({
   identity,
   resources,
+  slotMinutes,
   onSaved,
 }: {
   identity: WorkspaceIdentity;
   resources: AppointmentResource[];
+  slotMinutes: number;
   onSaved: () => void;
 }) {
   const [resource, setResource] = useState("");
@@ -294,7 +300,7 @@ function AvailabilitySettings({
       aria-label="Disponibilidad para reservar"
       className="space-y-4 rounded-2xl border border-kova-border bg-white p-5"
     >
-      <h2 className="text-lg font-semibold">Disponibilidad</h2>
+      <h2 className="flex items-center gap-2.5 text-lg font-semibold"><SectionHeadingIcon icon={CalendarClock} />Disponibilidad</h2>
       <p className="text-sm text-kova-muted">
         {resources.some((r) => r.kind === "table")
           ? "Define cuándo recibir solicitudes para cada mesa. El equipo revisa las reservas y confirma cada llegada."
@@ -318,6 +324,7 @@ function AvailabilitySettings({
           key={resource}
           resource={resources.find((r) => r.id === resource)!}
           identity={identity}
+          slotMinutes={slotMinutes}
           onSaved={onSaved}
         />
       )}
@@ -327,10 +334,12 @@ function AvailabilitySettings({
 function AvailabilityEditor({
   identity,
   resource,
+  slotMinutes,
   onSaved,
 }: {
   identity: WorkspaceIdentity;
   resource: AppointmentResource;
+  slotMinutes: number;
   onSaved: () => void;
 }) {
   const panel = useOperationsPanel<Availability>(
@@ -386,8 +395,15 @@ function AvailabilityEditor({
         <SectionSkeleton label="Consultando disponibilidad…" variant="form" />
       )}
       {draft && (
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <AvailabilityPreview
+          className="lg:order-last"
+          weekly={draft.weekly}
+          slotMinutes={slotMinutes}
+          resourceName={resource.name}
+        />
         <form
-          className="space-y-4"
+          className="min-w-0 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             void panel
@@ -671,6 +687,7 @@ function AvailabilityEditor({
             Guardar disponibilidad
           </Button>
         </form>
+        </div>
       )}
     </div>
   );
@@ -696,7 +713,7 @@ function Publication({
     >
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Reservas en línea</h2>
+          <h2 className="flex items-center gap-2.5 text-lg font-semibold"><SectionHeadingIcon icon={Globe} />Reservas en línea</h2>
           <p className="mt-1 text-sm text-kova-muted">
             Comparte un enlace para que tus clientes elijan un horario. El cobro
             se registra después en Caja.
@@ -771,9 +788,11 @@ function Publication({
         </div>
       )}
       {open && draft && (
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <PublicationPreview className="lg:order-last" draft={draft} />
         <form
           id="booking-publication-form"
-          className="space-y-4"
+          className="min-w-0 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             void panel
@@ -889,6 +908,7 @@ function Publication({
             Guardar reservas en línea
           </Button>
         </form>
+        </div>
       )}
     </section>
   );

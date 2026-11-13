@@ -18,6 +18,7 @@ import { PublicBookingDetail } from "./PublicBookingDetail";
 import { TableReservationDetail } from "./TableReservations";
 import { tableStatusText } from "@/bookings/tableStatus";
 import type { TableStatus } from "./bookingTypes";
+import { SemanticLabel } from "@/components/ui/status-badge";
 
 const statuses: Record<string, string> = {
   scheduled: "Programada",
@@ -122,10 +123,10 @@ export function CalendarBoard({
       <span className="block break-words text-xs text-kova-muted">
         {event.resource_name}
       </span>
-      <span className="block text-xs text-kova-muted">
+      <span className="flex flex-wrap items-center gap-x-1 text-xs text-kova-muted">
         {event.source === "table"
           ? tableStatusText[event.status as TableStatus]
-          : (statuses[event.status] ?? "Consultar cita")}
+          : <SemanticLabel domain="appointment" value={event.status} label={statuses[event.status] ?? "Consultar cita"} />}
         {event.source === "booking" ? " · Reserva en línea" : ""}
       </span>
     </button>

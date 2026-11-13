@@ -3,6 +3,8 @@ import { DrawerSettings } from "@/hardware/DrawerSettings";
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { RoleAccessPreview } from "./RoleAccessPreview";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -466,7 +468,7 @@ export default function SettingsView() {
             <Field label={copy.settings.publicName} value={business.public_name} onChange={(value) => setBusiness((x) => ({ ...x, public_name: value }))} required />
             <Field label={copy.settings.supportEmail} value={business.support_email} onChange={(value) => setBusiness((x) => ({ ...x, support_email: value }))} />
             <Field label={copy.settings.supportPhone} value={business.support_phone} onChange={(value) => setBusiness((x) => ({ ...x, support_phone: value }))} />
-            <LogoUploadField logoUrl={receipt.logo_url} setReceipt={setReceipt} />
+            <LogoUploadField logoUrl={receipt.logo_url} businessName={business.public_name} setReceipt={setReceipt} />
             <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
             </fieldset>
           </form>
@@ -507,7 +509,7 @@ export default function SettingsView() {
               <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
               </fieldset>
             </form>
-            <ReceiptPreview receipt={receipt} />
+            <ReceiptPreview receipt={receipt} taxRate={defaultTaxRate} />
           </div>
         </CardContent>
       </Card>
@@ -520,6 +522,8 @@ export default function SettingsView() {
           <p className="text-sm text-muted-foreground">{copy.settings.inviteHelp}</p>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
+          <div className="min-w-0 space-y-5">
           <div className="grid gap-3 md:grid-cols-3">
             {roleOptions.map((option) => (
               <div key={option.value} className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
@@ -549,12 +553,15 @@ export default function SettingsView() {
             <Button className="sm:mt-6" type="submit">{copy.settings.invite}</Button>
             </fieldset>
           </form>
+          </div>
+          <RoleAccessPreview role={invite.role} roleLabel={roleLabel(invite.role)} />
+          </div>
 
           <div className="space-y-2">
             {employees.map((employee) => (
               <div key={employee.membership_id} className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-3 sm:flex-row sm:items-center">
                 <div className="flex-1">
-                  <p className="font-medium">{employee.email}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-medium">{employee.email}<StatusBadge domain="role" value={employee.role} label={roleLabel(employee.role)} /></p>
                   <p className="text-xs text-muted-foreground">
                     {employee.is_active ? copy.settings.active : copy.settings.inactive}
                   </p>
@@ -827,8 +834,15 @@ type ReceiptDraft = {
   paper_width_mm: ReceiptPaperWidth;
 };
 
-function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
+function ReceiptPreview({ receipt, taxRate }: { receipt: ReceiptDraft; taxRate: string }) {
   const name = receipt.receipt_business_name.trim() || copy.settings.receiptPreviewPlaceholderName;
+  // Same rule as checkout (pricing/calculator.py): tax on the sample subtotal,
+  // rounded half up to centavos. Invalid or out-of-range rates show no tax.
+  const rate = Number(taxRate);
+  const subtotalCents = 12000;
+  const taxCents = Number.isFinite(rate) && rate > 0 && rate <= 100 ? Math.round(subtotalCents * rate / 100) : 0;
+  const amount = (cents: number) => (cents / 100).toFixed(2);
+  const total = amount(subtotalCents + taxCents);
 
   return (
     <div className="space-y-2">
@@ -856,9 +870,11 @@ function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
               modifiers: [],
             },
           ]}
-          subtotalAmount="120.00"
-          totalAmount="120.00"
-          payments={[{ method: "cash", amount_amount: "120.00" }]}
+          subtotalAmount={amount(subtotalCents)}
+          taxRate={taxCents > 0 ? taxRate : undefined}
+          taxAmount={taxCents > 0 ? amount(taxCents) : undefined}
+          totalAmount={total}
+          payments={[{ method: "cash", amount_amount: total }]}
         />
       </TicketPaper>
     </div>

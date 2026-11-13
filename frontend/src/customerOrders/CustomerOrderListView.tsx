@@ -23,6 +23,7 @@ import { formatDateTime, formatMoney } from "@/orders/format";
 import { listCustomerOrders } from "./api";
 import { readCustomerOrderCache, saveCustomerOrderList } from "./cache";
 import { fulfillmentLabels, paymentLabels, statusLabels } from "./labels";
+import { SemanticLabel, StatusBadge } from "@/components/ui/status-badge";
 import type { CustomerOrderListResponse, CustomerOrderPaymentStatus, CustomerOrderStatus, FulfillmentType } from "./types";
 
 const PAGE_SIZE = 25;
@@ -230,25 +231,21 @@ export default function CustomerOrderListView() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className="font-semibold tabular-nums">{order.folio}</span>
-                      <Badge variant={order.status === "cancelled" ? "destructive" : order.status === "fulfilled" ? "success" : "secondary"}>
-                        {statusLabels[order.status]}
-                      </Badge>
-                      <Badge variant={order.payment_status === "paid" ? "success" : "outline"}>
-                        {paymentLabels[order.payment_status]}
-                      </Badge>
+                      <StatusBadge domain="customerOrderStatus" value={order.status} label={statusLabels[order.status]} />
+                      <StatusBadge domain="customerOrderPayment" value={order.payment_status} label={paymentLabels[order.payment_status]} />
                       {order.stock_conflict ? (
                         <Badge variant="warning"><AlertTriangle className="mr-1 h-3 w-3" /> Stock comprometido</Badge>
                       ) : null}
                       {order.promised_at && new Date(order.promised_at) < new Date() && !["fulfilled", "cancelled"].includes(order.status) ? (
-                        <Badge variant="warning">Vencido</Badge>
+                        <StatusBadge domain="attention" value="overdue" label="Vencido" />
                       ) : null}
                     </div>
                     <p className="truncate text-sm font-medium">
                       {order.customer_name || "Cliente sin nombre"}
                     </p>
-                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      <span>{fulfillmentLabels[order.fulfillment_type]}</span>
-                      <span>{order.promised_at ? formatDateTime(order.promised_at) : "Lo antes posible"}</span>
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <SemanticLabel domain="fulfillment" value={order.fulfillment_type} label={fulfillmentLabels[order.fulfillment_type]} />
+                      <SemanticLabel domain="attention" value="scheduled" label={order.promised_at ? formatDateTime(order.promised_at) : "Lo antes posible"} />
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-4 sm:block sm:text-right">

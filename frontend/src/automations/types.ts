@@ -2,6 +2,8 @@ export type AutomationRule = {
   template_key: string;
   title: string;
   description: string;
+  /** Internal task text the rule creates; older APIs may omit it. */
+  task?: string;
   enabled: boolean;
   version: number;
 };

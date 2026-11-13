@@ -19,6 +19,7 @@ import {
   type WorkspaceIdentity,
 } from "./workspace";
 import type { AutomationRule, AutomationRun, AutomationsData } from "./types";
+import { RuleFlow } from "./RuleFlow";
 
 const statuses = {
   pending: "Pendiente",
@@ -226,15 +227,17 @@ function AutomationsWorkspace({ identity, canConfigure }: { identity: WorkspaceI
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${rule.enabled ? "bg-kova-growth/10 text-kova-growth-strong" : "bg-muted text-muted-foreground"}`}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${rule.enabled ? "bg-kova-growth/10 text-kova-growth-strong" : "bg-muted text-muted-foreground"}`}
                     >
+                      {rule.enabled ? <CheckCheck className="h-3 w-3" aria-hidden="true" /> : <CirclePause className="h-3 w-3" aria-hidden="true" />}
                       {rule.enabled ? "Activa" : "Pausada"}
                     </span>
                   </div>
                   <h3 className="mt-4 font-semibold">{rule.title}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {rule.description}
                   </p>
+                  <div className="flex-1"><RuleFlow rule={rule} /></div>
                   {confirmRule === rule.template_key ? (
                     <div className="mt-5 rounded-xl bg-muted p-3">
                       <p className="text-sm">

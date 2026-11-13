@@ -6,7 +6,7 @@ La respuesta de capacidades declara expresamente esos límites.
 
 ## Contratos y autorización
 
-- `GET /api/v1/automations`: reglas, últimas 100 ejecuciones y capacidades; `limit` máximo 200.
+- `GET /api/v1/automations`: reglas (con el texto de la tarea interna que crea cada una, `task`), últimas 100 ejecuciones y capacidades; `limit` máximo 200.
 - `PUT /api/v1/automations/rules/{template_key}`: `enabled`, `expected_version` (0 para crear).
 - `POST /api/v1/automations/process`: procesa hasta 100 eventos/tareas de la sucursal actual.
 - `POST /api/v1/automations/runs/{id}/resolve`: versión y estado `completed` o `dismissed`.

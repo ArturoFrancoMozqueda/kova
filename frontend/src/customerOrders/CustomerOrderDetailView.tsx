@@ -6,7 +6,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -151,7 +151,7 @@ export default function CustomerOrderDetailView() {
         <Card>
           <CardHeader><CardTitle>Cobro</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between"><Badge variant={order.payment_status === "paid" ? "success" : "outline"}>{paymentLabels[order.payment_status]}</Badge><span className="text-2xl font-bold tabular-nums">{formatMoney(order.total_amount)}</span></div>
+            <div className="flex items-center justify-between"><StatusBadge domain="customerOrderPayment" value={order.payment_status} label={paymentLabels[order.payment_status]} /><span className="text-2xl font-bold tabular-nums">{formatMoney(order.total_amount)}</span></div>
             {order.sale_order_id ? <Link className="mt-4 inline-flex text-sm font-medium text-primary hover:underline print:hidden" to={`/orders/${order.sale_order_id}`}>Ver venta vinculada</Link> : null}
             {order.stock_conflict ? <div className="mt-4 flex gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground"><AlertTriangle className="h-4 w-4 shrink-0" /> El stock físico ya no cubre todas las reservas. Corrige inventario o artículos antes de cobrar.</div> : null}
           </CardContent>
