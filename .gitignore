@@ -269,6 +269,7 @@ backend/reports/
 frontend/test-results/
 frontend/playwright-report/
 output/playwright/
+output/assistant-acceptance/
 .vercel
 
 assets/

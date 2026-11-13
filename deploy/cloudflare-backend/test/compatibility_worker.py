@@ -11,6 +11,91 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request):
         from urllib.parse import urlparse
 
+        if urlparse(request.url).path == "/assistant-qwen":
+            import asyncio
+            from types import SimpleNamespace
+            from unittest.mock import patch
+
+            import httpx
+            from pydantic import SecretStr
+
+            from app.assistant import grounding, provider, qwen
+
+            loop = asyncio.get_running_loop()
+            original_client = httpx.AsyncClient
+            seen = []
+
+            async def handler(outbound):
+                import json
+
+                await asyncio.sleep(0)
+                assert asyncio.get_running_loop() is loop
+                assert outbound.url.host == "api.cloudflare.com"
+                body = json.loads(outbound.content)
+                seen.append(body)
+                assert body["max_completion_tokens"] == 128
+                return httpx.Response(200, json={"choices": [{"finish_reason": "stop",
+                    "message": {"content": '{"passage_ids":["p0"]}'}}],
+                    "usage": {"prompt_tokens": 100, "completion_tokens": 20,
+                              "total_tokens": 120, "neurons": 9.909090909090908}})
+
+            import json
+
+            messages = [{"role": "system", "content": grounding.EXTRACTION_SYSTEM},
+                        {"role": "user", "content": json.dumps({"question": "Qué reviso",
+                         "passages": [{"id": "p0", "source_id":
+                          "6141fe70-9b98-4d18-865e-a874a72e1771", "title": "Guía",
+                          "quote": "Revisa el comprobante original.", "ocr": False}]})}]
+            with patch.object(provider, "settings", SimpleNamespace(
+                assistant_generation_provider="cloudflare", assistant_model=qwen.MODEL,
+                assistant_mutations_enabled=False, assistant_provider_verified=True,
+                assistant_cloudflare_account_id="a" * 32,
+                assistant_cloudflare_token=SecretStr("synthetic-test-only"),
+            )), patch.object(httpx, "AsyncClient", side_effect=lambda **kw: original_client(
+                transport=httpx.MockTransport(handler), **kw,
+            )):
+                result = provider.generate_passages(messages, model=qwen.MODEL)
+            charged = qwen.verified_charge({"model": qwen.MODEL, "usage_profile": qwen.PROFILE,
+                "input_tokens": 1000, "output_tokens": 128, "amount": 100},
+                result["usage"], complete=result["completed"])
+            return Response.json({"answer": json.loads(result["content"])["answer"],
+                                  "same_event_loop": True, "calls": len(seen),
+                                  "verified_neurons": charged})
+
+        if urlparse(request.url).path == "/assistant-provider":
+            import asyncio
+            from types import SimpleNamespace
+            from unittest.mock import patch
+
+            import httpx
+            from pydantic import SecretStr
+
+            from app.assistant import openrouter
+
+            loop = asyncio.get_running_loop()
+            original_client = httpx.AsyncClient
+
+            async def handler(outbound):
+                await asyncio.sleep(0)
+                assert asyncio.get_running_loop() is loop
+                assert outbound.url.host == "openrouter.ai"
+                return httpx.Response(200, json={
+                    "provider": openrouter.RECIPIENT,
+                    "choices": [{"finish_reason": "stop", "message": {"content": "Listo."}}],
+                })
+
+            with patch.object(openrouter, "ready", return_value=True), patch.object(
+                openrouter, "settings", SimpleNamespace(
+                    assistant_openrouter_api_key=SecretStr("synthetic-test-only"),
+                ),
+            ), patch.object(httpx, "AsyncClient", side_effect=lambda **kw: original_client(
+                transport=httpx.MockTransport(handler), **kw,
+            )):
+                result = openrouter.generate(
+                    [], [], model=openrouter.MODEL, structured=False, allowed_source_ids=None,
+                )
+            return Response.json({"content": result["content"], "same_event_loop": True})
+
         if urlparse(request.url).path == "/instrumented-error":
             import sentry_sdk
             from fastapi import FastAPI

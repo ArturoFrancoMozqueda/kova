@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import math
+import sys
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
@@ -155,7 +156,13 @@ def generate(messages, tools, *, model, structured, allowed_source_ids):
     if not ready() or model != MODEL:
         raise HTTPException(503, "El proveedor de IA aún no está configurado.")
     assert settings.assistant_openrouter_api_key is not None
-    result = asyncio.run(
+    # Jobs run inside the Workers event loop; starting another loop there fails.
+    # JSPI suspends the synchronous job until this coroutine completes.
+    if sys.platform == "emscripten":
+        from pyodide.ffi import run_sync
+    else:
+        run_sync = asyncio.run
+    result = run_sync(
         request(
             BASE + "/chat/completions",
             body(

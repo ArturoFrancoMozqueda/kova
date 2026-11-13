@@ -150,6 +150,9 @@ def message_create(
         return repo.view(db, tenant, user, replay)
     if not provider.ready() and not direct.match(content):
         raise HTTPException(503, "El proveedor de IA aún no está configurado.")
+    if provider.grounded_answers():
+        deadline.expire_pending(db, tenant, user)
+        db.flush()
     if (
         repo.records(db, tenant, user, "run")
         .filter(repo.AssistantRecord.status.in_(["queued", "running"]))
@@ -186,11 +189,11 @@ def run_get(identifier: UUID, db=Depends(get_db), ctx=Depends(require_enabled)):
     row = repo.get(db, tenant, user, "run", identifier)
     if row.branch_id != branch:
         raise HTTPException(409, "La sucursal cambió.")
-    if settings.assistant_generation_provider == "openrouter" and deadline.expired(row):
+    if provider.grounded_answers() and deadline.expired(row):
         row = repo.get(db, tenant, user, "run", identifier, lock=True)
         if row.status in {"queued", "running"}:
             row.status = "failed"
-            repo.update(row, error="La consulta alcanzó su tiempo límite. Acota la pregunta.",
+            repo.update(row, error=deadline.TIMEOUT_MESSAGE,
                         error_code=503)
             db.commit()
     return repo.view(db, tenant, user, row)

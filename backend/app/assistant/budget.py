@@ -1,4 +1,4 @@
-"""Atomic shared reservations; only verified Llama usage releases unused capacity."""
+"""Atomic shared reservations; uncertain requests never release capacity."""
 
 import math
 from datetime import UTC, datetime, timedelta
@@ -183,7 +183,8 @@ def reserve(
     return amount
 
 
-def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, reported) -> int:
+def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, reported,
+           *, complete=False) -> int:
     from app.assistant import repository as repo
 
     # Same lock ordering as reserve: shared counters, then private job. Settlement
@@ -194,6 +195,13 @@ def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, repo
     if not receipt or receipt["id"] != reservation_id:
         return 0
     retained = receipt["amount"]
+    from app.assistant import deadline, qwen
+
+    if receipt["model"] == qwen.MODEL:
+        if job.status != "running" or deadline.expired(job):
+            return 0
+        actual = qwen.verified_charge(receipt, reported, complete=complete)
+        retained = actual if actual is not None else retained
     if receipt.get("provider") == "openrouter":
         from app.assistant import openrouter_budget
 

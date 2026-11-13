@@ -17,6 +17,9 @@ mismo PR.
 Explican por qué el sistema es así. No se editan para reflejar cambios: si una decisión cambia, se
 escribe un ADR nuevo que reemplaza al anterior.
 
+- [Asistente Cloudflare con consumo verificable](adr/ADR-034-asistente-cloudflare-consumo-verificado.md):
+  respuestas ancladas, reducción de llamadas/tokens y conciliación de Qwen sin liberar incertidumbre.
+
 ## Referencia de producto y negocio
 
 - [KOVA_BRAND_CONTEXT.md](KOVA_BRAND_CONTEXT.md): marca, público, voz, identidad visual y producto
@@ -64,6 +67,9 @@ justificación de permisos y recorrido de video, con bloqueos de Meta y evidenci
 
 [Aceptación de equipos](runbooks/pos-hardware-acceptance.md): equipo de prueba, impresión térmica,
 lector, cajón y pruebas offline en los dispositivos reales de cada negocio.
+
+[Aceptación del asistente](runbooks/assistant-acceptance.md): evaluación reproducible, revisión
+humana, chat autenticado, carga y presupuesto antes de habilitar inferencia externa.
 
 ## Pruebas
 

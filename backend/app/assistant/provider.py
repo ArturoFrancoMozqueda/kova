@@ -3,6 +3,7 @@
 import json
 import math
 import re
+import sys
 
 import httpx
 from fastapi import HTTPException
@@ -13,6 +14,24 @@ from app.config import settings
 
 EMBEDDING_MODEL = "@cf/qwen/qwen3-embedding-0.6b"
 GROQ_MODEL = "openai/gpt-oss-20b"
+
+
+def grounded_cloudflare() -> bool:
+    from app.assistant.qwen import MODEL
+
+    return (settings.assistant_generation_provider == "cloudflare"
+            and settings.assistant_model == MODEL and not settings.assistant_mutations_enabled)
+
+
+def grounded_answers() -> bool:
+    return settings.assistant_generation_provider == "openrouter" or grounded_cloudflare()
+
+
+def output_limit(*, structured=False):
+    from app.assistant import qwen
+
+    return (qwen.PASSAGE_TOKENS if structured else qwen.PLANNING_TOKENS) if (
+        grounded_cloudflare()) else 1024
 
 
 def chat_consent_valid(data: dict) -> bool:
@@ -61,7 +80,9 @@ def groq_models() -> set[str]:
 
 
 def planning_tools(tools):
-    if settings.assistant_generation_provider not in {"groq", "openrouter"}:
+    if settings.assistant_generation_provider not in {"groq", "openrouter"} and not (
+        grounded_cloudflare()
+    ):
         return tools
 
     def compact(schema):
@@ -263,15 +284,21 @@ def _call(model: str, body: dict, *, chat=False) -> dict:
     if chat:
         body = {**body, "model": model}
     assert settings.assistant_cloudflare_token is not None
-    if settings.assistant_generation_provider == "openrouter":
+    if settings.assistant_generation_provider == "openrouter" or grounded_cloudflare():
         # Document embeddings share the interactive request's remaining deadline.
         # This preserves their separate Cloudflare consent and neuron accounting.
         import asyncio
 
         from app.assistant import openrouter
 
-        data = asyncio.run(openrouter.request(url, body, "Bearer "
+        if sys.platform == "emscripten":
+            from pyodide.ffi import run_sync
+        else:
+            run_sync = asyncio.run
+        data = run_sync(openrouter.request(url, body, "Bearer "
                        + settings.assistant_cloudflare_token.get_secret_value()))
+        if chat:
+            return data
         if not data.get("success") or not isinstance(data.get("result"), dict):
             raise HTTPException(503, "Respuesta de IA no verificable.")
         return data["result"]
@@ -365,7 +392,20 @@ def generate(
     if response_format:
         body["response_format"] = response_format
     if model == "@cf/qwen/qwen3.8-27b":
-        body.update(max_completion_tokens=1024, reasoning_effort="low")
+        from app.assistant import qwen
+
+        limit = (qwen.ANSWER_TOKENS if structured else qwen.PLANNING_TOKENS) if (
+            grounded_cloudflare()) else 1024
+        body.update(max_completion_tokens=limit, reasoning_effort="low",
+                    chat_template_kwargs={"enable_thinking": False})
+        if response_format:
+            # Qwen uses the OpenAI wrapper, unlike the legacy native models.
+            # A bare JSON schema is rejected before inference (HTTP 400).
+            body["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "kova_answer", "strict": True,
+                                "schema": response_format["json_schema"]},
+            }
     elif model in {"@cf/qwen/qwen3-30b-a3b-fp8", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"}:
         body.update(max_tokens=1024)
     else:
@@ -397,11 +437,18 @@ def generate(
         result = _call(model, body, chat=True)
     # Both native Workers AI and compatible completion responses are supported.
     if "choices" in result:
+        completed = (len(result["choices"]) == 1 and result["choices"][0].get(
+            "finish_reason") in {"stop", "tool_calls"})
+        if grounded_cloudflare() and result["choices"][0].get("finish_reason") in {
+            "length", "content_filter"
+        }:
+            raise HTTPException(422, "La respuesta quedó incompleta. Acota tu consulta.")
         message = result["choices"][0]["message"]
         return {
             "content": message.get("content") or "",
             "tool_calls": message.get("tool_calls") or [],
             "usage": result.get("usage"),
+            "completed": completed,
         }
     content = result.get("response") or ""
     if isinstance(content, dict):
@@ -411,6 +458,29 @@ def generate(
         "tool_calls": result.get("tool_calls") or [],
         "usage": result.get("usage"),
     }
+
+
+def generate_passages(messages, *, model):
+    from app.assistant import grounding, qwen
+
+    if not grounded_cloudflare() or model != qwen.MODEL:
+        raise HTTPException(503, "Perfil de selección no verificado.")
+    body = {"messages": messages, "store": False, "stream": False,
+            "parallel_tool_calls": False, "max_completion_tokens": qwen.PASSAGE_TOKENS,
+            "reasoning_effort": "low", "chat_template_kwargs": {"enable_thinking": False},
+            "response_format": grounding.response_format(grounding.passage_ids(messages))}
+    result = _call(model, body, chat=True)
+    choices = result.get("choices")
+    if (not isinstance(choices, list) or len(choices) != 1
+            or not isinstance(choices[0], dict) or choices[0].get("finish_reason") != "stop"):
+        raise HTTPException(422, "La selección quedó incompleta. Acota tu consulta.")
+    message = choices[0].get("message")
+    if (not isinstance(message, dict) or message.get("tool_calls") or message.get("refusal")
+            or not isinstance(message.get("content"), str)):
+        raise HTTPException(422, "La selección no cumplió el contrato de Kova.")
+    answer = grounding.selected_answer(message["content"], messages)
+    return {"content": answer.model_dump_json(), "tool_calls": [],
+            "usage": result.get("usage"), "completed": True}
 
 
 def embed(texts: list[str]) -> list[list[float]]:

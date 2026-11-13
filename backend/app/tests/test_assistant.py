@@ -755,6 +755,15 @@ def test_read_only_configuration_guidance_never_prepares_changes(enabled_client,
         pytest.fail("Read-only chat must not invoke the mutation proposal executor")
 
     monkeypatch.setattr(provider, "generate", response)
+    def select(messages, *, model):
+        from app.assistant import grounding
+
+        messages_sent.append(list(messages))
+        return {"content": grounding.selected_answer('{"passage_ids":["p0"]}',
+                                                       messages).model_dump_json(),
+                "tool_calls": []}
+
+    monkeypatch.setattr(provider, "generate_passages", select)
     monkeypatch.setattr(generation.executor, "prepare", unexpected_proposal)
     generation.run(db, ctx, job)
 
@@ -768,41 +777,25 @@ def test_read_only_configuration_guidance_never_prepares_changes(enabled_client,
     )
     for messages in messages_sent:
         assert messages[0]["role"] == "system"
-        assert "La configuración real actual es evidencia" in messages[0]["content"]
         assert all(message["role"] != "system" for message in messages[1:])
 
 
 def test_read_only_final_explanation_preserves_sales_evidence(enabled_client, monkeypatch):
-    import json
-
     _, db, tenant, _ = enabled_client
-    ctx, job = running_job(db, tenant)
+    ctx, job = running_job(db, tenant, "Dame un resumen de ventas registradas")
     monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
     stages = []
 
     def respond(messages, available_tools, *, model, structured=False, allowed_source_ids=None):
         stages.append(structured)
-        if len(stages) == 1:
-            return {"content": "", "tool_calls": [{"name": "get_sales", "arguments": {}}]}
-        if not structured:
-            # Planning prose must never be delivered, even if it contains invented figures.
-            return {"content": "Vendiste 99999 pesos", "tool_calls": []}
-        assert not available_tools
-        assert allowed_source_ids == []
-        sales = json.loads(messages[-1]["content"].split("\n")[1])[0]
-        assert sales["net_sales"] == "0.00"
-        return {
-            "content": json.dumps(
-                {"answer": "No hay ventas en el periodo consultado.", "source_ids": [], "steps": []}
-            ),
-            "tool_calls": [],
-        }
+        assert not structured, "Kova must write financial conclusions without a second call"
+        return {"content": "Vendiste 99999 pesos", "tool_calls": [{
+            "name": "get_sales", "arguments": {}}]}
 
     monkeypatch.setattr(provider, "generate", respond)
     generation.run(db, ctx, job)
-    # The final explanation follows the first successful read directly, saving
-    # the redundant planning call while preserving the same evidence checks.
-    assert stages == [False, True]
+    # The grounded financial answer is now authored by Kova, with no final model call.
+    assert stages == [False]
     assert job.status == "completed"
     assert job.data["metrics"]["net_sales"] == "0.00"
     assert "99999" not in job.data["answer"]
@@ -1496,6 +1489,7 @@ def test_provider_uses_fixed_compatible_chat_contract_and_native_embeddings(monk
     monkeypatch.setattr(settings, "assistant_cloudflare_account_id", "a" * 32)
     monkeypatch.setattr(settings, "assistant_cloudflare_token", SecretStr("test-only-mock-token"))
     original = httpx.Client
+    original_async = httpx.AsyncClient
 
     def handler(request):
         assert request.url.host == "api.cloudflare.com"
@@ -1507,6 +1501,7 @@ def test_provider_uses_fixed_compatible_chat_contract_and_native_embeddings(monk
                 json={
                     "choices": [
                         {
+                            "finish_reason": "stop",
                             "message": {
                                 "content": '{"answer":"Respuesta"}',
                                 "reasoning": "Never expose this",
@@ -1522,6 +1517,8 @@ def test_provider_uses_fixed_compatible_chat_contract_and_native_embeddings(monk
     monkeypatch.setattr(
         httpx, "Client", lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs)
     )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_async(
+        transport=httpx.MockTransport(handler), **kwargs))
     for model in (settings.assistant_model, settings.assistant_help_model):
         result = provider.generate(
             [{"role": "user", "content": "Consulta"}], tools.TOOLS, model=model
@@ -1530,7 +1527,7 @@ def test_provider_uses_fixed_compatible_chat_contract_and_native_embeddings(monk
         assert result["content"] == '{"answer":"Respuesta"}'
     assert len(provider.embed(["Texto permitido"])[0]) == 1024
     assert seen[0][0].endswith("/ai/v1/chat/completions")
-    assert seen[0][1]["max_completion_tokens"] == 1024
+    assert seen[0][1]["max_completion_tokens"] == 256
     assert seen[1][1]["max_tokens"] == 1024
     assert seen[1][1]["store"] is False
     assert all(tool["type"] == "function" for tool in seen[0][1]["tools"])
@@ -1556,7 +1553,9 @@ def test_provider_constrains_read_only_output_without_enabling_proposals(monkeyp
         assert output_format is None
     else:
         assert output_format["type"] == "json_schema"
-        schema = output_format["json_schema"]
+        wrapper = output_format["json_schema"]
+        assert wrapper["name"] == "kova_answer" and wrapper["strict"] is True
+        schema = wrapper["schema"]
         assert schema["properties"]["steps"]["maxItems"] == 0
         pattern = schema["properties"]["answer"]["pattern"]
         assert re.fullmatch(pattern, "Consulta las tarjetas de ventas.")
@@ -1617,6 +1616,7 @@ def test_provider_does_not_follow_redirects_to_unapproved_hosts(monkeypatch):
     monkeypatch.setattr(settings, "assistant_cloudflare_token", SecretStr("test-only-mock-token"))
     requests = []
     original = httpx.Client
+    original_async = httpx.AsyncClient
 
     def handler(request):
         requests.append(request.url.host)
@@ -1625,6 +1625,8 @@ def test_provider_does_not_follow_redirects_to_unapproved_hosts(monkeypatch):
     monkeypatch.setattr(
         httpx, "Client", lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs)
     )
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_async(
+        transport=httpx.MockTransport(handler), **kwargs))
     with pytest.raises(HTTPException) as error:
         provider.generate([], [], model=settings.assistant_model)
     assert error.value.status_code == 503

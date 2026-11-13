@@ -2,6 +2,21 @@ import { expect, it } from "vitest";
 import { env } from "cloudflare:test";
 import { createDecipheriv, createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+it("selects Qwen passages and verifies metering inside the Python Workers loop", async () => {
+  const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/assistant-qwen");
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    answer: "Según la fuente: «Revisa el comprobante original.»",
+    same_event_loop: true, calls: 1, verified_neurons: 12,
+  });
+});
+
+it("awaits assistant inference inside the existing Python Workers event loop", async () => {
+  const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/assistant-provider");
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ content: "Listo.", same_event_loop: true });
+});
+
 it("keeps the existing deterministic accountant PDF byte-for-byte after lazy loading", async () => {
   const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/accountant-pdf");
   expect(response.status).toBe(200);
