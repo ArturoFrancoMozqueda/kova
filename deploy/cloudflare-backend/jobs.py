@@ -45,6 +45,13 @@ def initialize(env):
             init_sentry()
             policy_catalog = assert_rls_active()
             assert_private_policies(policy_catalog=policy_catalog)
+            from app.config import settings
+
+            logging.getLogger(__name__).info(
+                "assistant_runtime enabled=%s provider=%s cohort_configured=%s",
+                settings.assistant_enabled, settings.assistant_generation_provider,
+                bool(settings.assistant_tenant_ids.strip()),
+            )
             _ready = True
         finally:
             environment.reset(token)

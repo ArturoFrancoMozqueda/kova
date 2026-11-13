@@ -169,7 +169,8 @@ def queue(client, question="¿Cuánto vendí hoy?"):
     return conversation, response.json()
 
 
-def test_local_chat_api_job_and_history_use_real_sales(local_client, caplog):
+@pytest.mark.parametrize("native", [False, True])
+def test_local_chat_api_job_and_history_use_real_sales(local_client, caplog, monkeypatch, native):
     client, db, tenant = local_client
     product_response = client.post("/api/v1/catalog/products", headers={
         "Idempotency-Key": str(uuid4()),
@@ -186,11 +187,19 @@ def test_local_chat_api_job_and_history_use_real_sales(local_client, caplog):
         "payments": [{"method": "cash", "amount": "75.00", "amount_tendered": "75.00"}],
     })
     assert sale.status_code == 201, sale.text
+    monkeypatch.setattr(settings, "cloudflare_container_mode", native)
+    caplog.set_level("INFO", logger="app.assistant.worker")
+    if native:
+        from app.workers import jobs
+
+        monkeypatch.setattr(jobs, "wake", lambda *a: pytest.fail("Local read must not wake WASM"))
     conversation, run = queue(client)
     ctx = context(db, tenant)
     job = repo.get(db, tenant, ctx[0].id, "run", UUID(run["id"]))
-    caplog.set_level("INFO", logger="app.assistant.worker")
-    assert worker.process_job(db, ctx[0], ctx[1], job) is True
+    if native:
+        assert run["status"] == "completed"
+    else:
+        assert worker.process_job(db, ctx[0], ctx[1], job) is True
     completed = client.get(f"/api/v1/assistant/runs/{run['id']}").json()
     assert completed["status"] == "completed"
     assert completed["data"]["response_mode"] == "direct"
@@ -202,6 +211,62 @@ def test_local_chat_api_job_and_history_use_real_sales(local_client, caplog):
                     if record.name == "app.assistant.worker"]
     assert len(measurements) == 1 and "status=completed mode=direct queue_ms=" in measurements[0]
     assert "75.00" not in measurements[0] and "Cuánto vendí" not in measurements[0]
+
+
+def test_native_local_replay_keeps_one_answer_without_resending(local_client, monkeypatch):
+    from app.assistant import budget
+    from app.workers import jobs
+
+    client, _, _ = local_client
+    monkeypatch.setattr(settings, "cloudflare_container_mode", True)
+    monkeypatch.setattr(budget, "reserve", lambda *a, **kw: pytest.fail("No model reservation"))
+    monkeypatch.setattr(jobs, "wake", lambda *a: pytest.fail("No external worker"))
+    conversation = client.post("/api/v1/assistant/conversations", json={}).json()["id"]
+    path = f"/api/v1/assistant/conversations/{conversation}/messages"
+    key = {"Idempotency-Key": str(uuid4())}
+    body = {"content": "¿Qué es la venta neta?"}
+    first = client.post(path, json=body, headers=key)
+    assert first.status_code == 202, first.text
+    assert first.json()["status"] == "completed"
+    second = client.post(path, json=body, headers=key)
+    assert second.status_code == 202 and second.json()["id"] == first.json()["id"]
+    conflict = client.post(path, json={"content": "¿Cuánto vendí ayer?"}, headers=key)
+    assert conflict.status_code == 409
+    messages = client.get(f"/api/v1/assistant/conversations/{conversation}").json()["messages"]
+    assert [message["data"]["role"] for message in messages] == ["user", "assistant"]
+    assert "No equivale a utilidad" in messages[-1]["data"]["content"]
+    assert messages[-1]["data"]["sources"]
+
+
+def test_native_local_full_capacity_preserves_the_committed_queue(local_client, monkeypatch):
+    from unittest.mock import Mock
+
+    from app.workers import jobs
+
+    client, _, tenant = local_client
+    monkeypatch.setattr(settings, "cloudflare_container_mode", True)
+    monkeypatch.setattr(worker, "acquire", lambda *a: False)
+    wake = Mock()
+    monkeypatch.setattr(jobs, "wake", wake)
+    _, run = queue(client)
+    assert run["status"] == "queued"
+    wake.assert_called_once_with(tenant)
+
+
+def test_native_unrecognized_question_stays_in_private_worker(local_client, monkeypatch):
+    from unittest.mock import Mock
+
+    from app.workers import jobs
+
+    client, _, tenant = local_client
+    monkeypatch.setattr(settings, "cloudflare_container_mode", True)
+    monkeypatch.setattr(provider, "ready", lambda: True)
+    monkeypatch.setattr(worker, "process_job", lambda *a: pytest.fail("No inline inference"))
+    wake = Mock()
+    monkeypatch.setattr(jobs, "wake", wake)
+    _, run = queue(client, "Explica las causas de la baja de mis ventas")
+    assert run["status"] == "queued"
+    wake.assert_called_once_with(tenant)
 
 
 def test_expired_turn_does_not_block_next_question_or_replay(local_client):
