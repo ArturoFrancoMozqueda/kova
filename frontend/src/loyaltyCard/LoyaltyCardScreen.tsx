@@ -58,7 +58,7 @@ export function LoyaltyCardScreen({ data, loading = false, error = "", missing =
         <Button type="button" variant="outline" className="mt-5" onClick={onRefresh}>Volver a intentar</Button>
       </section> : data && <>
         <CardFace label="Tu saldo de lealtad" appearance={data.appearance} businessName={data.business_name}>
-          <div className="flex flex-wrap items-baseline gap-x-2 py-3"><output aria-label="Tus puntos" className="max-w-full break-all text-5xl font-semibold leading-none tracking-tight tabular-nums sm:text-6xl">{points(data.balance)}</output><span className="text-base opacity-80">{data.balance === 1 ? "punto" : "puntos"}</span></div>
+          <div className="flex flex-wrap items-baseline gap-x-2"><output aria-label="Tus puntos" className="max-w-full break-all text-5xl font-semibold leading-none tracking-tight tabular-nums sm:text-6xl">{points(data.balance)}</output><span className="text-base opacity-80">{data.balance === 1 ? "punto" : "puntos"}</span></div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/20 pt-3"><p className="text-xs">{data.adjustments_pending ? "Saldo en revisión" : data.policy.enabled ? "Acumulación activa" : "Acumulación pausada por el negocio"}</p><span className="text-[10px] opacity-70" aria-hidden="true">KOVA</span></div>
         </CardFace>
         {data.reward?.enabled && <section aria-label="Tu próxima recompensa" className="space-y-2 rounded-xl border border-kova-border bg-white p-4 text-sm">

@@ -41,7 +41,7 @@ export function CardFace({
     <section
       aria-label={label}
       style={{ backgroundColor: color, color: cardTextColor(color) }}
-      className="relative isolate flex min-h-44 flex-col justify-between gap-4 overflow-hidden rounded-3xl p-5 shadow-lg transition-colors duration-300 motion-reduce:transition-none sm:p-6"
+      className="relative isolate flex aspect-[1.586/1] min-h-44 flex-col justify-between gap-2 overflow-hidden rounded-3xl p-4 shadow-lg transition-colors duration-300 motion-reduce:transition-none sm:p-6"
     >
       <div
         aria-hidden="true"
@@ -53,7 +53,7 @@ export function CardFace({
             Tarjeta de lealtad
           </p>
           {businessName && (
-            <p className="mt-1 break-words text-sm font-semibold">
+            <p className="mt-1 truncate text-sm font-semibold" title={businessName}>
               {businessName}
             </p>
           )}

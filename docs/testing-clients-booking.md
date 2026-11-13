@@ -1,6 +1,6 @@
 # Validación local: Clientes, lealtad y reservas
 
-Fecha: 2026-11-12. Implementación local; sin commit, push, merge, workflow ni despliegue.
+Fecha: 2026-11-12. Evidencia local previa a la publicación del PR #349.
 Las reservas públicas inician desactivadas por sucursal. Los negocios de prueba las habilitaron
 explícitamente en PostgreSQL desechable; no se modificaron negocios o suscripciones productivos.
 
@@ -15,6 +15,21 @@ explícitamente en PostgreSQL desechable; no se modificaron negocios o suscripci
 | Navegador con API/PostgreSQL/RLS reales | 8 escenarios aprobados, incluidos recorridos a 390 y 1440 px |
 | Build, tipos, lint y contrato API | Aprobados; lint conserva una advertencia previa en WhatsAppSignupPanel |
 | Ruff y diff whitespace | Aprobados |
+
+La primera ejecución de CI amplió la revisión al inventario de Workers, la matriz completa de
+permisos y las suites de navegador existentes. Se añadieron los modelos/DTO de reservas al
+inventario y las siete tablas a la matriz SQL real de dos tenants, incluidos permisos por columna.
+Las tres pruebas de esa matriz y las cuatro del límite de snapshot aprobaron localmente.
+
+Se restauró la proporción de la tarjeta pública y se repitieron sus tamaños 320/390/768/1440 px.
+La prueba de enlaces exactos ahora espera sólo animaciones visibles: el detalle de actividad
+plegado retiene su animación hasta abrirse. Sus comprobaciones de registro, recarga y axe se
+conservan; ambas suites completas aprobaron, 22 escenarios adicionales.
+
+La matriz completa de migraciones aprobó 45 pruebas. También aprobaron tres recorridos reales
+adicionales de automatización, ciclo de pedido/venta/atención y cola operativa, adaptados a abrir
+las secciones plegadas y cerrar la ficha modal mediante Escape antes de continuar por el menú.
+Se conservaron todas sus comprobaciones financieras, de inventario y separación entre negocios.
 
 La primera ejecución amplia del navegador real aprobó 7 de 8 escenarios. El restante encontró
 un selector ambiguo porque «Cancelada» ahora aparece en calendario y detalle. Se acotó al detalle
