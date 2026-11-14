@@ -22,20 +22,20 @@ type VariantContent = {
 
 const content: Record<LegalPageProps["variant"], VariantContent> = {
   privacy: {
-    eyebrow: "Legal · Versión 1.0",
+    eyebrow: "Legal · Versión 1.1",
     title: "Aviso de privacidad integral",
     intro:
-      "Cumplimiento LFPDPPP, GDPR y principios internacionales. Este aviso describe qué datos personales recabamos, las finalidades del tratamiento, sus derechos como titular y los mecanismos para ejercerlos.",
-    lastUpdated: "28 de mayo de 2026 (fecha de entrada en vigor)",
+      "Este aviso describe qué datos personales tratamos al prestar el servicio, para qué los utilizamos y cómo solicitar su acceso, corrección o eliminación. Incluye el tratamiento asociado a WhatsApp cuando un negocio autoriza esa conexión.",
+    lastUpdated: "14 de noviembre de 2026",
     sections: [
       {
         heading: "I. Propósito de este documento",
         body: [
-          "Este aviso simplificado cumple con el Artículo 16 de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP) y debe mostrarse en el punto de captura de datos personales: formularios de registro, pantallas de creación de cuenta, y cualquier interface donde se recopilen datos del usuario.",
+          "Este aviso se aplica a los datos de las cuentas de Kova y a los que los negocios registran para operar el servicio. La sección de WhatsApp describe únicamente la conexión que un negocio autorice; este aviso no activa esa función ni sustituye el aviso que cada negocio debe proporcionar a sus propios clientes.",
         ],
       },
       {
-        heading: "II. Identidad y domicilio del responsable",
+        heading: "II. Responsable y contacto",
         body: [
           `El responsable del tratamiento de los datos personales es Kova, nombre comercial bajo el cual se opera una plataforma digital de administración comercial para negocios, emprendedores y comercios locales. Para cualquier asunto relacionado con el tratamiento de datos personales, derechos ARCO, revocación del consentimiento o dudas sobre este Aviso de Privacidad, puede comunicarse al correo electrónico: ${SUPPORT_EMAIL}.`,
         ],
@@ -59,13 +59,18 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "• Imágenes y fotografías de productos subidas voluntariamente.",
           "• Catálogos, inventarios y descripciones de productos.",
           "• Registros de ventas, reportes y datos operacionales del negocio.",
-          "2.5 Datos que NO se recaban:",
+          "2.5 Datos de la conexión con WhatsApp y Meta, cuando el negocio la autoriza:",
+          "• Identificadores de la cuenta de WhatsApp del negocio y del número comercial autorizado, estado de la conexión y permisos de atención.",
+          "• Números de contacto, texto de mensajes recibidos y borradores o respuestas del negocio, identificadores y tipos de mensaje, fechas y estados de envío, entrega o lectura que Meta comunique.",
+          "• Credenciales de autorización de la conexión, almacenadas cifradas en el servidor. Los códigos temporales de autorización se usan para completar la conexión y no forman parte de la exportación del negocio.",
+          "Esta integración no importa el historial personal del teléfono ni descarga imágenes, audios, videos o documentos recibidos por WhatsApp. Puede conservar el tipo de un mensaje sin guardar su archivo.",
+          "2.6 Datos que no solicitamos de forma obligatoria para crear una cuenta:",
           "• Datos biométricos.",
           "• Datos de salud.",
           "• Orientación sexual, religión, opiniones políticas u origen racial.",
           "• Fecha de nacimiento.",
           "• Dirección física del usuario.",
-          "Kova NO trata datos personales sensibles conforme a la definición del Artículo 3, fracción VI de la LFPDPPP.",
+          "El texto que una persona incluya voluntariamente en una conversación puede contener información adicional. Evita enviar datos sensibles o información que no sea necesaria para la atención del negocio.",
         ],
       },
       {
@@ -77,11 +82,12 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "3. Enviar notificaciones técnicas, actualizaciones de servicio y alertas de seguridad.",
           "4. Dar atención a solicitudes de soporte técnico y servicio al cliente.",
           "5. Cumplir obligaciones legales, fiscales o regulatorias aplicables.",
+          "6. Cuando el negocio autorice WhatsApp: conectar su cuenta y número comercial, recibir conversaciones, permitir respuestas confirmadas por su personal autorizado y consultar los estados de entrega. Los mensajes de este flujo no se utilizan para publicidad, venta de datos ni entrenamiento de modelos de inteligencia artificial.",
           "3.2 Finalidades secundarias (puede revocar en cualquier momento):",
-          "6. Enviar comunicaciones de marketing, novedades y promociones de Kova.",
-          "7. Realizar encuestas de satisfacción y estudios de mercado.",
-          "8. Analizar el uso de la plataforma para mejorar funcionalidades.",
-          "9. Compartir contenido de éxito o casos de uso (siempre con consentimiento expreso y de forma anonimizada).",
+          "7. Enviar comunicaciones de marketing, novedades y promociones de Kova.",
+          "8. Realizar encuestas de satisfacción y estudios de mercado.",
+          "9. Analizar el uso de la plataforma para mejorar funcionalidades.",
+          "10. Compartir contenido de éxito o casos de uso (siempre con consentimiento expreso y de forma anonimizada).",
           `Si usted no desea que sus datos sean tratados para las finalidades secundarias, puede comunicarlo a ${SUPPORT_EMAIL} sin que ello afecte su acceso al servicio.`,
         ],
       },
@@ -99,23 +105,40 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         ],
       },
       {
-        heading: "VI. Retención y eliminación de datos",
+        heading: "VI. WhatsApp, Meta y proveedores del servicio",
+        body: [
+          "El negocio decide conectar su cuenta de WhatsApp y es responsable de contar con una base legítima para contactar a sus clientes y del contenido que envía. Kova trata las conversaciones por cuenta de ese negocio para prestar la función de atención autorizada. Su personal sólo accede conforme a los permisos del negocio y de la sucursal correspondientes.",
+          "Meta y WhatsApp intervienen en la autorización de la cuenta y en el transporte y los estados de los mensajes, conforme a sus propias condiciones y avisos de privacidad. Para alojar y operar Kova utilizamos Cloudflare y Supabase como proveedores de infraestructura. El tratamiento puede realizarse fuera de México; no ofrecemos almacenamiento exclusivo en México.",
+          "Los datos de WhatsApp se comparten con estos proveedores sólo en lo necesario para operar la conexión, alojar la información y proteger el servicio. No se venden ni se comparten con anunciantes para crear perfiles publicitarios.",
+          "La conexión utiliza comunicaciones HTTPS, control de acceso por negocio y sucursal y credenciales cifradas en el servidor. No compartas contraseñas, códigos de autorización ni tokens por correo o en una conversación de soporte.",
+        ],
+      },
+      {
+        heading: "VII. Solicitudes de eliminación de datos de WhatsApp y Meta",
+        body: [
+          `Para retirar la autorización de Kova, utiliza las opciones de permisos e integraciones de tu cuenta en Meta. Pausar respuestas o retirar permisos no elimina automáticamente el historial ya guardado en Kova. Para solicitar la eliminación de datos de WhatsApp o Meta, escribe a ${SUPPORT_EMAIL} con el asunto “Eliminar datos de WhatsApp”, indica el negocio y el número o conversación correspondientes. Verificaremos tu identidad y, cuando corresponda, tu representación del negocio antes de atender la solicitud. No envíes tokens ni contraseñas.`,
+          "Si eres cliente de un negocio que usa Kova, puedes dirigir tu solicitud al propio negocio o escribir al canal anterior para que podamos identificar el tratamiento correspondiente. Las solicitudes se atienden conforme a la sección de derechos de este aviso y las obligaciones de conservación aplicables. La eliminación en Kova no borra copias conservadas por el negocio, los destinatarios o Meta y WhatsApp bajo sus propias políticas.",
+        ],
+      },
+      {
+        heading: "VIII. Retención y eliminación de datos",
         body: [
           "• Mientras la cuenta permanezca activa en la plataforma.",
           "• Cuando el titular programe la eliminación de su cuenta, se aplicará un plazo reversible de al menos 30 días antes de la purga definitiva.",
           "• El tiempo adicional necesario para cumplir obligaciones legales, fiscales o contables (hasta 5 años conforme a legislación fiscal mexicana).",
           "• El tiempo necesario para resolver disputas o reclamaciones pendientes.",
+          "Las conversaciones de WhatsApp, sus estados y los datos de conexión forman parte de los datos del negocio sujetos a estas reglas. No se borran al cerrar una conversación ni al pausar respuestas. La exportación del negocio incluye el texto y los estados de sus mensajes; excluye las credenciales de conexión y los códigos de autorización. La purga de una cuenta comprende también su historial y sus credenciales de WhatsApp, salvo la información que deba conservarse por una obligación aplicable.",
           "Transcurridos estos períodos, los datos serán eliminados de forma segura o anonimizados de manera irreversible.",
         ],
       },
       {
-        heading: "VII. Menores de edad",
+        heading: "IX. Menores de edad",
         body: [
           "Kova está dirigida exclusivamente a personas mayores de 18 años. El registro, acceso y uso de la plataforma únicamente está permitido a usuarios que cuenten con capacidad legal suficiente para contratar y utilizar los servicios ofrecidos por Kova.",
         ],
       },
       {
-        heading: "VIII. Cambios al aviso de privacidad",
+        heading: "X. Cambios al aviso de privacidad",
         body: [
           "Kova se reserva el derecho de modificar el presente Aviso de Privacidad. Cualquier cambio material será notificado mediante: (i) publicación en la plataforma; (ii) notificación por correo electrónico al último correo registrado; o (iii) aviso al iniciar sesión. El uso continuado del servicio después de la notificación implica la aceptación de los cambios.",
         ],

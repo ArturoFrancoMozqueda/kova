@@ -35,13 +35,43 @@ plantillas, campañas, llamadas, coexistencia o migración que no está implemen
   Canales. No se configuró una URL ficticia para callbacks POST de eliminación o desautorización.
 - Ícono publicado a partir del SVG existente `frontend/public/icons/pwa-512.svg`, renderizado a
   PNG de 1024 × 1024 y revisado visualmente. No se rediseñó la marca ni se utilizó una imagen ajena.
-- Plataforma **Sitio web** agregada, con URL `https://kovasuite.com/`. Las instrucciones y el acceso
-  de prueba del revisor aún deben completarse con un entorno y recorrido realmente aceptados.
+- Plataforma **Sitio web** agregada, con URL `https://kovasuite.com/`. La cuenta aislada del revisor
+  está preparada; el recorrido con WhatsApp todavía requiere conexión y aceptación reales.
 - `WHATSAPP_APP_ID`, `WHATSAPP_SIGNUP_CONFIG_ID`, `WHATSAPP_CREDENTIALS_KEY` y
   `WHATSAPP_SIGNUP_ENABLED=false` guardados sellados en el Worker privado
   `kova-native-signup-settings`. Se comprobó antes que no existían; no se rotó una clave anterior.
   La clave nueva se generó aleatoriamente, sin imprimirla ni guardarla en el repositorio.
   No se reinició el controlador. Un proceso nuevo mediante workflow deberá cargar esos ajustes.
+
+## Acceso aislado para el revisor
+
+Preparado el 14 de noviembre de 2026 mediante el registro público ordinario de Kova:
+
+- Inicio de sesión: `https://kovasuite.com/login`.
+- Negocio propio **Kova — Revisión de Meta**, una sucursal y rol dueño únicamente en ese negocio.
+- Correo confirmado por el titular. Login y sesión autenticada comprobados por la API normal.
+- Cero clientes y cero conversaciones. No se cargaron ventas, métricas, contactos ni información
+  de comercios reales. Las respuestas están apagadas y WhatsApp figura sin conectar.
+- Prueba comercial normal de Gestión vigente hasta **2026-11-21 18:02:43 UTC**. No se creó una
+  suscripción pagada ni se concedió una cortesía; se conservaron los gates comerciales.
+- Credenciales aleatorias guardadas en un archivo local privado fuera del repositorio, accesible
+  sólo al usuario del equipo. No pegarlas en este documento, PR, video, logs ni capturas públicas.
+  Entregarlas únicamente en los campos privados del formulario de acceso de Meta cuando corresponda.
+
+Antes de entregar el acceso: comprobar nuevamente correo, login, negocio y sucursal, vigencia
+comercial suficiente para toda la revisión y conexión real de WhatsApp. Si vence la prueba, resolver
+el acceso por el procedimiento comercial autorizado; no renovar fechas ni inventar estados de pago.
+El alta de WhatsApp sigue apagada: esta cuenta preparada no demuestra todavía el recorrido de Meta.
+
+Instrucciones base para el formulario privado del revisor, después de aceptar el recorrido real:
+
+> Sign in at https://kovasuite.com/login using the Kova credentials supplied in the private access
+> fields. This account belongs only to the isolated review business. Select its main branch, open
+> Settings → Channels, then follow the WhatsApp connection and Inbox steps shown in the recording.
+> Kova has its own login; these credentials are not Facebook account credentials.
+
+No enviar el expediente mientras el revisor no pueda reproducir realmente ese recorrido. Meta
+[requiere acceso a las funciones solicitadas y evidencia reproducible](https://developers.facebook.com/docs/resp-plat-initiatives/app-review/introduction).
 
 ## Texto base para los formularios de Meta
 
@@ -142,10 +172,13 @@ permisos de WhatsApp. Antes de enviar, verificar privacidad, eliminación de dat
 acceso del revisor, video real y respuestas del formulario con el comportamiento publicado. La
 verificación del negocio por sí sola no acredita esos requisitos ni permite activar comercios.
 
-El aviso público actual explica exportación, eliminación de cuenta y solicitudes de derechos por
-soporte. Antes de la revisión comercial debe comprobarse que describa de forma explícita los datos
-de WhatsApp y Meta que efectivamente trata esta integración, sus finalidades y las instrucciones
-para solicitar su eliminación. Guardar su URL en Meta no acredita suficiencia jurídica ni aprobación.
+El aviso en `/privacy` se amplió con los datos efectivamente tratados por la conexión, finalidades,
+Cloudflare/Supabase y Meta/WhatsApp, procesamiento fuera de México, controles de acceso, retención,
+exportación y una sección específica para solicitar eliminación de datos de WhatsApp y Meta por
+soporte. No promete borrar historial al pausar respuestas o retirar permisos. No agrega identidad
+personal, domicilio ni identificadores fiscales al sitio ni declara el canal comercial disponible.
+Su publicación se verifica con el release y el contenido HTTPS público. Este contenido técnico no
+acredita suficiencia jurídica ni aprobación de Meta por sí mismo.
 
 Fuente primaria consultada en sesión autenticada el 12 de noviembre de 2026:
 [Implementación de Embedded Signup v4](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/).
