@@ -358,7 +358,7 @@ describe("owner control center", () => {
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
     expect(within(control).getByRole("link", { name: "Inventario" })).toHaveAttribute("href", "/inventory");
     expect(within(control).getByText("Consulta tus existencias")).toBeVisible();
-    expect(within(control).queryByText(/0 productos|0 órdenes/)).not.toBeInTheDocument();
+    expect(within(control).queryByText(/0 productos|0 ventas/)).not.toBeInTheDocument();
   });
 
   it("shows verified current inventory separately from period sales", async () => {
@@ -367,7 +367,7 @@ describe("owner control center", () => {
     await screen.findByTestId("net-sales");
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
     expect(within(control).getByText("12 productos activos")).toBeVisible();
-    expect(within(control).getByText("0 órdenes completadas")).toBeVisible();
+    expect(within(control).getByText("0 ventas completadas")).toBeVisible();
     expect(within(control).getByText("Inventario actual")).toBeVisible();
   });
 
@@ -377,7 +377,7 @@ describe("owner control center", () => {
     await screen.findByTestId("net-sales");
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
     expect(within(control).getByText("Consulta tus existencias")).toBeVisible();
-    expect(within(control).queryByText(/0 productos|0 órdenes/)).not.toBeInTheDocument();
+    expect(within(control).queryByText(/0 productos|0 ventas/)).not.toBeInTheDocument();
   });
 
   it.each(["cashier", "staff", "offline"])("does not expose the owner's area map to %s", async mode => {

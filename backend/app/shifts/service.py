@@ -54,8 +54,11 @@ def _store_response(
     )
 
 
-def _shift_body(db: Session, *, shift: Shift) -> dict[str, Any]:
-    movements = repo.list_cash_movements(db, shift_id=shift.id)
+def _shift_body(
+    db: Session, *, shift: Shift, movements: list | None = None
+) -> dict[str, Any]:
+    if movements is None:
+        movements = repo.list_cash_movements(db, shift_id=shift.id)
     # For an open shift, expose the live expected cash (incl. cash sales) so the
     # running total and the close preview are correct. A closed shift keeps the
     # value computed and frozen at close time.
@@ -190,7 +193,9 @@ def get_shift(db: Session, *, tenant_id: UUID, shift_id: UUID) -> dict[str, Any]
 
 def list_closed_shifts(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
     shifts = repo.list_closed_shifts(db, tenant_id=tenant_id)
-    return [_shift_body(db, shift=s) for s in shifts]
+    # One IN query for every drawer's movements instead of one query per shift.
+    movements = repo.list_cash_movements_for_shifts(db, shift_ids=[s.id for s in shifts])
+    return [_shift_body(db, shift=s, movements=movements[s.id]) for s in shifts]
 
 
 def close_shift(

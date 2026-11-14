@@ -1,4 +1,7 @@
 import { BookingSettings } from "./BookingSettings";
+import { APPOINTMENTS_OPERATE_PERMISSION } from "@/auth/permissions";
+import { useAuth } from "@/auth/useAuth";
+import { isAdminRole } from "@/layout/navItems";
 import { CalendarBoard } from "./CalendarBoard";
 import { TableReservations } from "./TableReservations";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
@@ -53,13 +56,18 @@ const zoneLabel = (timezone: string) =>
 export default function AppointmentsView() {
   useDocumentTitle("Agenda del negocio");
   return (
-    <OperationsSession>
+    <OperationsSession permission={APPOINTMENTS_OPERATE_PERMISSION}>
       {(identity) => <AppointmentsWorkspace identity={identity} />}
     </OperationsSession>
   );
 }
 function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const fieldId = useId();
+  // Cashier and staff run the day-to-day agenda (appointments.operate). People,
+  // spaces, services, availability, public booking, tables, reminders and sale
+  // links stay with owner/manager (settings.manage on the backend).
+  const { state: authState } = useAuth();
+  const canConfigure = authState.status === "authenticated" && isAdminRole(authState.user.role);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsVisited, setSettingsVisited] = useState(false);
   const [reminderRevision, setReminderRevision] = useState(0);
@@ -269,7 +277,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         title="Agenda del negocio"
         meta={hasTables ? "Revisa solicitudes de mesa y organiza las llegadas." : "Reserva el tiempo del equipo sin cruces de horario."}
         actions={
-          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" aria-expanded={settingsOpen} aria-controls="agenda-settings" onClick={() => { setSettingsVisited(true); setSettingsOpen(v => !v); }}>Configurar agenda</Button><Button
+          <div className="flex flex-wrap gap-2">{canConfigure && <Button type="button" variant="outline" aria-expanded={settingsOpen} aria-controls="agenda-settings" onClick={() => { setSettingsVisited(true); setSettingsOpen(v => !v); }}>Configurar agenda</Button>}{(canConfigure || hasActiveResource || resourceLoading) && <Button
             className={buttonClass}
             aria-expanded={hasActiveResource ? bookingOpen : resourceOpen}
             aria-controls={hasActiveResource ? "appointment-booking-form" : "appointment-resource-form"}
@@ -295,12 +303,17 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             }}
           >
             {hasActiveResource || resourceLoading ? "Nueva cita" : "Agregar persona o espacio"}
-          </Button></div>
+          </Button>}</div>
         }
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         {hasTables ? "El equipo confirma cada solicitud de mesa y registra la salida cuando el cliente se retira." : "Organiza las citas en el horario de cada persona o espacio."} El equipo contacta al cliente; el cobro se registra por separado en Caja.
       </p>
+      {!canConfigure && !resourceLoading && !resourceError && !hasActiveResource && (
+        <p role="status" className="rounded-xl bg-kova-mist p-4 text-sm">
+          La agenda aún no tiene personas o espacios activos. Pide al dueño o gerente que la configure para registrar citas.
+        </p>
+      )}
       {incomingCustomerError && <p role="alert">{incomingCustomerError}</p>}
       <LinkedRecordNotice linked={linked}>
         {linked.record && <p className="text-sm">Cita solicitada: {linked.record.title}. Revisa su venta y continúa abajo.</p>}
@@ -324,9 +337,9 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           retryLabel="Consultar personas y espacios"
         />
       )}
-      {hasTables && <TableReservations identity={identity} revision={reminderRevision + resourceRevision} />}
+      {canConfigure && hasTables && <TableReservations identity={identity} revision={reminderRevision + resourceRevision} />}
       <CalendarBoard identity={identity} resources={resources} revision={reminderRevision + resourceRevision} onTableSaved={() => setReminderRevision(v => v + 1)} />
-      {settingsVisited && <div id="agenda-settings" hidden={!settingsOpen} className="space-y-4">
+      {canConfigure && settingsVisited && <div id="agenda-settings" hidden={!settingsOpen} className="space-y-4">
       <details className="space-y-4 rounded-2xl border border-kova-border bg-white p-6" open={resources.length === 0 || resourceOpen}>
         <summary className="min-h-11 cursor-pointer font-semibold">Personas y espacios para las citas</summary>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -599,7 +612,7 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </div>
         </form>
       )}
-      <AppointmentReminders revision={reminderRevision} identity={identity} />
+      {canConfigure && <AppointmentReminders revision={reminderRevision} identity={identity} />}
       <details id="appointment-detail" className="space-y-4" open={linked.requested}>
         <summary className="min-h-11 cursor-pointer py-3 font-semibold">Detalle de citas y actividad anterior</summary>
       <section className="space-y-4" aria-label="Citas del negocio">
@@ -716,12 +729,12 @@ function AppointmentsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 Hora de {zoneLabel(row.timezone)}
               </p>
               <Link className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline" to={`/customers?customerId=${row.customer_id}`}>Ver cliente y su historial</Link>
-              <AppointmentSalePanel appointment={row} identity={identity} busy={panel.busy} online={panel.online} onLink={async (saleId) => {
+              {canConfigure && <AppointmentSalePanel appointment={row} identity={identity} busy={panel.busy} online={panel.online} onLink={async (saleId) => {
                 const ok = await panel.mutate(`/${row.id}/sale`, "POST", { expected_version: row.version, sale_order_id: saleId }, "Venta vinculada. El estado de atención se conserva.");
                 linked.reload();
                 setReminderRevision((value) => value + 1);
                 return ok;
-              }} />
+              }} />}
               {row.note && (
                 <p className="whitespace-pre-wrap break-words text-sm text-kova-muted">
                   {row.note}

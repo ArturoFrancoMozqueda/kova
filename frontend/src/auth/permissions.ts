@@ -1,6 +1,7 @@
 import { useAuthContext } from "./AuthContext";
 
 export const CUSTOMERS_VIEW_PERMISSION = "customers.view";
+export const CUSTOMERS_CREATE_PERMISSION = "customers.create";
 export const CUSTOMERS_MANAGE_PERMISSION = "customers.manage";
 export const CUSTOMERS_HISTORY_PERMISSION = "customers.history";
 
@@ -8,6 +9,8 @@ export const CATALOG_CREATE_PERMISSION = "catalog.create";
 export const CATALOG_UPDATE_PERMISSION = "catalog.update";
 export const CATALOG_DELETE_PERMISSION = "catalog.delete";
 export const ORDER_CREATE_PERMISSION = "orders.create";
+/** Manual sale discount or a tax rate other than the tenant default (online). */
+export const ORDER_DISCOUNT_PERMISSION = "orders.discount";
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
 export const CUSTOMER_ORDER_VIEW_PERMISSION = "customer_orders.view";
@@ -22,16 +25,21 @@ export const SHIFT_OPEN_PERMISSION = "shifts.open";
 export const SHIFT_CLOSE_PERMISSION = "shifts.close";
 export const BILLING_VIEW_PERMISSION = "billing.view";
 export const BILLING_MANAGE_PERMISSION = "billing.manage";
+/** Day-to-day agenda (list/create/reschedule/cancel appointments). Services,
+ * availability and public booking configuration stay owner/manager. */
+export const APPOINTMENTS_OPERATE_PERMISSION = "appointments.operate";
 
 const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
   owner: [
     CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_CREATE_PERMISSION,
     CUSTOMERS_MANAGE_PERMISSION,
     CUSTOMERS_HISTORY_PERMISSION,
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
     ORDER_CREATE_PERMISSION,
+    ORDER_DISCOUNT_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
@@ -44,17 +52,20 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     REPORTS_VIEW_ALL_PERMISSION,
     SHIFT_OPEN_PERMISSION,
     SHIFT_CLOSE_PERMISSION,
+    APPOINTMENTS_OPERATE_PERMISSION,
     BILLING_VIEW_PERMISSION,
     BILLING_MANAGE_PERMISSION,
   ],
   manager: [
     CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_CREATE_PERMISSION,
     CUSTOMERS_MANAGE_PERMISSION,
     CUSTOMERS_HISTORY_PERMISSION,
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
     ORDER_CREATE_PERMISSION,
+    ORDER_DISCOUNT_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
@@ -67,9 +78,12 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     REPORTS_VIEW_ALL_PERMISSION,
     SHIFT_OPEN_PERMISSION,
     SHIFT_CLOSE_PERMISSION,
+    APPOINTMENTS_OPERATE_PERMISSION,
   ],
   cashier: [
     CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_CREATE_PERMISSION,
+    APPOINTMENTS_OPERATE_PERMISSION,
     ORDER_CREATE_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
     CUSTOMER_ORDER_CREATE_PERMISSION,
@@ -81,6 +95,8 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
   ],
   staff: [
     CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_CREATE_PERMISSION,
+    APPOINTMENTS_OPERATE_PERMISSION,
     ORDER_CREATE_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
     CUSTOMER_ORDER_CREATE_PERMISSION,

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDrawerStatus, openDrawer, type DrawerStatus } from "./api";
 
+const DRAWER_POLL_MS = 15000;
+
 export function useCashDrawer() {
   const [device, setDevice] = useState<DrawerStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -8,20 +10,30 @@ export function useCashDrawer() {
   const running = useRef(false);
   const mounted = useRef(true);
 
+  const cancelledRef = useRef(false);
+  const refresh = useCallback(() => {
+    if (document.visibilityState === "hidden") return;
+    void getDrawerStatus().then(status => { if (!cancelledRef.current) setDevice(status); }).catch(() => {
+      if (!cancelledRef.current) setDevice(current => current ? { ...current, online: false } : null);
+    });
+  }, []);
+
   useEffect(() => {
     mounted.current = true;
-    let cancelled = false;
-    const refresh = () => {
-      if (document.visibilityState === "hidden") return;
-      void getDrawerStatus().then(status => { if (!cancelled) setDevice(status); }).catch(() => {
-        if (!cancelled) setDevice(current => current ? { ...current, online: false } : null);
-      });
-    };
+    cancelledRef.current = false;
     refresh();
-    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
-    return () => { mounted.current = false; cancelled = true; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
-  }, []);
+    return () => { mounted.current = false; cancelledRef.current = true; window.removeEventListener("focus", refresh); };
+  }, [refresh]);
+
+  // Poll connector health only while a drawer is configured. Most counters
+  // have none; for them a check on mount and on focus is enough.
+  const configured = device?.configured === true;
+  useEffect(() => {
+    if (!configured) return;
+    const timer = window.setInterval(refresh, DRAWER_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [configured, refresh]);
 
   const open = useCallback(async (kind: "sale" | "manual", reason = "", orderId?: string) => {
     if (!mounted.current || !device?.configured || (kind === "sale" && !device.auto_open)) return;

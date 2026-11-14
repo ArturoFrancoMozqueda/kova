@@ -118,32 +118,28 @@ def _overview(db: Session, *, membership: Membership, period: DashboardPeriod):
     previous_end = start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=days - 1)
     advanced = plan_has_feature(db, tenant_id=tenant_id, feature="advanced_reports")
-    story = BusinessStoryReportResponse.model_validate(
-        business_story_copy(
-            service.business_story(
-                db,
-                tenant_id=tenant_id,
-                start_date=start,
-                end_date=today,
-            )
-        )
-    ) if advanced else None
-    summary = SalesSummaryResponse.model_validate(
-        service.sales_summary(db, tenant_id=tenant_id, start_date=start, end_date=today)
-    )
-    previous = SalesSummaryResponse.model_validate(
-        service.sales_summary(
-            db,
-            tenant_id=tenant_id,
-            start_date=previous_start,
-            end_date=previous_end,
-        )
-    )
-    hourly = service.sales_by_hour(
-        db, tenant_id=tenant_id, start_date=start, end_date=today,
-    ) if advanced else []
+    # Stock first: its single movement-history aggregation also feeds the story's
+    # inventory valuation and restock alerts instead of two more full scans.
     stock = inventory_service.list_stock(db, tenant_id=tenant_id)
     low_stock = [InventoryStockItem.model_validate(item) for item in stock if item["is_low_stock"]]
+    # Each order window (current and previous) is read once and shared by the
+    # story, both summaries and the hourly buckets.
+    reports = service.dashboard_reports(
+        db,
+        tenant_id=tenant_id,
+        start_date=start,
+        end_date=today,
+        previous_start_date=previous_start,
+        previous_end_date=previous_end,
+        advanced=advanced,
+        stock_by_product={UUID(item["product_id"]): item["stock_on_hand"] for item in stock},
+    )
+    story = BusinessStoryReportResponse.model_validate(
+        business_story_copy(reports["story"])
+    ) if advanced else None
+    summary = SalesSummaryResponse.model_validate(reports["summary"])
+    previous = SalesSummaryResponse.model_validate(reports["previous_summary"])
+    hourly = reports["hourly"]
     active_catalog_count = (
         db.query(func.count(Product.id))
         .filter(

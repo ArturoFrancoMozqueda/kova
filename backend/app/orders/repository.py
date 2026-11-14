@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -23,6 +23,32 @@ from app.shared.timezone import tenant_timezone
 # created_at, so this is a no-op for them and only re-buckets late-synced
 # offline sales to the day they were actually rung.
 _SALE_TIME = func.coalesce(Order.occurred_at, Order.created_at)
+
+
+def get_active_products_for_update(
+    db: Session, *, tenant_id: UUID, product_ids: list[UUID]
+) -> dict[UUID, Product]:
+    """Lock many active products with one ``SELECT ... ORDER BY id FOR UPDATE``.
+
+    PostgreSQL applies the row locks after sorting, so every checkout acquires
+    product locks in the same ascending-id order (the same order as sorting
+    Python UUIDs by ``.int``), which prevents A/B vs B/A deadlocks.
+    Missing or inactive products are simply absent from the result.
+    """
+    if not product_ids:
+        return {}
+    rows = (
+        db.query(Product)
+        .filter(
+            Product.tenant_id == tenant_id,
+            Product.id.in_(product_ids),
+            Product.is_active.is_(True),
+        )
+        .order_by(Product.id)
+        .with_for_update()
+        .all()
+    )
+    return {row.id: row for row in rows}
 
 
 def get_active_product_for_update(
@@ -112,8 +138,11 @@ def create_order_item(
     product_name: str | None = None,
     discount_amount: Decimal = Decimal("0.00"),
     tax_amount: Decimal = Decimal("0.00"),
+    flush: bool = True,
 ) -> OrderItem:
     item = OrderItem(
+        # Assigned up front so dependants can reference it before a batched flush.
+        id=uuid4(),
         tenant_id=tenant_id,
         order_id=order_id,
         product_id=product.id,
@@ -129,7 +158,8 @@ def create_order_item(
         line_total_amount=line_total_amount,
     )
     db.add(item)
-    db.flush()
+    if flush:
+        db.flush()
     return item
 
 
@@ -143,8 +173,10 @@ def create_payment(
     amount_tendered: Decimal | None,
     change_due: Decimal,
     reference: str | None,
+    flush: bool = True,
 ) -> Payment:
     payment = Payment(
+        id=uuid4(),
         tenant_id=tenant_id,
         order_id=order_id,
         method=method,
@@ -154,7 +186,8 @@ def create_payment(
         reference=reference,
     )
     db.add(payment)
-    db.flush()
+    if flush:
+        db.flush()
     return payment
 
 
@@ -170,8 +203,10 @@ def create_inventory_movement(
     user_id: UUID | None = None,
     lot_tracked: bool = False,
     order_item_id: UUID | None = None,
+    flush: bool = True,
 ) -> InventoryMovement:
     movement = InventoryMovement(
+        id=uuid4(),
         tenant_id=tenant_id,
         product_id=product_id,
         order_id=order_id,
@@ -183,7 +218,8 @@ def create_inventory_movement(
         created_by_user_id=user_id,
     )
     db.add(movement)
-    db.flush()
+    if flush:
+        db.flush()
     return movement
 
 

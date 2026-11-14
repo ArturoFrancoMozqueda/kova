@@ -143,7 +143,8 @@ def create_customer(
     response: Response,
     key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_commercial_access(Permission.CUSTOMERS_MANAGE)),
+    # Front-desk roles register new customers; editing/deactivating stays customers.manage.
+    ctx=Depends(require_commercial_access(Permission.CUSTOMERS_CREATE)),
 ):
     user, membership, _ = ctx
     status, result = _save(db, membership, body, key, user.id)

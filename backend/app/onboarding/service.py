@@ -134,6 +134,7 @@ def apply_preset(
 
 def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
     state = db.get(TenantOnboardingState, tenant_id)
+    created = state is None
     if state is None:
         state = TenantOnboardingState(tenant_id=tenant_id)
         db.add(state)
@@ -186,10 +187,17 @@ def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
         "first_sale_completed": first_sale_completed,
         "billing_completed": billing_completed,
     }
-    for key, value in updates.items():
-        setattr(state, key, value)
-    state.updated_at = datetime.now(UTC)
-    db.commit()
+    # Persist only a real change: the dashboard reads this on every load, and an
+    # unconditional UPDATE + COMMIT costs remote round trips and row churn.
+    changed = created or any(
+        getattr(state, key) != value for key, value in updates.items()
+    )
+    if changed:
+        for key, value in updates.items():
+            setattr(state, key, value)
+        state.updated_at = datetime.now(UTC)
+    if changed or db.new or db.dirty or db.deleted:
+        db.commit()
 
     steps = [
         (

@@ -25,6 +25,7 @@ export default function SyncQueueView() {
     pendingCount,
     failedEntries,
     quarantinedCount,
+    syncIssue,
     syncNow,
     retryDeadLetter,
     discardQuarantined,
@@ -145,6 +146,20 @@ export default function SyncQueueView() {
         onCancel={() => setDiscardOpen(false)}
       />
 
+      {syncIssue && pendingCount > 0 && (
+        <Card className="mb-4 border-warning/40 bg-warning/5" role="status">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-warning-strong">
+              <ShieldAlert className="h-4 w-4" />
+              {syncIssue === "session" ? copy.syncQueue.sessionIssueTitle : copy.syncQueue.unavailableIssueTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <p>{syncIssue === "session" ? copy.syncQueue.sessionIssueBody : copy.syncQueue.unavailableIssueBody}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {pendingCount > 0 && (
         <div className="mb-4 max-w-xs">
           {/* h3 sr-only: preserva el rol de encabezado "Pendientes" que ya
@@ -187,7 +202,7 @@ export default function SyncQueueView() {
                     {entry.last_error && (
                       <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3 shrink-0" />
-                        {safeUserMessage(entry.last_error, "No pudimos enviar esta venta. Revisa sus datos antes de reintentar.")}
+                        {safeUserMessage(entry.last_error, copy.syncQueue.failedFallback)}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-2">

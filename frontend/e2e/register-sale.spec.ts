@@ -61,11 +61,14 @@ async function expectRegisterReady(page: Page) {
   await expect(page.getByRole("heading", { name: /^catálogo$/i })).toBeVisible();
 }
 
-for (const completionKey of ["Enter", "Space", "Control+Enter"]) {
-  test(`editing sale fields never charges implicitly; ${completionKey} explicitly completes it`, async ({ page }) => {
+// Owners hold orders.discount and see discount/tax fields; cashiers do not, so
+// each role proves Enter in every field it can edit never charges implicitly.
+for (const role of ["owner", "cashier"] as const) for (const completionKey of ["Enter", "Space", "Control+Enter"]) {
+  test(`${role} editing sale fields never charges implicitly; ${completionKey} explicitly completes it`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await markFirstUseToursSeen(page);
-    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: CASHIER_SESSION }));
+    const session = { ...CASHIER_SESSION, user: { ...CASHIER_SESSION.user, role, email: `${role}@bakery.com` } };
+    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: session }));
     await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
     await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
     await page.route("**/api/v1/shifts/current", (route) => route.fulfill({ json: OPEN_SHIFT }));
@@ -82,7 +85,12 @@ for (const completionKey of ["Enter", "Space", "Control+Enter"]) {
     await page.getByText("Cliente, descuento e impuesto", { exact: true }).click();
     const collect = page.getByRole("button", { name: /^cobrar$/i });
     await expect(collect).toBeEnabled();
-    for (const name of ["Buscar cliente", "Descuento de la venta (MXN)", "Impuesto adicional al precio (%)", "Efectivo recibido"]) {
+    const pricingFields = ["Descuento de la venta (MXN)", "Impuesto adicional al precio (%)"];
+    if (role === "cashier") {
+      for (const name of pricingFields) await expect(page.getByLabel(name, { exact: true })).toHaveCount(0);
+    }
+    const editableFields = role === "owner" ? ["Buscar cliente", ...pricingFields, "Efectivo recibido"] : ["Buscar cliente", "Efectivo recibido"];
+    for (const name of editableFields) {
       await page.getByLabel(name, { exact: true }).press("Enter");
       await expect(collect).toBeEnabled();
       await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeEnabled();

@@ -9,7 +9,11 @@ vi.mock("./queue", () => ({
 }));
 
 import { markOfflineSaleFailed, markOfflineSaleStatus, markOfflineSaleSynced, rollbackOfflineSaleAttempt } from "./queue";
-import { BillingAccessError, parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
+import {
+  BillingAccessError, parseRetryAfterMs, RateLimitError, SYNC_REQUEST_TIMEOUT_MS, syncOfflineSales,
+  SyncTimeoutError, SyncTransientError,
+} from "./sync";
+import { SyncSessionError } from "./syncStatus";
 import type { OfflineSaleQueueItem } from "./types";
 import { setActiveOfflineTenant } from "./activeTenant";
 
@@ -244,12 +248,12 @@ describe("syncOfflineSales", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(refreshOutage));
 
     await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toBe(refreshOutage);
-    expect(markOfflineSaleStatus).toHaveBeenCalledWith(
+    // A connection problem releases the lease without spending a retry.
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith(
       "tenant-1",
       "00000000-0000-4000-8000-000000000001",
       "lease-1",
-      "pending",
-      "Refresh temporarily unavailable",
+      expect.any(String),
     );
     expect(markOfflineSaleFailed).not.toHaveBeenCalled();
   });
@@ -290,12 +294,86 @@ describe("syncOfflineSales", () => {
     setActiveOfflineTenant(null);
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    expect(vi.mocked((await import("./queue")).markOfflineSaleStatus)).toHaveBeenCalledWith(
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith(
       "tenant-1",
       expect.any(String),
       "lease-1",
-      "pending",
       expect.any(String),
     );
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it("times out a hung request and releases its leases without failing the sale", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("fetch", vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      })));
+      const pending = syncOfflineSales("tenant-1", [queueItem()]).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS);
+      expect(await pending).toBeInstanceOf(SyncTimeoutError);
+      expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", queueItem().client_uuid, "lease-1", expect.any(String));
+      expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([500, 502, 503, 504])("treats HTTP %s as transient: no failed sales, no retry consumed", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("down", { status })));
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toBeInstanceOf(SyncTransientError);
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", queueItem().client_uuid, "lease-1", expect.any(String));
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it("treats an unreadable success body (captive portal) as transient", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>login</html>", { status: 200 })));
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toBeDefined();
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalled();
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 409, 415])("does not fail any sale in the batch on a batch-level %s", async (status) => {
+    const first = queueItem();
+    const second = queueItem({ client_uuid: "00000000-0000-4000-8000-000000000002", lease_id: "lease-2" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("blocked", { status })));
+    const err = await syncOfflineSales("tenant-1", [first, second]).catch((e) => e);
+    expect(err).toBeInstanceOf(SyncSessionError);
+    expect((err as SyncSessionError).kind).toBe(status === 415 ? "unavailable" : "session");
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", first.client_uuid, "lease-1", expect.any(String));
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", second.client_uuid, "lease-2", expect.any(String));
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it("splits a 413 batch until it isolates the sale that is too large", async () => {
+    const items = [1, 2, 3].map((n) => queueItem({ client_uuid: `00000000-0000-4000-8000-00000000000${n}`, lease_id: `lease-${n}` }));
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const sales = JSON.parse(init.body as string).sales as Array<{ client_uuid: string }>;
+      if (sales.some((sale) => sale.client_uuid === items[0].client_uuid)) return new Response("too large", { status: 413 });
+      return new Response(JSON.stringify({ results: sales.map((sale, index) => ({
+        client_uuid: sale.client_uuid, status: "synced", order_id: `10000000-0000-4000-8000-00000000000${index + 1}`,
+      })) }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const results = await syncOfflineSales("tenant-1", items);
+
+    expect(results.map((result) => [result.client_uuid, result.status])).toEqual([
+      [items[0].client_uuid, "failed"], [items[1].client_uuid, "synced"], [items[2].client_uuid, "synced"],
+    ]);
+    expect(markOfflineSaleFailed).toHaveBeenCalledTimes(1);
+    expect(markOfflineSaleFailed).toHaveBeenCalledWith("tenant-1", items[0].client_uuid, "lease-1", expect.any(String), "SYNC_PAYLOAD_TOO_LARGE");
+    expect(markOfflineSaleSynced).toHaveBeenCalledTimes(2);
+  });
+
+  it("releases the unsent half when a split request hits a transient error", async () => {
+    const items = [1, 2].map((n) => queueItem({ client_uuid: `00000000-0000-4000-8000-00000000000${n}`, lease_id: `lease-${n}` }));
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response("bad", { status: 422 }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch")));
+    await expect(syncOfflineSales("tenant-1", items)).rejects.toBeInstanceOf(TypeError);
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", items[0].client_uuid, "lease-1", expect.any(String));
+    expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith("tenant-1", items[1].client_uuid, "lease-2", expect.any(String));
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
   });
 });

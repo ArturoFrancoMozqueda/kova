@@ -7,6 +7,7 @@ import {
 import { copy } from "@/i18n/messages";
 import type { WorkspaceGroupId } from "./workspaceNavigation";
 import {
+  APPOINTMENTS_OPERATE_PERMISSION,
   BILLING_VIEW_PERMISSION,
   CUSTOMER_ORDER_VIEW_PERMISSION,
   CUSTOMERS_VIEW_PERMISSION,
@@ -41,7 +42,7 @@ export const adminNavItems: NavItem[] = [
   { to: "/assistant", label: copy.nav.assistant, icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/operations-queue", label: copy.nav.operationsQueue, icon: <ListChecks className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/service-cases", label: copy.nav.serviceCases, icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
-  { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business", permission: APPOINTMENTS_OPERATE_PERMISSION },
   { to: "/loyalty", label: copy.nav.loyalty, icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inbox", label: copy.nav.inbox, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
   { to: "/commercial-requests", label: copy.nav.commercialRequests, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
@@ -63,6 +64,8 @@ export const cashierNavItems: NavItem[] = [
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
+  // Operational agenda only; its configuration stays owner/manager inside the view.
+  { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "operation", permission: APPOINTMENTS_OPERATE_PERMISSION },
 ];
 
 export function isAdminRole(role: string): boolean {
@@ -112,6 +115,7 @@ export function visibleNavItems(gates: NavigationGates): NavItem[] {
     if (item.permission === "billing.view") return can(BILLING_VIEW_PERMISSION);
     if (item.permission === "expenses.manage" && !can(EXPENSES_MANAGE_PERMISSION)) return false;
     if (item.permission === CUSTOMER_ORDER_VIEW_PERMISSION && !can(CUSTOMER_ORDER_VIEW_PERMISSION)) return false;
+    if (item.permission === APPOINTMENTS_OPERATE_PERMISSION && !can(APPOINTMENTS_OPERATE_PERMISSION)) return false;
     if (item.feature === "margin_reports" && !gates.marginReportsEnabled) return false;
     if (item.feature === "customer_orders" && !gates.customerOrdersEnabled) return false;
     return true;

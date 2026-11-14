@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { ExternalLink, AlertCircle, Inbox, X, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ORDERS_QUERY_KEY } from "./queryKeys";
 
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
@@ -59,7 +60,7 @@ export default function OrderListView() {
     endDate: endDate || undefined,
   };
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["orders", statusFilter, startDate, endDate],
+    queryKey: [...ORDERS_QUERY_KEY, statusFilter, startDate, endDate],
     queryFn: () => listOrders(filters),
   });
 

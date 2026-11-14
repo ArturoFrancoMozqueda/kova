@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -21,10 +21,11 @@ from app.inventory.service import _validate_movement_range
 from app.modifiers import service as modifier_service
 from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
-from app.orders.models import Order, Payment
+from app.orders.models import Order, OrderItem, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
-from app.shared.exceptions import bad_request, conflict, not_found
+from app.rbac.permissions import Permission, has_permission
+from app.shared.exceptions import bad_request, conflict, forbidden, not_found
 from app.shifts import repository as shifts_repo
 from app.tenants import repository as tenant_repo
 
@@ -124,8 +125,32 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
     modifiers = repo.order_item_modifiers_for_items(
         db, tenant_id=tenant_id, item_ids=[item.id for item in items]
     )
+    return _order_body_from_rows(
+        db,
+        tenant_id=tenant_id,
+        order=order,
+        items=items,
+        payments=payments,
+        modifiers=modifiers,
+        loyalty_reward=order_reward(db, tenant_id, order.id),
+    )
+
+
+def _order_body_from_rows(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    order: Order,
+    items: list[OrderItem],
+    payments: list[Payment],
+    modifiers: dict[UUID, list[OrderItemModifier]],
+    loyalty_reward: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Serialize rows already in hand; ordering matches the repository reads (by id)."""
+    items = sorted(items, key=lambda item: item.id.int)
+    payments = sorted(payments, key=lambda payment: payment.id.int)
     return {
-        "loyalty_reward": order_reward(db, tenant_id, order.id),
+        "loyalty_reward": loyalty_reward,
         "id": str(order.id),
         "tenant_id": str(order.tenant_id),
         "branch_id": str(order.branch_id),
@@ -148,7 +173,9 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
                 else [],
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
-                "modifiers": _modifier_bodies(modifiers[item.id]),
+                "modifiers": _modifier_bodies(
+                    sorted(modifiers.get(item.id, []), key=lambda mod: mod.id.int)
+                ),
             }
             for item in items
         ],
@@ -297,6 +324,36 @@ def persist_completed_order(
     return order
 
 
+DISCOUNT_FORBIDDEN = (
+    "Aplicar un descuento requiere autorización de un gerente o del propietario"
+)
+TAX_RATE_FORBIDDEN = (
+    "La tasa de impuesto debe ser la configurada para el negocio; cambiarla requiere "
+    "autorización de un gerente o del propietario"
+)
+
+
+def _can_adjust_pricing(db: Session, *, tenant_id: UUID, user_id: UUID) -> bool:
+    """Resolve ORDERS_DISCOUNT from the server-side membership, never the client."""
+    from app.auth.models import Membership
+
+    membership = (
+        db.query(Membership)
+        .filter(
+            Membership.tenant_id == tenant_id,
+            Membership.user_id == user_id,
+            Membership.is_active.is_(True),
+        )
+        .first()
+    )
+    return membership is not None and has_permission(membership.role, Permission.ORDERS_DISCOUNT)
+
+
+def _default_tax_rate(db: Session, *, tenant_id: UUID) -> Decimal:
+    settings = business_settings_repo.get_receipt_settings(db, tenant_id=tenant_id)
+    return Decimal(settings.default_tax_rate) if settings else Decimal("0.00")
+
+
 def create_order(
     db: Session,
     *,
@@ -309,7 +366,17 @@ def create_order(
     shift_id: UUID | None = None,
     occurred_at: datetime | None = None,
     external_transaction: bool = False,
+    can_adjust_pricing: bool | None = None,
 ) -> tuple[int, dict[str, Any]]:
+    """Create a completed sale.
+
+    ``can_adjust_pricing`` is ORDERS_DISCOUNT for the acting user (resolved from
+    the membership when not given). Online sales without it are rejected (403)
+    when they carry a manual discount or a tax rate other than the tenant
+    default. Offline syncs (``client_uuid``) are never rejected for these
+    controls because they were already charged; they are audited for review
+    instead, together with frozen unit prices that differ from the catalog.
+    """
     # The dedicated online reward checkout reserves its own idempotency key and
     # commits the sale together with its points debit. Existing online/offline
     # callers retain the original idempotency and transaction behavior.
@@ -368,37 +435,67 @@ def create_order(
         if customer is None:
             raise not_found("Cliente no encontrado")
 
-    # Acquire every product lock in one deterministic order before pricing.
+    # Pricing controls. The reward checkout (external_transaction) rejects any
+    # client discount and substitutes the reward's server-side amount, so only
+    # its tax rate is subject to the check.
+    review_reasons: list[str] = []
+    default_tax_rate: Decimal | None = None
+    if can_adjust_pricing is None:
+        can_adjust_pricing = _can_adjust_pricing(db, tenant_id=tenant_id, user_id=user_id)
+    if not can_adjust_pricing:
+        if body.discount_amount > 0 and not external_transaction:
+            if client_uuid is None:
+                raise forbidden(DISCOUNT_FORBIDDEN)
+            review_reasons.append("discount_without_permission")
+        default_tax_rate = _default_tax_rate(db, tenant_id=tenant_id)
+        if body.tax_rate != default_tax_rate:
+            if client_uuid is None:
+                raise forbidden(TAX_RATE_FORBIDDEN)
+            review_reasons.append("tax_rate_without_permission")
+
+    # Acquire every product lock with one SELECT ... ORDER BY id FOR UPDATE.
     # Two checkouts containing A/B and B/A therefore cannot deadlock while
     # waiting on the same product rows, while receipt line order still follows
     # the client's cart below.
-    locked_products: dict[UUID, Product] = {}
-    for product_id in sorted({item.product_id for item in body.items}, key=lambda value: value.int):
-        product = repo.get_active_product_for_update(db, tenant_id=tenant_id, product_id=product_id)
-        if not product:
-            raise not_found("Product not found")
-        locked_products[product_id] = product
+    product_ids = sorted({item.product_id for item in body.items}, key=lambda value: value.int)
+    locked_products = repo.get_active_products_for_update(
+        db, tenant_id=tenant_id, product_ids=product_ids
+    )
+    if len(locked_products) != len(product_ids):
+        raise not_found("Product not found")
 
+    priced_modifiers = modifier_service.validate_and_price_modifiers_batch(
+        db,
+        tenant_id=tenant_id,
+        lines=[(item.product_id, item.modifier_option_ids) for item in body.items],
+    )
     priced_items: list[PricedOrderLine] = []
+    price_mismatches: list[dict[str, Any]] = []
     # Aggregate requested quantities per product so multiple cart lines
     # for the same product (e.g. with different modifiers) collectively
     # validate against current on-hand.
     quantity_by_product: dict[UUID, int] = {}
-    for item in body.items:
+    for line_index, (item, (price_delta, modifier_snapshots)) in enumerate(
+        zip(body.items, priced_modifiers, strict=True)
+    ):
         product = locked_products[item.product_id]
-        price_delta, modifier_snapshots = modifier_service.validate_and_price_modifiers(
-            db,
-            tenant_id=tenant_id,
-            product_id=product.id,
-            modifier_option_ids=item.modifier_option_ids,
-        )
         if item.unit_price_amount is not None and client_uuid is None:
             raise bad_request("Price snapshots are only accepted for offline sales")
-        effective_price = calculator.money(
-            item.unit_price_amount
+        catalog_price = calculator.money(product.price_amount + price_delta)
+        effective_price = (
+            calculator.money(item.unit_price_amount)
             if item.unit_price_amount is not None
-            else product.price_amount + price_delta
+            else catalog_price
         )
+        if effective_price != catalog_price:
+            price_mismatches.append(
+                {
+                    "line": line_index,
+                    "product_id": str(product.id),
+                    "charged_unit_price": str(effective_price),
+                    "catalog_unit_price": str(catalog_price),
+                }
+            )
         line_total = calculator.line_total(effective_price, item.quantity)
         priced_items.append(
             PricedOrderLine(
@@ -413,31 +510,39 @@ def create_order(
         )
         if product.track_inventory:
             quantity_by_product[product.id] = quantity_by_product.get(product.id, 0) + item.quantity
+    if price_mismatches:
+        review_reasons.append("unit_price_differs_from_catalog")
 
     # Out-of-stock guard: prevent selling tracked products below zero.
-    for product_id, requested_qty in quantity_by_product.items():
-        on_hand = inventory_repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product_id)
+    if quantity_by_product:
         from app.customer_orders import repository as customer_order_repo
 
-        reserved = customer_order_repo.active_reserved_quantity(
-            db, tenant_id=tenant_id, product_id=product_id
+        tracked_ids = list(quantity_by_product)
+        on_hand_by_product = inventory_repo.stock_on_hand_for_products(
+            db, tenant_id=tenant_id, product_ids=tracked_ids
         )
-        available = max(0, on_hand - reserved)
-        if requested_qty > available:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "OUT_OF_STOCK",
-                    "product_id": str(product_id),
-                    "available": available,
-                    "reserved": reserved,
-                    "requested": requested_qty,
-                    "message": (
-                        "No hay stock suficiente para vender este producto. "
-                        "Actualiza inventario antes de cobrar."
-                    ),
-                },
-            )
+        reserved_by_product = customer_order_repo.active_reserved_for_products(
+            db, tenant_id=tenant_id, product_ids=tracked_ids
+        )
+        for product_id, requested_qty in quantity_by_product.items():
+            on_hand = on_hand_by_product.get(product_id, 0)
+            reserved = reserved_by_product.get(product_id, 0)
+            available = max(0, on_hand - reserved)
+            if requested_qty > available:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "OUT_OF_STOCK",
+                        "product_id": str(product_id),
+                        "available": available,
+                        "reserved": reserved,
+                        "requested": requested_qty,
+                        "message": (
+                            "No hay stock suficiente para vender este producto. "
+                            "Actualiza inventario antes de cobrar."
+                        ),
+                    },
+                )
 
     try:
         subtotal, tax, total, allocated_totals = calculator.sale_pricing(
@@ -487,10 +592,8 @@ def create_order(
     net_lines = calculator.allocate_amount(
         [line.line_total for line in priced_items], subtotal - body.discount_amount
     )
-    for line, allocated_total, net_line in zip(
-        priced_items, allocated_totals, net_lines, strict=True
-    ):
-        order_item = repo.create_order_item(
+    order_items: list[OrderItem] = [
+        repo.create_order_item(
             db,
             tenant_id=tenant_id,
             order_id=order.id,
@@ -500,31 +603,46 @@ def create_order(
             line_total_amount=allocated_total,
             discount_amount=line.line_total - net_line,
             tax_amount=allocated_total - net_line,
+            flush=False,
         )
-        for snap in line.modifier_snapshots:
-            db.add(
-                OrderItemModifier(
-                    tenant_id=tenant_id,
-                    order_item_id=order_item.id,
-                    **snap,
-                )
+        for line, allocated_total, net_line in zip(
+            priced_items, allocated_totals, net_lines, strict=True
+        )
+    ]
+    # One batched INSERT for the lines. Rows below reference them by FK and the
+    # ORM has no relationship() to order those inserts within a single flush.
+    db.flush()
+    modifiers_by_item: dict[UUID, list[OrderItemModifier]] = {}
+    for line, order_item in zip(priced_items, order_items, strict=True):
+        item_modifiers = [
+            OrderItemModifier(
+                id=uuid4(),
+                tenant_id=tenant_id,
+                order_item_id=order_item.id,
+                **snap,
             )
+            for snap in line.modifier_snapshots
+        ]
+        db.add_all(item_modifiers)
+        modifiers_by_item[order_item.id] = item_modifiers
         if line.product.track_inventory:
             parts = lots.choose(db, line.product, line.quantity, line.lot_allocations)
+            lot_tracked = line.product.track_lots
             movement = repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=line.product.id,
                 order_id=order.id,
                 quantity_delta=-line.quantity,
-                lot_tracked=line.product.track_lots,
+                lot_tracked=lot_tracked,
                 order_item_id=order_item.id,
+                # Lot allocations need the persisted movement (id and branch).
+                flush=lot_tracked,
             )
-            lots.attach(db, movement, parts, required=line.product.track_lots)
+            if lot_tracked:
+                lots.attach(db, movement, parts, required=True)
 
-    for payment_entry, (amount, tendered, change_due) in zip(
-        body.payments, validated_payments, strict=True
-    ):
+    payments = [
         repo.create_payment(
             db,
             tenant_id=tenant_id,
@@ -534,11 +652,27 @@ def create_order(
             amount_tendered=tendered,
             change_due=change_due,
             reference=payment_entry.reference,
+            flush=False,
         )
+        for payment_entry, (amount, tendered, change_due) in zip(
+            body.payments, validated_payments, strict=True
+        )
+    ]
+    db.flush()
 
     fiscal_repo.capture_baseline_snapshot(db, tenant_id=tenant_id, order=order)
 
-    response_body = _order_body(db, tenant_id=tenant_id, order=order)
+    # A sale created in this transaction cannot have a reward redemption yet;
+    # the reward checkout attaches it afterwards.
+    response_body = _order_body_from_rows(
+        db,
+        tenant_id=tenant_id,
+        order=order,
+        items=order_items,
+        payments=payments,
+        modifiers=modifiers_by_item,
+        loyalty_reward=None,
+    )
     audit_service.log(
         db,
         action="orders.create",
@@ -548,6 +682,26 @@ def create_order(
         resource_id=order.id,
         changes=response_body,
     )
+    if review_reasons:
+        # Offline sale accepted as charged; leave evidence for the owner to review.
+        audit_service.log(
+            db,
+            action="orders.pricing_review",
+            tenant_id=tenant_id,
+            user_id=user_id,
+            resource_type="order",
+            resource_id=order.id,
+            changes={
+                "client_uuid": str(client_uuid) if client_uuid else None,
+                "reasons": review_reasons,
+                "discount_amount": str(body.discount_amount),
+                "tax_rate": str(body.tax_rate),
+                "default_tax_rate": (
+                    str(default_tax_rate) if default_tax_rate is not None else None
+                ),
+                "price_mismatches": price_mismatches,
+            },
+        )
     if not external_transaction:
         _store_response(
             db,

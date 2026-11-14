@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -159,27 +160,141 @@ def sales_summary(
 ) -> dict:
     tz = _tenant_timezone(db, tenant_id=tenant_id)
     start_date, end_date = _normalize_range(start_date, end_date, tz)
-    orders = _completed_orders(
-        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+    return _summary_from_window(
+        _load_sale_window(
+            db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+        )
     )
-    order_ids = [order.id for order in orders]
-    gross_sales = calculator.money(sum((order.total_amount for order in orders), Decimal("0.00")))
 
-    refunds = repository.refunds_for_orders(db, tenant_id=tenant_id, order_ids=order_ids)
+
+@dataclass(frozen=True)
+class _SaleWindow:
+    """Completed orders of one local-date window, their refunds and voids.
+
+    Loaded once so the dashboard can derive the summary, hourly buckets and the
+    business story from the same rows instead of re-reading the window.
+    """
+
+    start_date: date
+    end_date: date
+    orders: list[Order]
+    refunds: list[Refund]
+    void_count: int
+
+
+def _load_sale_window(
+    db: Session, *, tenant_id: UUID, start_date: date, end_date: date, tz: ZoneInfo
+) -> _SaleWindow:
+    start, end = _local_bounds(start_date, end_date, tz)
+    orders = repository.completed_orders_between(
+        db, tenant_id=tenant_id, start=start, end=end
+    )
+    refunds = repository.refunds_for_orders(
+        db, tenant_id=tenant_id, order_ids=[order.id for order in orders]
+    )
+    void_count = repository.void_count_between(
+        db, tenant_id=tenant_id, start=start, end=end
+    )
+    return _SaleWindow(start_date, end_date, orders, refunds, void_count)
+
+
+def _summary_from_window(window: _SaleWindow) -> dict:
+    gross_sales = calculator.money(
+        sum((order.total_amount for order in window.orders), Decimal("0.00"))
+    )
     refund_total = calculator.money(
-        sum((refund.refunded_amount for refund in refunds), Decimal("0.00"))
+        sum((refund.refunded_amount for refund in window.refunds), Decimal("0.00"))
     )
     return {
-        "start_date": start_date,
-        "end_date": end_date,
+        "start_date": window.start_date,
+        "end_date": window.end_date,
         "gross_sales": gross_sales,
         "refund_total": refund_total,
         "net_sales": calculator.money(gross_sales - refund_total),
-        "order_count": len(orders),
-        "refund_count": len(refunds),
-        "void_count": _void_count(
-            db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
-        ),
+        "order_count": len(window.orders),
+        "refund_count": len(window.refunds),
+        "void_count": window.void_count,
+    }
+
+
+def _refunds_by_order(refunds: list[Refund]) -> dict[UUID, Decimal]:
+    totals: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
+    for refund in refunds:
+        totals[refund.order_id] = calculator.money(
+            totals[refund.order_id] + refund.refunded_amount
+        )
+    return totals
+
+
+def _hourly_from_rows(
+    orders: list[Order], refunds: list[Refund], tz: ZoneInfo
+) -> list[dict]:
+    refunds_by_order = _refunds_by_order(refunds)
+    buckets: dict[int, dict] = {
+        hour: {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0}
+        for hour in range(24)
+    }
+    for order in orders:
+        hour = _sale_time(order).astimezone(tz).hour
+        net = calculator.money(
+            order.total_amount - refunds_by_order.get(order.id, Decimal("0.00"))
+        )
+        buckets[hour]["net_sales"] = calculator.money(buckets[hour]["net_sales"] + net)
+        buckets[hour]["order_count"] += 1
+    return [buckets[hour] for hour in range(24)]
+
+
+def dashboard_reports(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_date: date,
+    end_date: date,
+    previous_start_date: date,
+    previous_end_date: date,
+    advanced: bool,
+    stock_by_product: dict[UUID, int] | None = None,
+) -> dict:
+    """Dashboard reads with each order window loaded exactly once.
+
+    Same definitions as business_story, sales_summary and sales_by_hour; only
+    the duplicated reads of the current and previous windows are shared.
+    """
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
+    previous_start_date, previous_end_date = _normalize_range(
+        previous_start_date, previous_end_date, tz
+    )
+    current = _load_sale_window(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+    )
+    previous = _load_sale_window(
+        db,
+        tenant_id=tenant_id,
+        start_date=previous_start_date,
+        end_date=previous_end_date,
+        tz=tz,
+    )
+    story = None
+    if advanced:
+        story = _business_story(
+            db,
+            tenant_id=tenant_id,
+            tz=tz,
+            window=current,
+            previous_orders=(
+                previous.orders
+                if _previous_period(start_date, end_date)
+                == (previous_start_date, previous_end_date)
+                else None
+            ),
+            stock_by_product=stock_by_product,
+        )
+    return {
+        "story": story,
+        "summary": _summary_from_window(current),
+        "previous_summary": _summary_from_window(previous),
+        "hourly": _hourly_from_rows(current.orders, current.refunds, tz) if advanced else [],
     }
 
 
@@ -285,27 +400,10 @@ def sales_by_hour(
     orders = _completed_orders(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
     )
-    order_ids = [order.id for order in orders]
-    refunds_by_order: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    for refund in repository.refunds_for_orders(
-        db, tenant_id=tenant_id, order_ids=order_ids
-    ):
-        refunds_by_order[refund.order_id] = calculator.money(
-            refunds_by_order[refund.order_id] + refund.refunded_amount
-        )
-
-    buckets: dict[int, dict] = {
-        hour: {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0}
-        for hour in range(24)
-    }
-    for order in orders:
-        hour = _sale_time(order).astimezone(tz).hour
-        net = calculator.money(
-            order.total_amount - refunds_by_order.get(order.id, Decimal("0.00"))
-        )
-        buckets[hour]["net_sales"] = calculator.money(buckets[hour]["net_sales"] + net)
-        buckets[hour]["order_count"] += 1
-    return [buckets[hour] for hour in range(24)]
+    refunds = repository.refunds_for_orders(
+        db, tenant_id=tenant_id, order_ids=[order.id for order in orders]
+    )
+    return _hourly_from_rows(orders, refunds, tz)
 
 
 def sales_by_employee(
@@ -353,18 +451,27 @@ def business_story(
 ) -> dict:
     tz = _tenant_timezone(db, tenant_id=tenant_id)
     start_date, end_date = _normalize_range(start_date, end_date, tz)
-    start, end = _local_bounds(start_date, end_date, tz)
-    orders = _completed_orders_between(db, tenant_id=tenant_id, start=start, end=end)
-    order_ids = [order.id for order in orders]
-
-    refunds: list[Refund] = repository.refunds_for_orders(
-        db, tenant_id=tenant_id, order_ids=order_ids
+    window = _load_sale_window(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
     )
-    refunds_by_order: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    for refund in refunds:
-        refunds_by_order[refund.order_id] = calculator.money(
-            refunds_by_order[refund.order_id] + refund.refunded_amount
-        )
+    return _business_story(db, tenant_id=tenant_id, tz=tz, window=window)
+
+
+def _business_story(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    tz: ZoneInfo,
+    window: _SaleWindow,
+    previous_orders: list[Order] | None = None,
+    stock_by_product: dict[UUID, int] | None = None,
+) -> dict:
+    start_date, end_date = window.start_date, window.end_date
+    start, end = _local_bounds(start_date, end_date, tz)
+    orders = window.orders
+    order_ids = [order.id for order in orders]
+    refunds = window.refunds
+    refunds_by_order = _refunds_by_order(refunds)
 
     gross_sales = calculator.money(sum((order.total_amount for order in orders), Decimal("0.00")))
     refund_total = calculator.money(
@@ -373,9 +480,7 @@ def business_story(
     net_sales = calculator.money(gross_sales - refund_total)
     completed_orders = len(orders)
 
-    void_count = repository.void_count_between(
-        db, tenant_id=tenant_id, start=start, end=end
-    )
+    void_count = window.void_count
 
     day_totals: dict[date, dict] = {}
     hour_totals: dict[int, dict] = {
@@ -461,7 +566,16 @@ def business_story(
     item_rows = _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids)
     product_rows = _product_drivers(item_rows)
     margin = _margin_report(orders=orders, item_rows=item_rows, tz=tz)
-    inventory_valuation = _inventory_valuation(db, tenant_id=tenant_id)
+    # One tracked-product read and one stock aggregation feed both valuation and
+    # restock alerts (each used to rescan the full movement history).
+    tracked = repository.tracked_products(db, tenant_id=tenant_id)
+    if stock_by_product is None:
+        stock_by_product = stock_on_hand_for_products(
+            db, tenant_id=tenant_id, product_ids=[product.id for product in tracked]
+        )
+    inventory_valuation = _inventory_valuation(
+        db, tenant_id=tenant_id, products=tracked, stock=stock_by_product
+    )
     waste = _waste_report(db, tenant_id=tenant_id, start=start, end=end)
     operating_expenses = _operating_expense_report(
         db,
@@ -486,7 +600,9 @@ def business_story(
         void_count=void_count,
         completed_orders=completed_orders,
     )
-    restock_for_actions = _restock_alerts(db, tenant_id=tenant_id)
+    restock_for_actions = _restock_alerts(
+        db, tenant_id=tenant_id, products=tracked, stock_by_product=stock_by_product
+    )
     recommended_actions = _recommended_actions(
         net_sales=net_sales,
         completed_orders=completed_orders,
@@ -520,6 +636,7 @@ def business_story(
         start_date=start_date,
         end_date=end_date,
         current_item_rows=item_rows,
+        previous_orders=previous_orders,
     )
     restock_alerts = restock_for_actions
 
@@ -632,16 +749,24 @@ def _product_trends(
     start_date: date,
     end_date: date,
     current_item_rows: list[dict],
+    previous_orders: list[Order] | None = None,
 ) -> dict:
     # The current window's orders/items were already fetched by business_story;
     # reuse them instead of re-querying. Only the previous window hits the db.
     current = _units_by_product(current_item_rows)
 
-    prev_start_date, prev_end_date = _previous_period(start_date, end_date)
-    prev_start, prev_end = _local_bounds(prev_start_date, prev_end_date, tz)
-    previous = _product_units_in_window(
-        db, tenant_id=tenant_id, start=prev_start, end=prev_end
-    )
+    if previous_orders is None:
+        prev_start_date, prev_end_date = _previous_period(start_date, end_date)
+        prev_start, prev_end = _local_bounds(prev_start_date, prev_end_date, tz)
+        previous = _product_units_in_window(
+            db, tenant_id=tenant_id, start=prev_start, end=prev_end
+        )
+    else:
+        previous = _units_by_product(
+            _net_item_rows(
+                db, tenant_id=tenant_id, order_ids=[order.id for order in previous_orders]
+            )
+        )
 
     product_ids = set(current.keys()) | set(previous.keys())
     rows: list[dict] = []
@@ -708,6 +833,8 @@ def _restock_alerts(
     db: Session,
     *,
     tenant_id: UUID,
+    products: list | None = None,
+    stock_by_product: dict[UUID, int] | None = None,
 ) -> list[dict]:
     since = datetime.now(UTC) - timedelta(days=7)
     sales_rows = repository.inventory_sales_since(
@@ -716,10 +843,12 @@ def _restock_alerts(
     sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
 
     alerts: list[dict] = []
-    products = repository.tracked_products(db, tenant_id=tenant_id)
-    stock_by_product = stock_on_hand_for_products(
-        db, tenant_id=tenant_id, product_ids=[product.id for product in products]
-    )
+    if products is None:
+        products = repository.tracked_products(db, tenant_id=tenant_id)
+    if stock_by_product is None:
+        stock_by_product = stock_on_hand_for_products(
+            db, tenant_id=tenant_id, product_ids=[product.id for product in products]
+        )
     for product in products:
         stock = stock_by_product.get(product.id, 0)
         sold = sold_by_product.get(product.id, 0)
@@ -957,11 +1086,19 @@ def _margin_report(
     }
 
 
-def _inventory_valuation(db: Session, *, tenant_id: UUID) -> dict:
-    products = repository.tracked_products(db, tenant_id=tenant_id)
-    stock = stock_on_hand_for_products(
-        db, tenant_id=tenant_id, product_ids=[product.id for product in products]
-    )
+def _inventory_valuation(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    products: list | None = None,
+    stock: dict[UUID, int] | None = None,
+) -> dict:
+    if products is None:
+        products = repository.tracked_products(db, tenant_id=tenant_id)
+    if stock is None:
+        stock = stock_on_hand_for_products(
+            db, tenant_id=tenant_id, product_ids=[product.id for product in products]
+        )
     known_value = Decimal("0.00")
     products_without_cost = 0
     units_without_cost = 0

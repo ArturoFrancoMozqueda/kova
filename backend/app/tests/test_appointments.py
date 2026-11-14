@@ -229,7 +229,9 @@ def test_scopes_roles_billing_and_headers(client, db, monkeypatch):
     member = db.query(Membership).filter_by(tenant_id=UUID(account["tenant_id"])).one()
     member.role = "cashier"
     db.commit()
-    assert client.get(BASE).status_code == 403
+    # appointments.operate: front-desk roles read the agenda (configuration
+    # stays owner/manager, see test_front_desk_roles_operate_agenda_not_configuration).
+    assert client.get(BASE).status_code == 200
     member.role = "manager"
     db.commit()
     assert client.get(BASE).status_code == 200
@@ -535,3 +537,69 @@ def test_reminder_rejects_early_resolution_and_timezone_replay_is_identical(clie
     assert replay.status_code == 201 and replay.json() == row
     reread = client.get(BASE).json()["items"][0]
     assert reread == row
+
+
+@pytest.mark.parametrize("role", ["cashier", "staff"])
+def test_front_desk_roles_operate_agenda_not_configuration(client, db, role):
+    account, customer = setup(client)
+    selected = resource(client)
+    existing = book(client, customer, selected)
+    member = db.query(Membership).filter_by(tenant_id=UUID(account["tenant_id"])).one()
+    member.role = role
+    db.commit()
+
+    # Operational agenda: list, read, create, reschedule, cancel and calendar.
+    assert client.get(BASE).status_code == 200
+    assert client.get(BASE + "/resources").status_code == 200
+    assert client.get(BASE + f"/{existing['id']}").status_code == 200
+    assert client.get(BASE + f"/{existing['id']}/history").status_code == 200
+    start = (datetime.now(UTC) + timedelta(days=2)).replace(microsecond=0)
+    created = post(client, "", booking_body(customer, selected, start=start))
+    assert created.status_code == 201, created.text
+    moved = start + timedelta(hours=3)
+    rescheduled = post(
+        client,
+        f"/{created.json()['id']}/reschedule",
+        {
+            "expected_version": 1,
+            "starts_at": moved.isoformat(),
+            "ends_at": (moved + timedelta(hours=1)).isoformat(),
+        },
+    )
+    assert rescheduled.status_code == 200, rescheduled.text
+    cancelled = post(
+        client, f"/{created.json()['id']}/transition", {"expected_version": 2, "status": "cancelled"}
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    calendar = client.get(
+        BASE + "/calendar",
+        params={
+            "starts_from": datetime.now(UTC).isoformat(),
+            "starts_until": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert calendar.status_code == 200, calendar.text
+
+    # Configuration keeps the owner/manager gate.
+    assert post(client, "/resources", {"name": "Nueva", "timezone": "America/Cancun"}).status_code == 403
+    assert (
+        client.patch(
+            BASE + f"/resources/{selected['id']}",
+            json={"name": "Renombrada"},
+            headers={"Idempotency-Key": str(uuid4())},
+        ).status_code
+        == 403
+    )
+    assert client.get(BASE + "/services").status_code == 403
+    assert post(client, "/services", {"name": "Corte"}).status_code == 403
+    assert client.get(BASE + f"/availability/{selected['id']}").status_code == 403
+    assert (
+        client.put(
+            BASE + f"/availability/{selected['id']}",
+            json={"windows": []},
+            headers={"Idempotency-Key": str(uuid4())},
+        ).status_code
+        == 403
+    )
+    assert client.get(BASE + "/booking-page").status_code == 403
+    assert client.get(BASE + "/reminders").status_code == 403

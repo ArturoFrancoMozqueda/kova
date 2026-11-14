@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.auth.router import request_client_ip
 from app.db import get_db, get_privileged_db
 from app.employees import service
 from app.employees.schemas import (
@@ -99,7 +100,7 @@ def accept_invitation(
     return service.accept_invitation(
         db,
         body=body,
-        ip_address=request.client.host if request.client else None,
+        ip_address=request_client_ip(request),
     )
 
 

@@ -1,3 +1,4 @@
+import hmac
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header
@@ -19,6 +20,15 @@ from app.shared.dependencies import get_current_session
 from app.shared.exceptions import forbidden
 
 router = APIRouter(tags=["account-lifecycle"])
+
+
+def _internal_key_valid(provided: str | None) -> bool:
+    """Constant-time check of the X-Internal-Key header. A missing server key or
+    header always fails; bytes avoid compare_digest's ASCII-only str limit."""
+    expected = settings.internal_api_key
+    if not expected or not provided:
+        return False
+    return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
 
 
 def _owner_context(
@@ -111,6 +121,6 @@ def purge_deletions(
     x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
     db: Session = Depends(get_privileged_db),
 ) -> PurgeResponse:
-    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+    if not _internal_key_valid(x_internal_key):
         raise forbidden("Invalid or missing internal API key")
     return PurgeResponse(purged=service.purge_due_accounts(db))

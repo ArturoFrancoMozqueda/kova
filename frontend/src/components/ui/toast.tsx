@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -111,8 +112,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("unhandledrejection", onUnhandledRejection);
   }, [toast]);
 
+  // Stable context value: consumers re-render only when `toast` changes, not
+  // every time the toast list does.
+  const contextValue = useMemo(() => ({ toast }), [toast]);
+
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div
         // On mobile, clear the app top bar (logo + TrialChip live top-right) so

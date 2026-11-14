@@ -223,7 +223,10 @@ def preview_invitation(db: Session, *, token: str) -> dict:
         "email": invitation.email,
         "role": invitation.role,
         "tenant_name": tenant.name if tenant else "",
-        "requires_password": user is None,
+        # An unverified pre-existing account must pick a new password on accept
+        # (see accept_invitation): whoever registered that address first never
+        # proved they own the inbox.
+        "requires_password": user is None or not user.is_email_verified,
     }
 
 
@@ -248,6 +251,7 @@ def accept_invitation(
     if expires_at is None or expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         raise bad_request("Invitation expired")
 
+    account_reclaimed = False
     user = auth_repo.get_user_by_email(db, invitation.email)
     if user is None:
         if not body.password or len(body.password) < MIN_PASSWORD_LENGTH:
@@ -259,6 +263,24 @@ def accept_invitation(
         )
         # Invitee accepted via the email link → email is verified.
         auth_repo.set_email_verified(db, user)
+    elif not user.is_email_verified:
+        # Pre-hijack guard: anyone can sign up with an address they don't own
+        # and, since login no longer requires verification, keep a working
+        # password on it. Attaching the invited membership to that account would
+        # hand the business to the squatter. Opening this single-use link proves
+        # control of the inbox, so the invitee takes the account over: a new
+        # password is mandatory, the address becomes verified, and every session
+        # minted with the old password is revoked.
+        if not body.password or len(body.password) < MIN_PASSWORD_LENGTH:
+            raise bad_request(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        auth_repo.update_password(db, user, auth_service.hash_password(body.password))
+        auth_repo.set_email_verified(db, user)
+        auth_repo.revoke_all_sessions(db, user.id)
+        # Outstanding reset/verification links were mailed to the same inbox,
+        # but drop them anyway so no token issued before the takeover survives.
+        auth_repo.invalidate_pending_tokens(db, user_id=user.id, token_type="password_reset")
+        auth_repo.invalidate_pending_tokens(db, user_id=user.id, token_type="email_verification")
+        account_reclaimed = True
 
     existing_membership = auth_repo.get_membership_including_inactive(
         db, user_id=user.id, tenant_id=invitation.tenant_id
@@ -284,6 +306,7 @@ def accept_invitation(
         user_id=user.id,
         resource_type="membership_invitation",
         resource_id=invitation.id,
+        changes={"account_reclaimed": True} if account_reclaimed else None,
         ip_address=ip_address,
     )
     db.commit()

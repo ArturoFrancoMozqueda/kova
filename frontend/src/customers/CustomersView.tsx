@@ -10,6 +10,7 @@ import { useFeature } from "@/auth/useFeature";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import {
   usePermission,
+  CUSTOMERS_CREATE_PERMISSION,
   CUSTOMERS_MANAGE_PERMISSION,
   CUSTOMERS_HISTORY_PERMISSION,
   ORDER_CREATE_PERMISSION,
@@ -55,6 +56,9 @@ function CustomersWorkspace() {
   useDocumentTitle(t.title);
   const { state } = useAuth();
   const canManage = usePermission(CUSTOMERS_MANAGE_PERMISSION);
+  // Front-desk roles may register a new customer; editing and archiving stay
+  // with customers.manage.
+  const canCreate = usePermission(CUSTOMERS_CREATE_PERMISSION);
   const canHistory = usePermission(CUSTOMERS_HISTORY_PERMISSION);
   const canSell = usePermission(ORDER_CREATE_PERMISSION);
   const canCreatePedido = usePermission(CUSTOMER_ORDER_CREATE_PERMISSION);
@@ -221,7 +225,7 @@ function CustomersWorkspace() {
       <ViewHeader
         title={t.title}
         meta={t.subtitle}
-        actions={canManage ? <Button onClick={() => edit(null)}>{t.newCustomer}</Button> : undefined}
+        actions={canCreate ? <Button onClick={() => edit(null)}>{t.newCustomer}</Button> : undefined}
       />
       {error && (
         <p
@@ -231,7 +235,7 @@ function CustomersWorkspace() {
           {error}
         </p>
       )}
-      {editing !== undefined && canManage && (
+      {editing !== undefined && (editing ? canManage : canCreate) && (
         <Card>
           <CardContent className="p-5">
             <form
@@ -344,7 +348,7 @@ function CustomersWorkspace() {
           title={q ? t.noResultsTitle : t.emptyTitle}
           body={q ? t.noResultsBody : t.emptyBody}
           illustration={q ? undefined : "people"}
-          primaryCta={!q && canManage ? { label: t.newCustomer, onClick: () => edit(null) } : undefined}
+          primaryCta={!q && canCreate ? { label: t.newCustomer, onClick: () => edit(null) } : undefined}
         />
       ) : (
         <Card>

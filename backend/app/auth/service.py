@@ -1,14 +1,18 @@
 import hashlib
 import re
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import bcrypt
 import jwt
+from fastapi import HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.audit.models import AuditLog
 from app.auth import repository as repo
 from app.auth.models import Membership, User, UserSession
 from app.auth.schemas import MeResponse, UserResponse
@@ -290,6 +294,82 @@ def resend_verification_for_user(db: Session, *, user: User, ip_address: str | N
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
+# Per-account brute-force lockout. Only attempts that did not end in a session
+# count: a successful login (or a password reset, which proves inbox control)
+# resets the streak, so an owner signing in all day is never throttled and the
+# worst targeted lockout stays one short window. Kept identical to the previous
+# per-account limiter (10 / 10 min) and to `docs/security/rate-limiting.md`.
+LOGIN_FAILURE_LIMIT = 10
+LOGIN_FAILURE_WINDOW_SECONDS = 600
+_LOGIN_ATTEMPT_ACTION = "user.login_attempt"
+_LOGIN_RESET_ACTIONS = ("user.login", "user.password_reset")
+
+
+def _recent_failed_login_attempts(db: Session, user_id: UUID, now: datetime) -> list[datetime]:
+    """Creation times of the attempts since the last success, newest first."""
+    rows = db.execute(
+        text(
+            "SELECT action, created_at FROM audit_logs"
+            " WHERE user_id = :user_id AND action = ANY(:actions) AND created_at >= :since"
+            " ORDER BY created_at DESC, id DESC LIMIT :limit"
+        ),
+        {
+            "user_id": user_id,
+            "actions": [_LOGIN_ATTEMPT_ACTION, *_LOGIN_RESET_ACTIONS],
+            "since": now - timedelta(seconds=LOGIN_FAILURE_WINDOW_SECONDS),
+            "limit": LOGIN_FAILURE_LIMIT,
+        },
+    ).all()
+    streak: list[datetime] = []
+    for action, created_at in rows:
+        if action != _LOGIN_ATTEMPT_ACTION:
+            break
+        streak.append(created_at)
+    return streak
+
+
+def _register_login_attempt(
+    db: Session, *, user: User, tenant_id: UUID | None, ip_address: str | None
+) -> None:
+    """Refuse a locked account, otherwise record this attempt before bcrypt runs.
+
+    The attempt is written (and committed) *before* the password is checked so
+    a burst of parallel guesses cannot all slip under the limit while bcrypt is
+    busy; a per-account advisory lock makes check-and-insert atomic without
+    holding anything across the slow hash. The success path then writes
+    ``user.login``, which closes the streak, so successes never count.
+    """
+    if settings.app_env == "local":
+        return
+    now = datetime.now(UTC)
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"kova-login-attempts:{user.id}"},
+    )
+    streak = _recent_failed_login_attempts(db, user.id, now)
+    if len(streak) >= LOGIN_FAILURE_LIMIT:
+        db.rollback()
+        oldest = streak[-1].replace(tzinfo=UTC) if streak[-1].tzinfo is None else streak[-1]
+        retry = oldest + timedelta(seconds=LOGIN_FAILURE_WINDOW_SECONDS) - now
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas peticiones. Intenta de nuevo en unos momentos.",
+            headers={"Retry-After": str(max(1, int(retry.total_seconds()) + 1))},
+        )
+    db.add(
+        AuditLog(
+            tenant_id=tenant_id,
+            user_id=user.id,
+            action=_LOGIN_ATTEMPT_ACTION,
+            resource_type="user",
+            resource_id=user.id,
+            ip_address=ip_address,
+            created_at=now,
+        )
+    )
+    db.commit()
+
+
 def login(
     db: Session,
     *,
@@ -297,14 +377,30 @@ def login(
     password: str,
     ip_address: str | None = None,
     user_agent: str | None = None,
+    unknown_account_throttle: Callable[[], None] | None = None,
 ) -> tuple[str, str, UserSession]:
-    """Returns (access_token, refresh_token_plain, session)."""
+    """Returns (access_token, refresh_token_plain, session).
+
+    ``unknown_account_throttle`` bounds guesses against an address with no
+    account. Every such attempt is a failure, so an attempt-counting limiter is
+    exactly failure-only there, and locking unknown addresses the same way as
+    real ones keeps the 429 from revealing which emails are registered.
+    """
     user = repo.get_user_by_email(db, email)
     if not user:
+        if unknown_account_throttle is not None:
+            unknown_account_throttle()
         # Pay the same bcrypt cost as a real account so timing doesn't leak whether
         # the email exists, then fail with the same generic error.
         verify_password(password, _DUMMY_PASSWORD_HASH)
         raise unauthorized("Invalid credentials")
+    membership = repo.get_membership_by_user(db, user.id)
+    _register_login_attempt(
+        db,
+        user=user,
+        tenant_id=membership.tenant_id if membership else None,
+        ip_address=ip_address,
+    )
     if not verify_password(password, user.hashed_password):
         raise unauthorized("Invalid credentials")
     # An unverified email no longer blocks the session. The password check above
@@ -317,7 +413,6 @@ def login(
     if not user.is_active:
         raise forbidden("Account inactive")
 
-    membership = repo.get_membership_by_user(db, user.id)
     if not membership:
         raise forbidden("No active membership")
 

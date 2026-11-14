@@ -7,6 +7,7 @@ import type { Product } from "@/catalog/types";
 import type { Shift } from "@/shifts/types";
 
 // Mocks for every side-effecting dependency RegisterView pulls in.
+const deniedPermissions = vi.hoisted(() => new Set<string>());
 const getOpenShift = vi.fn();
 const openShiftRequest = vi.fn();
 const queueOfflineSale = vi.fn();
@@ -93,7 +94,7 @@ vi.mock("../auth/permissions", async () => {
   const actual = await vi.importActual<typeof import("../auth/permissions")>(
     "../auth/permissions",
   );
-  return { ...actual, usePermission: () => true };
+  return { ...actual, usePermission: (permission: string) => !deniedPermissions.has(permission) };
 });
 
 import RegisterView from "./RegisterView";
@@ -117,6 +118,7 @@ const cashLabel = copy.register.cash;
 
 describe("RegisterView cash-without-shift guard", () => {
   beforeEach(() => {
+    deniedPermissions.clear();
     registerTenantId = "tenant-1";
     customerApi.resolveActiveCustomer.mockReset();
     cashDrawer.open.mockReset().mockResolvedValue(undefined);
@@ -833,6 +835,64 @@ describe("RegisterView cash-without-shift guard", () => {
     fireEvent.change(scanner, { target: { value: "NO-EXISTE" } });
     fireEvent.keyDown(scanner, { key: "Enter" });
     expect(await screen.findByText(copy.register.skuNoMatch("NO-EXISTE"))).toBeVisible();
+    expect(screen.getByText(copy.register.skuNoMatch("NO-EXISTE"))).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("announces a sale saved on this device while offline", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "offline-announced-sale" });
+    renderRegister();
+    await addProductToCart();
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+      fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+      const region = await screen.findByText(copy.register.offlineSaleSavedAnnouncement);
+      expect(region).toHaveAttribute("aria-live", "polite");
+      expect(claimOfflineSale).not.toHaveBeenCalled();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it("labels the scanner input for assistive technology", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    expect(await screen.findByRole("textbox", { name: copy.register.skuSearchLabel })).toBe(
+      screen.getByPlaceholderText(copy.register.skuSearchPlaceholder),
+    );
+  });
+
+  it("hides manual discount and tax rate for roles without orders.discount", async () => {
+    deniedPermissions.add("orders.discount");
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+    expect(screen.getByText(copy.register.saleOptions)).toBeInTheDocument();
+    expect(screen.queryByLabelText(copy.register.saleDiscount)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(copy.register.saleTax)).not.toBeInTheDocument();
+  });
+
+  it("keeps manual discount and tax rate for roles with orders.discount", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+    expect(screen.getByLabelText(copy.register.saleDiscount)).toBeInTheDocument();
+    expect(screen.getByLabelText(copy.register.saleTax)).toBeInTheDocument();
+  });
+
+  it("refreshes shift and stock once when focus and visibility fire together", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await screen.findByText(product.name);
+    getOpenShift.mockClear();
+    inventoryApi.listStock.mockClear();
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(getOpenShift).toHaveBeenCalledTimes(1);
+    expect(inventoryApi.listStock).toHaveBeenCalledTimes(1);
   });
 
   it("scans from the tenant catalog cache while offline", async () => {

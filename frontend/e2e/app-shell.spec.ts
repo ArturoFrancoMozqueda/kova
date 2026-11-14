@@ -137,8 +137,11 @@ for (const role of ["owner", "manager", "cashier", "staff"]) {
       const nav = page.locator("aside nav");
       for (const name of ["Caja", "Pedidos", "Ventas"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
       if (role === "cashier" || role === "staff") {
-        await expect(nav.getByRole("button")).toHaveCount(0);
+        // appointments.operate adds the operational Agenda next to Clientes in one group.
+        await expect(nav.getByRole("button")).toHaveText(["Clientes y atención"]);
+        await nav.getByRole("button", { name: "Clientes y atención", exact: true }).click();
         await expect(nav.getByRole("link", { name: "Clientes", exact: true })).toBeVisible();
+        await expect(nav.getByRole("link", { name: "Agenda", exact: true })).toBeVisible();
         await expect(nav.locator('a[href="/settings/billing"]')).toHaveCount(0);
         await expect(nav.locator('a[href="/inventory"]')).toHaveCount(0);
       } else {

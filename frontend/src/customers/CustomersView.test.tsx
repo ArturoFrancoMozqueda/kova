@@ -5,17 +5,19 @@ import { CustomersView } from "./CustomersView";
 import { customerActivity, customerHistory, customerSummary, getCustomer, listCustomers, saveCustomer } from "./api";
 
 let manage = true;
+let create = true;
 let historyAccess = true;
 let tenantId = "tenant-1";
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: { status: "authenticated", tenantId, user: { id: "user-1", role: "owner" } } }) }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => true }));
 vi.mock("@/auth/permissions", () => ({
   CUSTOMERS_MANAGE_PERMISSION: "customers.manage",
+  CUSTOMERS_CREATE_PERMISSION: "customers.create",
   CUSTOMERS_HISTORY_PERMISSION: "customers.history",
   ORDER_CREATE_PERMISSION: "orders.create",
   CUSTOMER_ORDER_CREATE_PERMISSION: "customer_orders.create",
   usePermission: (permission: string) =>
-    permission === "customers.manage" ? manage : permission === "customers.history" ? historyAccess : true,
+    permission === "customers.manage" ? manage : permission === "customers.create" ? create : permission === "customers.history" ? historyAccess : true,
 }));
 vi.mock("./api", () => ({
   listCustomers: vi.fn(),
@@ -40,6 +42,7 @@ describe("Clientes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     manage = true;
+    create = true;
     historyAccess = true;
     tenantId = "tenant-1";
     vi.mocked(listCustomers).mockResolvedValue([customer]);
@@ -98,6 +101,7 @@ describe("Clientes", () => {
   });
   it("oculta gestión cuando el rol solo puede consultar clientes", async () => {
     manage = false;
+    create = false;
     renderCustomers();
     expect(await screen.findByText("Ana")).toBeInTheDocument();
     expect(
@@ -106,6 +110,15 @@ describe("Clientes", () => {
     expect(
       screen.queryByRole("button", { name: "Editar" }),
     ).not.toBeInTheDocument();
+  });
+  it("deja registrar clientes a caja sin abrir edición ni archivo", async () => {
+    manage = false;
+    create = true;
+    renderCustomers();
+    expect(await screen.findByText("Ana")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo cliente" }));
+    expect(screen.getByRole("form", { name: /cliente/i })).toBeInTheDocument();
   });
   it("abre el cliente exacto desde un enlace aunque no esté en la página de la lista", async () => {
     vi.mocked(listCustomers).mockResolvedValue([]);

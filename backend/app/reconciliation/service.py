@@ -152,17 +152,18 @@ def _allocated(db, tenant_id, *, entry_id=None, payment_id=None):
     return query.scalar() or ZERO
 
 
-def serialize_entry(db, entry):
-    matches = (
-        db.query(ReconciliationMatch)
-        .filter(
-            ReconciliationMatch.tenant_id == entry.tenant_id,
-            ReconciliationMatch.settlement_entry_id == entry.id,
-            ReconciliationMatch.branch_id == entry.branch_id,
+def serialize_entry(db, entry, matches=None):
+    if matches is None:
+        matches = (
+            db.query(ReconciliationMatch)
+            .filter(
+                ReconciliationMatch.tenant_id == entry.tenant_id,
+                ReconciliationMatch.settlement_entry_id == entry.id,
+                ReconciliationMatch.branch_id == entry.branch_id,
+            )
+            .order_by(ReconciliationMatch.created_at, ReconciliationMatch.id)
+            .all()
         )
-        .order_by(ReconciliationMatch.created_at, ReconciliationMatch.id)
-        .all()
-    )
     total = sum((row.matched_amount for row in matches if row.status == "confirmed"), ZERO)
     status = (
         "matched"
@@ -197,8 +198,28 @@ def list_entries(db, tenant_id, *, limit=50, offset=0):
         .limit(limit + 1)
         .all()
     )
+    page = rows[:limit]
+    # One IN query for the page's matches instead of one query per entry; the
+    # (entry, branch) key keeps the same ownership match as serialize_entry.
+    matches: dict[tuple, list] = {(entry.id, entry.branch_id): [] for entry in page}
+    if page:
+        for match in (
+            db.query(ReconciliationMatch)
+            .filter(
+                ReconciliationMatch.tenant_id == tenant_id,
+                ReconciliationMatch.settlement_entry_id.in_([entry.id for entry in page]),
+                ReconciliationMatch.branch_id.in_(list({entry.branch_id for entry in page})),
+            )
+            .order_by(ReconciliationMatch.created_at, ReconciliationMatch.id)
+            .all()
+        ):
+            key = (match.settlement_entry_id, match.branch_id)
+            if key in matches:
+                matches[key].append(match)
     return {
-        "entries": [serialize_entry(db, entry) for entry in rows[:limit]],
+        "entries": [
+            serialize_entry(db, entry, matches[(entry.id, entry.branch_id)]) for entry in page
+        ],
         "has_more": len(rows) > limit,
     }
 

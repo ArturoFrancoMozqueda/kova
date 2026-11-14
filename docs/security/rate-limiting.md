@@ -106,16 +106,21 @@ written into the limiter store:
 
 | Endpoint | Bucket prefix | Limit | Fail mode |
 |---|---|---|---|
-| `/api/v1/auth/login` | `auth-login-acct` | 10 / 10 min | closed |
+| `/api/v1/auth/login` (cuenta existente) | `audit_logs` (`user.login_attempt`) | 10 fallidos / 10 min | closed |
+| `/api/v1/auth/login` (correo sin cuenta) | `auth-login-acct` | 10 / 10 min | closed |
 | `/api/v1/auth/signup` | `auth-signup-acct` | 5 / hour | closed |
 | `/api/v1/auth/password-reset/request` | `auth-reset-acct` | 5 / hour | closed |
 
 Thresholds are intentionally generous for normal usage and tight enough to
 slow down credential stuffing, signup spam, brute-force checkout abuse, and
 runaway clients. Adjust them with usage data; do not lower without telemetry
-that justifies the change. The per-account limiter consumes a token per attempt
-(including successful ones), so the worst-case targeted lockout is bounded to one
-short window; failure-only counting (reset on success) is a future enhancement.
+that justifies the change. For existing accounts the login lockout counts
+only failed attempts: each attempt is recorded in `audit_logs` as
+`user.login_attempt` under a per-account advisory lock before bcrypt runs, and a
+successful `user.login` or `user.password_reset` closes the streak
+(`backend/app/auth/service.py`). Addresses without an account keep the
+attempt-counting `auth-login-acct` bucket (every attempt there is a failure), so
+a 429 does not reveal which emails are registered.
 
 ## Bypass rules
 

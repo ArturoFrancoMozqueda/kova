@@ -274,8 +274,21 @@ it("resolves internal reminders without claiming an external message", async () 
     JSON.stringify({ expected_version: 1, status: "completed" }),
   );
 });
-it("does not fetch agenda for cashiers or offline sessions", () => {
+it("opens the operational agenda to cashiers without configuration, reminders or sale links", async () => {
   session.role = "cashier";
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole("button", { name: "Nueva cita" })).toBeEnabled();
+  expect(screen.queryByText("Acceso de administración")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Configurar agenda" })).not.toBeInTheDocument();
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith("/api/v1/appointments?"))).toBe(true));
+  expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/reminders"))).toBe(false);
+});
+it("does not fetch agenda for roles without appointments.operate or offline sessions", () => {
+  session.role = "viewer";
   const view = render(
     <MemoryRouter>
       <AppointmentsView />

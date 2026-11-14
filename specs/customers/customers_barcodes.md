@@ -23,3 +23,10 @@ Integración central requerida: registro de modelo/router, permisos, grants de f
 Tests backend prueban idempotencia, búsqueda literal, edición/desactivación, permisos, aislamiento entre negocios, FK de asociación, historial con devoluciones/paginación, duplicados/borrado/importación de códigos y RLS real mediante `kova_app`. Tests frontend prueban creación, historial con devoluciones y gestión según permisos. Regresión catálogo/importación y TypeScript.
 
 QA integrada: registrar cliente, crear producto con `000123`, escanear en caja, asociar venta online, revisar historial, desactivar cliente, confirmar que no se selecciona para nueva venta; repetir venta offline y sincronizar sin duplicados. Cambiar negocio y confirmar catálogo/clientes aislados; cambiar sucursal y confirmar historial local.
+
+## Permisos de alta (2026-11-13)
+
+`POST /api/v1/customers` requiere `customers.create` (owner, manager, cashier, staff) para registrar
+clientes en mostrador. Editar o desactivar (`PUT /api/v1/customers/{id}`; no existe borrado físico)
+sigue requiriendo `customers.manage` (owner, manager). Prueba:
+`test_customers_permissions_and_cross_tenant_ownership`.

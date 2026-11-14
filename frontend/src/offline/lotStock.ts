@@ -18,7 +18,9 @@ export async function readLocalLots(tenantId: string, branchId: string) {
 }
 export async function refreshLocalLots(tenantId: string, branchId: string) {
   const before = await readLocalLots(tenantId, branchId);
-  const queued = await offlineDb.offline_sales.where("tenant_id").equals(tenantId).toArray();
+  // Only unconfirmed rows can carry local debits; skip the synced history.
+  const queued = await offlineDb.offline_sales.where("[tenant_id+status]")
+    .anyOf([[tenantId, "pending"], [tenantId, "syncing"], [tenantId, "failed"]]).toArray();
   const pending = queued.filter(row => row.status !== "quarantined" && row.status !== "synced" && (row.branch_id ?? tenantId) === branchId);
   const known = new Map((before?.debits ?? []).map(debit => [debit.client_uuid, debit]));
   for (const row of pending) {

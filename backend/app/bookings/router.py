@@ -30,7 +30,7 @@ from app.bookings.schemas import (
     TableStatus,
     VersionWrite,
 )
-from app.crm.router import require_crm
+from app.crm.router import require_agenda, require_crm
 from app.db import get_db
 from app.middleware.rate_limit import rate_limit
 from app.shared.exceptions import forbidden, not_found
@@ -131,13 +131,13 @@ def calendar(
     starts_until: datetime,
     resource_id: UUID | None = None,
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     return service.calendar(db, ctx[1].tenant_id, starts_from, starts_until, resource_id)
 
 
 @router.get(PRIVATE + "/bookings/{booking_id}")
-def booking(booking_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+def booking(booking_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_agenda)):
     return service.get_booking(db, ctx[1].tenant_id, booking_id)
 
 
@@ -277,7 +277,7 @@ def cancel_booking(
     body: VersionWrite,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     return service.staff_action(db, ctx[1].tenant_id, ctx[0].id, booking_id, body, key)
 
@@ -299,7 +299,7 @@ def reschedule_booking(
     body: StaffBookingReschedule,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
-    ctx=Depends(require_crm),
+    ctx=Depends(require_agenda),
 ):
     return service.staff_reschedule(db, ctx[1].tenant_id, ctx[0].id, booking_id, body, key)
 

@@ -1,5 +1,6 @@
 import { LotQueueError, availableLots, lotStockKey, readLocalLots } from "./lotStock";
 import { offlineDb } from "./db";
+import { isQuotaExceededError, purgeSyncedSales, requestPersistentStorage } from "./storage";
 import type {
   OfflineReceiptSnapshot,
   OfflineSaleDraft,
@@ -16,6 +17,34 @@ function isOwnedRow(
   tenantId: string,
 ): row is OfflineSaleQueueItem {
   return Boolean(row?.tenant_id === tenantId && row.status !== "quarantined");
+}
+
+/**
+ * The device has no room left to save the sale. Extends LotQueueError because
+ * checkout shows that family's message verbatim: the cashier must know the sale
+ * was NOT saved, so the cart stays on screen instead of being lost silently.
+ */
+export class OfflineStorageFullError extends LotQueueError {
+  constructor() {
+    super("No hay espacio en este dispositivo para guardar la venta y no se registró. Libera espacio en el dispositivo o en el navegador y vuelve a cobrar.");
+    this.name = "OfflineStorageFullError";
+  }
+}
+
+/** On quota pressure, drop already-confirmed copies once and try again. */
+async function withQuotaRecovery<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (!isQuotaExceededError(error)) throw error;
+  }
+  try {
+    await purgeSyncedSales(0);
+    return await write();
+  } catch (error) {
+    if (isQuotaExceededError(error)) throw new OfflineStorageFullError();
+    throw error;
+  }
 }
 
 export function makeQueuedSale(
@@ -49,12 +78,13 @@ export async function queueOfflineSale(
   receiptSnapshot?: OfflineReceiptSnapshot,
   branchId?: string,
 ): Promise<OfflineSaleQueueItem> {
+  requestPersistentStorage();
   const item = makeQueuedSale(tenantId, sale, undefined, shiftId, receiptSnapshot, branchId);
   // `add` fails closed on the astronomically unlikely UUID collision instead
   // of overwriting a sale owned by another tenant.
   const parts = sale.items.flatMap(line => line.lot_allocations ?? []);
   if (parts.length) {
-    await offlineDb.transaction("rw", offlineDb.offline_sales, offlineDb.lot_stock, async () => {
+    await withQuotaRecovery(() => offlineDb.transaction("rw", offlineDb.offline_sales, offlineDb.lot_stock, async () => {
       const cache = await readLocalLots(tenantId, branchId ?? tenantId);
       if (!cache) throw new LotQueueError("Conéctate para cargar los lotes de esta sucursal antes de cobrar.");
       const wanted = new Map<string, number>();
@@ -65,9 +95,9 @@ export async function queueOfflineSale(
       }
       await offlineDb.offline_sales.add(item);
       await offlineDb.lot_stock.put({ ...cache, key: lotStockKey(tenantId, branchId ?? tenantId), debits: [...cache.debits, { client_uuid: item.client_uuid, allocations: parts }] });
-    });
+    }));
   } else {
-    await offlineDb.offline_sales.add(item);
+    await withQuotaRecovery(() => offlineDb.offline_sales.add(item));
   }
   return item;
 }
@@ -152,6 +182,7 @@ export async function retryDeadLetter(tenantId: string, clientUuid: string) {
       ...existing,
       status: "pending",
       last_error: undefined,
+      last_error_code: undefined,
       // A deliberate retry starts a fresh bounded retry budget while keeping
       // the original UUID, tenant ownership and sale payload intact.
       attempt_count: 0,

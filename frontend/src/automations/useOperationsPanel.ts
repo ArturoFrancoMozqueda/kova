@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveApiErrorMessage } from "@/lib/apiError";
 import {
   OperationsError,
   useOperationsRequest,
   useOnline,
   type WorkspaceIdentity,
 } from "./workspace";
+
+/** `OperationsError` messages are already public copy; anything else (a raw
+ * "Failed to fetch", a parsing error) goes through the shared presentation. */
+function operationsErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof OperationsError) return err.message;
+  return resolveApiErrorMessage(err, fallback);
+}
 
 /** Each mounted branch owns requests, results and command keys. */
 export function useOperationsPanel<T>(
@@ -38,9 +46,7 @@ export function useOperationsPanel<T>(
         revision === generation.current &&
         !(e instanceof DOMException && e.name === "AbortError")
       )
-        setError(
-          e instanceof Error ? e.message : "No pudimos cargar los datos.",
-        );
+        setError(operationsErrorMessage(e, "No pudimos cargar los datos."));
     } finally {
       if (alive.current && revision === generation.current) setLoading(false);
     }
@@ -79,9 +85,7 @@ export function useOperationsPanel<T>(
     } catch (e) {
       if (alive.current) {
         if (e instanceof OperationsError && e.status === 409) await load();
-        setError(
-          e instanceof Error ? e.message : "No pudimos guardar los cambios.",
-        );
+        setError(operationsErrorMessage(e, "No pudimos guardar los cambios."));
       }
       return false;
     } finally {

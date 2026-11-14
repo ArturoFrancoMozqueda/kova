@@ -151,7 +151,9 @@ describe("dashboard supervision", () => {
     const products = screen.getByRole("article", { name: "Productos e inventario" });
     expect(within(products).queryByText("Stock bajo", { exact: true })).not.toBeInTheDocument();
     for (const summary of screen.getAllByText("Caja e inventario actuales")) fireEvent.click(summary);
-    expect(screen.getAllByText("Sin datos", { exact: true })).toHaveLength(2);
+    // Unavailable sources read as "No disponible", never as empty data.
+    expect(screen.getAllByText("No disponible", { exact: true })).toHaveLength(2);
+    expect(screen.queryByText("Sin datos", { exact: true })).not.toBeInTheDocument();
     expect(screen.queryByText("Saludable", { exact: true })).not.toBeInTheDocument();
   });
 

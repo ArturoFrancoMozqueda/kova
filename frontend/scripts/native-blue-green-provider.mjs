@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { nextSlot, slotWorker, SLOT_APPLICATIONS } from "./native-slots.mjs";
 import { exactResourceType } from "./cloudflare-container-provider.mjs";
+import { fetchReadinessGet, ReadinessFetchError } from "./readiness-fetch.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare-backend");
@@ -24,7 +25,13 @@ const coreFiles = ["deploy/cloudflare-native/entry.mjs", "deploy/cloudflare-nati
 // redeploys the serving API or the incumbent settings/rate-limit controller.
 const signupSettingsFiles = ["deploy/cloudflare-native/signup-settings.mjs",
   "deploy/cloudflare-native/signup-settings.config.ts"];
-const readinessHeaders = { "Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 KovaResidentAcceptance/1.0" };
+// fetchReadinessGet adds Cache-Control itself; it also forbids redirects.
+const readinessHeaders = { "User-Agent": "Mozilla/5.0 KovaResidentAcceptance/1.0" };
+const probeTimeoutMs = 15_000;
+// Only an existing bounded readiness loop may swallow a classified transient
+// transport error (reset, refused, socket, request timeout). DNS, TLS,
+// redirects, unknown errors and every identity/status check still fail closed.
+const retryableTransport = error => error instanceof ReadinessFetchError && error.retryable;
 async function readinessJson(response) {
   try { return await response.json(); }
   catch { throw new Error("Malformed native readiness contract"); }
@@ -146,10 +153,13 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
     return { workerVersion: worker.id, applicationId: app.id,
       namespaceId: binding.namespace_id, image: config.image, releaseSha: text(worker, "KOVA_BUILD_SHA") };
   };
-  const health = async (candidate = false) => {
-    const response = await fetcher(`https://api.kovasuite.com/health${candidate ? "/candidate" : ""}`, {
-      headers: readinessHeaders, signal: globalThis.AbortSignal.timeout(15_000), redirect: "error",
+  const readinessGet = (pathname, target, deadline = now() + probeTimeoutMs) =>
+    fetchReadinessGet(`https://api.kovasuite.com${pathname}`, {
+      target, headers: readinessHeaders, deadline, timeoutMs: probeTimeoutMs, now, fetcher,
     });
+  const health = async (candidate = false, deadline = undefined) => {
+    const response = await readinessGet(`/health${candidate ? "/candidate" : ""}`,
+      candidate ? "candidate_proxy" : "direct", deadline);
     if (!response.ok) { await response.body?.cancel(); return null; }
     const body = await readinessJson(response);
     if (body?.status !== "ok" || !shaPattern.test(body.release_sha ?? "")
@@ -307,10 +317,16 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
         await buildGateway(stagingEnv);
         const deadline = now() + 900_000;
         let drained = false;
+        let lastFailure;
         while (now() < deadline) {
-          const response = await fetcher("https://api.kovasuite.com/health/candidate/drain", {
-            headers: readinessHeaders, signal: globalThis.AbortSignal.timeout(15_000), redirect: "error",
-          });
+          let response;
+          try { response = await readinessGet("/health/candidate/drain", "candidate_proxy", deadline); }
+          catch (error) {
+            if (!retryableTransport(error)) throw error;
+            lastFailure = error.message;
+            await wait(1000);
+            continue;
+          }
           if (!response.ok) {
             await response.body?.cancel();
             throw new Error("Cannot prove inactive API drain state");
@@ -340,7 +356,10 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
           }
           await wait(1000);
         }
-        if (!drained) throw new Error("Inactive API did not finish draining; serving API preserved");
+        if (!drained) {
+          throw new Error("Inactive API did not finish draining; serving API preserved"
+            + (lastFailure ? ` (last: ${lastFailure})` : ""));
+        }
       }
       const artifactEnv = { ...stagingEnv };
       delete artifactEnv.SUPABASE_DB_URL;
@@ -354,10 +373,12 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
       await buildGateway(stagingEnv);
       const deadline = now() + 600_000;
       let readyProcess;
+      let lastFailure;
       while (now() < deadline) {
         let probe;
-        try { probe = await health(true); } catch (error) {
-          if (error.name !== "TimeoutError" && error.name !== "AbortError") throw error;
+        try { probe = await health(true, deadline); } catch (error) {
+          if (!retryableTransport(error)) throw error;
+          lastFailure = error.message;
         }
         if (probe && probe.sha !== sha && probe.sha !== snapshot.slots[target]?.releaseSha) {
           throw new Error("Candidate returned an uncaptured release identity");
@@ -367,7 +388,10 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
         }
         await wait(1000);
       }
-      if (!readyProcess) throw new Error("Candidate API failed readiness; serving API preserved");
+      if (!readyProcess) {
+        throw new Error("Candidate API failed readiness; serving API preserved"
+          + (lastFailure ? ` (last: ${lastFailure})` : ""));
+      }
       const beforePromotion = await health();
       if (beforePromotion?.sha !== previousSha || beforePromotion?.process !== baseline.process) {
         throw new Error("Serving API changed while its independent replacement warmed");
@@ -408,10 +432,12 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
         // A parked previous process is warmed while the current route still
         // serves. Never point public requests at a cold rollback target.
         const deadline = now() + 600_000;
+        let lastFailure;
         while (now() < deadline) {
           let probe;
-          try { probe = await health(useCandidate); } catch (error) {
-            if (error.name !== "TimeoutError" && error.name !== "AbortError") throw error;
+          try { probe = await health(useCandidate, deadline); } catch (error) {
+            if (!retryableTransport(error)) throw error;
+            lastFailure = error.message;
           }
           if (probe && probe.sha !== snapshot.activeReleaseSha) {
             throw new Error("Rollback candidate returned a foreign release");
@@ -421,7 +447,10 @@ export function nativeBlueGreenProvider({ run, env, fetcher = globalThis.fetch,
           }
           await wait(1000);
         }
-        if (!restoredProcess) throw new Error("Previous API did not warm; current route preserved");
+        if (!restoredProcess) {
+          throw new Error("Previous API did not warm; current route preserved"
+            + (lastFailure ? ` (last: ${lastFailure})` : ""));
+        }
       }
       await cf(["workers", "deployments", "create", "--script-name", "kova-backend-gateway",
         "--strategy", "percentage", "--versions", JSON.stringify([{ version_id: version, percentage: 100 }])]);

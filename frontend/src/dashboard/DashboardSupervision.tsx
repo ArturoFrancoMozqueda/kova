@@ -12,6 +12,9 @@ import { useIsOnline, useSyncQueue } from "@/offline/useSyncQueue";
 import { cn } from "@/lib/utils";
 import { controlRoutes, metricScopeLabel, type ControlBranch, type DashboardControl } from "./controlTypes";
 
+/** A source that failed to load is unavailable, not empty ("Sin datos"). */
+const SOURCE_UNAVAILABLE = "No disponible";
+
 /** A supervision filter never changes the operating drawer. Entering a different
  * branch's operational screen is an explicit, confirmed context change. */
 export function DashboardScopeLink({ to, branchId, branches, children, className }: {
@@ -126,8 +129,8 @@ export function DashboardBranches({ control, onScope }: { control: DashboardCont
         {control.scope.kind === "all" ? <button type="button" onClick={() => onScope(branch.branch_id)} aria-label={`Consultar ${branch.branch_name}`} className="flex min-h-11 shrink-0 items-center gap-2 rounded-kova-md px-1 text-sm font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{formatMoney(branch.net_sales)}<ArrowUpRight className="h-3.5 w-3.5 text-kova-blue" aria-hidden="true" /></button> : <strong className="py-3 text-sm font-semibold tabular-nums">{formatMoney(branch.net_sales)}</strong>}
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-kova-mist" aria-hidden="true"><div className={cn("h-full rounded-full", index % 2 ? "bg-kova-blue/40" : "bg-kova-blue")} style={{ width: `${Math.max(0, Number(branch.net_sales)) / max * 100}%` }} /></div>
-      <p className="mt-2 text-xs text-kova-muted">{branch.completed_orders} órdenes · {Number(branch.share_pct).toLocaleString("es-MX", { maximumFractionDigits: 1 })}% de esta vista</p>
-      <details className="mt-1"><summary className="min-h-11 cursor-pointer py-3 text-xs text-kova-blue">Caja e inventario actuales</summary><dl className="grid grid-cols-3 gap-2 pb-2 text-xs">{[["Stock bajo", stockAvailable ? branch.low_stock_count : null], ["Turnos abiertos", shiftsAvailable ? branch.open_shift_count : null], ["Señales", branch.attention_signals]].map(([label, value]) => <div key={String(label)}><dt className="text-kova-muted">{label}</dt><dd className="mt-1 font-semibold tabular-nums">{value ?? "Sin datos"}</dd></div>)}</dl></details>
+      <p className="mt-2 text-xs text-kova-muted">{branch.completed_orders} {branch.completed_orders === 1 ? "venta" : "ventas"} · {Number(branch.share_pct).toLocaleString("es-MX", { maximumFractionDigits: 1 })}% de esta vista</p>
+      <details className="mt-1"><summary className="min-h-11 cursor-pointer py-3 text-xs text-kova-blue">Caja e inventario actuales</summary><dl className="grid grid-cols-3 gap-2 pb-2 text-xs">{[["Existencias bajas", stockAvailable ? branch.low_stock_count : null], ["Turnos abiertos", shiftsAvailable ? branch.open_shift_count : null], ["Señales", branch.attention_signals]].map(([label, value]) => <div key={String(label)}><dt className="text-kova-muted">{label}</dt><dd className={cn("mt-1 tabular-nums", value === null ? "font-medium text-kova-muted" : "font-semibold")}>{value ?? SOURCE_UNAVAILABLE}</dd></div>)}</dl></details>
     </article>)}</div>
   </section>;
 }

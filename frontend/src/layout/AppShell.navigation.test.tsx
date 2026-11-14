@@ -177,9 +177,12 @@ describe("simple task navigation and complete discovery", () => {
     expect(navigation().getAllByRole("link").slice(0, 3).map(link => link.textContent)).toEqual(["Caja", "Pedidos", "Ventas"]);
     expect(navigation().getByRole("link", { name: "Caja" })).toHaveAttribute("aria-current", "page");
     if (role === "cashier" || role === "staff") {
-      expect(navigation().queryAllByRole("button")).toHaveLength(0);
+      // appointments.operate adds the operational Agenda next to Clientes.
+      expect(navigation().queryAllByRole("button").map(button => button.textContent)).toEqual(["Clientes y atención"]);
       expect(navigation().queryByRole("link", { name: "Suscripción" })).toBeNull();
+      fireEvent.click(navigation().getByRole("button", { name: "Clientes y atención" }));
       expect(navigation().getByRole("link", { name: "Clientes" })).toBeVisible();
+      expect(navigation().getByRole("link", { name: "Agenda" })).toBeVisible();
     }
     await act(async () => {});
   });
@@ -278,8 +281,9 @@ describe("simple task navigation and complete discovery", () => {
     view.unmount(); auth.state.user.role = "manager"; const manager = host("/settings");
     expect(navigation().queryByRole("link", { name: "Suscripción" })).toBeNull();
     manager.unmount(); auth.state.user.role = "cashier"; const cashier = host();
-    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Turnos", "Clientes"]);
-    expect(navigation().queryAllByRole("button")).toHaveLength(0);
+    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Turnos"]);
+    fireEvent.click(navigation().getByRole("button", { name: "Clientes y atención" }));
+    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Turnos", "Clientes", "Agenda"]);
     cashier.unmount(); auth.state.sessionMode = "offline"; host();
     expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja"]);
     expect(navigation().queryAllByRole("button")).toHaveLength(0);

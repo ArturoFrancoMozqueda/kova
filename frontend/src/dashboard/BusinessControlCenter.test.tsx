@@ -19,7 +19,7 @@ describe("BusinessControlCenter", () => {
     expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(6);
     expect(within(control).getByRole("status")).toHaveTextContent("Cargando áreas del negocio");
     expect(within(control).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(control).queryByText(/Consulta tus existencias|Consultar|0 productos|0 órdenes/)).not.toBeInTheDocument();
+    expect(within(control).queryByText(/Consulta tus existencias|Consultar|0 productos|0 ventas/)).not.toBeInTheDocument();
   });
 
   it("groups the allowed destinations into six areas without fetching additional data", async () => {
@@ -34,12 +34,12 @@ describe("BusinessControlCenter", () => {
     render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} /></MemoryRouter>);
     expect(screen.getByText("Consulta tus existencias")).toBeVisible();
     expect(screen.getByText("Consulta pendientes y citas")).toBeVisible();
-    expect(screen.queryByText(/0 productos|0 órdenes|Sin pendientes|Conectado|Saludable/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0 productos|0 ventas|Sin pendientes|Conectado|Saludable/)).not.toBeInTheDocument();
   });
 
   it.each([0, 1, 3])("uses verified counts and correct scope with %s low-stock products", lowStockCount => {
     render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={{ orderCount: 7, activeCatalogCount: 12, lowStockCount }} /></MemoryRouter>);
-    expect(screen.getByText("7 órdenes completadas")).toBeVisible();
+    expect(screen.getByText("7 ventas completadas")).toBeVisible();
     expect(screen.getByText("Periodo seleccionado")).toBeVisible();
     expect(screen.getByText("Inventario actual")).toBeVisible();
     expect(screen.getByText(lowStockCount === 0 ? "12 productos activos" : lowStockCount === 1 ? "1 producto por reponer" : "3 productos por reponer")).toBeVisible();

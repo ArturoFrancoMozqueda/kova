@@ -21,6 +21,13 @@ export function candidateUrl(value) {
   return value;
 }
 
+// Only a short symbolic code (e.g. ECONNRESET, UND_ERR_SOCKET) survives; never
+// the raw cause message, URLs, headers or values.
+export function causeSuffix(error) {
+  const code = error?.cause?.code;
+  return typeof code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? ` (cause=${code})` : "";
+}
+
 /** Phase is set BEFORE a provider may partially change production. */
 export async function release({ artifact: rawArtifact, sha, provider,
   verify = verifyDeployment, recover = recoverRelease,
@@ -106,7 +113,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
       } catch (recoveryError) {
         throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
       }
-      throw new Error(`RELEASE_FAILED_RECOVERED (${phase}): ${error.message}`);
+      throw new Error(`RELEASE_FAILED_RECOVERED (${phase}): ${error.message}${causeSuffix(error)}`);
     }
     throw error;
   }

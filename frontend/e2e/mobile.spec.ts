@@ -383,7 +383,7 @@ test("desktop product tour steps stay keyboard navigable", async ({ page }) => {
   await first.focus();
   await page.keyboard.press("ArrowDown");
   await expect(tour.getByRole("tab", { name: /Baja el inventario/ })).toBeFocused();
-  await expect(tour.getByRole("tabpanel")).toContainText("Stock bajo");
+  await expect(tour.getByRole("tabpanel")).toContainText("Existencias bajas");
   await page.keyboard.press("ArrowDown");
   await expect(tour.getByRole("tabpanel")).toContainText("Efectivo esperado");
   await expectNoHorizontalOverflow(page);
@@ -797,7 +797,7 @@ test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: /inventario/i, level: 1 })).toBeVisible();
-    await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
+    await expect(page.getByText(/existencias bajas/i).first()).toBeVisible();
     await expect(page.getByText("2 disponible, umbral 6.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ajustar stock: Concha" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Ajustar", exact: true })).toBeVisible();

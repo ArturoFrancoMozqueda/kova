@@ -329,75 +329,114 @@ def validate_and_price_modifiers(
     Returns (total_price_delta, list of snapshot dicts for order_item_modifiers).
     Raises 400 on validation failure.
     """
+    return validate_and_price_modifiers_batch(
+        db, tenant_id=tenant_id, lines=[(product_id, modifier_option_ids)]
+    )[0]
+
+
+def validate_and_price_modifiers_batch(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    lines: list[tuple[UUID, list[UUID]]],
+) -> list[tuple[Decimal, list[dict]]]:
+    """Validate and price modifiers for many cart lines with three queries in total.
+
+    Results keep the order of ``lines``. Validation (and the first error raised)
+    follows the same per-line rules and order as the single-line helper.
+    """
+    if not lines:
+        return []
+    product_ids = {product_id for product_id, _ in lines}
     assignments = (
         db.query(ProductModifierGroup)
         .filter(
             ProductModifierGroup.tenant_id == tenant_id,
-            ProductModifierGroup.product_id == product_id,
+            ProductModifierGroup.product_id.in_(product_ids),
         )
-        .order_by(ProductModifierGroup.sort_order)
+        .order_by(ProductModifierGroup.sort_order, ProductModifierGroup.modifier_group_id)
         .all()
     )
-
-    # Build map of group_id → selected options
-    selected_by_group: dict[UUID, list[ModifierOption]] = {}
-    option_map: dict[UUID, ModifierOption] = {}
-
-    for opt_id in modifier_option_ids:
-        option = db.query(ModifierOption).filter(
-            ModifierOption.id == opt_id,
-            ModifierOption.tenant_id == tenant_id,
-            ModifierOption.is_active == True,  # noqa: E712
-        ).first()
-        if not option:
-            raise bad_request(f"Modifier option {opt_id} not found")
-        option_map[opt_id] = option
-        selected_by_group.setdefault(option.group_id, []).append(option)
-
-    total_delta = Decimal("0")
-    snapshots: list[dict] = []
-
+    assignments_by_product: dict[UUID, list[ProductModifierGroup]] = {}
     for assignment in assignments:
-        group = db.query(ModifierGroup).filter(
-            ModifierGroup.id == assignment.modifier_group_id,
-            ModifierGroup.tenant_id == tenant_id,
-            ModifierGroup.is_active == True,  # noqa: E712
-        ).first()
-        if not group:
-            continue
+        assignments_by_product.setdefault(assignment.product_id, []).append(assignment)
 
-        selected = selected_by_group.get(group.id, [])
-        count = len(selected)
-
-        if group.is_required and count < group.min_selections:
-            raise bad_request(
-                f"Modifier group '{group.name}' requires at least "
-                f"{group.min_selections} selection(s)"
+    groups: dict[UUID, ModifierGroup] = {}
+    group_ids = {assignment.modifier_group_id for assignment in assignments}
+    if group_ids:
+        groups = {
+            group.id: group
+            for group in db.query(ModifierGroup).filter(
+                ModifierGroup.id.in_(group_ids),
+                ModifierGroup.tenant_id == tenant_id,
+                ModifierGroup.is_active == True,  # noqa: E712
             )
-        if count > group.max_selections:
-            raise bad_request(
-                f"Modifier group '{group.name}' allows at most {group.max_selections} selection(s)"
-            )
+        }
 
-        for option in selected:
-            if option.group_id != group.id:
+    options: dict[UUID, ModifierOption] = {}
+    option_ids = {opt_id for _, ids in lines for opt_id in ids}
+    if option_ids:
+        options = {
+            option.id: option
+            for option in db.query(ModifierOption).filter(
+                ModifierOption.id.in_(option_ids),
+                ModifierOption.tenant_id == tenant_id,
+                ModifierOption.is_active == True,  # noqa: E712
+            )
+        }
+
+    results: list[tuple[Decimal, list[dict]]] = []
+    for product_id, modifier_option_ids in lines:
+        product_assignments = assignments_by_product.get(product_id, [])
+        # Build map of group_id → selected options
+        selected_by_group: dict[UUID, list[ModifierOption]] = {}
+        option_map: dict[UUID, ModifierOption] = {}
+        for opt_id in modifier_option_ids:
+            option = options.get(opt_id)
+            if not option:
+                raise bad_request(f"Modifier option {opt_id} not found")
+            option_map[opt_id] = option
+            selected_by_group.setdefault(option.group_id, []).append(option)
+
+        total_delta = Decimal("0")
+        snapshots: list[dict] = []
+        for assignment in product_assignments:
+            group = groups.get(assignment.modifier_group_id)
+            if not group:
+                continue
+
+            selected = selected_by_group.get(group.id, [])
+            count = len(selected)
+
+            if group.is_required and count < group.min_selections:
+                raise bad_request(
+                    f"Modifier group '{group.name}' requires at least "
+                    f"{group.min_selections} selection(s)"
+                )
+            if count > group.max_selections:
+                raise bad_request(
+                    f"Modifier group '{group.name}' allows at most "
+                    f"{group.max_selections} selection(s)"
+                )
+
+            for option in selected:
+                total_delta += option.price_delta
+                snapshots.append({
+                    "modifier_group_id": group.id,
+                    "modifier_group_name": group.name,
+                    "modifier_option_id": option.id,
+                    "modifier_option_name": option.name,
+                    "price_delta_amount": option.price_delta,
+                })
+
+        # Validate no option was for a group not assigned to this product
+        assigned_group_ids = {a.modifier_group_id for a in product_assignments}
+        for option in option_map.values():
+            if option.group_id not in assigned_group_ids:
                 raise bad_request("Modifier option not valid for this product")
-            total_delta += option.price_delta
-            snapshots.append({
-                "modifier_group_id": group.id,
-                "modifier_group_name": group.name,
-                "modifier_option_id": option.id,
-                "modifier_option_name": option.name,
-                "price_delta_amount": option.price_delta,
-            })
 
-    # Validate no option was for a group not assigned to this product
-    assigned_group_ids = {a.modifier_group_id for a in assignments}
-    for option in option_map.values():
-        if option.group_id not in assigned_group_ids:
-            raise bad_request("Modifier option not valid for this product")
-
-    return total_delta, snapshots
+        results.append((total_delta, snapshots))
+    return results
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

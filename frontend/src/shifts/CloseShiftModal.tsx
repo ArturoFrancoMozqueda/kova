@@ -35,6 +35,10 @@ interface CloseShiftModalProps {
 export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  // Blind count: the cashier records what is in the drawer first; expected
+  // cash and the difference are revealed only on the review step.
+  const [step, setStep] = useState<"count" | "review">("count");
+  const reviewing = step === "review";
   const { pendingCount, failedEntries } = useSyncQueue(shift.id);
   // Sales still queued or failed offline aren't on the server yet, so they're
   // not in this shift's expected cash. Warn before closing so the cut isn't
@@ -51,6 +55,10 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
     e.preventDefault();
     if (cashError || closeBlocked) {
       setSubmitAttempted(true);
+      return;
+    }
+    if (!reviewing) {
+      setStep("review");
       return;
     }
     onSubmit({
@@ -87,7 +95,7 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
             {copy.closeShiftModal.title}
           </DialogTitle>
           <DialogDescription>
-            {copy.closeShiftModal.enterActualCash}
+            {reviewing ? copy.closeShiftModal.reviewStepDescription : copy.closeShiftModal.countStepDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +128,7 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
                 {formatMoney(openingCash)}
               </span>
             </div>
-            <div>
+            {reviewing && <div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   {copy.closeShiftModal.expectedCash}
@@ -132,8 +140,8 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
               <p className="mt-0.5 text-xs text-muted-foreground/80">
                 {copy.closeShiftModal.expectedCashHint}
               </p>
-            </div>
-            {actualCash && (
+            </div>}
+            {reviewing && actualCash && (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
@@ -195,6 +203,7 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
               onChange={(e) => setActualCash(e.target.value)}
               placeholder="0.00"
               disabled={pending}
+              readOnly={reviewing}
               required
               aria-invalid={submitAttempted && cashError ? true : undefined}
               aria-describedby={submitAttempted && cashError ? "actual-cash-error" : undefined}
@@ -206,13 +215,11 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
             )}
           </div>
         </div>
-        {businessName && (
+        {businessName && reviewing && (
           <LivePreview
             label="Vista previa del corte de caja"
-            title={actualCash ? "Vista previa del corte" : "Así saldrá tu corte"}
-            summary={actualCash
-              ? `Corte con ${formatMoney(actualAmount)} contados y una diferencia de ${formatMoney(previewVarianceCents / 100)}.`
-              : "Captura el efectivo contado para ver el corte completo."}
+            title="Vista previa del corte"
+            summary={`Corte con ${formatMoney(actualAmount)} contados y una diferencia de ${formatMoney(previewVarianceCents / 100)}.`}
             note={<p>Las horas y montos finales los fija Kova al cerrar el turno.</p>}
           >
             <TicketPaper className="mx-auto" style={{ width: paperWidthMm === 58 ? "218px" : "302px", maxWidth: "100%" }}>
@@ -226,7 +233,16 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.closeShiftModal.cancel}
           </Button>
-          <Button type="submit" disabled={pending || closeBlocked}>
+          {reviewing && (
+            <Button type="button" variant="outline" onClick={() => setStep("count")} disabled={pending}>
+              {copy.closeShiftModal.recount}
+            </Button>
+          )}
+          {!reviewing ? (
+            <Button type="submit" disabled={pending || closeBlocked}>
+              {copy.closeShiftModal.reviewCount}
+            </Button>
+          ) : <Button type="submit" disabled={pending || closeBlocked}>
             {pending ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -235,7 +251,7 @@ export function CloseShiftModal({ shift, businessName, paperWidthMm = 80, pendin
             ) : (
               copy.closeShiftModal.submit
             )}
-          </Button>
+          </Button>}
         </DialogFooter>
       </form>
     </Dialog>

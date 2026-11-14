@@ -1,23 +1,24 @@
-Feature: Descuentos auditables
-  Scenario: Manager aplica descuento porcentual de línea
-    Given un manager autenticado con una venta online de 100.00
-    When aplica 10 por ciento con un motivo
-    Then el servidor calcula descuento 10.00 y base 90.00
-    And el ticket y la auditoría muestran el descuento
+Feature: Descuentos y tasa de impuesto controlados por el servidor
+  Scenario: Manager aplica un descuento en línea
+    Given un manager autenticado con una venta online de 30.00
+    When cobra con descuento de 1.00 y tasa de 16 por ciento
+    Then el servidor registra la venta con impuesto 4.64 y total 33.64
 
-  Scenario: Cajero sin permiso intenta descontar
-    Given un cajero sin discounts.apply
-    When intenta crear una venta con descuento
+  Scenario: Cajero sin permiso intenta descontar en línea
+    Given un cajero sin orders.discount
+    When intenta crear una venta online con descuento
     Then recibe 403
-    And no se crea orden ni auditoría
+    And no se crea venta, pago ni movimiento de inventario
 
-  Scenario: Replay conserva una sola venta
-    Given una orden con descuento e Idempotency-Key
-    When se envía dos veces el mismo cuerpo
-    Then ambas respuestas identifican la misma orden
-    And existe un solo descuento persistido
+  Scenario: Cajero intenta cambiar la tasa configurada
+    Given un negocio con tasa predeterminada de 16 por ciento
+    And un cajero sin orders.discount
+    When intenta cobrar en línea con tasa 0
+    Then recibe 403
+    And con la tasa de 16 por ciento la venta se registra
 
-  Scenario: Venta offline no inventa autorización
-    Given que la caja perdió conexión
-    Then Kova permite vender sin descuento
-    And explica que los descuentos requieren conexión
+  Scenario: Venta offline con descuento sin permiso se conserva y se audita
+    Given una venta en cola de un cajero con descuento y un precio de catálogo anterior
+    When la caja sincroniza
+    Then la venta se registra tal como se cobró
+    And existe una sola auditoría orders.pricing_review con los motivos y precios

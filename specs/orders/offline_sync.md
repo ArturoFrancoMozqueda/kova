@@ -43,15 +43,39 @@ Offline-first selling is a core POS differentiator and protects revenue during c
 
 - Frontend queue persists sales locally.
 - Manual sync can retry pending and failed sales.
-- Failed sales are surfaced as dead letters.
+- Failed sales are surfaced as dead letters. Only a definitive per-sale
+  rejection (a `failed` result for that sale, or a single-sale `400`/`413`/`422`)
+  or an exhausted retry budget makes a sale `failed`; a failed sale is never
+  deleted automatically.
+- The worker sends chunks of 25 sales; each request times out after 30 s.
+- Transient errors (network failure, timeout, unreadable response, `408`,
+  `5xx`, `429`) release the leases without consuming the sale's retry budget
+  and retry indefinitely while online with capped backoff (2 s → 2 min).
+  `429` honors `Retry-After`.
+- The retry budget (5) is only spent by sends whose outcome stays unknown for
+  other reasons: an expired lease after a crashed tab or a malformed
+  acknowledgement.
+- Batch-level `400`/`413`/`422` split the batch in halves until the rejected
+  sale is isolated; the rest of the batch still syncs.
+- Batch-level `401`/`403`/`409` (session, CSRF or identity) and other
+  unexpected `4xx` keep every sale pending without spending retries, and the
+  queue view explains that the session must be verified (or that sending is
+  paused).
+- `synced` rows are purged from the device after 7 days. Pending, syncing,
+  failed and quarantined rows are never purged. Local lot refresh reads only
+  unconfirmed rows.
+- The queue asks the browser once for persistent storage (best effort). If the
+  device is out of space, synced copies are dropped and the write is retried
+  once; if it still fails, checkout says the sale was not saved and keeps the
+  cart, so nothing is lost silently.
 - A prepared register can reload without internet without losing queued sales.
 - A cold-offline identity does not activate synchronization until the server
   revalidates its session. Reconnection then resumes the same queued UUIDs.
 
 ## Error States
 
-- Missing auth returns `401`.
-- Missing permission returns `403`.
+- Missing auth returns `401`; queued sales stay pending (see Offline Impact).
+- Missing permission or CSRF returns `403`; queued sales stay pending.
 - Blocked subscription returns `402`; queued sales stay pending with their UUIDs
   and retry budget intact. Automatic retries pause until access is restored.
 - Duplicate `client_uuid` returns the existing order.
@@ -83,4 +107,6 @@ Offline-first selling is a core POS differentiator and protects revenue during c
 | --- | --- |
 | Cold-offline reload, lost successful response, deduplication and next cash sale | `frontend/e2e/offline-sale-real.spec.ts`, real API/PostgreSQL/RLS at 390 and 1440 px |
 | No queue claims or retry consumption while the browser is offline | `frontend/src/offline/syncWorker.persistence.test.ts` |
+| Outages, batch `403` and request timeouts never produce failed sales | `frontend/src/offline/syncWorker.outage.test.ts`, `frontend/src/offline/sync.test.ts` |
+| Purge keeps unsynced rows; quota errors never lose a sale silently | `frontend/src/offline/storage.test.ts` |
 | Offline identity cannot activate sync until server revalidation | `frontend/src/auth/AuthContext.identity.test.tsx` |

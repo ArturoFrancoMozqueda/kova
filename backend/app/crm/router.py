@@ -26,6 +26,11 @@ def require_crm(ctx=Depends(require_commercial_access(Permission.SETTINGS_MANAGE
     return ctx
 
 
+# Operational agenda (appointments, calendar, staff booking changes). Configuration
+# of resources, services, availability and the public booking page keeps require_crm.
+require_agenda = require_commercial_access(Permission.APPOINTMENTS_OPERATE)
+
+
 @router.get("", response_model=CrmOverview)
 def get_overview(
     limit: int = Query(default=100, ge=1, le=200),
