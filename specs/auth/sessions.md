@@ -52,6 +52,14 @@ and existing verified/unverified accounts without enumeration or unexpected emai
 3. Marks `users.is_email_verified = true`, marks token used.
 4. Returns 200.
 
+The verification page keeps each link's request and result separate. Navigating to a different
+link discards the previous result; leaving the page cancels its automatic sign-in redirect.
+React effect replay reuses the same in-flight request instead of consuming the token twice.
+Only a 400 response marks the link invalid/expired. Connection errors, rate limiting and service
+failures allow an explicit retry. Invalid links direct the user to sign in and request another
+from their account's verification banner, without creating a new account. Missing/blank tokens
+do not call the API. No verification token is persisted in browser storage.
+
 ### Login
 
 1. Client posts `email`, `password`.

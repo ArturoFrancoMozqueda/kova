@@ -126,7 +126,7 @@ def send_payment_receipt_email(
     if invoice_number:
         rows.append(("Folio", escape(invoice_number)))
     if period_end_iso:
-        rows.append(("Próximo cargo", escape(period_end_iso)))
+        rows.append(("Periodo facturado hasta", escape(period_end_iso)))
 
     html = render_email(
         preheader=f"Confirmamos el pago de {amount_str} a tu suscripción Kova.",

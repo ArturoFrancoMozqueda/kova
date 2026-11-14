@@ -1,7 +1,40 @@
 # Entregabilidad de correo — Kova
 
-Evidencia acumulada al 12 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
+Evidencia acumulada al 14 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
+
+## Revisión funcional del 14 de noviembre
+
+La consulta de Resend confirmó el dominio verificado, envío habilitado y seguimiento de aperturas
+y clics apagado. Los doce envíos recientes consultados figuran como `delivered`, incluida la
+verificación de la cuenta aislada del revisor. Gmail web conserva en Inbox las seis muestras QA
+del 2 de noviembre; se inspeccionaron los enlaces de verificación e invitación, que siguen
+apuntando al dominio canónico con tokens deliberadamente inválidos. No se enviaron mensajes nuevos.
+
+Se corrigieron dos problemas observados en el código:
+
+- El recibo llamaba **Próximo cargo** al final del periodo de la factura. Ahora dice **Periodo
+  facturado hasta**: esa fecha no confirma renovación, cobro futuro ni acceso vigente.
+- La página de verificación conservaba respuestas y redirecciones de un enlace anterior y podía
+  consumir dos veces el token durante el replay de efectos. Cada enlace ahora tiene estado y
+  petición propios; salir cancela la redirección. Los fallos temporales permiten reintentar y sólo
+  un HTTP 400 marca el enlace inválido. Un enlace vencido lleva a iniciar sesión y pedir otro desde
+  el aviso de la cuenta, en vez de indicar volver a registrarse. Los estados se anuncian a lectores
+  de pantalla y el título de pestaña identifica la tarea.
+
+Validación: 117 casos de backend con PostgreSQL desechable (transporte, plantillas, startup gate,
+carga diferida del SDK, bienvenida, recibo, recordatorios, auth, invitaciones y orden de eventos de
+facturación) y 40 de frontend (verificación, recuperación, invitaciones y aviso de verificación).
+Las regresiones nuevas reproducen la etiqueta incorrecta, respuestas de enlaces anteriores,
+reintentos y ciclo de redirección. Build y lint enfocado aprobados.
+
+Las seis plantillas actuales se renderizaron localmente con datos QA a 390 y 1440 px, sin
+desbordamiento horizontal; se comprobaron sus destinos y el texto alternativo. La página de
+verificación también se revisó sobre el build con servicio temporalmente inaccesible, reintento y
+enlace incompleto. No se cambió ninguna contraseña ni se crearon cuentas, invitaciones, compras o
+suscripciones en producción. Esta revisión local y la consulta de entrega no acreditan un recibo
+nuevo disparado por un pago real, el enlace privado de Stripe, clientes móviles nativos, modo
+oscuro ni Outlook/Hotmail/iCloud. Esas aceptaciones permanecen pendientes.
 
 ## Recepción para la verificación de Meta
 
