@@ -126,6 +126,10 @@ official support link.
 
 ## When to update which surface
 
+Payment receipt emails label the invoice's period end **Periodo facturado hasta**. That date
+does not establish a next charge, renewal or current access, including when renewal is canceled.
+The authenticated billing page remains the source for the subscription's current state.
+
 - **Banner title or body:** update `i18n/messages.ts → billingBanner` only.
 - **Adding a new state:** update this matrix, then `BillingAccess.reason` (frontend type
   + backend response), then `bannerForAccess` in `BillingBanner.tsx`, then the i18n keys.

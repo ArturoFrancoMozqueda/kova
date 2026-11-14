@@ -131,8 +131,11 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    visual en Gmail web y SPF/DKIM/DMARC PASS observados en la muestra de reset. No prueban
    los disparadores del backend. La bienvenida actual sí llegó a Inbox desde la recuperación de
    Checkout del backend publicado el 9 de noviembre; se revisaron contenido, destinos y autenticación.
-   Faltan recibo corregido, enlaces de las otras plantillas, clientes móviles/oscuro, Outlook/Hotmail y
-   otros disparadores actuales. [Evidencia y límites](email-deliverability.md).
+   La revisión del 14 de noviembre confirmó dominio/envíos y corrigió la etiqueta de periodo del
+   recibo y la recuperación de enlaces de verificación. Pasaron 117 casos backend, 40 frontend y
+   revisión local de las seis plantillas a 390/1440 px. Faltan el recibo corregido disparado por un
+   pago real, enlaces reales restantes, clientes móviles/oscuro, Outlook/Hotmail y otros disparadores
+   actuales. [Evidencia y límites](email-deliverability.md).
 4. **Revisión con el dueño** de turno, costos y catálogo en su negocio real.
    La revisión autenticada del 9 de noviembre comprobó Caja y catálogo con datos reales a
    390/820/1440 px, sin desbordamiento horizontal, con menú y resumen móvil operables. No creó

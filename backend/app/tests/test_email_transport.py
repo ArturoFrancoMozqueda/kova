@@ -113,6 +113,19 @@ def test_receipt_formats_minor_units_without_float_rounding(sent_mail):
     assert "$90,071,992,547,409.93 MXN" in sent_mail[0]["text"]
 
 
+def test_receipt_period_does_not_promise_a_future_charge(sent_mail):
+    # An invoice period end is not a confirmed renewal: the owner may have
+    # canceled renewal, or the invoice may describe a period already ended.
+    service.send_payment_receipt_email(
+        to="recipient@example.invalid", amount_minor_units=39900, currency="mxn",
+        period_end_iso="2026-11-09",
+    )
+    for content in (sent_mail[0]["html"], sent_mail[0]["text"]):
+        assert "Periodo facturado hasta" in content
+        assert "2026-11-09" in content
+        assert "Próximo cargo" not in content
+
+
 def test_provider_failures_log_only_a_fixed_category_without_addresses_tokens_or_payload(
     sent_mail, monkeypatch, caplog
 ):
