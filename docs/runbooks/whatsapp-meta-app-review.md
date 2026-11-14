@@ -90,29 +90,34 @@ en este documento. Preparar acceso de aceptación cuando Meta indique su mecanis
 
 ## Bloqueos observados y siguiente paso
 
-El Centro de seguridad actualizado el 14 de noviembre muestra **No se pudo verificar** y comunica
-que la solicitud fue rechazada. Permite volver a presentar documentos, pero no muestra un motivo
-específico; tampoco se encontró en las notificaciones del negocio. En Permisos y funciones, los botones Solicitar
+El Centro de seguridad muestra **En revisión** tras la nueva presentación del 14 de noviembre de
+2026. Meta confirmó **Información enviada** y estima aproximadamente dos días laborables para
+revisarla. El rechazo anterior no mostró un motivo específico, tampoco en las notificaciones del
+negocio. En Permisos y funciones, los botones Solicitar
 acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
 también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
 controles. La app permanece en desarrollo y el alta comercial apagada.
 `public_profile` muestra **Advanced access** tras completar la declaración de uso permitido,
 el formulario de tratamiento de datos y la reautenticación directa del titular, con su autorización
 expresa. Se comprobó la fila del permiso y la acción **Volver al acceso estándar** en el panel real.
-La fila conserva **Verificación obligatoria**; el rechazo del negocio sigue pendiente de subsanar.
+La fila conserva **Verificación obligatoria**; la nueva revisión del negocio sigue pendiente.
 Este nivel de acceso no acredita la aprobación del negocio ni la de los dos permisos de WhatsApp,
 que conservan **Standard access** y sus botones de solicitud deshabilitados.
 
 La revisión local del documento fiscal aportado por el titular encontró una discrepancia concreta:
 la dirección postal de la solicitud no incluía número exterior ni colonia, que sí constan en el
-documento. Nombre legal, ciudad, entidad y código postal coincidían. Es un dato que corregir,
-no una explicación confirmada por Meta del rechazo. No versionar el PDF, el domicilio ni sus
+documento. Nombre legal, ciudad, entidad y código postal coincidían. Esa diferencia se corrigió;
+no constituye una explicación confirmada por Meta del rechazo. No versionar el PDF, el domicilio ni sus
 identificadores personales. El documento no contiene teléfono; su ausencia no acredita por sí sola
 el motivo, ya que Meta admite documentos que validen nombre legal y dirección o teléfono.
 
-El titular autorizó completar la dirección fiscal en Meta; la corrección se aplicó al borrador.
-Al continuar con el contacto existente, Meta presentó un control CAPTCHA que debe completar el
-titular directamente. La nueva presentación de documentos y el envío final aún están pendientes.
+El titular autorizó completar la dirección fiscal, presentar el documento original y reenviar la
+solicitud a Meta. Se comprobó que la dirección corregida persistía al retomar el asistente. Se eligió
+correo electrónico y la categoría **Constancia de Situación Fiscal SAT**, recomendada por Meta;
+el flujo avanzó del paso de documentos a la confirmación de correo. El titular completó directamente
+el CAPTCHA y el código enviado a `verificacion@kovasuite.com`. Tras ello se comprobó **Información
+enviada** y, al cerrar con Listo, **En revisión**. No equivale a verificación aprobada ni a habilitación
+comercial. No se modificó el sitio público.
 
 Referencias oficiales consultadas el 14 de noviembre:
 [documentos aceptados](https://www.facebook.com/business/help/159334372093366) y
