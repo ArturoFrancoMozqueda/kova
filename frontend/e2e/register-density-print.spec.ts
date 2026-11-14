@@ -55,6 +55,41 @@ for (const width of [390, 768, 998, 1440]) {
   });
 }
 
+for (const width of [320, 390, 1440]) {
+  test(`cart names do not overlap quantity controls at ${width}px`, async ({ page }, testInfo) => {
+    const cartName = "Producto ExtraordinariamenteLargoSinEspacios con descripción completa";
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await authenticate(page);
+    await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: [{
+      id: "product-cart", tenant_id: "tenant-1", name: cartName,
+      price_amount: "1234.50", is_active: true, track_inventory: false,
+      modifier_groups: [], category_id: null,
+    }] }));
+    await page.route("**/api/v1/catalog/categories", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/shifts/current", route => route.fulfill({ json: null }));
+    await page.goto("/register");
+    await page.getByRole("button", { name: `Agregar ${cartName}`, exact: true }).click();
+    const name = page.locator(".kv-cart-sheet").getByText(cartName, { exact: true });
+    await expect(name).toBeVisible();
+    // Page scroll width alone misses text painting outside its own column.
+    expect(await name.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const bounds = await name.boundingBox();
+    const quantity = await page.getByRole("button", { name: "Aumentar cantidad", exact: true }).boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(quantity).not.toBeNull();
+    const overlaps = bounds!.x < quantity!.x + quantity!.width &&
+      bounds!.x + bounds!.width > quantity!.x &&
+      bounds!.y < quantity!.y + quantity!.height &&
+      bounds!.y + bounds!.height > quantity!.y;
+    expect(overlaps).toBe(false);
+    expect(quantity!.width).toBeGreaterThanOrEqual(44);
+    expect(quantity!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`cart-long-name-${width}.png`), animations: "disabled" });
+  });
+}
+
 for (const paperWidth of [58, 80]) {
   for (const itemCount of [2, 60]) {
     test(`receipt PDF uses ${paperWidth}mm paper and preserves ${itemCount} lines`, async ({ page }, testInfo) => {

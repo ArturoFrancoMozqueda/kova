@@ -41,6 +41,9 @@ explica en una nota. Revisar en 390 y 1440 px.
 - Las tarjetas de Caja muestran nombre y precio con fotografías de altura acotada; no crecen
   como imágenes cuadradas con todo el ancho disponible. Teléfono y tablet permiten ver varias
   opciones completas antes de desplazarse. Se conservan búsqueda/escáner, foco y objetivos táctiles.
+- En el carrito, el nombre completo y los modificadores pueden ocupar varias líneas, incluidas
+  palabras largas. No se enciman con cantidades ni importes; los botones conservan 44 px de lado.
+  El subtotal mantiene su cifra completa y los controles de cantidad tienen espacio propio.
 - Recibos y cortes usan papel de 58 u 80 mm y márgenes para un contenido de 48 o 72 mm.
   El documento de impresión contiene únicamente una copia del recibo/corte confirmado y mide
   su altura; los tickets extensos paginan si superan 2000 mm. Al cerrar el diálogo se retira la copia.
