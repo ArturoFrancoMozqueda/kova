@@ -1,6 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
@@ -8,7 +17,7 @@ from app.branches.scope import active_branch_id
 from app.config import settings
 from app.crm.router import require_crm
 from app.db import get_db, get_privileged_db
-from app.messaging import connections, delivery, onboarding, service
+from app.messaging import app_sync, connections, delivery, onboarding, service
 from app.messaging.readiness import MessagingReadiness, readiness
 from app.messaging.schemas import (
     InboxAutomationDraftCreate,
@@ -28,7 +37,7 @@ from app.messaging.schemas import (
     SignupFinish,
     SignupStart,
 )
-from app.messaging.webhooks import MAX_WEBHOOK_BYTES, verify_subscription
+from app.messaging.webhooks import MAX_APP_WEBHOOK_BYTES, MAX_WEBHOOK_BYTES, verify_subscription
 from app.messaging.whatsapp import ChannelError
 from app.middleware.rate_limit import rate_limit
 
@@ -39,6 +48,20 @@ router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
 def signup_status(response: Response, db: Session = Depends(get_db), ctx=Depends(require_crm)):
     response.headers["Cache-Control"] = "no-store"
     return onboarding.status(db, ctx[1].tenant_id, owner=ctx[1].role == "owner")
+
+
+@router.post(
+    "/onboarding/sync",
+    response_model=SignupAvailability,
+    dependencies=[Depends(rate_limit(20, key="whatsapp-app-sync"))],
+)
+def process_app_sync(response: Response, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    if ctx[1].role != "owner":
+        raise HTTPException(403, "El dueño del negocio debe revisar la conexión")
+    response.headers["Cache-Control"] = "no-store"
+    app_sync.process_pending(db, ctx[1].tenant_id, limit=1000)
+    db.commit()
+    return onboarding.status(db, ctx[1].tenant_id, owner=True)
 
 
 @router.post(
@@ -133,16 +156,21 @@ def verify_whatsapp(request: Request):
 
 
 @router.post("/webhooks/whatsapp", dependencies=[Depends(rate_limit(600, key="whatsapp-ingress"))])
-async def receive_whatsapp(request: Request):
+async def receive_whatsapp(request: Request, background_tasks: BackgroundTasks):
     if not connections.platform_ready():
         raise HTTPException(503, "Canal no disponible")
     chunks = bytearray()
+    limit = MAX_APP_WEBHOOK_BYTES if onboarding.available() else MAX_WEBHOOK_BYTES
     async for chunk in request.stream():
-        if len(chunks) + len(chunk) > MAX_WEBHOOK_BYTES:
+        if len(chunks) + len(chunk) > limit:
             raise HTTPException(413, "Evento demasiado grande")
         chunks.extend(chunk)
     try:
-        await delivery.receive(bytes(chunks), request.headers.get("x-hub-signature-256", ""))
+        scopes = await delivery.receive(
+            bytes(chunks), request.headers.get("x-hub-signature-256", "")
+        )
+        if scopes:
+            background_tasks.add_task(delivery.process_captured, scopes)
     except ChannelError as exc:
         status = (
             403

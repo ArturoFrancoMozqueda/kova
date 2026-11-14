@@ -1,17 +1,25 @@
 """Explicit human delivery and signed ingress through ordinary tenant RLS sessions."""
 
+import hashlib
+import logging
+from dataclasses import replace
 from types import SimpleNamespace
 
-from sqlalchemy import tuple_
+from sqlalchemy import or_, tuple_
 from starlette.concurrency import run_in_threadpool
 
 from app.branches.scope import bind_branch
 from app.config import settings
 from app.db import PrivilegedSessionLocal, SessionLocal, set_tenant_context
-from app.messaging import connections, service
+from app.messaging import app_sync, connections, service
 from app.messaging.models import ChannelBinding, ChannelConnection
 from app.messaging.schemas import InboxMessageTransition
-from app.messaging.webhooks import parse_verified_webhook, routing_accounts, verify_signature
+from app.messaging.webhooks import (
+    parse_verified_webhook,
+    routing_accounts,
+    routing_revocations,
+    verify_signature,
+)
 from app.messaging.whatsapp import ChannelError
 from app.shared.exceptions import conflict
 
@@ -51,7 +59,8 @@ def _ingest(raw_body, signature):
     registry = connections.configured_connections()
     if settings.whatsapp_signup_enabled:
         accounts = routing_accounts(raw_body)
-        if accounts:
+        revoked = routing_revocations(raw_body)
+        if accounts or revoked:
             # Deliberately privileged exact routing lookup, AFTER HMAC. It
             # returns trusted scope only; message writes use kova_app and RLS.
             with PrivilegedSessionLocal() as lookup:
@@ -59,8 +68,11 @@ def _ingest(raw_body, signature):
                     lookup.query(ChannelBinding)
                     .join(ChannelConnection, ChannelConnection.binding_id == ChannelBinding.id)
                     .filter(
-                        tuple_(ChannelBinding.waba_id, ChannelBinding.phone_number_id).in_(
-                            accounts
+                        or_(
+                            tuple_(ChannelBinding.waba_id, ChannelBinding.phone_number_id).in_(
+                                accounts
+                            ),
+                            ChannelBinding.waba_id.in_(revoked),
                         ),
                         ChannelBinding.enabled.is_(True),
                         ChannelBinding.verified_at.is_not(None),
@@ -94,6 +106,7 @@ def _ingest(raw_body, signature):
         )
         if envelope.events:
             pending.append(connection)
+    queued = []
     for connection in pending:
         with SessionLocal() as db:
             set_tenant_context(db, connection.tenant_id)
@@ -101,18 +114,61 @@ def _ingest(raw_body, signature):
             trusted = connections.resolve_connection(db, connection.tenant_id)
             if trusted is None or trusted.binding_id != connection.binding_id:
                 raise ChannelError("trusted_channel_binding_required")
-            service.ingest_webhook(
-                db,
-                tenant_id=connection.tenant_id,
-                binding_id=connection.binding_id,
+            envelope = parse_verified_webhook(
                 raw_body=raw_body,
                 signature=signature,
                 app_secret=settings.whatsapp_app_secret,
+                expected_waba_id=connection.waba_id,
+                expected_phone_number_id=connection.phone_number_id,
                 allow_other_accounts=True,
             )
+            binding = (
+                db.query(ChannelBinding)
+                .filter_by(
+                    id=connection.binding_id,
+                    tenant_id=connection.tenant_id,
+                    branch_id=connection.branch_id,
+                )
+                .one()
+            )
+            if not app_sync.sync_row(db, connection.tenant_id, connection.branch_id, binding.id):
+                # Coexistence fields never turn a standard or assisted binding into
+                # an app connection. Still accept its ordinary messages/receipts.
+                envelope = replace(
+                    envelope,
+                    events=tuple(e for e in envelope.events if e.kind in {"inbound", "receipt"}),
+                )
+            if any(e.kind not in {"inbound", "receipt"} for e in envelope.events):
+                app_sync.capture(
+                    db,
+                    connection.tenant_id,
+                    binding,
+                    envelope,
+                    hashlib.sha256(raw_body).hexdigest(),
+                )
+                queued.append((connection.tenant_id, connection.branch_id))
+            else:
+                service.ingest_envelope(
+                    db, tenant_id=connection.tenant_id, binding=binding, envelope=envelope
+                )
             db.commit()
     # Unknown accounts are acknowledged without revealing configured customers.
     # Retries after a partial DB failure are safe through the existing event ledger.
+    return queued
+
+
+def process_captured(scopes):
+    # Best-effort wakeup after durable capture. Scheduler and authenticated sync
+    # polling recover the same cursor if this process is interrupted.
+    for tenant, branch in set(scopes):
+        try:
+            with SessionLocal() as db:
+                set_tenant_context(db, tenant)
+                bind_branch(db, tenant_id=tenant, branch_id=branch)
+                app_sync.process_pending(db, tenant, limit=1000)
+                db.commit()
+        except Exception:
+            logging.getLogger(__name__).error("WhatsApp import iteration failed")
 
 
 async def receive(raw_body, signature):
@@ -121,4 +177,4 @@ async def receive(raw_body, signature):
         signature=signature,
         app_secret=settings.whatsapp_app_secret,
     )
-    await run_in_threadpool(_ingest, raw_body, signature)
+    return await run_in_threadpool(_ingest, raw_body, signature)

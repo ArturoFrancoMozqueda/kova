@@ -34,8 +34,20 @@ un número nuevo y guarda sus credenciales cifradas automáticamente. Los envío
 el dueño puede habilitar respuestas cuando haya comprobado la conexión. Cada respuesta requiere
 permiso de contacto y confirmación humana. Configurado no acredita entrega ni estado actual de Meta.
 
-La coexistencia con la app móvil requiere un flujo específico y queda fuera de esta versión;
-nunca solicitar que elimine su WhatsApp. Las renovaciones usan el mismo binding y conservan el PIN.
+La coexistencia está implementada localmente detrás del mismo gate apagado; todavía requiere
+publicación y aceptación real. Meta debe confirmar compatibilidad y el dueño autorizar su cuenta.
+Nunca solicitar que elimine su WhatsApp. En coexistencia no se registra ni cambia PIN; renovaciones
+usan el mismo binding y no repiten las solicitudes de importación iniciales.
+
+Antes de activarla, suscribir también `history`, `smb_app_state_sync` y `smb_message_echoes`.
+No cambiar esas suscripciones hasta que el backend publicado acepte los campos. El flujo importa
+contactos separados de CRM e historial autorizado, refleja mensajes del celular y permite rechazar
+compartir historial. Mantener la app abierta durante sincronización; explicar cambios de dispositivos
+vinculados y limitaciones de Meta antes de autorizar. Probar lote grande, reconexión y retiro de acceso.
+Los payloads se capturan cifrados y se procesan en lotes; la consulta de sincronización del dueño y
+el scheduler con cohorte autorizada permiten recuperar una interrupción sin repetir POSTs a Meta.
+No agregar negocios al scheduler sin su admisión normal. Véase
+[ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
 
 ## Revisión de un alta interrumpida
 
@@ -71,10 +83,10 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
 - Portafolio Kova Suite seleccionado; el perfil legal y los documentos se enviaron con los datos
   de la persona física titular. Tras un rechazo sin motivo específico visible, se corrigió una
   discrepancia de dirección al comparar el formulario con el documento fiscal. La nueva solicitud
-  se presentó el 14 de noviembre con autorización del titular: Meta confirmó **Información enviada**
-  y después **En revisión**, con estimación de dos días laborables. El titular completó el CAPTCHA
-  y la confirmación del correo directamente. No se atribuye la diferencia de dirección al rechazo
-  como causa confirmada ni se acredita todavía aprobación del negocio.
+  se presentó el 14 de noviembre con autorización del titular. Posteriormente, el Centro de seguridad
+  mostró **Verificado** y el alta de proveedor **Aprobado**. El titular completó el CAPTCHA y la
+  confirmación del correo directamente. No se atribuye la diferencia de dirección al rechazo
+  como causa confirmada. La aprobación del negocio no concede los permisos de WhatsApp.
 - Registro iniciado como proveedor de tecnología independiente con autorización expresa del
   titular para aceptar las condiciones. La revisión de permisos de la app sigue pendiente;
   la app permanece en desarrollo.
@@ -85,11 +97,12 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
 - Facebook Login for Business agregado, ajustes HTTPS/SDK y URLs públicas guardados. Se creó la
   configuración `1478484207472135` desde la plantilla oficial de WhatsApp con token de 60 días y
   sólo los dos permisos de WhatsApp. Los cuatro ajustes del delegado privado ya están sellados,
-  con el gate apagado. Los botones de acceso avanzado de WhatsApp y de envío de revisión siguen
-  deshabilitados. `public_profile` ya muestra **Advanced access**, tras las declaraciones autorizadas
-  y la reautenticación del titular; la verificación del negocio sigue pendiente. Véanse el
-  [expediente y las evidencias pendientes](whatsapp-meta-app-review.md), incluidos video real y
-  revisión del aviso de privacidad antes de enviar.
+  con el gate apagado. Los botones de solicitud de acceso avanzado ya están habilitados y se creó
+  un borrador con ambos permisos; todavía no se envió. `public_profile` conserva **Advanced access**.
+  Faltan videos reales de mensajería y creación de plantilla (Meta permite WhatsApp Manager), revisión
+  de las declaraciones y conexión de un número autorizado. Se debe aclarar si el número indicado ya
+  está en la app móvil antes de registrarlo: la implementación local de coexistencia aún requiere publicación y aceptación real. Véanse el
+  [expediente y las evidencias pendientes](whatsapp-meta-app-review.md).
 
 ## Publicación aceptada el 12 de noviembre de 2026
 
@@ -127,3 +140,16 @@ El alta comercial sigue apagada hasta cumplir todos los gates de plataforma y la
   Meta está simulado explícitamente; no se enviaron mensajes ni se otorgaron permisos externos.
 - Sigue pendiente completar los gates de Meta, verificar ingreso firmado real y aceptar entrega
   desde la bandeja. El gate de alta continúa apagado por defecto hasta cumplir esos requisitos.
+
+## Validación local de coexistencia del 14 de noviembre de 2026
+
+- 129 pruebas de backend y migración aprobadas sobre PostgreSQL desechable con pgvector. Incluyen
+  RLS con `kova_app`, grants inmutables, upgrade/downgrade/upgrade, importación interrumpida,
+  firma, lote mayor a 256 KiB, identidades opacas, baja de contactos, historial rechazado,
+  recibos anteriores al eco y retiro de acceso entre autorización y envío. Meta está simulado.
+- 21 pruebas de interfaz del módulo; lint, tipos, build y contrato OpenAPI compatibles.
+- Cuatro recorridos sobre el build a 390/1440 px: número nuevo y coexistencia con SDK/API simulados,
+  teclado, offline, progreso, habilitación posterior y origen del historial/eco en bandeja.
+  Revisión visual de las capturas, sin desbordamiento horizontal ni secretos en pantalla.
+- No se conectó ni modificó el número del titular, no se aceptaron nuevos términos y no se
+  habilitó el gate global. Esta evidencia no equivale a coexistencia aceptada por Meta.

@@ -211,12 +211,14 @@ _EXPORT_TABLES = (
     ExportTable("crm_followup_tasks", _columns(
         "id tenant_id branch_id customer_id sale_order_id kind status title note due_at "
         "assigned_user_id version created_at resolved_at")),
+    ExportTable("messaging_app_contacts", _columns(
+        "id tenant_id branch_id external_party name removed changed_at")),
     ExportTable("messaging_conversations", _columns(
         "id tenant_id branch_id customer_id subject origin status automation_paused "
         "assigned_user_id last_inbound_at version created_at updated_at")),
     ExportTable("messaging_messages", _columns(
         "id tenant_id branch_id conversation_id source_run_id direction body message_type "
-        "state purpose "
+        "state purpose source "
         "requested_by_user_id version error_code created_at updated_at")),
     ExportTable("reconciliation_import_batches", _columns(
         "id tenant_id branch_id content_sha256 parser_version source_type row_count "
@@ -577,6 +579,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "messaging_channel_bindings",
         "messaging_channel_connections",
         "messaging_signup_sessions",
+        "messaging_app_sync",
+        "messaging_webhook_batches",
         "messaging_channel_events",
         "audit_logs",
         # Internal retry payload and Stripe session capability are not account exports.
@@ -610,6 +614,9 @@ _TENANT_DELETE_ORDER = (
     "loyalty_entries",
     "loyalty_reward_revisions",
     "loyalty_policy_revisions",
+    "messaging_webhook_batches",
+    "messaging_app_contacts",
+    "messaging_app_sync",
     "messaging_channel_events",
     "messaging_messages",
     "messaging_conversations",

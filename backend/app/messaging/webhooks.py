@@ -17,6 +17,7 @@ from pydantic import SecretStr
 from app.messaging.whatsapp import ChannelError
 
 MAX_WEBHOOK_BYTES = 262144
+MAX_APP_WEBHOOK_BYTES = 8 * 1024 * 1024
 MAX_EVENTS = 100
 _ID = re.compile(r"[1-9][0-9]{0,31}\Z")
 _MESSAGE = re.compile(r"wamid\.[A-Za-z0-9_=+/.-]{1,500}\Z")
@@ -24,7 +25,16 @@ _MESSAGE = re.compile(r"wamid\.[A-Za-z0-9_=+/.-]{1,500}\Z")
 
 @dataclass(frozen=True)
 class ChannelEvent:
-    kind: Literal["inbound", "receipt"]
+    kind: Literal[
+        "inbound",
+        "receipt",
+        "echo",
+        "history_in",
+        "history_out",
+        "contact",
+        "sync",
+        "disconnect",
+    ]
     dedupe_key: str
     message_id: str = field(repr=False)
     timestamp: datetime
@@ -34,6 +44,7 @@ class ChannelEvent:
     text: str | None = field(default=None, repr=False)
     recipient: str | None = field(default=None, repr=False)
     error_code: int | None = None
+    progress: int | None = None
 
 
 @dataclass(frozen=True)
@@ -64,7 +75,10 @@ def verify_subscription(*, mode: str, token: str, challenge: str, expected_token
 
 
 def verify_signature(*, raw_body: bytes, signature: str, app_secret: SecretStr) -> None:
-    if not isinstance(raw_body, bytes) or len(raw_body) > MAX_WEBHOOK_BYTES:
+    from app.config import settings
+
+    limit = MAX_APP_WEBHOOK_BYTES if settings.whatsapp_signup_enabled else MAX_WEBHOOK_BYTES
+    if not isinstance(raw_body, bytes) or len(raw_body) > limit:
         raise ChannelError("webhook_payload_invalid")
     if not isinstance(signature, str) or not re.fullmatch(r"sha256=[0-9a-f]{64}", signature):
         raise ChannelError("webhook_signature_invalid")
@@ -105,7 +119,12 @@ def routing_accounts(raw_body: bytes) -> set[tuple[str, str]]:
                 count += 1
                 if count > MAX_EVENTS or not isinstance(change, dict):
                     raise ValueError
-                if change.get("field") != "messages":
+                if change.get("field") not in {
+                    "messages",
+                    "history",
+                    "smb_app_state_sync",
+                    "smb_message_echoes",
+                }:
                     continue
                 value = change.get("value")
                 if not isinstance(value, dict) or not isinstance(value.get("metadata"), dict):
@@ -116,6 +135,34 @@ def routing_accounts(raw_body: bytes) -> set[tuple[str, str]]:
                 pairs.add((entry["id"], phone))
         return pairs
     except (ValueError, TypeError, AttributeError):
+        raise ChannelError("webhook_payload_invalid") from None
+
+
+def _revoked_accounts(payload):
+    revoked = {}
+    for entry in _list(payload.get("entry"), limit=50):
+        for change in _list(_mapping(entry).get("changes"), limit=50):
+            if _mapping(change).get("field") != "account_update":
+                continue
+            value = _mapping(change.get("value"))
+            if value.get("event") not in {"PARTNER_REMOVED", "ACCOUNT_OFFBOARDED"}:
+                continue
+            waba = _mapping(value.get("waba_info")).get("waba_id")
+            if not isinstance(waba, str) or not _ID.fullmatch(waba):
+                raise ValueError("invalid_lifecycle_account")
+            revoked[waba] = hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+    return revoked
+
+
+def routing_revocations(raw_body):
+    try:
+        payload = _mapping(
+            json.loads(raw_body, object_pairs_hook=_object, parse_constant=_constant)
+        )
+        if payload.get("object") != "whatsapp_business_account":
+            raise ValueError
+        return set(_revoked_accounts(payload))
+    except (ValueError, TypeError, AttributeError, RecursionError):
         raise ChannelError("webhook_payload_invalid") from None
 
 
@@ -175,15 +222,35 @@ def parse_verified_webhook(
         if payload.get("object") != "whatsapp_business_account":
             raise ValueError
         events, seen = [], set()
+        revoked = _revoked_accounts(payload)
+        if expected_waba_id in revoked:
+            events.append(
+                ChannelEvent(
+                    kind="disconnect",
+                    dedupe_key=revoked[expected_waba_id],
+                    message_id="wamid.lifecycle." + revoked[expected_waba_id],
+                    timestamp=datetime.fromtimestamp(0, UTC),
+                )
+            )
         for entry in _list(payload.get("entry"), limit=50):
             entry = _mapping(entry)
             if entry.get("id") != expected_waba_id:
+                if expected_waba_id in revoked and all(
+                    _mapping(c).get("field") == "account_update"
+                    for c in _list(entry.get("changes"), limit=50)
+                ):
+                    continue
                 if allow_other_accounts:
                     continue
                 raise ChannelError("webhook_account_mismatch")
             for change in _list(entry.get("changes"), limit=50):
                 change = _mapping(change)
-                if change.get("field") != "messages":
+                if change.get("field") not in {
+                    "messages",
+                    "history",
+                    "smb_app_state_sync",
+                    "smb_message_echoes",
+                }:
                     continue
                 value = _mapping(change.get("value"))
                 metadata = _mapping(value.get("metadata"))
@@ -197,6 +264,13 @@ def parse_verified_webhook(
                     or metadata.get("phone_number_id") != expected_phone_number_id
                 ):
                     raise ChannelError("webhook_account_mismatch")
+                if change.get("field") != "messages":
+                    from app.messaging.app_events import MAX_APP_EVENTS, parse_app_change
+
+                    events.extend(parse_app_change(change["field"], value))
+                    if len(events) > MAX_APP_EVENTS:
+                        raise ValueError("too_many_events")
+                    continue
                 for message in _list(value.get("messages", []), limit=MAX_EVENTS):
                     message = _mapping(message)
                     mid, timestamp = (
@@ -261,7 +335,7 @@ def parse_verified_webhook(
                             )
                         )
                         seen.add(dedupe)
-                if len(events) > MAX_EVENTS:
+                if sum(e.kind in {"inbound", "receipt"} for e in events) > MAX_EVENTS:
                     raise ValueError
         return VerifiedEnvelope(
             waba_id=expected_waba_id, phone_number_id=expected_phone_number_id, events=tuple(events)

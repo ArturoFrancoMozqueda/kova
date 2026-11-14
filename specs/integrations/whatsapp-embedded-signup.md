@@ -1,6 +1,6 @@
 # Alta de WhatsApp desde Kova
 
-Implementación local, 2026-11-11. Detrás de `WHATSAPP_SIGNUP_ENABLED=false` por defecto.
+Implementación local actualizada, 2026-11-14. Detrás de `WHATSAPP_SIGNUP_ENABLED=false` por defecto.
 No acredita publicación, aprobación de Meta, disponibilidad comercial ni recepción/entrega real.
 Complementa el piloto asistido; no migra su número ni su registro de Secrets.
 
@@ -26,8 +26,9 @@ habilita respuestas. Se conserva el acceso comercial y `settings.manage`.
 5. `POST /onboarding/finish` recibe la sesión, nonce, código y activos elegidos. El servidor verifica
    la app, los permisos otorgados sobre esa cuenta y que el número exacto esté verificado en ella.
    Los IDs del navegador no establecen identidad de tenant ni autorización.
-6. Se suscribe la app, se registra el número nuevo y se guarda el binding junto con el token y PIN
-   cifrados. Renovar la autorización del mismo binding conserva el PIN y no vuelve a registrar el
+6. Se suscribe la app; en alta estándar se registra el número nuevo y se guarda el binding junto
+   con el token y PIN cifrados. En coexistencia el número ya registrado se verifica con Meta y
+   **no** se llama a `/register` ni se genera/cambia su PIN. Renovar la autorización del mismo binding conserva el PIN y no vuelve a registrar el
    número. Nunca reasigna un número ya vinculado ni sustituye una conexión del piloto.
 7. Los envíos empiezan pausados. `PATCH /connection/sending` permite al dueño habilitar o pausar
    respuestas humanas. Mantiene consentimiento, destinatario exacto, ventana de atención, outbox,
@@ -37,9 +38,55 @@ CRM y el control del negocio consultan el mismo estado de configuración para un
 conservan un "sin conexión" fijo después del alta. Una vista de varias sucursales indica consultar
 por sucursal, sin atribuir la conexión de una a todo el negocio. Configurado no acredita entrega.
 
-Una cuenta sin número, coexistencia, migración y variantes de flujo distintas de `FINISH` requieren
-revisión. No se eliminan cuentas, no se migra historial y no se habilitan llamadas ni crédito ajeno.
-Meta solicita los datos del negocio, su número y, cuando aplica, el método de pago.
+Una cuenta sin número compatible, migración y variantes distintas de `FINISH` o
+`FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING` requieren revisión. No se eliminan cuentas ni se
+habilitan llamadas o crédito ajeno. Meta solicita los datos del negocio y las autorizaciones.
+
+## Conservar WhatsApp Business en el celular
+
+El SDK v4 solicita `whatsapp_business_app_onboarding` y session logging v3. La finalización de
+coexistencia puede entregar sólo WABA: el servidor resuelve un único número autorizado e inequívoco
+con `is_on_biz_app=true`, `platform_type=CLOUD_API` y verificación vigente. Si hay varios candidatos
+sin selección explícita, no escoge uno automáticamente. El alta estándar rechaza números que Meta
+identifique como pertenecientes a la app móvil. La conexión continúa siendo exclusiva por sucursal.
+
+Después de persistir el binding se solicitan contactos e historial una sola vez mediante
+`/smb_app_data`. Se registra `requesting` antes de cada POST y el request ID tras aceptarlo. Timeout,
+error o interrupción requieren revisión: nunca se repite automáticamente el POST ni se desconecta
+el celular. La reconexión conserva las solicitudes ya registradas. El dueño puede rechazar compartir
+su historial en Meta; `2593109` se respeta como `declined`, sin crear mensajes ficticios.
+
+Los campos `history`, `smb_app_state_sync` y `smb_message_echoes` pasan por HMAC y routing exacto.
+Se captura una bandeja durable cifrada con sólo los eventos del binding; nunca se guarda el cuerpo
+multinegocio completo en una tabla de un tenant. Alta habilitada permite hasta 8 MiB/20,000 eventos;
+el piloto conserva 256 KiB y los mensajes ordinarios conservan su límite de 100 eventos.
+Procesamiento posterior al HTTP, scheduler autorizado o `POST /onboarding/sync` del dueño avanzan
+un cursor acotado con los mensajes en la misma transacción bajo runtime RLS. El payload cifrado se
+retira al terminar; un lote inválido queda en revisión sin importación parcial.
+
+`GET /onboarding` agrega `coexistence`, `sync_status` y `sync_progress`, sin IDs ni request IDs.
+La UI consulta el procesamiento cada cinco segundos mientras esté online y sincronizando; cancela
+la consulta al desmontar/cambiar alcance y permite consultar el estado. Las respuestas quedan
+bloqueadas mientras haya importación o revisión pendiente. El progreso no equivale a entrega.
+
+Contactos importados viven separados de CRM y consentimiento, con cambios ordenados por fecha y
+baja conservada para evitar resurrección por eventos atrasados. Los mensajes se deduplican por
+binding/message ID entre historial, ecos y eventos en vivo. La bandeja identifica `whatsapp_app`
+y `history`; nunca vuelve a enviar esos mensajes. Sólo inbound auténtico en vivo abre la ventana:
+un evento en vivo posterior a su copia histórica también la actualiza. Historial y ecos no otorgan
+consentimiento ni extienden esa ventana. Los ecos no consumen el límite de intentos por API de Kova.
+
+Un `account_update` firmado de retiro del partner pone la sincronización en revisión y bloquea
+respuestas; no se elimina la cuenta. Nombres importados pueden mostrarse en la conversación sin
+vincular automáticamente un cliente. Identidades opacas se diferencian de teléfonos y no se muestran
+como números. Medios continúan como placeholders sin descarga; grupos, edición/revocación de
+contenido y campañas quedan fuera del alcance.
+
+Migración aditiva `0106_whatsapp_coexistence`: origen inmutable de mensaje, sincronización,
+contactos y cola cifrada, todos con FORCE RLS. Runtime conserva SELECT-only en credenciales y
+bindings; sólo modifica columnas necesarias de metadatos/importación. Exportación incluye contactos
+y origen; purga elimina los hijos antes del binding y downgrade rechaza pérdida de datos.
+[Decisión y aceptación](../../docs/adr/ADR-036-whatsapp-business-app-coexistence.md).
 
 ## Datos, seguridad y fallos
 
@@ -75,6 +122,13 @@ Escenario: dueño autoriza un número verificado para su sucursal
   Entonces Kova guarda la conexión de esa sucursal con los envíos pausados
   Y repetir el código no ejecuta nuevas llamadas a Meta
 
+Escenario: dueño conserva el número de WhatsApp Business en el celular
+  Dado que Meta acredita un número autorizado de la app y Cloud API
+  Cuando finaliza la coexistencia y acepta o rechaza compartir historial
+  Entonces Kova nunca registra de nuevo el número ni cambia su PIN
+  Y sincroniza únicamente los datos autorizados sin duplicar ni volver a enviar mensajes
+  Y el historial no abre una ventana de atención ni concede consentimiento
+
 Escenario: cambia el negocio o sucursal durante la autorización
   Cuando se intenta completar una sesión creada en otro alcance
   Entonces se rechaza antes de llamar a Meta
@@ -95,3 +149,7 @@ del gesto que abre Meta. QA a 390 y 1440 px, teclado y offline. La aceptación r
 Fuentes oficiales consultadas el 2026-11-11:
 [implementación v4](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/)
 y [alta como proveedor de tecnología](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-customers-as-a-tech-provider/).
+
+
+Fuente oficial de coexistencia consultada el 2026-11-14:
+[usuarios de WhatsApp Business](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).

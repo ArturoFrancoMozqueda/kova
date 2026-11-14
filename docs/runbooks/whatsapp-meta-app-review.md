@@ -14,7 +14,8 @@ enviada ni una aprobación de Meta. Complementa el [runbook de alta](whatsapp-em
 Las operaciones reales están en `backend/app/messaging/signup_provider.py`, `onboarding.py` y
 `delivery.py`. El SDK está en `frontend/src/messaging/embeddedSignup.ts`. No solicitar anuncios,
 páginas, catálogos ni permisos de eventos de marketing para este flujo. No atribuir a Kova una UI de
-plantillas, campañas, llamadas, coexistencia o migración que no está implementada.
+plantillas, campañas, llamadas o migración no implementada. Coexistencia es código local pendiente
+de publicación y aceptación, como se registra abajo.
 
 ## Configuración preparada
 
@@ -41,7 +42,8 @@ plantillas, campañas, llamadas, coexistencia o migración que no está implemen
   `WHATSAPP_SIGNUP_ENABLED=false` guardados sellados en el Worker privado
   `kova-native-signup-settings`. Se comprobó antes que no existían; no se rotó una clave anterior.
   La clave nueva se generó aleatoriamente, sin imprimirla ni guardarla en el repositorio.
-  No se reinició el controlador. Un proceso nuevo mediante workflow deberá cargar esos ajustes.
+  Guardar los ajustes no modifica un proceso ya iniciado. Antes de la aceptación, comprobar su
+  carga efectiva en el proceso publicado; no se verificó esa carga en esta sesión.
 
 ## Acceso aislado para el revisor
 
@@ -120,19 +122,43 @@ en este documento. Preparar acceso de aceptación cuando Meta indique su mecanis
 
 ## Bloqueos observados y siguiente paso
 
-El Centro de seguridad muestra **En revisión** tras la nueva presentación del 14 de noviembre de
-2026. Meta confirmó **Información enviada** y estima aproximadamente dos días laborables para
-revisarla. El rechazo anterior no mostró un motivo específico, tampoco en las notificaciones del
-negocio. En Permisos y funciones, los botones Solicitar
-acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
-también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
-controles. La app permanece en desarrollo y el alta comercial apagada.
-`public_profile` muestra **Advanced access** tras completar la declaración de uso permitido,
-el formulario de tratamiento de datos y la reautenticación directa del titular, con su autorización
-expresa. Se comprobó la fila del permiso y la acción **Volver al acceso estándar** en el panel real.
-La fila conserva **Verificación obligatoria**; la nueva revisión del negocio sigue pendiente.
-Este nivel de acceso no acredita la aprobación del negocio ni la de los dos permisos de WhatsApp,
-que conservan **Standard access** y sus botones de solicitud deshabilitados.
+El 14 de noviembre de 2026, el Centro de seguridad y el alta de proveedor muestran el negocio
+**Verificado / Aprobado**. Los botones para solicitar acceso avanzado de WhatsApp ya están
+habilitados. `public_profile` conserva **Advanced access**; los dos permisos de WhatsApp conservan
+**Standard access**. La app sigue en desarrollo y el alta comercial apagada.
+
+Se creó el borrador de App Review `3422272181289072`, con los dos permisos de WhatsApp y la revisión
+del permiso existente `public_profile` que Meta incluye en el expediente. Se guardaron las
+explicaciones de administración y mensajería limitadas a las capacidades implementadas.
+No se aceptaron nuevas declaraciones, no se adjuntó video y no se envió el expediente. El resumen
+mantiene **Enviar para revisión** deshabilitado y Tratamiento de datos **Requiere revisión**.
+Las respuestas anteriores están precargadas y deben revisarse antes del envío. El indicador genérico
+**En revisión** del alta de proveedor no acredita que este borrador se haya enviado.
+
+Las instrucciones del alta exigen un video de envío desde la app y recepción en WhatsApp, y otro
+de creación de plantilla para administración. El detalle permite usar **WhatsApp Manager** para
+crear y guardar esa plantilla; no hace falta atribuir esa UI a Kova. Las llamadas de prueba pueden
+tardar hasta 24 horas en aparecer. El saludo desde el panel no sustituye la evidencia desde Kova.
+
+El diagnóstico del MCP no encontró una cuenta de producción vinculada al portafolio, sólo la cuenta
+de prueba. Falta conectar un número autorizado, suscribir su cuenta y comprobar entrada, respuesta
+y entrega. El titular confirmó que el número indicado ya envía y recibe mensajes desde la app móvil
+WhatsApp Business. No está libre para el alta estándar. No registrarlo por
+ese flujo, migrarlo ni eliminar la cuenta móvil. Una búsqueda sin resultados en el MCP no acredita
+que el número esté libre.
+
+Meta ofrece [coexistencia con la app móvil](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).
+El titular solicitó implementarla el 14 de noviembre. El código local ya incorpora el evento de
+coexistencia, verificación de compatibilidad en Meta sin registro/PIN, contactos/historial y ecos
+con cola durable cifrada y controles de ventana/consentimiento. Sigue detrás del gate apagado y
+requiere publicación y aceptación real. No basta usar el enlace alojado que muestra Meta. Véanse
+[contrato](../../specs/integrations/whatsapp-embedded-signup.md) y
+[ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
+
+Antes de enviar el borrador, actualizar sus descripciones y grabaciones para reflejar la coexistencia
+realmente publicada y probada. Los textos guardados previamente describen el corte estándar y todavía
+no son evidencia de sincronización. No ofrecer el número actual como conectado ni activar los nuevos
+campos del webhook antes de publicar el backend compatible.
 
 La revisión local del documento fiscal aportado por el titular encontró una discrepancia concreta:
 la dirección postal de la solicitud no incluía número exterior ni colonia, que sí constan en el
@@ -146,8 +172,9 @@ solicitud a Meta. Se comprobó que la dirección corregida persistía al retomar
 correo electrónico y la categoría **Constancia de Situación Fiscal SAT**, recomendada por Meta;
 el flujo avanzó del paso de documentos a la confirmación de correo. El titular completó directamente
 el CAPTCHA y el código enviado a `verificacion@kovasuite.com`. Tras ello se comprobó **Información
-enviada** y, al cerrar con Listo, **En revisión**. No equivale a verificación aprobada ni a habilitación
-comercial. No se modificó el sitio público.
+enviada** y, al cerrar con Listo, **En revisión**. La comprobación posterior del mismo día mostró
+**Verificado**, como se registra arriba; eso no equivale a habilitación comercial de WhatsApp.
+No se modificó el sitio público.
 
 Referencias oficiales consultadas el 14 de noviembre:
 [documentos aceptados](https://www.facebook.com/business/help/159334372093366) y
@@ -167,8 +194,7 @@ Fuentes de los proveedores consultadas el 12 de noviembre de 2026:
 [residencia y transferencias de Supabase](https://supabase.com/legal/privacy-resources/data-residency-and-transfers-faq)
 y [subencargados de Supabase](https://supabase.com/legal/subprocessor-list/October-12-2026.pdf).
 
-Tras la resolución, comprobar nuevamente estos controles y solicitar el acceso avanzado de los dos
-permisos de WhatsApp. Antes de enviar, verificar privacidad, eliminación de datos,
+Antes de enviar el borrador de acceso avanzado, verificar privacidad, eliminación de datos,
 acceso del revisor, video real y respuestas del formulario con el comportamiento publicado. La
 verificación del negocio por sí sola no acredita esos requisitos ni permite activar comercios.
 

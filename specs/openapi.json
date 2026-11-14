@@ -7808,6 +7808,16 @@
             ],
             "title": "Purpose"
           },
+          "source": {
+            "default": "kova",
+            "enum": [
+              "kova",
+              "whatsapp_app",
+              "history"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "source_run_id": {
             "anyOf": [
               {
@@ -18245,6 +18255,11 @@
             "title": "Can Manage",
             "type": "boolean"
           },
+          "coexistence": {
+            "default": false,
+            "title": "Coexistence",
+            "type": "boolean"
+          },
           "config_id": {
             "anyOf": [
               {
@@ -18278,6 +18293,24 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "sync_progress": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Sync Progress",
+            "type": "integer"
+          },
+          "sync_status": {
+            "default": "not_required",
+            "enum": [
+              "not_required",
+              "synchronizing",
+              "ready",
+              "review_required"
+            ],
+            "title": "Sync Status",
+            "type": "string"
           }
         },
         "required": [
@@ -18300,7 +18333,10 @@
             "writeOnly": true
           },
           "event": {
-            "const": "FINISH",
+            "enum": [
+              "FINISH",
+              "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
+            ],
             "title": "Event",
             "type": "string"
           },
@@ -18313,9 +18349,16 @@
             "writeOnly": true
           },
           "phone_number_id": {
-            "pattern": "^[1-9][0-9]{0,31}$",
-            "title": "Phone Number Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[1-9][0-9]{0,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number Id"
           },
           "session_id": {
             "format": "uuid",
@@ -18333,7 +18376,6 @@
           "nonce",
           "code",
           "waba_id",
-          "phone_number_id",
           "event"
         ],
         "title": "SignupFinish",
@@ -33662,6 +33704,27 @@
           }
         },
         "summary": "Signup Start",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/onboarding/sync": {
+      "post": {
+        "operationId": "process_app_sync_api_v1_messaging_onboarding_sync_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupAvailability"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Process App Sync",
         "tags": [
           "messaging"
         ]

@@ -20,8 +20,8 @@ from app.branches.models import Branch
 from app.branches.scope import active_branch_id, bind_branch, tenant_wide_branches
 from app.config import settings
 from app.db import set_tenant_context
-from app.messaging import connections, credentials
-from app.messaging.models import ChannelBinding, ChannelConnection, SignupSession
+from app.messaging import app_sync, connections, credentials
+from app.messaging.models import AppSync, ChannelBinding, ChannelConnection, SignupSession
 from app.messaging.provisioning import provision_binding
 from app.messaging.signup_provider import SignupProvider
 from app.messaging.whatsapp import ChannelError
@@ -66,6 +66,7 @@ def status(db, tenant, *, owner):
         "config_id": settings.whatsapp_signup_config_id if enabled and owner else None,
         "graph_version": settings.whatsapp_graph_api_version if enabled and owner else None,
         "state": state,
+        **app_sync.projection(db, tenant, branch),
     }
 
 
@@ -190,9 +191,11 @@ def finish(db, tenant, branch, actor, body, *, provider=None):
     provider = provider or SignupProvider()
     row.code_hash = code_hash
     row.waba_id, row.phone_number_id = body.waba_id, body.phone_number_id
+    coexistence = body.event == "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
+    phone = body.phone_number_id
     try:
-        existing = _ownership(db, tenant, branch, body.waba_id, body.phone_number_id)
-        pin = f"{secrets.randbelow(1_000_000):06d}"
+        existing = _ownership(db, tenant, branch, body.waba_id, phone) if phone else None
+        pin = None if coexistence else f"{secrets.randbelow(1_000_000):06d}"
         if existing:
             saved = (
                 db.query(ChannelConnection)
@@ -210,12 +213,19 @@ def finish(db, tenant, branch, actor, body, *, provider=None):
             )
         _step(db, row, "exchanging")
         token = provider.exchange(body.code)
-        expiry = provider.verify(token, body.waba_id, body.phone_number_id)
+        if coexistence:
+            phone, expiry = provider.verify_business_app(token, body.waba_id, phone)
+            row.phone_number_id = phone
+        else:
+            expiry = provider.verify(token, body.waba_id, phone)
+        existing = _ownership(db, tenant, branch, body.waba_id, phone)
+        if existing and bool(app_sync.sync_row(db, tenant, branch, existing.id)) != coexistence:
+            raise ChannelError("meta_connection_mode_mismatch")
         row.encrypted_credentials = credentials.encrypt(
             tenant=tenant,
             branch=branch,
             waba=body.waba_id,
-            phone=body.phone_number_id,
+            phone=phone,
             token=token,
             pin=pin,
         )
@@ -225,22 +235,22 @@ def finish(db, tenant, branch, actor, body, *, provider=None):
         # A competing claim may have completed while this one waited to commit;
         # prove ownership again BEFORE any external write, not only afterward.
         _scope(db, tenant, branch, actor)
-        _ownership(db, tenant, branch, body.waba_id, body.phone_number_id)
+        _ownership(db, tenant, branch, body.waba_id, phone)
         _step(db, row, "subscribing")
         provider.subscribe(token, body.waba_id)
         _step(db, row, "subscribed")
-        if existing is None:
+        if existing is None and not coexistence:
             _step(db, row, "registering")
-            provider.register(token, body.phone_number_id, pin)
+            provider.register(token, phone, pin)
         # Revalidate owner/branch and exclusivity after I/O, before activation.
         _scope(db, tenant, branch, actor)
-        existing = _ownership(db, tenant, branch, body.waba_id, body.phone_number_id)
+        existing = _ownership(db, tenant, branch, body.waba_id, phone)
         connection = connections.PilotConnection(
             tenant_id=tenant,
             branch_id=branch,
             binding_id=existing.id if existing else uuid4(),
             waba_id=body.waba_id,
-            phone_number_id=body.phone_number_id,
+            phone_number_id=phone,
             access_token=token,
         )
         binding = provision_binding(db, connection, authorized_by=actor)
@@ -259,6 +269,10 @@ def finish(db, tenant, branch, actor, body, *, provider=None):
             db.add(stored)
         stored.encrypted_credentials = row.encrypted_credentials
         stored.token_expires_at, stored.updated_at = expiry, datetime.now(UTC)
+        sync = app_sync.sync_row(db, tenant, branch, binding.id)
+        if coexistence and sync is None:
+            sync = AppSync(tenant_id=tenant, branch_id=branch, binding_id=binding.id)
+            db.add(sync)
         row.encrypted_credentials = None  # Credentials survive only in their final owner row.
         row.state, row.updated_at = "connected", datetime.now(UTC)
         audit.log(
@@ -271,6 +285,8 @@ def finish(db, tenant, branch, actor, body, *, provider=None):
             changes={"operation": "embedded_signup", "branch_id": str(branch)},
         )
         db.commit()
+        if coexistence:
+            app_sync.request_once(db, sync, provider, token, phone)
         return connections.connection_status(db, tenant)
     except (ChannelError, IntegrityError) as error:
         db.rollback()
@@ -300,6 +316,10 @@ def sending(db, tenant, branch, actor, *, enabled):
         or connections.stored_connection(db, tenant, branch) is None
     ):
         raise conflict("Revisa la conexión de WhatsApp antes de habilitar respuestas")
+    if enabled and not app_sync.ready(db, tenant, branch, row.binding_id):
+        raise conflict(
+            "Espera a que termine la sincronización de WhatsApp antes de habilitar respuestas"
+        )
     row.send_enabled, row.updated_at = enabled, datetime.now(UTC)
     audit.log(
         db,

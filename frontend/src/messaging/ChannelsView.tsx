@@ -51,7 +51,7 @@ function ChannelsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           <Link className="inline-flex min-h-11 items-center text-sm underline" to="/inbox">Abrir bandeja de atención</Link>
         </> : data.signup_available ? <>
           <p className="text-sm">Conecta el número de tu negocio con Meta para atender a tus clientes desde la bandeja de esta sucursal.</p>
-          <p className="text-sm text-kova-muted">Completa la autorización abajo. Si ya usas WhatsApp Business en tu celular, revisa con soporte cómo conservarlo antes de continuar.</p>
+          <p className="text-sm text-kova-muted">Completa la autorización abajo. Si tu cuenta es compatible, Meta te permitirá conservar tu número y seguir usando WhatsApp Business en el celular.</p>
           <a href={`${SUPPORT_MAILTO}?subject=Conectar%20WhatsApp%20con%20Kova`} className="inline-flex min-h-11 items-center text-sm underline">Solicitar ayuda con mi número actual</a>
         </> : <>
         <p className="text-sm">El equipo de Kova te acompaña a conectar el número de tu negocio con Meta. Contacta a soporte para revisar tu caso y los requisitos.</p>

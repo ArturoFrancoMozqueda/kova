@@ -153,6 +153,9 @@ BEGIN
             ('messaging_channel_bindings', 'SELECT'),
             ('messaging_channel_connections', 'SELECT'),
             ('messaging_signup_sessions', 'SELECT'),
+            ('messaging_app_sync', 'SELECT'),
+            ('messaging_app_contacts', 'SELECT, INSERT'),
+            ('messaging_webhook_batches', 'SELECT, INSERT'),
             ('messaging_conversations', 'SELECT, INSERT'),
             ('messaging_messages', 'SELECT, INSERT'),
             ('messaging_channel_events', 'SELECT, INSERT'),
@@ -274,6 +277,11 @@ DO $$ BEGIN
     END IF;
     IF to_regclass('public.appointment_reminders') IS NOT NULL THEN
         GRANT UPDATE(status, version, resolved_at) ON appointment_reminders TO kova_app;
+    END IF;
+    IF to_regclass('public.messaging_app_sync') IS NOT NULL THEN
+        GRANT UPDATE(history_state, progress, updated_at) ON messaging_app_sync TO kova_app;
+        GRANT UPDATE(name, removed, changed_at) ON messaging_app_contacts TO kova_app;
+        GRANT UPDATE(cursor, state, encrypted_payload) ON messaging_webhook_batches TO kova_app;
     END IF;
     IF to_regclass('public.messaging_conversations') IS NOT NULL THEN
         GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id,

@@ -180,6 +180,9 @@ class Message(BranchScoped, Base):
             name="ck_messaging_message_direction",
         ),
         CheckConstraint(
+            "source IN ('kova','whatsapp_app','history')", name="ck_messaging_message_source"
+        ),
+        CheckConstraint(
             "purpose IS NULL OR purpose IN ('transactional','marketing')",
             name="ck_messaging_message_purpose",
         ),
@@ -199,6 +202,9 @@ class Message(BranchScoped, Base):
     body: Mapped[str | None] = mapped_column(String(4096))
     message_type: Mapped[str] = mapped_column(String(40), nullable=False, default="text")
     state: Mapped[str] = mapped_column(String(16), nullable=False)
+    source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="kova", server_default="kova"
+    )
     purpose: Mapped[str | None] = mapped_column(String(24))
     requested_by_user_id: Mapped[UUID | None] = mapped_column()
     contact_fingerprint: Mapped[str | None] = mapped_column(String(64))
@@ -230,4 +236,93 @@ class ChannelEventRecord(BranchScoped, Base):
     status: Mapped[str | None] = mapped_column(String(16))
     recipient: Mapped[str | None] = mapped_column(String(256))
     happened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AppSync(BranchScoped, Base):
+    """One-time coexistence requests; no access to credentials for runtime writers."""
+
+    __tablename__ = "messaging_app_sync"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "binding_id"],
+            [
+                "messaging_channel_bindings.tenant_id",
+                "messaging_channel_bindings.branch_id",
+                "messaging_channel_bindings.id",
+            ],
+        ),
+        CheckConstraint(
+            "contacts_state IN ('pending','requesting','requested','review_required')",
+            name="ck_app_contacts_state",
+        ),
+        CheckConstraint(
+            "history_state IN ('pending','requesting','requested','completed',"
+            "'declined','review_required')",
+            name="ck_app_history_state",
+        ),
+        CheckConstraint("progress >= 0 AND progress <= 100", name="ck_app_sync_progress"),
+    )
+    binding_id: Mapped[UUID] = mapped_column(primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    contacts_state: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
+    history_state: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
+    contacts_request_id: Mapped[str | None] = mapped_column(String(256))
+    history_request_id: Mapped[str | None] = mapped_column(String(256))
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AppContact(BranchScoped, Base):
+    """WhatsApp address book, deliberately separate from CRM and consent."""
+
+    __tablename__ = "messaging_app_contacts"
+    __table_args__ = (
+        UniqueConstraint("binding_id", "external_party", name="uq_app_contact_party"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "binding_id"],
+            [
+                "messaging_channel_bindings.tenant_id",
+                "messaging_channel_bindings.branch_id",
+                "messaging_channel_bindings.id",
+            ],
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    binding_id: Mapped[UUID] = mapped_column(nullable=False)
+    external_party: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(256))
+    removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WebhookBatch(BranchScoped, Base):
+    """Encrypted durable inbox; cursor and imported messages commit together."""
+
+    __tablename__ = "messaging_webhook_batches"
+    __table_args__ = (
+        UniqueConstraint("binding_id", "payload_hash", name="uq_app_webhook_batch"),
+        Index("ix_app_webhook_pending", "tenant_id", "branch_id", "state", "created_at"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "binding_id"],
+            [
+                "messaging_channel_bindings.tenant_id",
+                "messaging_channel_bindings.branch_id",
+                "messaging_channel_bindings.id",
+            ],
+        ),
+        CheckConstraint(
+            "state IN ('pending','completed','review_required')", name="ck_app_webhook_state"
+        ),
+        CheckConstraint("cursor >= 0", name="ck_app_webhook_cursor"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    binding_id: Mapped[UUID] = mapped_column(nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    encrypted_payload: Mapped[str | None] = mapped_column(Text)
+    cursor: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

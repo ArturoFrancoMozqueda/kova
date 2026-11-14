@@ -103,7 +103,7 @@ def resolve_connection(db, tenant_id, *, branch_id=None) -> PilotConnection | No
 
 
 def stored_connection(db, tenant, branch):
-    from app.messaging import credentials
+    from app.messaging import app_sync, credentials
 
     row = db.query(ChannelConnection).filter_by(tenant_id=tenant, branch_id=branch).first()
     if row is None:
@@ -131,7 +131,7 @@ def stored_connection(db, tenant, branch):
         waba_id=binding.waba_id,
         phone_number_id=binding.phone_number_id,
         access_token=token,
-        send_enabled=row.send_enabled,
+        send_enabled=row.send_enabled and app_sync.ready(db, tenant, branch, binding.id),
     )
 
 

@@ -69,7 +69,7 @@ class SignupProvider:
             raise ChannelError("meta_response_invalid", ambiguous=True)
         return SecretStr(token)
 
-    def verify(self, token, waba, phone):
+    def _verify(self, token, waba, phone, *, coexistence=False):
         app_token = SecretStr(
             f"{settings.whatsapp_app_id}|{settings.whatsapp_app_secret.get_secret_value()}"
         )
@@ -108,14 +108,37 @@ class SignupProvider:
             "GET",
             f"{waba}/phone_numbers",
             token=token,
-            params={"fields": "id,code_verification_status,platform_type", "limit": "100"},
+            params={
+                "fields": "id,code_verification_status,platform_type,is_on_biz_app",
+                "limit": "100",
+            },
         ).get("data", [])
         if not isinstance(numbers, list):
             raise ChannelError("meta_response_invalid")
-        exact = next(
-            (item for item in numbers if isinstance(item, dict) and item.get("id") == phone), None
-        )
+        candidates = [
+            item
+            for item in numbers
+            if isinstance(item, dict)
+            and (phone is None or item.get("id") == phone)
+            and (
+                not coexistence
+                or item.get("is_on_biz_app") is True
+                and item.get("platform_type") == "CLOUD_API"
+            )
+        ]
+        exact = candidates[0] if len(candidates) == 1 else None
         if exact is None or exact.get("code_verification_status") != "VERIFIED":
+            raise ChannelError("meta_number_not_verified")
+        if not coexistence and exact.get("is_on_biz_app") is True:
+            raise ChannelError("meta_number_requires_coexistence")
+        phone = exact.get("id")
+        if (
+            not isinstance(phone, str)
+            or not phone.isascii()
+            or not phone.isdigit()
+            or phone.startswith("0")
+            or not 1 <= len(phone) <= 32
+        ):
             raise ChannelError("meta_number_not_verified")
         expiry = data.get("expires_at")
         expires = None
@@ -125,7 +148,30 @@ class SignupProvider:
             expires = datetime.fromtimestamp(expiry, UTC)
             if expires <= datetime.now(UTC) + timedelta(minutes=5):
                 raise ChannelError("meta_authorization_expired")
-        return expires
+        return phone, expires
+
+    def verify(self, token, waba, phone):
+        return self._verify(token, waba, phone)[1]
+
+    def verify_business_app(self, token, waba, phone=None):
+        return self._verify(token, waba, phone, coexistence=True)
+
+    def sync_app_data(self, token, phone, kind):
+        if kind not in {"contacts", "history"}:
+            raise ChannelError("meta_sync_invalid")
+        payload = self._request(
+            "POST",
+            f"{phone}/smb_app_data",
+            token=token,
+            body={
+                "messaging_product": "whatsapp",
+                "sync_type": "smb_app_state_sync" if kind == "contacts" else "history",
+            },
+        )
+        request_id = payload.get("request_id")
+        if not isinstance(request_id, str) or not 1 <= len(request_id) <= 256:
+            raise ChannelError("meta_sync_unknown", ambiguous=True)
+        return request_id
 
     def subscribe(self, token, waba):
         if self._request("POST", f"{waba}/subscribed_apps", token=token).get("success") is not True:
