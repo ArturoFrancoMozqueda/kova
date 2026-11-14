@@ -34,14 +34,14 @@ un número nuevo y guarda sus credenciales cifradas automáticamente. Los envío
 el dueño puede habilitar respuestas cuando haya comprobado la conexión. Cada respuesta requiere
 permiso de contacto y confirmación humana. Configurado no acredita entrega ni estado actual de Meta.
 
-La coexistencia está implementada localmente detrás del mismo gate apagado; todavía requiere
-publicación y aceptación real. Meta debe confirmar compatibilidad y el dueño autorizar su cuenta.
+El soporte de coexistencia está publicado detrás del mismo gate apagado; todavía requiere
+aceptación real. Meta debe confirmar compatibilidad y el dueño autorizar su cuenta.
 Nunca solicitar que elimine su WhatsApp. En coexistencia no se registra ni cambia PIN; renovaciones
 usan el mismo binding y no repiten las solicitudes de importación iniciales.
 
 Antes de activarla, suscribir también `history`, `smb_app_state_sync` y `smb_message_echoes`.
-No cambiar esas suscripciones hasta que el backend publicado acepte los campos. El flujo importa
-contactos separados de CRM e historial autorizado, refleja mensajes del celular y permite rechazar
+El backend compatible ya está publicado; las suscripciones adicionales siguen pendientes. El flujo
+importa contactos separados de CRM e historial autorizado, refleja mensajes del celular y permite rechazar
 compartir historial. Mantener la app abierta durante sincronización; explicar cambios de dispositivos
 vinculados y limitaciones de Meta antes de autorizar. Probar lote grande, reconexión y retiro de acceso.
 Los payloads se capturan cifrados y se procesan en lotes; la consulta de sincronización del dueño y
@@ -100,8 +100,9 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
   con el gate apagado. Los botones de solicitud de acceso avanzado ya están habilitados y se creó
   un borrador con ambos permisos; todavía no se envió. `public_profile` conserva **Advanced access**.
   Faltan videos reales de mensajería y creación de plantilla (Meta permite WhatsApp Manager), revisión
-  de las declaraciones y conexión de un número autorizado. Se debe aclarar si el número indicado ya
-  está en la app móvil antes de registrarlo: la implementación local de coexistencia aún requiere publicación y aceptación real. Véanse el
+  de las declaraciones y conexión de un número autorizado. El titular confirmó que su número ya
+  está en la app móvil: debe usar coexistencia, cuyo soporte está publicado pero sin aceptación real.
+  Véanse el
   [expediente y las evidencias pendientes](whatsapp-meta-app-review.md).
 
 ## Publicación aceptada el 12 de noviembre de 2026
@@ -153,3 +154,21 @@ El alta comercial sigue apagada hasta cumplir todos los gates de plataforma y la
   Revisión visual de las capturas, sin desbordamiento horizontal ni secretos en pantalla.
 - No se conectó ni modificó el número del titular, no se aceptaron nuevos términos y no se
   habilitó el gate global. Esta evidencia no equivale a coexistencia aceptada por Meta.
+
+
+## Publicación de coexistencia aceptada el 14 de noviembre de 2026
+
+El [PR #366](https://github.com/ArturoFrancoMozqueda/kova/pull/366) se fusionó tras `CI required`
+aprobado. El [release 43643721609](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43643721609)
+terminó correctamente con `e8b33d5e4a2fb78b748b53a29890cdc4c0bc4e8e` en frontend y backend.
+La verificación pública independiente confirmó sitio, API, proxy y base accesibles, y ambos headers
+de controlador/arranque coincidentes por API directa y proxy.
+
+CI detectó inicialmente que la matriz global de seguridad no enumeraba las tres tablas nuevas.
+Se amplió con verbos exactos, columnas mutables y datos de dos tenants, sin ampliar permisos de
+producción. La suite completa de 49 migraciones pasó localmente y la segunda ejecución de CI aprobó;
+también pasaron 23 pruebas adicionales de RLS. No se relajaron controles ni se omitió el check.
+
+Publicado no equivale a activado: el gate conserva su configuración apagada. Siguen pendientes los
+tres campos adicionales del webhook, acceso avanzado/revisión de la app y prueba real con el número
+autorizado, sin eliminar ni desregistrar su WhatsApp Business del celular.

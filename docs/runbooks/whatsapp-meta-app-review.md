@@ -8,14 +8,14 @@ enviada ni una aprobación de Meta. Complementa el [runbook de alta](whatsapp-em
 | Permiso | Uso implementado en Kova | Evidencia necesaria |
 | --- | --- | --- |
 | `whatsapp_business_management` | Verificar que el número seleccionado pertenece a la cuenta autorizada y suscribir esa cuenta al callback de la app. | Dueño autenticado, selección de sucursal, autorización en Meta y conexión verificada. |
-| `whatsapp_business_messaging` | Registrar el número autorizado y enviar respuestas humanas confirmadas a conversaciones con consentimiento y ventana de atención válida. | Entrada real firmada, respuesta explícita desde Bandeja y recibo de Meta; distinguir aceptado y entregado. |
+| `whatsapp_business_messaging` | Registrar sólo números nuevos, sincronizar coexistencia autorizada y enviar respuestas humanas confirmadas a conversaciones con consentimiento y ventana de atención válida. | Entrada real firmada, respuesta explícita desde Bandeja y recibo de Meta; distinguir aceptado y entregado. |
 | `public_profile` | Prerrequisito de acceso avanzado que muestra Facebook Login for Business. No sustituye el login propio de Kova ni se usa para consultar perfiles de Facebook. | Requisito visible en el panel y recorrido del SDK con la autorización de WhatsApp. |
 
 Las operaciones reales están en `backend/app/messaging/signup_provider.py`, `onboarding.py` y
 `delivery.py`. El SDK está en `frontend/src/messaging/embeddedSignup.ts`. No solicitar anuncios,
 páginas, catálogos ni permisos de eventos de marketing para este flujo. No atribuir a Kova una UI de
-plantillas, campañas, llamadas o migración no implementada. Coexistencia es código local pendiente
-de publicación y aceptación, como se registra abajo.
+plantillas, campañas, llamadas o migración no implementada. El soporte de coexistencia está
+publicado con gate apagado; sigue pendiente de aceptación real, como se registra abajo.
 
 ## Configuración preparada
 
@@ -99,7 +99,12 @@ phone number. A human must confirm each reply. The server checks business access
 contact consent and the customer service window before sending. Retries use an outbox and
 idempotency controls. The implementation does not activate bulk messaging, marketing campaigns,
 calling or customer WhatsApp app migration. Delivery statuses are processed separately from API
-acceptance. This permission also supports registration of the owner's verified Cloud API number.
+acceptance. This permission also supports registration of new verified Cloud API numbers.
+For eligible businesses using WhatsApp Business on a phone, Kova supports the owner-authorized
+Coexistence flow without registering the number again or changing its PIN. Contacts and permitted
+message history are synchronized separately from CRM and contact consent; messages sent from the
+mobile app appear in the inbox. Historical messages and mobile-app echoes do not open the Cloud API
+customer service window and are never re-sent by Kova.
 
 ## Recorrido para grabar cuando sea posible
 
@@ -148,17 +153,18 @@ ese flujo, migrarlo ni eliminar la cuenta móvil. Una búsqueda sin resultados e
 que el número esté libre.
 
 Meta ofrece [coexistencia con la app móvil](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).
-El titular solicitó implementarla el 14 de noviembre. El código local ya incorpora el evento de
+El titular solicitó implementarla el 14 de noviembre. El soporte publicado ya incorpora el evento de
 coexistencia, verificación de compatibilidad en Meta sin registro/PIN, contactos/historial y ecos
 con cola durable cifrada y controles de ventana/consentimiento. Sigue detrás del gate apagado y
-requiere publicación y aceptación real. No basta usar el enlace alojado que muestra Meta. Véanse
+requiere aceptación real. No basta usar el enlace alojado que muestra Meta. Véanse
 [contrato](../../specs/integrations/whatsapp-embedded-signup.md) y
 [ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
 
 Antes de enviar el borrador, actualizar sus descripciones y grabaciones para reflejar la coexistencia
 realmente publicada y probada. Los textos guardados previamente describen el corte estándar y todavía
 no son evidencia de sincronización. No ofrecer el número actual como conectado ni activar los nuevos
-campos del webhook antes de publicar el backend compatible.
+campos del webhook sin completar su autorización de configuración. El backend compatible ya está
+publicado: [evidencia del release](whatsapp-embedded-signup.md#publicación-de-coexistencia-aceptada-el-14-de-noviembre-de-2026).
 
 La revisión local del documento fiscal aportado por el titular encontró una discrepancia concreta:
 la dirección postal de la solicitud no incluía número exterior ni colonia, que sí constan en el
