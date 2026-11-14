@@ -53,3 +53,23 @@ it("keeps managers and uncertain registrations away from another signup", async 
   expect(screen.queryByRole("button", { name: "Conectar WhatsApp" })).not.toBeInTheDocument();
   expect(sdk.prepare).not.toHaveBeenCalled();
 });
+
+
+it("shows synchronization progress, blocks sending and does not open another signup", async () => {
+  fetchMock.mockImplementation(async () => json({ ...available, state: "connected",
+    coexistence: true, sync_status: "synchronizing", sync_progress: 55 }));
+  render(<WhatsAppSignupPanel identity={identity} connected onConnected={connected} />);
+  expect(await screen.findByText(/Historial: 55 %/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Habilitar respuestas desde Kova" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Autorizar en Meta" })).not.toBeInTheDocument();
+  expect(sdk.launch).not.toHaveBeenCalled();
+});
+
+it("keeps failed imports in review and can still pause previously enabled sending", async () => {
+  fetchMock.mockImplementation(async () => json({ ...available, state: "connected",
+    coexistence: true, sync_status: "review_required", sync_progress: 40 }));
+  render(<WhatsAppSignupPanel identity={identity} connected sendEnabled onConnected={connected} />);
+  expect(await screen.findByText(/La sincronización necesita revisión/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Pausar respuestas desde Kova" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "Renovar autorización con Meta" })).not.toBeInTheDocument();
+});

@@ -59,6 +59,7 @@ type Message = {
   direction: "inbound" | "outbound";
   body: string | null;
   message_type: string;
+  source?: "kova" | "whatsapp_app" | "history";
   state: MessageState;
   purpose: "transactional" | "marketing" | null;
   version: number;
@@ -573,6 +574,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                       <span>
                         {message.direction === "inbound" ? "Cliente" : "Equipo"} ·{" "}
                         {stateLabels[message.state]}
+                        {message.source === "whatsapp_app" ? " · Desde WhatsApp Business" : message.source === "history" ? " · Historial importado" : ""}
                       </span>
                     </p>
                     <p className="whitespace-pre-wrap break-words text-sm">

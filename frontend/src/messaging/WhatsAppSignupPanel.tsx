@@ -8,6 +8,7 @@ import { launchMetaSignup, loadMetaSdk, type MetaSdk } from "./embeddedSignup";
 
 type Availability = { available: boolean; can_manage: boolean; app_id: string | null;
   config_id: string | null; graph_version: string | null;
+  coexistence?: boolean; sync_status?: "not_required" | "synchronizing" | "ready" | "review_required"; sync_progress?: number;
   state: "not_started" | "pending" | "processing" | "connected" | "review_required" | "failed" };
 type Prepared = { session_id: string; nonce: string; expires_at: string };
 
@@ -33,15 +34,33 @@ export default function WhatsAppSignupPanel({ identity, onConnected, connected =
       setData(null); setLoadError("No pudimos consultar el alta con Meta. Intenta de nuevo.");
     } }
   }, [request]);
+  const invalidateLoad = useCallback(() => { generation.current++; }, []);
   useEffect(() => {
     alive.current = true; void load();
-    return () => { alive.current = false; generation.current++; cancel.current?.(); };
-  }, [load]);
+    return () => { alive.current = false; invalidateLoad(); cancel.current?.(); };
+  }, [load, invalidateLoad]);
+
+  useEffect(() => {
+    if (data?.sync_status !== "synchronizing" || !data.can_manage || !online) return;
+    let stopped = false;
+    let inFlight = false;
+    const timer = setInterval(() => {
+      if (inFlight) return;
+      inFlight = true;
+      void request<Availability>("/sync", "POST", {}).then(result => {
+        if (!stopped && alive.current) { setData(result); setError(""); }
+      }).catch(() => {
+        if (!stopped && alive.current) setError("No pudimos actualizar la sincronización. Consulta su estado de nuevo.");
+      }).finally(() => { inFlight = false; });
+    }, 5_000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [data?.sync_status, data?.can_manage, online, request]);
 
   if (!data) return loadError ? <ViewError message={loadError} onRetry={() => void load()} retryLabel="Consultar de nuevo" />
     : <SectionSkeleton label="Consultando conexión con Meta…" variant="form" />;
   if (!data.available) return null;
-  const needsReview = data.state === "review_required" || data.state === "processing";
+  const needsReview = data.state === "review_required" || data.state === "processing" || data.sync_status === "review_required";
+  const synchronizing = data.sync_status === "synchronizing";
   async function prepare() {
     if (!data?.app_id || !data.graph_version) return;
     setBusy(true); setError(""); setPrepared(null);
@@ -82,12 +101,20 @@ export default function WhatsAppSignupPanel({ identity, onConnected, connected =
       <p className="mt-2 max-w-2xl text-sm text-kova-muted">{connected
         ? "Puedes renovar la autorización del mismo número cuando Meta lo solicite o si la conexión requiere revisión."
         : "Autoriza tu cuenta y verifica el número del negocio en Meta. Kova guardará la conexión para esta sucursal; no tendrás que copiar claves ni configurar servidores."}</p></div>
-    {!connected && <p className="text-sm">Si ya usas el número en la app de WhatsApp Business, consulta a soporte antes de continuar para revisar si puedes conservarla.</p>}
+    {!connected && <div className="space-y-2 text-sm">
+      <p>Si ya usas WhatsApp Business en el celular, elige conectar tu cuenta existente en Meta. Cuando Meta confirme que es compatible, podrás conservar tu número y seguir usando la app.</p>
+      <p className="text-kova-muted">Meta te permitirá decidir si compartes el historial. Durante la conexión mantén abierta la app del celular. Los dispositivos vinculados pueden necesitar conectarse de nuevo y algunas funciones de WhatsApp cambian.</p>
+      <a className="underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noreferrer">Consultar compatibilidad y cambios en WhatsApp</a>
+    </div>}
+    {data.coexistence && <p role="status" className="text-sm">{data.sync_status === "ready"
+      ? "La sincronización inicial terminó. Tu cuenta conserva el uso de WhatsApp Business en el celular."
+      : data.sync_status === "review_required" ? "La sincronización necesita revisión. Conserva tu cuenta y evita repetir el alta."
+        : `Estamos sincronizando lo que autorizaste en WhatsApp. Historial: ${data.sync_progress ?? 0} %. Mantén abierta la app del celular.`}</p>}
     {!data.can_manage ? <p className="text-sm">El dueño del negocio debe autorizar esta conexión.</p> : needsReview ? <>
       <p role="status" className="text-sm">{data.state === "processing" ? "Estamos verificando la autorización. Actualiza su estado en unos momentos." : "La autorización requiere revisión. No repitas el alta ni elimines tu cuenta de WhatsApp."}</p>
       <Button variant="outline" onClick={() => void load()}>Consultar estado de la conexión</Button>
       <a className="ml-3 text-sm underline" href={`${SUPPORT_MAILTO}?subject=Revisar%20conexi%C3%B3n%20de%20WhatsApp`}>Solicitar revisión</a>
-    </> : <>
+    </> : synchronizing ? <Button variant="outline" onClick={() => void load()}>Consultar estado de la sincronización</Button> : <>
       {!connected && <p className="text-sm text-kova-muted">Los envíos comienzan pausados. La conexión guardada no confirma la entrega de mensajes. Meta puede solicitar información del negocio y un método de pago.</p>}
       <Button disabled={busy || !online} onClick={prepared ? authorize : () => void prepare()}>
         {busy ? "Conectando…" : prepared ? "Autorizar en Meta" : data.state === "connected" ? "Renovar autorización con Meta" : "Conectar WhatsApp"}
@@ -96,7 +123,7 @@ export default function WhatsAppSignupPanel({ identity, onConnected, connected =
     </>}
     {connected && data.can_manage && <div className="space-y-2 border-t border-kova-border pt-4">
       <p className="text-sm">Las respuestas se envían sólo cuando tu equipo confirma cada mensaje, con permiso del cliente y dentro de la ventana de atención.</p>
-      <Button variant="outline" disabled={busy || !online} onClick={() => {
+      <Button variant="outline" disabled={busy || !online || (!sendEnabled && (synchronizing || needsReview))} onClick={() => {
         setBusy(true); setError("");
         void connectionRequest("/sending", "PATCH", { enabled: !sendEnabled }).then(() => {
           if (alive.current) onConnected();

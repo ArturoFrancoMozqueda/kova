@@ -36,15 +36,15 @@ it("requires both a code and exact-origin assets, in either callback order", () 
   second();
 });
 
-it("does not complete coexistence, account-only flows, cancellation or missing numbers", () => {
-  for (const event of ["FINISH_ONLY_WABA", "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", "CANCEL", "ERROR"]) {
+it("does not complete unsupported account-only flows or cancellation", () => {
+  for (const event of ["FINISH_ONLY_WABA", "CANCEL", "ERROR"]) {
     const cleanup = launchMetaSignup(sdk, "456", finish, failed);
     message("https://www.facebook.com", event);
     callback({ authResponse: { code: "synthetic-code" } });
     expect(finish).not.toHaveBeenCalled();
     cleanup();
   }
-  expect(failed).toHaveBeenCalledTimes(4);
+  expect(failed).toHaveBeenCalledTimes(3);
 });
 
 it("expires incomplete codes quickly and removes listeners when branch scope unmounts", () => {
@@ -61,4 +61,35 @@ it("expires incomplete codes quickly and removes listeners when branch scope unm
   message("https://www.facebook.com"); callback({ authResponse: { code: "late-code" } });
   vi.advanceTimersByTime(300_000);
   expect(finish).not.toHaveBeenCalled(); expect(failed).not.toHaveBeenCalled();
+});
+
+
+it("requests coexistence v4 and accepts Meta's account-only completion in either order", () => {
+  for (const first of ["code", "event"]) {
+    finish.mockClear();
+    const cleanup = launchMetaSignup(sdk, "456", finish, failed);
+    expect(vi.mocked(sdk.login).mock.lastCall?.[1].extras).toMatchObject({
+      version: "v4", sessionInfoVersion: "3", featureType: "whatsapp_business_app_onboarding",
+    });
+    const event = () => window.dispatchEvent(new MessageEvent("message", {
+      origin: "https://www.facebook.com", data: JSON.stringify({ type: "WA_EMBEDDED_SIGNUP",
+        event: "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", data: { waba_id: "987" } }),
+    }));
+    const code = () => callback({ authResponse: { code: "synthetic-app-code" } });
+    if (first === "code") { code(); event(); } else { event(); code(); }
+    expect(finish).toHaveBeenCalledExactlyOnceWith({ code: "synthetic-app-code", waba_id: "987",
+      event: "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" });
+    cleanup();
+  }
+});
+
+it("still requires a phone for standard signup and refuses malformed app asset IDs", () => {
+  for (const data of [{ waba_id: "987" }, { waba_id: "987", phone_number_id: "invalid" }]) {
+    const cleanup = launchMetaSignup(sdk, "456", finish, failed);
+    window.dispatchEvent(new MessageEvent("message", { origin: "https://www.facebook.com",
+      data: JSON.stringify({ type: "WA_EMBEDDED_SIGNUP", event: "FINISH", data }) }));
+    callback({ authResponse: { code: "synthetic-code" } });
+    expect(finish).not.toHaveBeenCalled();
+    cleanup();
+  }
 });

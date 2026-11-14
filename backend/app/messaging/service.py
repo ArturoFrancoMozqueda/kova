@@ -13,7 +13,14 @@ from app.billing.access import get_billing_access_status
 from app.branches.scope import active_branch_id
 from app.crm.service import _assignee, _contact_fingerprint, _customer, contact_allowed
 from app.idempotency import service as idempotency
-from app.messaging.models import ChannelBinding, ChannelEventRecord, Conversation, Message, now
+from app.messaging.models import (
+    AppContact,
+    ChannelBinding,
+    ChannelEventRecord,
+    Conversation,
+    Message,
+    now,
+)
 from app.messaging.schemas import InboxConversationResponse, InboxMessageResponse
 from app.messaging.webhooks import parse_verified_webhook
 from app.messaging.whatsapp import ChannelError
@@ -56,10 +63,23 @@ def _conversation_response(db, row):
         if key not in {"customer_name", "contact_phone"}
     }
     customer = _customer(db, row.tenant_id, row.customer_id) if row.customer_id else None
+    contact = (
+        _scope(db, row.tenant_id, AppContact)
+        .filter_by(
+            binding_id=row.binding_id,
+            external_party=row.external_party,
+            removed=False,
+        )
+        .first()
+        if row.binding_id and not customer
+        else None
+    )
     return InboxConversationResponse(
         **values,
-        customer_name=customer.name if customer else None,
-        contact_phone=row.external_party if row.origin == "whatsapp" else None,
+        customer_name=customer.name if customer else contact.name if contact else None,
+        contact_phone=row.external_party
+        if row.origin == "whatsapp" and re.fullmatch(r"[0-9]+", row.external_party or "")
+        else None,
     ).model_dump(mode="json")
 
 
@@ -312,6 +332,10 @@ def _send_policy(db, tenant, message, conversation, *, stamp, human_actor=None):
     )
     if binding is None or not binding.enabled or binding.verified_at is None:
         return "channel_not_connected", None
+    from app.messaging import app_sync
+
+    if not app_sync.ready(db, tenant, conversation.branch_id, binding.id):
+        return "channel_not_connected", None
     active_tenant = db.query(Tenant).filter_by(id=tenant, is_active=True).first()
     if active_tenant is None or not get_billing_access_status(db, tenant_id=tenant).allowed:
         return "business_access_revoked", None
@@ -480,6 +504,19 @@ def ingest_webhook(
         expected_phone_number_id=binding.phone_number_id,
         allow_other_accounts=allow_other_accounts,
     )
+    return ingest_envelope(db, tenant_id=tenant_id, binding=binding, envelope=envelope)
+
+
+def ingest_envelope(db, *, tenant_id, binding, envelope):
+    """Internal verified/cipher-authenticated events, with a server-resolved binding."""
+    _lock(db, tenant_id)
+    if (
+        binding.tenant_id != tenant_id
+        or binding.branch_id != active_branch_id(db, tenant_id)
+        or envelope.waba_id != binding.waba_id
+        or envelope.phone_number_id != binding.phone_number_id
+    ):
+        raise ChannelError("trusted_channel_binding_required")
     accepted = 0
     stamp = now()
     for event in envelope.events:
@@ -503,43 +540,80 @@ def ingest_webhook(
                 happened_at=event.timestamp,
             )
         )
-        if event.kind == "inbound":
+        if event.kind in {"contact", "sync", "disconnect"}:
+            from app.messaging.app_import import apply_metadata
+
+            apply_metadata(db, tenant_id, binding, event)
+        elif event.kind in {"inbound", "echo", "history_in", "history_out"}:
+            party = event.sender if event.kind in {"inbound", "history_in"} else event.recipient
+            # A history chunk, echo and live webhook can carry the same message.
+            existing = (
+                _scope(db, tenant_id, Message)
+                .filter_by(
+                    binding_id=binding.id,
+                    provider_message_id=event.message_id,
+                )
+                .first()
+            )
+            if existing:
+                conversation = _conversation(db, tenant_id, existing.conversation_id)
+                if conversation.external_party != party:
+                    raise ChannelError("webhook_account_mismatch")
+                # Live inbound arriving after history still opens the real window.
+                if event.kind == "inbound" and (
+                    conversation.last_inbound_at is None
+                    or event.timestamp > conversation.last_inbound_at
+                ):
+                    conversation.last_inbound_at = event.timestamp
+                    conversation.version += 1
+                    conversation.updated_at = stamp
+                db.flush()
+                continue
             conversation = (
                 _scope(db, tenant_id, Conversation)
-                .filter_by(binding_id=binding.id, external_party=event.sender)
+                .filter_by(binding_id=binding.id, external_party=party)
                 .first()
             )
             if conversation is None:
                 conversation = Conversation(
                     tenant_id=tenant_id,
                     binding_id=binding.id,
-                    external_party=event.sender,
+                    external_party=party,
                     origin="whatsapp",
                     subject="Consulta por WhatsApp",
                     automation_paused=True,
                 )
                 db.add(conversation)
                 db.flush()
-            if (
+            if event.kind == "inbound" and (
                 conversation.last_inbound_at is None
                 or event.timestamp > conversation.last_inbound_at
             ):
                 conversation.last_inbound_at = event.timestamp
             conversation.version += 1
             conversation.updated_at = stamp
-            db.add(
-                Message(
-                    tenant_id=tenant_id,
-                    conversation_id=conversation.id,
-                    binding_id=binding.id,
-                    provider_message_id=event.message_id,
-                    direction="inbound",
-                    body=event.text,
-                    message_type=event.message_type,
-                    state="received",
-                    created_at=event.timestamp,
-                )
+            imported = Message(
+                tenant_id=tenant_id,
+                conversation_id=conversation.id,
+                binding_id=binding.id,
+                provider_message_id=event.message_id,
+                direction="inbound" if event.kind in {"inbound", "history_in"} else "outbound",
+                source="history"
+                if event.kind.startswith("history_")
+                else "whatsapp_app"
+                if event.kind == "echo"
+                else "kova",
+                body=event.text,
+                message_type=event.message_type,
+                state="received"
+                if event.kind in {"inbound", "history_in"}
+                else event.status or "sent",
+                created_at=event.timestamp,
             )
+            db.add(imported)
+            db.flush()
+            if imported.direction == "outbound":
+                _apply_receipts(db, tenant_id, imported)
         else:
             db.flush()
             message = (
@@ -553,6 +627,7 @@ def ingest_webhook(
             )
             if message:
                 _apply_receipts(db, tenant_id, message)
+        db.flush()  # Same-batch dedupe remains correct with autoflush disabled.
         accepted += 1
     db.flush()
     return {"accepted": accepted}
@@ -606,6 +681,7 @@ def dispatch_one(
                 Message.binding_id == binding.id,
                 Message.updated_at >= start,
                 Message.direction == "outbound",
+                Message.source == "kova",
                 Message.state.in_(
                     ["sending", "accepted", "sent", "delivered", "read", "failed", "uncertain"]
                 ),

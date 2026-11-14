@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 from app.shared.validation import StrictModel, reject_html
 
@@ -74,6 +74,11 @@ class SignupAvailability(BaseModel):
     config_id: str | None = None
     graph_version: str | None = None
     state: Literal["not_started", "pending", "processing", "connected", "review_required", "failed"]
+    coexistence: bool = False
+    sync_status: Literal["not_required", "synchronizing", "ready", "review_required"] = (
+        "not_required"
+    )
+    sync_progress: int = Field(default=0, ge=0, le=100)
 
 
 class SendingSettings(StrictModel):
@@ -92,9 +97,14 @@ class SignupFinish(StrictModel):
     nonce: SecretStr = Field(min_length=32, max_length=128, repr=False)
     code: SecretStr = Field(min_length=1, max_length=8192, repr=False)
     waba_id: str = Field(pattern=r"^[1-9][0-9]{0,31}$")
-    phone_number_id: str = Field(pattern=r"^[1-9][0-9]{0,31}$")
-    # This implementation does not migrate numbers or enable coexistence.
-    event: Literal["FINISH"]
+    phone_number_id: str | None = Field(default=None, pattern=r"^[1-9][0-9]{0,31}$")
+    event: Literal["FINISH", "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"]
+
+    @model_validator(mode="after")
+    def require_standard_number(self):
+        if self.event == "FINISH" and self.phone_number_id is None:
+            raise ValueError("Meta debe indicar el número autorizado")
+        return self
 
 
 class InboxConversationResponse(BaseModel):
@@ -127,6 +137,7 @@ class InboxMessageResponse(BaseModel):
     direction: Literal["inbound", "outbound"]
     body: str | None
     message_type: str
+    source: Literal["kova", "whatsapp_app", "history"] = "kova"
     state: Literal[
         "received",
         "draft",

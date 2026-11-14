@@ -23,7 +23,8 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
     from app.crm.engagement_models import FollowupPolicy
     from app.loyalty.models import LoyaltyPolicyRevision
     from app.loyalty.service import process as process_loyalty
-    from app.messaging.models import Message
+    from app.messaging.app_sync import process_pending as process_whatsapp_import
+    from app.messaging.models import Message, WebhookBatch
     from app.messaging.service import recover_uncertain
 
     tenant_id = UUID(str(tenant_id))
@@ -33,16 +34,36 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
         set_tenant_context(db, tenant_id)
         branches = (
             db.query(Branch.id)
-            .filter(Branch.tenant_id == tenant_id, or_(
-                Branch.id.in_(select(AutomationRule.branch_id).where(
-                    AutomationRule.tenant_id == tenant_id)),
-                Branch.id.in_(select(FollowupPolicy.branch_id).where(
-                    FollowupPolicy.tenant_id == tenant_id)),
-                Branch.id.in_(select(LoyaltyPolicyRevision.branch_id).where(
-                    LoyaltyPolicyRevision.tenant_id == tenant_id)),
-                Branch.id.in_(select(Message.branch_id).where(
-                    Message.tenant_id == tenant_id, Message.state == "sending")),
-            ))
+            .filter(
+                Branch.tenant_id == tenant_id,
+                or_(
+                    Branch.id.in_(
+                        select(AutomationRule.branch_id).where(
+                            AutomationRule.tenant_id == tenant_id
+                        )
+                    ),
+                    Branch.id.in_(
+                        select(FollowupPolicy.branch_id).where(
+                            FollowupPolicy.tenant_id == tenant_id
+                        )
+                    ),
+                    Branch.id.in_(
+                        select(LoyaltyPolicyRevision.branch_id).where(
+                            LoyaltyPolicyRevision.tenant_id == tenant_id
+                        )
+                    ),
+                    Branch.id.in_(
+                        select(WebhookBatch.branch_id).where(
+                            WebhookBatch.tenant_id == tenant_id, WebhookBatch.state == "pending"
+                        )
+                    ),
+                    Branch.id.in_(
+                        select(Message.branch_id).where(
+                            Message.tenant_id == tenant_id, Message.state == "sending"
+                        )
+                    ),
+                ),
+            )
             .order_by(Branch.id)
             .all()
         )
@@ -55,8 +76,9 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
                 # post-sale policy. Never retry an external effect automatically.
                 recover_uncertain(db, tenant_id=tenant_id, limit=limit)
                 loyalty = process_loyalty(db, tenant_id, limit=limit)
+                imported = process_whatsapp_import(db, tenant_id, limit=limit)
                 db.commit()
-                processed += result["processed"] + followups + loyalty
+                processed += result["processed"] + followups + loyalty + imported
             except Exception:
                 # Keep this branch's events/effects atomic, then let independent
                 # branches advance. Session.after_begin restores tenant RLS on
