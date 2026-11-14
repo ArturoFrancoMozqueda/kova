@@ -71,6 +71,11 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "messaging_channel_bindings": {"SELECT"},
     "messaging_channel_connections": {"SELECT"},
     "messaging_signup_sessions": {"SELECT"},
+    # Coexistence import metadata is writable only in the explicit columns below;
+    # credential and binding ownership remains SELECT-only.
+    "messaging_app_sync": {"SELECT"},
+    "messaging_app_contacts": {"SELECT", "INSERT"},
+    "messaging_webhook_batches": {"SELECT", "INSERT"},
     "messaging_conversations": {"SELECT", "INSERT"},
     "messaging_messages": {"SELECT", "INSERT"},
     "messaging_channel_events": {"SELECT", "INSERT"},
@@ -201,6 +206,9 @@ _RUNTIME_UPDATE_COLUMNS = {
     "crm_followup_tasks": {
         "status", "note", "due_at", "assigned_user_id", "version", "resolved_at",
     },
+    "messaging_app_sync": {"history_state", "progress", "updated_at"},
+    "messaging_app_contacts": {"name", "removed", "changed_at"},
+    "messaging_webhook_batches": {"cursor", "state", "encrypted_payload"},
     "messaging_conversations": {
         "customer_id", "status", "automation_paused", "assigned_user_id", "last_inbound_at",
         "version", "updated_at",
@@ -376,6 +384,9 @@ _SEMANTIC_INSERT_ORDER = (
     "messaging_channel_bindings",
     "messaging_channel_connections",
     "messaging_signup_sessions",
+    "messaging_app_sync",
+    "messaging_app_contacts",
+    "messaging_webhook_batches",
     "messaging_conversations",
     "messaging_messages",
     "messaging_channel_events",
@@ -474,6 +485,10 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         return _semantic_uuid("destination_branch", tenant)
     if name == "id":
         return ids[(table.name, tenant, variant)]
+    if table.name == "messaging_app_sync" and name in {"contacts_state", "history_state"}:
+        return "pending"
+    if table.name == "messaging_webhook_batches" and name == "state":
+        return "pending"
     if table.name == "messaging_conversations" and name == "origin":
         return "manual"
     if table.name == "messaging_messages" and name == "direction":
