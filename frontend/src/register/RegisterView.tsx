@@ -1785,23 +1785,25 @@ function RegularRegisterView() {
                       // The grid wrapper is what collapses on removal; the inner
                       // row keeps its own look untouched.
                       <div key={cartKey} className="kv-row-collapse" data-state={state}>
-                        <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in xl:rounded-none xl:border-x-0 xl:border-t-0 xl:bg-white xl:px-0">
-                          <div className="hidden shrink-0 min-[360px]:block" data-testid="cart-line-thumbnail">
-                            <ProductThumbnail product={item.product} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{item.product.name}</p>
-                            {item.selectedModifiers.map((m) => (
-                              <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
-                                → {m.optionName}
-                                {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 rounded-lg border bg-background p-3 animate-fade-in xl:rounded-none xl:border-x-0 xl:border-t-0 xl:bg-white xl:px-0">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div className="hidden shrink-0 min-[360px]:block" data-testid="cart-line-thumbnail">
+                              <ProductThumbnail product={item.product} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="break-words font-medium text-sm">{item.product.name}</p>
+                              {item.selectedModifiers.map((m) => (
+                                <p key={m.optionId} className="mt-0.5 break-words text-xs text-muted-foreground">
+                                  → {m.optionName}
+                                  {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                                </p>
+                              ))}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
                               </p>
-                            ))}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
-                            </p>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="col-start-1 row-start-2 flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => updateQuantity(cartKey, item.quantity - 1)}
@@ -1827,8 +1829,8 @@ function RegularRegisterView() {
                               <Plus className="h-4 w-4" />
                             </button>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <p className="text-sm font-bold tabular-nums">
+                          <div className="col-start-2 row-span-2 row-start-1 flex flex-col items-end gap-1">
+                            <p className="whitespace-nowrap text-sm font-bold tabular-nums">
                               {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
                             </p>
                             <button

@@ -84,6 +84,17 @@ El [CI completo del PR](https://github.com/ArturoFrancoMozqueda/kova/actions/run
 La verificación pública posterior confirmó sitio HTTP 200, frontend/API/proxy con el mismo SHA y
 base accesible por API directa y proxy. No se hicieron escrituras de negocio en producción.
 
+La revisión local del 14 de noviembre repitió el circuito de Caja sobre el build y una API con
+PostgreSQL/RLS desechables a 390/1440 px: apertura de turno, entradas/salidas, pago dividido,
+devolución, anulación y cierre con $155 esperados/contados y diferencia de $0; el inventario terminó
+en ocho unidades desde diez iniciales. La recarga offline y la pérdida de una respuesta exitosa
+conservaron una sola venta, un pago y una salida de inventario al reintentar.
+También se corrigió el texto del carrito que se encimaba con los controles de cantidad; nombres y
+modificadores envuelven, el subtotal conserva su cifra completa y los botones mantienen 44 px.
+La aceptación enfocada comprende 87 pruebas backend, 237 unitarias frontend y 17 de navegador,
+incluidos nombres largos a 320/390/1440 px y PDFs de 58/80 mm. No acredita equipos físicos,
+conteo real del negocio ni compatibilidad con una impresora específica.
+
 ## Planes comerciales: aceptación y política de activación
 
 La oferta ON conserva Esencial $399 y Gestión $699 MXN mensuales, con precios inclusivos y un
