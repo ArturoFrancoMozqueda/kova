@@ -7,10 +7,12 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
-La baseline publicada y verificada es `e76f997921fe3e46f19914242b221909a2b0a5ad`,
-[release 43341276814](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43341276814).
-API, frontend y proxy sirven ese mismo SHA; sitio y base accesibles. El release y la revisión
-autenticada de Clientes, lealtad y Agenda aprobaron. [Evidencia](testing-clients-booking.md#ci-y-publicación).
+La baseline publicada y verificada es `e8b33d5e4a2fb78b748b53a29890cdc4c0bc4e8e`,
+[release 43643721609](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43643721609).
+API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
+independientemente tras la aceptación del workflow. La coexistencia de WhatsApp está publicada
+con su gate apagado, pendiente de Meta y aceptación real. Se conserva la
+[evidencia de Clientes, lealtad y Agenda](testing-clients-booking.md#ci-y-publicación).
 La corrección del drenado y del monitor de recuperación permitió publicar el alta de WhatsApp
 con su gate comercial apagado. [Evidencia e incidente anterior](despliegue.md#recuperación-verificada-el-12-de-noviembre-de-2026).
 Esencial $399/Gestión $699 MXN mensuales y el Portal básico están ON; los acuerdos Standard de
@@ -62,7 +64,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
 | Reservas públicas | Publicadas sin anticipo; desactivadas inicialmente por sucursal. Requieren personas/espacios, servicios y disponibilidad reales antes de habilitarse. |
-| WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el callback; Login for Business, configuración de WhatsApp y ajustes privados preparados. `public_profile` con acceso avanzado; negocio **Verificado** el 14 de noviembre. Borrador de ambos permisos de WhatsApp creado, sin enviar. Coexistencia implementada localmente con sincronización e historial/eco, pendiente de publicación y aceptación real; gate apagado. Aviso específico de privacidad/eliminación ampliado y cuenta aislada del revisor creada con correo confirmado y prueba vigente al 21 de noviembre. Faltan acceso avanzado de WhatsApp, video/revisión de la app y aceptación de entrada/respuesta/entrega con un número autorizado ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
+| WhatsApp | Piloto asistido y alta v4 publicados; alta detrás de `WHATSAPP_SIGNUP_ENABLED=false`. Meta aceptó el callback; Login for Business, configuración de WhatsApp y ajustes privados preparados. `public_profile` con acceso avanzado; negocio **Verificado** el 14 de noviembre. Borrador de ambos permisos de WhatsApp creado, sin enviar. Soporte de coexistencia publicado con sincronización e historial/eco, pendiente de aceptación real; gate apagado. Aviso específico de privacidad/eliminación ampliado y cuenta aislada del revisor creada con correo confirmado y prueba vigente al 21 de noviembre. Faltan acceso avanzado de WhatsApp, video/revisión de la app y aceptación de entrada/respuesta/entrega con un número autorizado ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
 | Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-034](adr/ADR-034-asistente-cloudflare-consumo-verificado.md)). Qwen/Cloudflare ya tiene ruta anclada, reportes con una llamada, límites 256/128 y conciliación verificable sin liberar incertidumbre. Selector real validado dentro de cuota gratuita; faltan corpus/revisión humana y recorrido/carga alojados con proveedor. Evidencia en el [runbook](runbooks/assistant-acceptance.md); cambios locales no acreditan publicación ni activación. |
