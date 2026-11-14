@@ -69,11 +69,12 @@ no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-nati
 ## Estado de Meta al 14 de noviembre de 2026
 
 - Portafolio Kova Suite seleccionado; el perfil legal y los documentos se enviaron con los datos
-  de la persona física titular. El Centro de seguridad actualizado muestra **No se pudo verificar**:
-  solicitud rechazada, sin motivo específico visible. Se encontró una discrepancia de dirección
-  al comparar el formulario con el documento fiscal; se corrigió el borrador con autorización del
-  titular. Un CAPTCHA de Meta requiere su intervención antes de los documentos y del nuevo envío.
-  No se atribuye esa diferencia al rechazo como causa confirmada.
+  de la persona física titular. Tras un rechazo sin motivo específico visible, se corrigió una
+  discrepancia de dirección al comparar el formulario con el documento fiscal. La nueva solicitud
+  se presentó el 14 de noviembre con autorización del titular: Meta confirmó **Información enviada**
+  y después **En revisión**, con estimación de dos días laborables. El titular completó el CAPTCHA
+  y la confirmación del correo directamente. No se atribuye la diferencia de dirección al rechazo
+  como causa confirmada ni se acredita todavía aprobación del negocio.
 - Registro iniciado como proveedor de tecnología independiente con autorización expresa del
   titular para aceptar las condiciones. La revisión de permisos de la app sigue pendiente;
   la app permanece en desarrollo.
