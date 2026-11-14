@@ -1,6 +1,6 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado observado: 12 de noviembre de 2026. Este expediente es un borrador técnico, no una solicitud
+Estado actualizado: 14 de noviembre de 2026. Este expediente es un borrador técnico, no una solicitud
 enviada ni una aprobación de Meta. Complementa el [runbook de alta](whatsapp-embedded-signup.md).
 
 ## Alcance que debe revisar Meta
@@ -90,16 +90,33 @@ en este documento. Preparar acceso de aceptación cuando Meta indique su mecanis
 
 ## Bloqueos observados y siguiente paso
 
-El Centro de seguridad muestra **En revisión**. En Permisos y funciones, los botones Solicitar
+El Centro de seguridad actualizado el 14 de noviembre muestra **No se pudo verificar** y comunica
+que la solicitud fue rechazada. Permite volver a presentar documentos, pero no muestra un motivo
+específico; tampoco se encontró en las notificaciones del negocio. En Permisos y funciones, los botones Solicitar
 acceso avanzado de ambos permisos de WhatsApp están deshabilitados. La página de alta como proveedor
 también deshabilita configuración, carga de video y envío de revisión. No se intentó eludir esos
 controles. La app permanece en desarrollo y el alta comercial apagada.
 `public_profile` muestra **Advanced access** tras completar la declaración de uso permitido,
 el formulario de tratamiento de datos y la reautenticación directa del titular, con su autorización
 expresa. Se comprobó la fila del permiso y la acción **Volver al acceso estándar** en el panel real.
-La fila conserva **Verificación obligatoria**; el Centro de seguridad sigue **En revisión**.
+La fila conserva **Verificación obligatoria**; el rechazo del negocio sigue pendiente de subsanar.
 Este nivel de acceso no acredita la aprobación del negocio ni la de los dos permisos de WhatsApp,
 que conservan **Standard access** y sus botones de solicitud deshabilitados.
+
+La revisión local del documento fiscal aportado por el titular encontró una discrepancia concreta:
+la dirección postal de la solicitud no incluía número exterior ni colonia, que sí constan en el
+documento. Nombre legal, ciudad, entidad y código postal coincidían. Es un dato que corregir,
+no una explicación confirmada por Meta del rechazo. No versionar el PDF, el domicilio ni sus
+identificadores personales. El documento no contiene teléfono; su ausencia no acredita por sí sola
+el motivo, ya que Meta admite documentos que validen nombre legal y dirección o teléfono.
+
+El titular autorizó completar la dirección fiscal en Meta; la corrección se aplicó al borrador.
+Al continuar con el contacto existente, Meta presentó un control CAPTCHA que debe completar el
+titular directamente. La nueva presentación de documentos y el envío final aún están pendientes.
+
+Referencias oficiales consultadas el 14 de noviembre:
+[documentos aceptados](https://www.facebook.com/business/help/159334372093366) y
+[rechazos de verificación](https://www.facebook.com/business/help/2342133782492969).
 
 Para preparar los proveedores se comprobó la región real del proyecto de producción de Supabase
 (`us-west-1`) mediante metadatos del proyecto, sin consultar datos ni credenciales. Se declararon

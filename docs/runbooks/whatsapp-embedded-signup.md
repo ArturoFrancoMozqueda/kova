@@ -66,11 +66,14 @@ La versión anterior sólo informa `replaceable`; el código nuevo agrega `activ
 `idle_ms` acotados para distinguir contadores de la concesión. La causa exacta del bloqueo anterior
 no se presupone a partir del booleano. Ver [ADR-031](../adr/ADR-031-bounded-native-recovery-slot.md).
 
-## Estado de Meta al 12 de noviembre de 2026
+## Estado de Meta al 14 de noviembre de 2026
 
 - Portafolio Kova Suite seleccionado; el perfil legal y los documentos se enviaron con los datos
-  de la persona física titular. El Centro de seguridad muestra **En revisión**, con una estimación
-  de dos días laborables. La solicitud enviada no equivale a verificación aprobada.
+  de la persona física titular. El Centro de seguridad actualizado muestra **No se pudo verificar**:
+  solicitud rechazada, sin motivo específico visible. Se encontró una discrepancia de dirección
+  al comparar el formulario con el documento fiscal; se corrigió el borrador con autorización del
+  titular. Un CAPTCHA de Meta requiere su intervención antes de los documentos y del nuevo envío.
+  No se atribuye esa diferencia al rechazo como causa confirmada.
 - Registro iniciado como proveedor de tecnología independiente con autorización expresa del
   titular para aceptar las condiciones. La revisión de permisos de la app sigue pendiente;
   la app permanece en desarrollo.
