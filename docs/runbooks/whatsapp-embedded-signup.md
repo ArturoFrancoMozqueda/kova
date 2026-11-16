@@ -63,14 +63,14 @@ un número nuevo y guarda sus credenciales cifradas automáticamente. Los envío
 el dueño puede habilitar respuestas cuando haya comprobado la conexión. Cada respuesta requiere
 permiso de contacto y confirmación humana. Configurado no acredita entrega ni estado actual de Meta.
 
-El soporte de coexistencia está publicado detrás del mismo gate apagado; todavía requiere
+El soporte de coexistencia está publicado para el piloto admitido; todavía requiere
 aceptación real. Meta debe confirmar compatibilidad y el dueño autorizar su cuenta.
 Nunca solicitar que elimine su WhatsApp. En coexistencia no se registra ni cambia PIN; renovaciones
 usan el mismo binding y no repiten las solicitudes de importación iniciales.
 
 Antes de activarla, suscribir también `history`, `smb_app_state_sync` y `smb_message_echoes`.
 El backend compatible ya está publicado; las tres suscripciones se activaron en v25.0 el 15 de
-noviembre de 2026. Meta bloqueó modo Activo hasta completar renovación del acceso a datos: todavía
+noviembre de 2026. La renovación de acceso a datos ya se completó y la app está Activa; esto todavía
 no acredita recepción de producción. El flujo
 importa contactos separados de CRM e historial autorizado, refleja mensajes del celular y permite rechazar
 compartir historial. Mantener la app abierta durante sincronización; explicar cambios de dispositivos

@@ -17,7 +17,7 @@ Las operaciones reales están en `backend/app/messaging/signup_provider.py`, `on
 `delivery.py`. El SDK está en `frontend/src/messaging/embeddedSignup.ts`. No solicitar anuncios,
 páginas, catálogos ni permisos de eventos de marketing para este flujo. No atribuir a Kova una UI de
 plantillas, campañas, llamadas o migración no implementada. El soporte de coexistencia está
-publicado con gate apagado; sigue pendiente de aceptación real, como se registra abajo.
+publicado con admisión limitada del piloto; sigue pendiente de aceptación real, como se registra abajo.
 
 ## Configuración preparada
 
@@ -125,7 +125,7 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
 La admisión del piloto vive en `tenants.feature_overrides.whatsapp_signup_pilot=true`, sólo para
 Sweet Home y el negocio aislado del revisor, con auditoría de plataforma. La disponibilidad, inicio
 y finalización exigen esa admisión en el negocio autenticado. No se entrega este control al cliente.
-El interruptor global sigue apagado. Las conexiones verificadas y sus eventos no se revocan al
+El interruptor de plataforma ya está encendido para ese piloto. Las conexiones verificadas y sus eventos no se revocan al
 retirar la admisión para nuevas altas. No ofrecer el alta pública general durante este piloto.
 
 El primer intento de publicar la restricción mediante un campo nuevo del holder fue detenido
@@ -142,9 +142,21 @@ vinculaciones/conexiones en esa sucursal y exactamente un registro de retiro. La
 dueño muestra Sweet Home / Sucursal principal **Sin conectar**. No se eliminó ningún número en
 Meta ni se modificó la cuenta móvil del número real.
 
-La sucursal queda libre para una autorización nueva de coexistencia cuando Meta permita continuar.
+La sucursal queda libre para una autorización nueva de coexistencia.
 Una referencia vieja del registro asistido no puede ocultar la conexión nueva verificada; nunca
-aporta sus credenciales. El interruptor general continúa apagado y no se conectó ni importó el 3710.
+aporta sus credenciales. No se conectó ni importó el 3710.
+
+El 16 de noviembre, el release autorizado del gate por workflow aceptó
+`5c1175a93707ff2458de377194a4e85b14eaa95f` ([ejecución, intento 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43814811101)).
+Una desconexión del catálogo de auditoría de Python detuvo su primer intento antes de publicar;
+se repitió sólo ese trabajo y sus dependientes, conservando todos los controles y sin cambiar locks.
+La comprobación pública posterior confirmó API/frontend/controlador/arranque en el mismo SHA,
+sitio/proxy/base accesibles y privacidad sin nombre personal. La sesión real del dueño muestra
+Sweet Home / Sucursal principal con **Conectar WhatsApp**, prepara **Autorizar en Meta** y abre
+el SDK real con la variante de coexistencia. Meta presenta las condiciones de Cloud API y
+WhatsApp Business Platform, pendientes de aceptación expresa del titular; no se pulsó Continuar.
+El acceso aislado del revisor conserva cortesía y alta disponible, una sucursal y cero clientes o
+conversaciones. Esto acredita disponibilidad de autorización, no una conexión ni entrega real.
 
 ## Texto base para los formularios de Meta
 
@@ -226,7 +238,7 @@ que el número esté libre.
 Meta ofrece [coexistencia con la app móvil](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).
 El titular solicitó implementarla el 14 de noviembre. El soporte publicado ya incorpora el evento de
 coexistencia, verificación de compatibilidad en Meta sin registro/PIN, contactos/historial y ecos
-con cola durable cifrada y controles de ventana/consentimiento. Sigue detrás del gate apagado y
+con cola durable cifrada y controles de ventana/consentimiento. Sigue limitado al piloto admitido y
 requiere aceptación real. No basta usar el enlace alojado que muestra Meta. Véanse
 [contrato](../../specs/integrations/whatsapp-embedded-signup.md) y
 [ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
