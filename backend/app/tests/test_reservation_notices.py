@@ -200,7 +200,8 @@ def test_contact_permission_is_revalidated_and_phone_change_never_authorizes_del
 
 
 def test_failed_booking_transaction_rolls_back_notices(client, db, monkeypatch):
-    _, customer = setup(client)
+    setup(client)  # Another owner exists; rollback must use this reservation's actor.
+    account, customer = setup(client)
     r = resource(client)
     body = booking_body(customer, r)
     from app.appointments import service
@@ -215,12 +216,12 @@ def test_failed_booking_transaction_rolls_back_notices(client, db, monkeypatch):
         service.create_appointment(
             db,
             tenant,
-            db.query(Membership).filter_by(role="owner").one().user_id,
+            UUID(account["user_id"]),
             AppointmentCreate(**body),
             "notice-rollback",
         )
-    assert db.query(Appointment).count() == 0
-    assert db.query(ReservationNotice).count() == 0
+    assert db.query(Appointment).filter_by(tenant_id=tenant).count() == 0
+    assert db.query(ReservationNotice).filter_by(tenant_id=tenant).count() == 0
 
 
 def test_notices_are_private_and_tenant_scoped(client, db):
