@@ -40,14 +40,16 @@ export type OrderFilters = {
   endDate?: string;
   limit?: number;
   offset?: number;
+  sort?: "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 };
 
 export function listOrders(filters: OrderFilters = {}): Promise<OrderListResponse> {
-  const { limit = 50, offset = 0, status, startDate, endDate } = filters;
+  const { limit = 50, offset = 0, status, startDate, endDate, sort } = filters;
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (status) params.set("status", status);
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
+  if (sort) params.set("sort", sort);
   return requestJson<OrderListResponse>(`/api/v1/orders?${params.toString()}`);
 }
 
@@ -83,6 +85,14 @@ export function createRefund(
     headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(payload),
   }));
+}
+
+export function reconcileRefund(orderId: string, payload: RefundPayload, idempotencyKey: string): Promise<{ status: "confirmed" | "cancelled"; refund: ReceiptRefund | null }> {
+  return requestJson(`/api/v1/orders/${orderId}/refunds/reconcile`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function createVoid(orderId: string, reason: string, notDelivered?: boolean): Promise<ReceiptVoid> {

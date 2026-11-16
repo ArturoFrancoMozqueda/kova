@@ -34,6 +34,7 @@ USER_A = uuid.UUID("a0000000-0000-0000-0000-000000000065")
 USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
+    "refund_payments": {"SELECT", "INSERT"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},
     "service_case_events": {"SELECT", "INSERT"},
@@ -354,6 +355,7 @@ _SEMANTIC_INSERT_ORDER = (
     "product_image_files",
     "product_modifier_groups",
     "refunds",
+    "refund_payments",
     "voids",
     "customer_order_items",
     "inventory_reservations",

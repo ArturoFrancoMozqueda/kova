@@ -185,6 +185,7 @@ function AdvancedReportsView() {
 
   const loaded = data.status === "loaded" && data.story;
   const hasSales = loaded && data.story!.summary.completed_orders > 0;
+  const hasCancellationsWithoutSales = loaded && !hasSales && data.story!.summary.cancellation_count > 0;
   const story = data.story;
 
   const heroId = plan?.hero ? `${plan.hero.id}|${plan.hero.subjectId}` : null;
@@ -204,7 +205,7 @@ function AdvancedReportsView() {
 
       <nav aria-label="Secciones de análisis" className="flex flex-wrap items-center gap-1 border-b border-kova-border pb-2 text-sm">
         <Link to="/dashboard" className="mr-auto inline-flex min-h-11 items-center rounded-kova-md px-3 font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">← Volver al panel</Link>
-        {(loaded ? [...(hasSales && marginReportsEnabled ? [["rentabilidad", "Rentabilidad"]] : []), ["productos-reposicion", "Productos y reposición"], ...(hasSales ? [["operacion", "Operación"], ["plan-accion", "Plan de acción"]] : [])] : []).map(([id, label]) => <a key={id} href={`#analisis-${id}`} className="inline-flex min-h-11 items-center rounded-kova-md px-3 text-kova-muted hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{label}</a>)}
+        {(loaded ? [...(hasSales && marginReportsEnabled ? [["rentabilidad", "Rentabilidad"]] : []), ["productos-reposicion", "Productos y reposición"], ...(hasSales || hasCancellationsWithoutSales ? [["operacion", "Operación"]] : []), ...(hasSales ? [["plan-accion", "Plan de acción"]] : [])] : []).map(([id, label]) => <a key={id} href={`#analisis-${id}`} className="inline-flex min-h-11 items-center rounded-kova-md px-3 text-kova-muted hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">{label}</a>)}
       </nav>
 
       {data.status !== "subscription-inactive" ? <BranchComparison startDate={appliedRange.startDate} endDate={appliedRange.endDate} refreshKey={comparisonRefresh} /> : null}
@@ -217,6 +218,9 @@ function AdvancedReportsView() {
         {inventoryPending ? <SectionSkeleton label="Cargando reposición" /> : <RestockPlan stock={data.stock} velocity={data.velocity} stockFailed={data.stockFailed} velocityFailed={data.velocityFailed} horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />}
       </section> : null}
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
+      {hasCancellationsWithoutSales && story ? <section id="analisis-operacion" className="scroll-mt-4">
+        <RefundsAndCancellations story={story} />
+      </section> : null}
 
       {hasSales && story ? (
         <div

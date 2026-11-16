@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.inventory.lot_schemas import LotAllocation, LotHistoryAllocation
 from app.shared.validation import (
@@ -119,12 +119,18 @@ class ReceiptRefundItemLine(BaseModel):
     line_total_amount: Decimal
 
 
+class RefundPaymentEntry(BaseModel):
+    method: Literal["cash", "bank_transfer", "manual_card"]
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+
+
 class ReceiptRefundLine(BaseModel):
     id: UUID
     reason: str
     refunded_amount: Decimal
     created_at: datetime
     items: list[ReceiptRefundItemLine]
+    payments: list[RefundPaymentEntry] = Field(default_factory=list)
 
 
 class ReceiptVoidLine(BaseModel):
@@ -179,12 +185,23 @@ class RefundItemCreate(BaseModel):
 class RefundCreate(BaseModel):
     items: list[RefundItemCreate] = Field(min_length=1, max_length=MAX_REFUND_ITEMS)
     reason: str = Field(pattern="^(customer_return|defective|wrong_item|other)$")
-    # Required: a refund always names the tender it is paid back through so the
-    # amount can be validated against what was actually collected in that method
-    # (a transfer-only order can't be refunded from the cash drawer). Refunds are
-    # online-only (never queued offline), so tightening this can't drop a synced
-    # refund.
-    refund_payment_method: Literal["cash", "bank_transfer", "manual_card"]
+    # Old clients keep their single-tender representation and idempotency hash.
+    # New clients can instead distribute the return across original tenders;
+    # either representation is validated against each method's remaining balance.
+    refund_payment_method: Literal["cash", "bank_transfer", "manual_card"] | None = None
+    refund_payments: list[RefundPaymentEntry] | None = Field(
+        default=None, min_length=1, max_length=3
+    )
+
+    @model_validator(mode="after")
+    def one_payment_representation(self):
+        if (self.refund_payment_method is None) == (self.refund_payments is None):
+            raise ValueError("Indica un medio de devolución o su distribución, no ambos")
+        if self.refund_payments is not None:
+            methods = [payment.method for payment in self.refund_payments]
+            if len(set(methods)) != len(methods):
+                raise ValueError("Cada medio de devolución debe aparecer una sola vez")
+        return self
 
 
 class RefundItemResponse(BaseModel):
@@ -204,6 +221,12 @@ class RefundResponse(BaseModel):
     refunded_amount: Decimal
     items: list[RefundItemResponse]
     created_at: datetime
+    payments: list[RefundPaymentEntry] = Field(default_factory=list)
+
+
+class RefundReconciliationResponse(BaseModel):
+    status: Literal["confirmed", "cancelled"]
+    refund: RefundResponse | None = None
 
 
 class VoidCreate(BaseModel):

@@ -483,6 +483,36 @@ def refresh_session(db: Session, *, refresh_token: str) -> tuple[str, str]:
 
 # ── Logout ────────────────────────────────────────────────────────────────────
 
+def logout_current_session(
+    db: Session, *, access_token: str | None, refresh_token: str | None,
+    ip_address: str | None = None,
+) -> None:
+    """Revoke only the session proven by browser cookies, including after access expiry.
+
+    Like refresh, the opaque cookie lookup needs the identity connection before
+    tenant context exists. Both lookups lock the row against concurrent rotation.
+    No user, tenant or session identifier is accepted from the request body.
+    Missing/already-revoked credentials are an idempotent local cookie cleanup.
+    """
+    session = (
+        repo.get_session_by_refresh_hash(db, _hash_token(refresh_token))
+        if refresh_token else None
+    )
+    if session is None and access_token:
+        try:
+            payload = decode_access_token(access_token)
+            session_id = UUID(payload["jti"])
+            user_id = UUID(payload["sub"])
+            tenant_id = UUID(payload["tid"])
+        except (HTTPException, KeyError, TypeError, ValueError):
+            return
+        session = repo.get_session_by_access_identity(
+            db, session_id=session_id, user_id=user_id, tenant_id=tenant_id,
+        )
+    if session is not None and session.revoked_at is None:
+        logout(db, session=session, ip_address=ip_address)
+
+
 def logout(db: Session, *, session: UserSession, ip_address: str | None = None) -> None:
     audit_service.log(
         db,

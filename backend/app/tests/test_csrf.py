@@ -158,6 +158,20 @@ def test_logout_requires_csrf(db):
     assert r.status_code == 403
 
 
+@pytest.mark.parametrize("header", [None, "wrong-synthetic-token"])
+def test_logout_with_only_refresh_cookie_still_requires_csrf(db, header):
+    c = _raw_client(db)
+    _signup_and_verify(c)
+    _login(c)
+    c.cookies.delete("access_token")
+    headers = {"x-csrf-token": header} if header else {}
+    result = c.post("/api/v1/auth/logout", headers=headers)
+    assert result.status_code == 403
+    token = c.cookies.get("csrf_token")
+    # A rejected logout must not revoke the session or clear its cookies.
+    assert c.post("/api/v1/auth/refresh", headers={"x-csrf-token": token}).status_code == 200
+
+
 def test_sync_offline_sales_requires_csrf(db):
     c = _raw_client(db)
     _signup_and_verify(c)

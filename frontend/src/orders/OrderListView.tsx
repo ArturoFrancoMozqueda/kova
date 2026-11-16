@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { copy } from "../i18n/messages";
@@ -24,6 +24,7 @@ import { ORDERS_QUERY_KEY } from "./queryKeys";
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 type PeriodPreset = "today" | "week" | "month" | null;
+const PAGE_SIZE = 50;
 
 function dateInputValue(date: Date): string {
   const offset = date.getTimezoneOffset();
@@ -46,6 +47,9 @@ export default function OrderListView() {
   const [startDate, setStartDate] = useState(initialPeriod.start);
   const [endDate, setEndDate] = useState(initialPeriod.end);
   const [sortOrder, setSortOrder] = useState<OrderSort>("created_desc");
+  const [offset, setOffset] = useState(0);
+  const focusPagination = useRef(false);
+  const paginationRef = useRef<HTMLElement>(null);
   // Phones only: the custom range and sort fold behind one toggle so the
   // first sale isn't pushed below the fold by five rows of controls.
   const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -58,13 +62,24 @@ export default function OrderListView() {
     status: statusFilter,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    sort: sortOrder,
+    limit: PAGE_SIZE,
+    offset,
   };
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: [...ORDERS_QUERY_KEY, statusFilter, startDate, endDate],
+    queryKey: [...ORDERS_QUERY_KEY, statusFilter, startDate, endDate, sortOrder, offset],
     queryFn: () => listOrders(filters),
   });
 
+  useEffect(() => {
+    if (!isPending && !isError && focusPagination.current) {
+      paginationRef.current?.focus();
+      focusPagination.current = false;
+    }
+  }, [data, isPending, isError]);
+
   const clearFilters = () => {
+    setOffset(0);
     setStatusFilter(undefined);
     setPeriodPreset(null);
     setStartDate("");
@@ -72,6 +87,7 @@ export default function OrderListView() {
   };
 
   const selectPeriod = (preset: Exclude<PeriodPreset, null>) => {
+    setOffset(0);
     const range = presetRange(preset);
     setPeriodPreset(preset);
     setStartDate(range.start);
@@ -84,17 +100,7 @@ export default function OrderListView() {
     { value: "voided", label: copy.orderList.filterVoided },
   ];
 
-  const sortedItems = useMemo(() => {
-    if (!data) return [];
-    return [...data.items].sort((a, b) => {
-      if (sortOrder === "created_asc") {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
-      if (sortOrder === "amount_desc") return Number(b.total_amount) - Number(a.total_amount);
-      if (sortOrder === "amount_asc") return Number(a.total_amount) - Number(b.total_amount);
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [data, sortOrder]);
+  const sortedItems = data?.items ?? [];
 
   if (isPending) {
     return (
@@ -166,7 +172,7 @@ export default function OrderListView() {
             <button
               key={String(value)}
               type="button"
-              onClick={() => setStatusFilter(value)}
+              onClick={() => { setOffset(0); setStatusFilter(value); }}
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-quick ease-standard",
                 statusFilter === value
@@ -210,7 +216,7 @@ export default function OrderListView() {
               type="date"
               value={startDate}
               max={endDate || undefined}
-              onChange={(e) => { setPeriodPreset(null); setStartDate(e.target.value); }}
+              onChange={(e) => { setOffset(0); setPeriodPreset(null); setStartDate(e.target.value); }}
               className="h-9 text-sm"
             />
           </div>
@@ -221,7 +227,7 @@ export default function OrderListView() {
               type="date"
               value={endDate}
               min={startDate || undefined}
-              onChange={(e) => { setPeriodPreset(null); setEndDate(e.target.value); }}
+              onChange={(e) => { setOffset(0); setPeriodPreset(null); setEndDate(e.target.value); }}
               className="h-9 text-sm"
             />
           </div>
@@ -234,7 +240,7 @@ export default function OrderListView() {
           <Select
             id="orders-sort"
             value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as OrderSort)}
+            onChange={(e) => { setOffset(0); setSortOrder(e.target.value as OrderSort); }}
             aria-label={copy.orderList.sortLabel}
             className="h-9 text-sm"
           >
@@ -360,6 +366,17 @@ export default function OrderListView() {
           </CardContent>
         </Card>
       )}
+      {data && data.total > 0 ? (
+        <nav ref={paginationRef} tabIndex={-1} aria-label="Páginas de ventas" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-kova-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
+          <p className="text-sm text-muted-foreground" role="status">
+            {sortedItems.length > 0 ? `${offset + 1}–${offset + sortedItems.length} de ${data.total} ventas` : "No hay ventas en esta página."}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={offset === 0} onClick={() => { focusPagination.current = true; setOffset(Math.max(0, offset - PAGE_SIZE)); }}>Anteriores</Button>
+            <Button variant="outline" disabled={offset + PAGE_SIZE >= data.total} onClick={() => { focusPagination.current = true; setOffset(offset + PAGE_SIZE); }}>Siguientes</Button>
+          </div>
+        </nav>
+      ) : null}
     </ViewLayout>
   );
 }

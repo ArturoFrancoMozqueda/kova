@@ -16,7 +16,7 @@ from app.catalog.models import Product
 from app.idempotency.models import IdempotencyKey
 from app.orders import repository as order_repo
 from app.orders import service as order_service
-from app.orders.models import Order, OrderItem, Payment, Refund, RefundItem
+from app.orders.models import Order, OrderItem, Payment, Refund, RefundItem, RefundPayment
 from app.orders.schemas import (
     OrderCreate,
     OrderItemCreate,
@@ -172,6 +172,7 @@ def _cleanup_concurrent_drawer(owner_engine, *, tenant_id, user_id) -> None:
             cleanup.query(RefundItem).filter(RefundItem.refund_id.in_(refund_ids)).delete(
                 synchronize_session=False
             )
+        cleanup.query(RefundPayment).filter_by(tenant_id=tenant_id).delete()
         cleanup.query(Refund).filter_by(tenant_id=tenant_id).delete()
         cleanup.query(Payment).filter_by(tenant_id=tenant_id).delete()
         cleanup.query(OrderItem).filter_by(tenant_id=tenant_id).delete()

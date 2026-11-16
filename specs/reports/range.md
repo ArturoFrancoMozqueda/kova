@@ -23,6 +23,8 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
   claiming a percentage of orders affected. The underlying report fields and
   health score calculation remain unchanged.
 - Voided orders are excluded from gross and net sales.
+- Advanced reports still show cancellations when the selected period has no completed
+  orders. The empty sales story must not hide operational cancellation counts.
 - Refund totals reduce net sales.
 - If no dates are provided, the endpoint defaults to the current UTC day.
 - A user with `reports.view_all` can request hourly sales with `GET /api/v1/reports/sales-by-hour?start=&end=`.
@@ -48,6 +50,11 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 - Business storytelling copy may be assembled by the client, but all complex aggregations must come from the backend payload.
 - If no completed sales exist, the business storytelling report returns empty rows and empty-state guidance instead of demo data.
 - Product share is based on completed order item gross sales until refund attribution at item level is modeled.
+- The basic report's top-products ranking follows the existing API's descending net units
+  sold (sales amount breaks ties). Bars and labels represent units; the accompanying
+  amount is after item-level refunds, even though the legacy API field is named `gross_sales`.
+- Payment-method labels use the shared vocabulary, including “Tarjeta manual” for
+  `manual_card`; a manually recorded card payment does not imply a terminal charge.
 - Inventory-aware stock recommendations are deferred unless inventory data is explicitly joined into a future report payload.
 
 ## Non-Functional Requirements

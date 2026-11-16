@@ -19,7 +19,7 @@ import { DonutChart, KpiCard, RankBars } from "@/components/visual";
 import { getDashboardOverview } from "@/dashboard/api";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useTenantTimezone } from "@/hooks/useTenantTimezone";
-import { formatMoney } from "@/orders/format";
+import { formatMoney, reasonLabel } from "@/orders/format";
 import { getPaymentBreakdown, getSalesSummary, getTopProducts } from "./api";
 import { PermissionDenied } from "./components/ReportStates";
 import { isValidDateRange, presetRange } from "./utils/dateRange";
@@ -95,13 +95,14 @@ export function BasicSalesReportView({ dashboard = false }: { dashboard?: boolea
                   value: Number(payment.net_amount), valueLabel: formatMoney(payment.net_amount) }))} />
                 : <p className="text-sm text-muted-foreground">No hay cobros en este periodo.</p> : <SectionLoading label="Cargando formas de pago" />}
           </CardContent></Card>
-          <Card><CardContent className="space-y-4 p-5"><h2 className="font-semibold">Productos más vendidos</h2>
+          <Card><CardContent className="space-y-4 p-5"><h2 className="font-semibold">Productos más vendidos por unidades</h2>
             {products.isError ? <ViewError message="No pudimos cargar los productos vendidos." onRetry={() => void products.refetch()} retryLabel="Reintentar" />
-              : products.data ? products.data.products.length ? <RankBars label="Productos más vendidos por importe bruto"
+              : products.data ? products.data.products.length ? <RankBars label="Productos más vendidos por unidades"
                 emptyLabel="No hay productos vendidos en este periodo."
                 rows={products.data.products.map((product) => ({ id: product.product_id, label: product.product_name,
-                  value: Number(product.gross_sales), valueLabel: formatMoney(product.gross_sales),
-                  detail: `${product.quantity_sold.toLocaleString("es-MX")} ${product.quantity_sold === 1 ? "unidad" : "unidades"}` }))} />
+                  value: product.quantity_sold,
+                  valueLabel: `${product.quantity_sold.toLocaleString("es-MX")} ${product.quantity_sold === 1 ? "unidad" : "unidades"}`,
+                  detail: `${formatMoney(product.gross_sales)} después de devoluciones` }))} />
                 : <p className="text-sm text-muted-foreground">No hay productos vendidos en este periodo.</p> : <SectionLoading label="Cargando productos vendidos" />}
           </CardContent></Card>
         </div>
@@ -114,6 +115,6 @@ function SectionLoading({ label }: { label: string }) {
   return <div role="status" aria-label={label} aria-busy="true" className="space-y-3"><Skeleton className="h-6 w-1/2" /><Skeleton className="h-24 w-full" /></div>;
 }
 function paymentLabel(method: string) {
-  // Backend payment methods: cash | bank_transfer | manual_card (backend/app/orders/schemas.py).
-  return ({ cash: "Efectivo", manual_card: "Tarjeta", bank_transfer: "Transferencia" } as Record<string, string>)[method] ?? "Otra forma de pago";
+  return ["cash", "bank_transfer", "manual_card"].includes(method)
+    ? reasonLabel(method) : "Otra forma de pago";
 }

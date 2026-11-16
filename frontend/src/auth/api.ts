@@ -84,7 +84,7 @@ export async function logout(): Promise<void> {
     method: "POST",
     headers: { ...csrfHeaders("POST") },
   });
-  if (!response.ok && response.status !== 401) {
+  if (!response.ok) {
     throw new ApiError(await response.text(), response.status);
   }
 }

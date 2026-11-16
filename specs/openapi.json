@@ -16205,6 +16205,13 @@
             "title": "Items",
             "type": "array"
           },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/RefundPaymentEntry-Output"
+            },
+            "title": "Payments",
+            "type": "array"
+          },
           "reason": {
             "title": "Reason",
             "type": "string"
@@ -16652,19 +16659,41 @@
             "type": "string"
           },
           "refund_payment_method": {
-            "enum": [
-              "cash",
-              "bank_transfer",
-              "manual_card"
+            "anyOf": [
+              {
+                "enum": [
+                  "cash",
+                  "bank_transfer",
+                  "manual_card"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Refund Payment Method",
-            "type": "string"
+            "title": "Refund Payment Method"
+          },
+          "refund_payments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RefundPaymentEntry-Input"
+                },
+                "maxItems": 3,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Payments"
           }
         },
         "required": [
           "items",
-          "reason",
-          "refund_payment_method"
+          "reason"
         ],
         "title": "RefundCreate",
         "type": "object"
@@ -16726,6 +16755,89 @@
         "title": "RefundItemResponse",
         "type": "object"
       },
+      "RefundPaymentEntry-Input": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount"
+        ],
+        "title": "RefundPaymentEntry",
+        "type": "object"
+      },
+      "RefundPaymentEntry-Output": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+            "title": "Amount",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount"
+        ],
+        "title": "RefundPaymentEntry",
+        "type": "object"
+      },
+      "RefundReconciliationResponse": {
+        "properties": {
+          "refund": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefundResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "RefundReconciliationResponse",
+        "type": "object"
+      },
       "RefundResponse": {
         "properties": {
           "created_at": {
@@ -16749,6 +16861,13 @@
             "format": "uuid",
             "title": "Order Id",
             "type": "string"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/RefundPaymentEntry-Output"
+            },
+            "title": "Payments",
+            "type": "array"
           },
           "reason": {
             "title": "Reason",
@@ -34316,6 +34435,22 @@
               ],
               "title": "End Date"
             }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "created_desc",
+              "enum": [
+                "created_desc",
+                "created_asc",
+                "amount_desc",
+                "amount_asc"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -34635,6 +34770,75 @@
           }
         },
         "summary": "Create Refund",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{order_id}/refunds/reconcile": {
+      "post": {
+        "operationId": "reconcile_refund_api_v1_orders__order_id__refunds_reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundReconciliationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Refund",
         "tags": [
           "orders"
         ]

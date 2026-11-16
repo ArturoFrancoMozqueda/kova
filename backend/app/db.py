@@ -115,6 +115,7 @@ TENANT_SCOPED_TABLES = (
     "product_modifier_groups",
     "products",
     "refund_items",
+    "refund_payments",
     "refunds",
     "sessions",
     "shifts",

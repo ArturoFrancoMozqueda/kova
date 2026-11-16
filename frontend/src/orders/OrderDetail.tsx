@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthContext } from "@/auth/AuthContext";
 import { useParams } from "react-router-dom";
 import {
@@ -7,7 +7,7 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { createRefund, createVoid, getOrder, getReceipt } from "./api";
+import { createRefund, createVoid, getOrder, getReceipt, reconcileRefund } from "./api";
 import { formatDateTime, formatMoney, formatMoneyDelta } from "./format";
 import { ReceiptDisplay } from "./ReceiptDisplay";
 import { RefundModal } from "./RefundModal";
@@ -26,17 +26,16 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { getActiveBranchId } from "@/branches/activeBranch";
+import { clearRefundIntent, prepareRefundIntent, readRefundIntent, refundIntentId, type RefundIntent, type RefundIntentScope } from "./refundIntents";
+import { centsToMoney, moneyToCents } from "@/lib/money";
+import type { RefundPaymentAllocation } from "./types";
 
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "not-found" }
   | { status: "loaded"; order: Order; receipt: Receipt };
-
-type RefundIntent = {
-  payload: RefundPayload;
-  idempotencyKey: string;
-};
 
 export default function OrderDetail() {
   useDocumentTitle(copy.documentTitles.orderDetail);
@@ -47,11 +46,36 @@ export default function OrderDetail() {
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
   const [operationPending, setOperationPending] = useState(false);
   const [refundIntentLocked, setRefundIntentLocked] = useState(false);
-  const refundIntentRef = useRef<RefundIntent | null>(null);
+  const refundScope: RefundIntentScope | null = authState.status === "authenticated" && orderId ? {
+    tenantId: authState.tenantId,
+    userId: authState.user.id,
+    branchId: getActiveBranchId(authState.tenantId, authState.user.id),
+    orderId,
+  } : null;
+  const scopeId = refundScope ? refundIntentId(refundScope) : null;
+  const [recovery, setRecovery] = useState<{ scopeId: string | null; ready: boolean; intent: RefundIntent | null; error: boolean }>({ scopeId: null, ready: false, intent: null, error: false });
+  const visibleRecovery = recovery.scopeId === scopeId ? recovery : { ready: false, intent: null, error: false };
+  const pendingRefund = visibleRecovery.intent;
   const canRefund = usePermission(ORDER_REFUND_PERMISSION);
   const canVoid = usePermission(ORDER_VOID_PERMISSION);
   const { toast } = useToast();
   const handleBillingBlocked = useBillingBlocked();
+
+  useEffect(() => {
+    let cancelled = false;
+    setRefundIntentLocked(false);
+    setActiveModal(null);
+    if (!scopeId) return;
+    const scope = JSON.parse(scopeId) as [string, string, string, string];
+    void readRefundIntent({ tenantId: scope[0], userId: scope[1], branchId: scope[2], orderId: scope[3] }).then((intent) => {
+      if (cancelled) return;
+      setRefundIntentLocked(Boolean(intent));
+      setRecovery({ scopeId, ready: true, intent: intent ?? null, error: false });
+    }).catch(() => {
+      if (!cancelled) setRecovery({ scopeId, ready: false, intent: null, error: true });
+    });
+    return () => { cancelled = true; };
+  }, [scopeId]);
 
   const load = useCallback(async () => {
     if (!orderId) {
@@ -79,24 +103,42 @@ export default function OrderDetail() {
   }, [load]);
 
   const submitRefund = async (payload: RefundPayload) => {
-    if (!orderId) return;
-    const intent = refundIntentRef.current ?? {
-      payload,
-      idempotencyKey: crypto.randomUUID(),
+    if (!orderId || !refundScope || !visibleRecovery.ready || operationPending) return;
+    let intent: RefundIntent | null = null;
+    let isFirstAttempt = false;
+    const forgetConfirmedIntent = async (confirmed: RefundIntent | null) => {
+      try {
+        if (confirmed) await clearRefundIntent(confirmed);
+        setRecovery({ scopeId, ready: true, intent: null, error: false });
+        setRefundIntentLocked(false);
+        return true;
+      } catch {
+        setRefundIntentLocked(true);
+        toast("No pudimos actualizar la confirmación en este dispositivo. Reintenta la misma devolución para recuperar su resultado.", "warning");
+        return false;
+      }
     };
-    refundIntentRef.current = intent;
     setOperationPending(true);
     try {
+      const prepared = await prepareRefundIntent(refundScope, payload, pendingRefund);
+      intent = prepared.intent;
+      isFirstAttempt = prepared.created;
+      setRecovery({ scopeId, ready: true, intent, error: false });
+      setRefundIntentLocked(true);
+      if (!prepared.created && pendingRefund?.idempotencyKey !== intent.idempotencyKey) {
+        setActiveModal(null);
+        toast("Hay una devolución pendiente de otra pestaña. Revisa sus datos y confirma el reintento.", "warning");
+        return;
+      }
       await createRefund(orderId, intent.payload, intent.idempotencyKey);
-      refundIntentRef.current = null;
-      setRefundIntentLocked(false);
+      if (!await forgetConfirmedIntent(intent)) return;
       setActiveModal(null);
       toast(copy.orderDetail.refundSuccess, "success");
       await load();
     } catch (err) {
       if (handleBillingBlocked(err)) {
-        refundIntentRef.current = null;
-        setRefundIntentLocked(false);
+        // A billing gate says nothing about a previous attempt's commit.
+        setRefundIntentLocked(Boolean(intent));
         return;
       }
       const detail = apiErrorDetail(err);
@@ -105,15 +147,15 @@ export default function OrderDetail() {
           ? copy.orderDetail.refundQtyExceeds(Number(detail.available) || 0)
           : null;
       const status = apiErrorStatus(err);
-      if (status !== null && status < 500) {
-        // The server definitively rejected this payload, so the operator may
-        // correct it and start a new intent.
-        refundIntentRef.current = null;
-        setRefundIntentLocked(false);
+      if (isFirstAttempt && (status === 400 || status === 422)) {
+        // Only a validation rejection of the first attempt proves that this
+        // operation was not committed. A later gate/validation rejection cannot
+        // resolve an earlier lost response and must keep its original key.
+        await forgetConfirmedIntent(intent);
       } else {
         // A timeout/network/5xx response may have followed a commit. Freeze
         // the payload so retrying can only replay the same backend identity.
-        setRefundIntentLocked(true);
+        setRefundIntentLocked(Boolean(intent));
       }
       toast(mapped ?? resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
@@ -141,6 +183,26 @@ export default function OrderDetail() {
         return;
       }
       toast(resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
+    } finally {
+      setOperationPending(false);
+    }
+  };
+
+  const resolvePendingRefund = async () => {
+    if (!pendingRefund || operationPending) return;
+    setOperationPending(true);
+    try {
+      const result = await reconcileRefund(pendingRefund.orderId, pendingRefund.payload, pendingRefund.idempotencyKey);
+      await clearRefundIntent(pendingRefund);
+      setRecovery({ scopeId, ready: true, intent: null, error: false });
+      setRefundIntentLocked(false);
+      setActiveModal(null);
+      toast(result.status === "confirmed" ? copy.orderDetail.refundSuccess : "La devolución no se había registrado. Ya puedes preparar una nueva.", "success");
+      await load();
+    } catch (err) {
+      if (!handleBillingBlocked(err)) {
+        toast(resolveApiErrorMessage(err, "No pudimos confirmar el resultado. Conservamos la misma devolución para volver a intentarlo."), "error");
+      }
     } finally {
       setOperationPending(false);
     }
@@ -197,7 +259,7 @@ export default function OrderDetail() {
   const { order, receipt } = loadState;
   const isVoided = receipt.status === "voided";
   const canManageOrderCorrections = canRefund || canVoid;
-  const canShowCorrectionActions = canManageOrderCorrections && !isVoided;
+  const canShowCorrectionActions = canManageOrderCorrections && (!isVoided || Boolean(pendingRefund));
 
   // Aggregate refunded quantity per line item so we can annotate "x (n devuelta)"
   // and decide whether to surface a partial/full-refund badge alongside the
@@ -219,6 +281,11 @@ export default function OrderDetail() {
       : totalRefundedQty >= totalOrderedQty
         ? "full"
         : "partial";
+  const availableRefundPayments: RefundPaymentAllocation[] = (["cash", "bank_transfer", "manual_card"] as const).flatMap(method => {
+    const collected = receipt.payments.filter(payment => payment.method === method).reduce((sum, payment) => sum + moneyToCents(payment.amount_amount), 0);
+    const returned = receipt.refunds.flatMap(refund => refund.payments ?? []).filter(payment => payment.method === method).reduce((sum, payment) => sum + moneyToCents(payment.amount), 0);
+    return collected > returned ? [{ method, amount: centsToMoney(collected - returned) }] : [];
+  });
 
   return (
     <ViewLayout width="focused" className="max-w-4xl animate-fade-in">
@@ -306,20 +373,20 @@ export default function OrderDetail() {
               </Button>
               {canShowCorrectionActions ? (
                 <>
-                  {canRefund && refundState !== "full" && (
+                  {canRefund && (refundState !== "full" || pendingRefund) && (
                     <Button
                       variant="outline"
+                      disabled={!visibleRecovery.ready || operationPending}
                       onClick={() => {
-                        refundIntentRef.current = null;
-                        setRefundIntentLocked(false);
+                        setRefundIntentLocked(Boolean(pendingRefund));
                         setActiveModal("refund");
                       }}
                     >
                       <RotateCcw className="h-4 w-4" />
-                      {copy.orderDetail.refund}
+                      {pendingRefund ? "Revisar devolución pendiente" : copy.orderDetail.refund}
                     </Button>
                   )}
-                  {canVoid && receipt.refunds.length === 0 && (
+                  {canVoid && !isVoided && !pendingRefund && receipt.refunds.length === 0 && (
                     <Button variant="destructive" onClick={() => setActiveModal("void")}>
                       <Ban className="h-4 w-4" />
                       {copy.orderDetail.void}
@@ -336,6 +403,9 @@ export default function OrderDetail() {
             </CardContent>
           </Card>
 
+          {canRefund && pendingRefund && <p role="status" className="rounded-lg border p-3 text-sm">Hay una devolución por confirmar. Revisa y reintenta la misma operación antes de registrar otra.</p>}
+          {canRefund && visibleRecovery.error && <p role="alert" className="rounded-lg border p-3 text-sm">No pudimos recuperar las devoluciones pendientes de este dispositivo. Recarga para volver a intentarlo antes de registrar una devolución.</p>}
+
           {order.items.some(item => item.lot_tracked) && <p className="rounded-lg border p-3 text-sm">Los reembolsos de productos con lotes no reponen inventario. Al anular, confirma si hubo entrega para determinar la reposición.</p>}
           <ReceiptDisplay order={order} receipt={receipt} />
         </div>
@@ -345,18 +415,20 @@ export default function OrderDetail() {
         <RefundModal
           disabled={operationPending}
           fieldsLocked={refundIntentLocked}
-          items={order.items
+          initialPayload={pendingRefund?.payload}
+          availablePayments={availableRefundPayments}
+          refundedQuantities={pendingRefund ? {} : Object.fromEntries(refundedQtyByItem)}
+          items={pendingRefund ? order.items : order.items
             .map((item) => ({
               ...item,
               quantity: Math.max(0, item.quantity - (refundedQtyByItem.get(item.id) ?? 0)),
             }))
             .filter((item) => item.quantity > 0)}
           onCancel={() => {
-            refundIntentRef.current = null;
-            setRefundIntentLocked(false);
             setActiveModal(null);
           }}
           onSubmit={submitRefund}
+          onResolve={pendingRefund ? resolvePendingRefund : undefined}
         />
       )}
       {activeModal === "void" && (

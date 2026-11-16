@@ -4,6 +4,19 @@ import { RefundModal } from "./RefundModal";
 import { copy } from "../i18n/messages";
 
 describe("RefundModal quantities", () => {
+  it("returns one indivisible item through both original payment methods", () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(<RefundModal
+      items={[{ id: "line-1", product_id: "product-1", product_name: "Pastel", quantity: 1, unit_price_amount: "50.00", line_total_amount: "50.00", modifiers: [] }]}
+      availablePayments={[{ method: "cash", amount: "30.00" }, { method: "bank_transfer", amount: "20.00" }]}
+      disabled={false} onCancel={vi.fn()} onSubmit={onSubmit}
+    />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: /Pastel/ }), { target: { value: "1" } });
+    expect(screen.getByText("$30.00")).toBeInTheDocument();
+    expect(screen.getByText("$20.00")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: copy.refundModal.submit }));
+    expect(onSubmit).toHaveBeenCalledWith({ reason: "customer_return", items: [{ order_item_id: "line-1", quantity: 1 }], refund_payments: [{ method: "cash", amount: "30.00" }, { method: "bank_transfer", amount: "20.00" }] });
+  });
   it("submits whole units within the refundable maximum", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<RefundModal

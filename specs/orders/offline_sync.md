@@ -69,6 +69,9 @@ Offline-first selling is a core POS differentiator and protects revenue during c
   once; if it still fails, checkout says the sale was not saved and keeps the
   cart, so nothing is lost silently.
 - A prepared register can reload without internet without losing queued sales.
+- After an online reload, any in-flight lease from the previous tab is recovered
+  automatically when it expires, even if no other sale is pending. Recovery
+  keeps the original UUID and stops when the verified tenant is cleared.
 - A cold-offline identity does not activate synchronization until the server
   revalidates its session. Reconnection then resumes the same queued UUIDs.
 

@@ -273,6 +273,46 @@ async function mockReports(
 }
 
 for (const width of [390, 1440]) {
+  test(`cancellations remain visible without completed sales at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.clock.setFixedTime(new Date("2026-05-19T18:00:00Z"));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await markFirstUseToursSeen(page);
+    await mockAuthAs(page, "owner");
+    const base = storyPayload();
+    await mockReports(page, storyPayload({
+      summary: { ...base.summary, start_date: "2026-05-19", end_date: "2026-05-19",
+        gross_sales: "0.00", refund_total: "0.00", net_sales: "0.00",
+        completed_orders: 0, average_ticket: "0.00", refund_count: 0, cancellation_count: 3 },
+      sales_by_day: [], sales_by_daypart: [], product_drivers: [], sales_by_employee: [],
+      peak_hour: null, top_product_by_sales: null, top_product_by_units: null,
+      dominant_payment: null, payment_mix: [], refunds_by_reason: [],
+      operational_signals: [{ type: "risk", title: "Revisa cancelaciones",
+        detail: "Las cancelaciones representaron 100% de las órdenes registradas." }],
+      recommended_actions: [], margin: null, inventory_valuation: null,
+      waste: null, operating_expenses: null,
+    }));
+    await page.goto("/reports");
+    await expect(page.getByText("Aún no hay ventas para contar una historia", { exact: true })).toBeVisible();
+    const operation = page.locator("#analisis-operacion");
+    await expect(operation).toContainText("3 cancelaciones");
+    await expect(operation.getByText("3", { exact: true })).toBeVisible();
+    await expect(page.getByText("Sin devoluciones ni cancelaciones", { exact: true })).toHaveCount(0);
+    const operationLink = page.getByRole("link", { name: "Operación", exact: true });
+    await operationLink.focus();
+    await expect(operationLink).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#analisis-operacion$/);
+    await expect(operation).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.addScriptTag({ content: axe.source });
+    const violations = await page.evaluate(async () => {
+      const engine = (window as unknown as { axe: { run: (selector: string, options: object) => Promise<AxeResults> } }).axe;
+      return (await engine.run("main", { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } })).violations.map(item => item.id);
+    });
+    expect(violations).toEqual([]);
+  });
+
   test(`progressive reports show ready sales while stock is delayed at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.clock.setFixedTime(new Date("2026-05-19T18:00:00Z"));
