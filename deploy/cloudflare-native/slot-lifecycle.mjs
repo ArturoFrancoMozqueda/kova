@@ -18,7 +18,11 @@ export function slotContainerClass(Container, { now = Date.now } = {}) {
           || !result?.APP_DATABASE_URL || !result?.MIGRATION_DATABASE_URL || !result?.SECRET_KEY) {
         throw new Error("Invalid private native runtime configuration");
       }
-      return result;
+      // Only the replaceable API process projects this operator binding.
+      // Both existing settings holders remain immutable; missing/invalid is OFF.
+      return { ...result, WHATSAPP_RESERVATION_SENDING_ENABLED:
+        env.WHATSAPP_RESERVATION_SENDING_ENABLED === "true" ? "true" : "false" };
+
     },
   });
   return class extends Resident {

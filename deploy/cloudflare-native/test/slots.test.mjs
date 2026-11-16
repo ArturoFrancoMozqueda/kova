@@ -257,3 +257,23 @@ test("only three reviewed slots and the original legacy Worker can be selected",
   assert.equal(slotWorker("recovery"), "kova-api-recovery");
   for (const input of [undefined, "other-account", "__proto__"]) assert.throws(() => slotWorker(input));
 });
+
+
+for (const gate of [undefined, "false", "true", "invalid"]) {
+  test(`replaceable API process projects reservation gate ${gate} without changing shared settings`, async () => {
+    const fixture = controllerFixture();
+    if (gate !== undefined) fixture.env.WHATSAPP_RESERVATION_SENDING_ENABLED = gate;
+    const response = await fixture.controller.fetch(new Request("https://api.test/api/v1/messaging/reservation-notices?WHATSAPP_RESERVATION_SENDING_ENABLED=true", {
+      headers: { WHATSAPP_RESERVATION_SENDING_ENABLED: "true" },
+    }));
+    assert.equal(response.status, 200);
+    await response.text();
+    assert.equal(fixture.controller.envVars.WHATSAPP_RESERVATION_SENDING_ENABLED, gate === "true" ? "true" : "false");
+    assert.equal(fixture.controller.envVars.APP_DATABASE_URL, source.APP_DATABASE_URL);
+    assert.equal(fixture.controller.envVars.SECRET_KEY, source.SECRET_KEY);
+    assert.equal(fixture.controller.envVars.KOVA_BOOT_CONTROLLER_SHA, sha);
+    assert.equal(fixture.controller.envVars.CLOUDFLARE_API_TOKEN, undefined);
+    assert.deepEqual(fixture.calls(), { configCalls: 1, dispatches: 1 });
+    await Promise.all(fixture.waits);
+  });
+}
