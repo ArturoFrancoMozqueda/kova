@@ -172,14 +172,20 @@ del panel del proveedor no acredita el envío del borrador.
 Meta [permite evidencia alternativa](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers):
 el envío de API Setup a un destinatario de prueba autorizado y la creación de una plantilla en
 WhatsApp Manager. Se dejó preparado `hello_world` para el destinatario autorizado terminado en
-0199, sin enviarlo de nuevo todavía. El acceso temporal del panel se renovó con la configuración
+0199. Con autorización expresa del titular y confirmación de que estaba grabando el celular,
+se realizó un único envío. Meta confirmó «Message sent» para ese destinatario. Se guardaron
+19 capturas reales del panel antes y después del envío y un video de unos 29 s; el encuadre excluye
+el bloque de credenciales. La captura terminó antes de lo previsto: se recuperaron sólo los
+fotogramas reales guardados y sus marcas de archivo, sin repetir el envío ni simular pantallas.
+Falta incorporar la grabación de recepción visible del celular; aceptación de Meta no acredita
+por sí sola esa recepción visual. El acceso temporal del panel se renovó con la configuración
 anterior, sin copiar credenciales a Kova ni mostrarlas en la evidencia.
 
 En **Test Messaging Account** se creó `kova_revision_confirmacion_reserva`, categoría Utilidad,
-idioma `es_MX`, con muestras ficticias de nombre, folio, fecha y hora. Meta la muestra **En revisión**;
+idioma `es_MX`, con muestras ficticias de nombre, folio, fecha y hora. Al crearla, Meta mostró **En revisión**;
 este estado corresponde a esa plantilla, no a la revisión de la app. Se guardó un video de 20 s
 con 38 capturas reales de su creación, omitiendo las pausas entre pasos y sin pantallas simuladas.
-Falta completar el video de envío con recepción visible en WhatsApp, adjuntar la evidencia y
+Falta completar la evidencia con recepción visible en WhatsApp, adjuntar los videos y
 obtener las declaraciones finales autorizadas antes de enviar App Review. El formulario de
 soporte de cumplimiento disponible sólo atiende evaluaciones solicitadas por Meta; no se marcó
 esa declaración ni se envió un ticket que no correspondía.
