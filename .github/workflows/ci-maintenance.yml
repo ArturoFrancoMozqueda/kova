@@ -78,6 +78,8 @@ jobs:
         run: python backend/scripts/check_native_runtime.py --image kova-sca:native
       - name: Verify patched parser binaries and current upstream advisories
         if: matrix.name == 'parser'
+        env:
+          KOVA_UPSTREAM_GITHUB_TOKEN: ${{ github.token }}
         run: python backend/scripts/check_parser_runtime.py --image kova-sca:parser --require-native-arch x86_64 --report reports/security/parser-runtime.json
       - name: Scan OS and language packages including unfixed vulnerabilities
         run: python scripts/audit_dependencies.py image --name "${{ matrix.name }}" --image "kova-sca:${{ matrix.name }}"

@@ -66,7 +66,9 @@ El parser incorpora fuentes revisadas de Tesseract y backports de libxml2 porque
 el feed de Alpine omite avisos conocidos de esas versiones. Su gate adicional
 `backend/scripts/check_parser_runtime.py` verifica el ID inmutable de la imagen,
 hashes reales de binarios/modelo/parches, seis regresiones C y los reportes upstream.
-Consulta los avisos públicos oficiales de Tesseract sin credenciales: un GHSA nuevo,
+Consulta los avisos públicos oficiales de Tesseract. CI usa su token de lectura sólo para esa
+consulta del host y lo retira del entorno antes de invocar Docker; el parser sigue sin red ni
+credenciales. La ejecución local admite la consulta pública sin token. Un GHSA nuevo,
 de cualquier severidad, o un fallo de consulta bloquea hasta revisarlo. No se presenta
 un número de versión ficticio como corrección ni un resultado vacío de Trivy como
 cobertura suficiente de los componentes compilados. CI y mantenimiento ejecutan

@@ -1,6 +1,6 @@
 """Verify the isolated parser's real custom binaries and current upstream advisories.
 
-The public GitHub lookup runs on the host without credentials. The image probe
+The public GitHub lookup runs on the host with optional read-only GitHub auth. The image probe
 runs without network, writable root filesystem, elevated capabilities or secrets.
 OS/SCA scans remain separate: custom source builds need explicit provenance.
 """
@@ -8,6 +8,7 @@ OS/SCA scans remain separate: custom source builds need explicit provenance.
 import argparse
 import hashlib
 import json
+import os
 import platform
 import re
 import subprocess
@@ -147,8 +148,14 @@ def _next_page(link: str | None) -> str | None:
     return matches[0]
 
 
-def check_upstream_advisories(expected: dict, *, open_url=None) -> list[str]:
+def check_upstream_advisories(
+    expected: dict, *, open_url=None, token: str | None = None,
+) -> list[str]:
     """Fetch every published page, never filtering away low/unknown severities."""
+    if token and (not isinstance(token, str) or len(token) > 4096
+                  or not token.isascii() or not token.isprintable()
+                  or any(character.isspace() for character in token)):
+        raise GateError("Invalid upstream advisory authentication")
     if open_url is None:
         open_url = build_opener(NoRedirect()).open
     url = ADVISORY_URL + "?per_page=100&state=published"
@@ -164,6 +171,7 @@ def check_upstream_advisories(expected: dict, *, open_url=None) -> list[str]:
                     "Accept": "application/vnd.github+json",
                     "User-Agent": "kova-parser-security-gate",
                     "X-GitHub-Api-Version": "2022-11-28",
+                    **({"Authorization": f"Bearer {token}"} if token else {}),
                 },
             )
             with open_url(request, timeout=20) as response:
@@ -204,7 +212,11 @@ def check_upstream_advisories(expected: dict, *, open_url=None) -> list[str]:
             if url is None:
                 raise GateError("Full advisory page has no verifiable continuation")
         raise GateError("Advisory pagination limit exceeded")
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+    except HTTPError as exc:
+        raise GateError(
+            f"Public advisory lookup failed (HTTP {exc.code}); cannot certify current coverage"
+        ) from None
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
         raise GateError("Public advisory lookup failed; cannot certify current coverage") from exc
 
 
@@ -449,9 +461,12 @@ def main() -> int:
     parser.add_argument("--require-native-arch", choices=("x86_64", "aarch64"),
                         help="Require matching Linux host, Docker server, image and runtime")
     args = parser.parse_args()
+    # The dedicated host-step token is never inherited by Docker invocations.
+    token = os.environ.pop("KOVA_UPSTREAM_GITHUB_TOKEN", None)
     try:
         expected = load_expected()
-        advisory_ids = check_upstream_advisories(expected)
+        advisory_ids = check_upstream_advisories(expected, token=token)
+        token = None
         report = check_image(args.image, require_native_arch=args.require_native_arch)
         report["status"] = "passed"
         report["upstream_advisory_ids"] = advisory_ids
