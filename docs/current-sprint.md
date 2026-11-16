@@ -16,7 +16,7 @@ La solicitud de permisos de WhatsApp ya fue enviada con los dos videos y las dec
 autorizadas; Meta confirmó **Revisión en curso**. Esto actualiza las referencias anteriores a un
 borrador pendiente, sin acreditar aprobación ni conexión del número real.
 
-La baseline publicada y verificada es `d9e973bf2334e54757026b697f6690e27dfc9ace`,
+La baseline publicada y verificada antes de este corte es `d9e973bf2334e54757026b697f6690e27dfc9ace`,
 [release 43934149277](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43934149277).
 API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
 independientemente tras la aceptación del workflow. La coexistencia de WhatsApp está publicada
@@ -167,8 +167,8 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    offline vacía en el dispositivo revisado. El piloto mezcla datos reales y de ensayo: sus cifras
    no acreditan todavía conciliación física ni rendimiento comercial. Un turno acumulado se cerró
    por instrucción del dueño igualando el esperado; fue una regularización sin conteo físico,
-   no evidencia de caja conciliada. La corrección local del [conteo de inventario](../specs/inventory/physical-counts.md)
-   exige cantidades explícitas ordinarias y por lote; pendiente de publicación.
+   no evidencia de caja conciliada. El [conteo de inventario](../specs/inventory/physical-counts.md)
+   exige cantidades explícitas ordinarias y por lote; su aceptación local no sustituye el conteo del negocio.
 5. **Dispositivos físicos.** El alcance indicado por el dueño es PC, móvil y tablet, sin modelos
    ni hardware definidos. La regresión de navegador no sustituye una prueba física. Impresora,
    lector y cajón siguen pendientes. [Matriz de equipos](runbooks/pos-hardware-acceptance.md) y
