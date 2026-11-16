@@ -44,6 +44,13 @@ el gate para procesos posteriores y el flujo conserva su recuperación de aplica
 No atribuir efecto al proceso que ya servía antes: comprobar la disponibilidad del dueño en Kova
 después de la aceptación del release. Deshabilitar nuevas altas no revoca conexiones existentes.
 
+La operación de recurso usa la CLI fijada desde la raíz del checkout, con Worker explícito.
+No debe ejecutarse desde `deploy/cloudflare-native`: allí la CLI evalúa la configuración de la
+imagen nativa y exige un SHA de build ajeno a la modificación de este booleano. El primer intento
+se detuvo en ese dry run, antes de modificar el gate o publicar una aplicación. La comprobación
+pública posterior confirmó API/frontend/controlador/arranque en `811a957a564afe037b7b391bf7c963b5be100418`,
+sitio/proxy/base sanos y privacidad sin nombre personal; no se reintentó ese workflow sin corregirlo.
+
 La renovación anual de Meta ya muestra **Completada** y el MCP confirmó la app **Activa** el
 15 de noviembre de 2026. Esto libera esos dos requisitos; no acredita todavía el acceso avanzado
 de WhatsApp ni la aceptación real de coexistencia.

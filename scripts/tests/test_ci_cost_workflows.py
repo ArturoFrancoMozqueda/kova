@@ -33,6 +33,8 @@ class CiCostWorkflowTests(unittest.TestCase):
         self.assertIn("vars.KOVA_NATIVE_BACKEND == '1'", gate)
         self.assertIn("inputs.whatsapp_signup != 'preserve'", gate)
         self.assertIn("SIGNUP_ACTION: ${{ inputs.whatsapp_signup }}", gate)
+        self.assertIn("working-directory: .\n", gate)
+        self.assertIn("deploy/cloudflare-native/node_modules/.bin/cf workers secrets update", gate)
         self.assertLess(release.index("Prepare independent native API publication"),
                         release.index("id: whatsapp_signup"))
         self.assertLess(release.index("id: whatsapp_signup"),
@@ -41,6 +43,8 @@ class CiCostWorkflowTests(unittest.TestCase):
         self.assertIn("failure() && contains(fromJSON('[\"success\",\"failure\"]'), steps.whatsapp_signup.outcome)", close)
         self.assertIn("--text false", close)
         self.assertIn("--worker kova-native-signup-settings", close)
+        self.assertIn("working-directory: .\n", close)
+        self.assertIn("deploy/cloudflare-native/node_modules/.bin/cf workers secrets update", close)
 
     def test_whatsapp_gate_commands_only_write_the_fixed_boolean_and_stop_on_error(self):
         release = job("ci.yml", "release")
@@ -49,7 +53,7 @@ class CiCostWorkflowTests(unittest.TestCase):
         script = "\n".join(line[10:] for line in gate.split("        run: |\n", 1)[1].splitlines())
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            binary = root / "node_modules/.bin/cf"
+            binary = root / "deploy/cloudflare-native/node_modules/.bin/cf"
             binary.parent.mkdir(parents=True)
             binary.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$CALLS"\n'
                               'if [[ "$*" == *--dry-run* ]]; then exit "${DRY_EXIT:-0}"; fi\n'

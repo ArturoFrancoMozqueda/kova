@@ -2,7 +2,8 @@
 
 Estado actualizado: 15 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
 borrador técnico, sin enviar ni aprobar. La renovación anual de acceso a datos es un trámite
-separado: ya se envió y sigue en revisión. Complementa el [runbook de alta](whatsapp-embedded-signup.md).
+separado: Meta ya la muestra **Completada** y confirmó la app **Activa**. Complementa el
+[runbook de alta](whatsapp-embedded-signup.md).
 
 ## Alcance que debe revisar Meta
 
@@ -112,6 +113,12 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
 - Los textos de ambos permisos de WhatsApp se actualizaron en el borrador de App Review para
   explicar coexistencia, importación autorizada y separación entre historial/eco y mensajes en
   vivo. Sin video real ni nuevas certificaciones, ese borrador tampoco se envió.
+- Comprobación nueva del 15 de noviembre: Meta muestra la renovación **Completada** y declara
+  «Completamos la revisión». Se ejecutó la activación que autorizó el titular; el MCP confirmó
+  `published=true`, callback conservado y los mismos cinco campos suscritos. La configuración
+  `1478484207472135` conserva sólo cuentas de WhatsApp y los dos permisos de WhatsApp. Esta
+  comprobación reemplaza el bloqueo de renovación registrado arriba, sin aprobar el borrador
+  de permisos ni acreditar todavía una conexión del número real.
 - El titular eligió **Cafetería Sweet Home / Sucursal principal** para la prueba real. El número
   de WhatsApp Business móvil no se conectó, registró, migró ni importó. Conservar la app móvil.
 
