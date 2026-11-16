@@ -105,8 +105,10 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
 - Comprobación posterior: la renovación continúa **En revisión** y no pide acciones adicionales.
   El propio borrador de permisos deshabilita **Enviar para revisión** con el mensaje «Completa
   los requisitos de renovación del acceso a datos para enviar la app a revisión». Se contrastaron
-  sus respuestas precargadas de tratamiento con las que confirmó el titular, sin enviar esa
-  solicitud ni aceptar nuevas declaraciones. La renovación bloquea también ese envío.
+  sus respuestas precargadas de tratamiento con las que confirmó el titular y se guardó su revisión:
+  **Tratamiento de datos** ya muestra completado. No se envió esa solicitud ni se aceptaron nuevas
+  declaraciones. La renovación bloquea también ese envío; Uso permitido conserva la evidencia real
+  pendiente.
 - Los textos de ambos permisos de WhatsApp se actualizaron en el borrador de App Review para
   explicar coexistencia, importación autorizada y separación entre historial/eco y mensajes en
   vivo. Sin video real ni nuevas certificaciones, ese borrador tampoco se envió.
