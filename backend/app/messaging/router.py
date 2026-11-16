@@ -160,7 +160,7 @@ async def receive_whatsapp(request: Request, background_tasks: BackgroundTasks):
     if not connections.platform_ready():
         raise HTTPException(503, "Canal no disponible")
     chunks = bytearray()
-    limit = MAX_APP_WEBHOOK_BYTES if onboarding.available() else MAX_WEBHOOK_BYTES
+    limit = MAX_APP_WEBHOOK_BYTES if onboarding.platform_available() else MAX_WEBHOOK_BYTES
     async for chunk in request.stream():
         if len(chunks) + len(chunk) > limit:
             raise HTTPException(413, "Evento demasiado grande")
@@ -234,7 +234,7 @@ def messaging_readiness(db: Session = Depends(get_db), ctx=Depends(require_crm))
             "tenant_mapping_verified": connected,
             "setup_status": "configured" if connected else "setup_required",
             "account_mode": "verified" if connected else "not_verified",
-            "signup_available": onboarding.available(),
+            "signup_available": onboarding.available(ctx[1].tenant_id),
         }
     )
 

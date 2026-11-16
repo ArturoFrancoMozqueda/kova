@@ -18,7 +18,10 @@ No pedir tokens ni claves a los comercios por chat o formularios de Kova.
    al holder existente. Nunca se reinicia el controlador de producción para agregar estos ajustes.
 5. En ese Worker privado, configurar `WHATSAPP_APP_ID`, `WHATSAPP_SIGNUP_CONFIG_ID`,
    `WHATSAPP_CREDENTIALS_KEY` (Fernet aleatorio, separado de otros secretos) y, al cumplir los gates,
-   `WHATSAPP_SIGNUP_ENABLED=true`. No imprimir ni versionar valores. Los secretos comunes del
+   `WHATSAPP_SIGNUP_ENABLED=true`. Para aceptación limitada, configurar primero
+   `WHATSAPP_SIGNUP_TENANT_IDS` con los negocios autorizados y comprobar que otro negocio no vea
+   el alta ni pueda iniciarla/finalizarla. Vacío conserva el rollout global explícito; no usarlo
+   para un piloto limitado. No imprimir ni versionar secretos. Los secretos comunes del
    piloto permanecen en `kova-backend`: versión Graph fijada, app secret y verify token.
 6. Un release autorizado crea un proceso nuevo con esa configuración. Guardar un Secret no
    cambia la configuración de un proceso que ya estaba arrancado.
@@ -40,7 +43,9 @@ Nunca solicitar que elimine su WhatsApp. En coexistencia no se registra ni cambi
 usan el mismo binding y no repiten las solicitudes de importación iniciales.
 
 Antes de activarla, suscribir también `history`, `smb_app_state_sync` y `smb_message_echoes`.
-El backend compatible ya está publicado; las suscripciones adicionales siguen pendientes. El flujo
+El backend compatible ya está publicado; las tres suscripciones se activaron en v25.0 el 15 de
+noviembre de 2026. Meta bloqueó modo Activo hasta completar renovación del acceso a datos: todavía
+no acredita recepción de producción. El flujo
 importa contactos separados de CRM e historial autorizado, refleja mensajes del celular y permite rechazar
 compartir historial. Mantener la app abierta durante sincronización; explicar cambios de dispositivos
 vinculados y limitaciones de Meta antes de autorizar. Probar lote grande, reconexión y retiro de acceso.
