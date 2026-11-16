@@ -20,6 +20,8 @@ las existencias siguen siendo la suma de `inventory_movements`.
   elaboración y finalmente lotes sin fechas; el operador puede corregirla.
 - Entradas, compras, ventas, ajustes, conteos y traspasos registran asignaciones.
   Una línea puede consumir varios lotes. El desglose debe conciliar con el movimiento.
+  El [conteo físico](physical-counts.md) exige capturar cada cantidad; no precarga los saldos
+  del sistema ni interpreta un campo vacío como cero.
 - Confirmar pedidos reserva lotes. Cobrar consume esa reserva; una revisión
   explícita puede reasignarla antes del cobro. Una merma real puede causar faltantes
   reservados; el pedido afectado no puede cobrarse sin conciliarlos.
