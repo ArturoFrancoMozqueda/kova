@@ -374,6 +374,7 @@ def committed_appointment_resource(owner_engine):
     finally:
         with owner_engine.begin() as connection:
             for table in (
+                "messaging_reservation_notices",
                 "appointment_reminders",
                 "appointment_history",
                 "appointments",

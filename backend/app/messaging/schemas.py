@@ -67,6 +67,53 @@ class InboxConnectionStatus(BaseModel):
     receive_enabled: bool
 
 
+class ReservationNoticeResponse(BaseModel):
+    id: UUID
+    source: Literal["appointment", "booking", "reservation"]
+    source_id: UUID
+    kind: Literal["confirmation", "reminder"]
+    recipient_name: str
+    body: str
+    starts_at: datetime
+    due_at: datetime
+    timezone: str
+    status: Literal["scheduled", "prepared"]
+    contact_status: Literal[
+        "customer_required",
+        "inactive",
+        "contact_mismatch",
+        "contact_changed",
+        "permitted",
+        "consent_required",
+    ]
+    template_name: str
+
+
+class ReservationSendingStatus(BaseModel):
+    platform_available: bool
+    enabled: bool
+    version: int
+    daily_limit: int
+
+    can_manage: bool = False
+
+
+class ReservationNoticeList(BaseModel):
+    items: list[ReservationNoticeResponse]
+    has_more: bool
+    send_enabled: bool = False
+    template_status: Literal["not_checked"] = "not_checked"
+    reminder_hours: Literal[24] = 24
+    sending_settings: ReservationSendingStatus
+
+
+class ReservationSendingSettings(StrictModel):
+    expected_version: int = Field(ge=0)
+    enabled: bool
+    daily_limit: int = Field(default=10, ge=1, le=25)
+    accept_costs: bool = False
+
+
 class SignupAvailability(BaseModel):
     available: bool
     can_manage: bool
@@ -114,7 +161,7 @@ class InboxConversationResponse(BaseModel):
     customer_name: str | None
     contact_phone: str | None = None
     subject: str
-    origin: Literal["manual", "whatsapp"]
+    origin: Literal["manual", "whatsapp", "business"]
     status: Literal["open", "closed"]
     automation_paused: bool
     assigned_user_id: UUID | None

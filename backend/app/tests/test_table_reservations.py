@@ -366,6 +366,7 @@ def committed_tables(owner_engine):
     finally:
         with owner_engine.begin() as conn:
             for name in (
+                "messaging_reservation_notices",
                 "table_reservation_history",
                 "table_reservations",
                 "booking_availability",

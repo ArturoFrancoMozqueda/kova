@@ -1,5 +1,10 @@
 # Bandeja privada y outbox de comunicación
 
+Las [confirmaciones y recordatorios de reservas](reservation-notices.md) usan plantillas con
+bloqueo independiente de plataforma apagado. Su preparación vive en
+un registro separado de la bandeja/outbox: nunca produce un mensaje enviado, una tarea autorizada
+de entrega ni un reintento externo. Su endpoint de lectura conserva envíos desactivados.
+
 Actualización local 2026-11-11: [Embedded Signup v4](whatsapp-embedded-signup.md) agrega alta del
 dueño con credenciales cifradas, detrás de un gate separado desactivado. Conserva el piloto
 asistido y runtime con acceso de sólo lectura a bindings; el nuevo aprovisionamiento usa una

@@ -7,6 +7,15 @@ archivos) viven en sus PRs y en el historial de git; la versión anterior de est
 
 ## En producción
 
+Confirmaciones y recordatorios de reservas integrados con plantillas y el programador privado,
+con bloqueo de plataforma apagado y activación adicional del dueño por sucursal. Incluye citas,
+reservas públicas y mesas confirmadas. No libera previews anteriores ni envía al aprobar Meta;
+la aceptación real sigue pendiente. [Contrato](../specs/integrations/reservation-notices.md) y
+[activación operativa](runbooks/whatsapp-reservation-notices.md).
+La solicitud de permisos de WhatsApp ya fue enviada con los dos videos y las declaraciones
+autorizadas; Meta confirmó **Revisión en curso**. Esto actualiza las referencias anteriores a un
+borrador pendiente, sin acreditar aprobación ni conexión del número real.
+
 La baseline publicada y verificada es `5c1175a93707ff2458de377194a4e85b14eaa95f`,
 [release 43814811101, intento 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43814811101).
 API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
@@ -64,7 +73,7 @@ Publicado no significa activado. Siguen apagados o sin aceptación externa:
 | --- | --- |
 | Alta pública de tarjeta | Apagada por sucursal hasta que el dueño la active en Lealtad. |
 | Reservas públicas | Publicadas sin anticipo; desactivadas inicialmente por sucursal. Requieren personas/espacios, servicios y disponibilidad reales antes de habilitarse. |
-| WhatsApp | Alta v4 y coexistencia publicadas; `WHATSAPP_SIGNUP_ENABLED=true` sólo tiene efecto en Sweet Home y el negocio aislado del revisor, con admisión auditada. Negocio **Verificado**, app **Activa**, renovación **Completada**, `public_profile` avanzado y cinco campos de webhook suscritos en v25.0. Release aceptado y verificado; el dueño abre el SDK real desde Sweet Home / Sucursal principal. Tras aceptar las condiciones autorizadas e ingresar el 3710, Meta bloquea la app para coexistencia con **3441107**. Los dos permisos de WhatsApp siguen **Standard access**, con borrador todavía sin enviar. Se creó una plantilla de utilidad en la cuenta de pruebas de Meta y se capturó su creación real por la alternativa oficial de App Review. Falta evidencia de envío y recepción, envío y aprobación de permisos, y después aceptación real de coexistencia. La sucursal sigue sin conectar; no está abierta el alta general ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
+| WhatsApp | Alta v4 y coexistencia publicadas; `WHATSAPP_SIGNUP_ENABLED=true` sólo tiene efecto en Sweet Home y el negocio aislado del revisor, con admisión auditada. Negocio **Verificado**, app **Activa**, renovación **Completada**, `public_profile` avanzado y cinco campos de webhook suscritos en v25.0. Release aceptado y verificado; el dueño abre el SDK real desde Sweet Home / Sucursal principal. Tras aceptar las condiciones autorizadas e ingresar el 3710, Meta bloquea la app para coexistencia con **3441107**. La solicitud de acceso avanzado a los dos permisos de WhatsApp fue enviada con los videos reales de mensajería y creación de plantilla; Meta confirmó **Revisión en curso**. La aprobación sigue pendiente, al igual que la aceptación real de coexistencia. La sucursal sigue sin conectar; no está abierta el alta general ([expediente](runbooks/whatsapp-meta-app-review.md), [alta](runbooks/whatsapp-embedded-signup.md), [contrato](../specs/integrations/whatsapp-embedded-signup.md)). |
 | CFDI | Configuración de plataforma detectada (`available:true`); faltan emisor y conexión Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)). |
 | Cierres para contador | Disponibles; falta la validación escrita de un contador ([runbook](runbooks/fiscal-global-drafts.md)). |
 | Asistente | Respuestas locales sí; inferencia externa no aprobada ([ADR-034](adr/ADR-034-asistente-cloudflare-consumo-verificado.md)). Qwen/Cloudflare ya tiene ruta anclada, reportes con una llamada, límites 256/128 y conciliación verificable sin liberar incertidumbre. Selector real validado dentro de cuota gratuita; faltan corpus/revisión humana y recorrido/carga alojados con proveedor. Evidencia en el [runbook](runbooks/assistant-acceptance.md); cambios locales no acreditan publicación ni activación. |
@@ -161,7 +170,7 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
 6. **WhatsApp real.** El dueño confirmó recepción del saludo de prueba de Meta y se guardaron los
    secretos del piloto. La configuración ya está publicada en un proceso nuevo y el SDK abre
    desde la sucursal elegida. Falta completar la autorización de coexistencia con el dueño,
-   resolver la habilitación de Meta que devuelve 3441107, completar evidencia y revisión de permisos,
+   resolver la habilitación de Meta que devuelve 3441107 y obtener respuesta a la revisión de permisos enviada,
    validar ingreso firmado en Kova y aceptar entrega desde la bandeja; ver [runbook](runbooks/whatsapp-embedded-signup.md).
 7. **CFDI.** Datos del emisor, recorrido Test completo con Facturapi y, sólo después, una operación
    Live controlada.

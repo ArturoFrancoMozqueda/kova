@@ -36,6 +36,8 @@ el mismo cuerpo y clave recuperan la misma reserva, nunca duplican clientes ni o
 
 Confirmación en pantalla, archivo ICS sin credenciales y enlace privado de gestión. No implica
 pago, correo o WhatsApp enviados, sincronización externa ni consentimiento de marketing.
+La [preparación privada de avisos](../integrations/reservation-notices.md) agrega confirmación y
+recordatorio de 24 horas para nuevas reservas confirmadas. Sus envíos permanecen desactivados.
 
 ## Identidad y gestión
 

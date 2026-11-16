@@ -51,6 +51,14 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
+    ExportTable("messaging_reservation_policies", _columns(
+        "id tenant_id branch_id binding_id enabled authorized_by_user_id version daily_limit "
+        "enabled_since updated_at"
+    )),
+    ExportTable("messaging_reservation_notices", _columns(
+        "id tenant_id branch_id appointment_id booking_id reservation_id source_revision "
+        "kind state starts_at due_at created_at message_id policy_version"
+    )),
     ExportTable("table_reservations", _columns(
         "id tenant_id branch_id resource_id customer_id guest_name phone party_size "
         "timezone starts_at status version created_at seated_at released_at"
@@ -597,6 +605,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "messaging_reservation_notices",
+    "messaging_reservation_policies",
     "table_reservation_history", "table_reservations",
     "booking_history", "public_bookings", "booking_service_resources", "booking_availability",
     "booking_services", "booking_pages", "loyalty_appearances",

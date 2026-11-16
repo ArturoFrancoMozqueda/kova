@@ -255,6 +255,8 @@ def _ensure_free(db, tenant, resource_id, starts_at, ends_at, excluding=None):
 
 
 def _record_change(db, row, actor, action):
+    from app.messaging.reservations import refresh as refresh_notices
+
     db.add(
         AppointmentHistory(
             tenant_id=row.tenant_id,
@@ -288,6 +290,7 @@ def _record_change(db, row, actor, action):
             )
         )
     db.flush()
+    refresh_notices(db, row)
 
 
 def create_appointment(db, tenant, actor, body, key):

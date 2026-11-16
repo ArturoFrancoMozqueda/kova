@@ -17,7 +17,7 @@ from app.branches.scope import active_branch_id
 from app.config import settings
 from app.crm.router import require_crm
 from app.db import get_db, get_privileged_db
-from app.messaging import app_sync, connections, delivery, onboarding, service
+from app.messaging import app_sync, connections, delivery, onboarding, reservations, service
 from app.messaging.readiness import MessagingReadiness, readiness
 from app.messaging.schemas import (
     InboxAutomationDraftCreate,
@@ -32,6 +32,9 @@ from app.messaging.schemas import (
     InboxMessageList,
     InboxMessageResponse,
     InboxMessageTransition,
+    ReservationNoticeList,
+    ReservationSendingSettings,
+    ReservationSendingStatus,
     SendingSettings,
     SignupAvailability,
     SignupFinish,
@@ -42,6 +45,54 @@ from app.messaging.whatsapp import ChannelError
 from app.middleware.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
+
+
+@router.get("/reservation-notices", response_model=ReservationNoticeList)
+def reservation_notices(
+    response: Response,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    response.headers["Cache-Control"] = "no-store"
+    return reservations.listing(
+        db, ctx[1].tenant_id, limit=limit, offset=offset, owner=ctx[1].role == "owner"
+    )
+
+
+@router.get("/reservation-notices/settings", response_model=ReservationSendingStatus)
+def reservation_sending_status(
+    response: Response, db: Session = Depends(get_db), ctx=Depends(require_crm)
+):
+    from app.messaging import reservation_delivery
+
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        **reservation_delivery.status(db, ctx[1].tenant_id),
+        "can_manage": ctx[1].role == "owner",
+    }
+
+
+@router.put(
+    "/reservation-notices/settings",
+    response_model=ReservationSendingStatus,
+    dependencies=[Depends(rate_limit(5, key="reservation-sending-settings"))],
+)
+def configure_reservation_sending(
+    body: ReservationSendingSettings,
+    response: Response,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    from app.messaging import reservation_delivery
+
+    if ctx[1].role != "owner":
+        raise HTTPException(403, "El dueño del negocio debe autorizar los avisos automáticos")
+    response.headers["Cache-Control"] = "no-store"
+    result = reservation_delivery.configure(db, ctx[1].tenant_id, ctx[0].id, body)
+    db.commit()
+    return {**result, "can_manage": True}
 
 
 @router.get("/onboarding", response_model=SignupAvailability)

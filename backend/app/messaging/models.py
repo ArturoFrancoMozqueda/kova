@@ -25,6 +25,113 @@ def now():
     return datetime.now(UTC)
 
 
+class ReservationNotice(BranchScoped, Base):
+    """Immutable reservation snapshots linked once to the durable outbox."""
+
+    __tablename__ = "messaging_reservation_notices"
+    __table_args__ = (
+        ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
+        *(
+            ForeignKeyConstraint(
+                ["tenant_id", "branch_id", column],
+                [f"{table}.tenant_id", f"{table}.branch_id", f"{table}.id"],
+            )
+            for column, table in (
+                ("appointment_id", "appointments"),
+                ("booking_id", "public_bookings"),
+                ("reservation_id", "table_reservations"),
+            )
+        ),
+        UniqueConstraint("message_id", name="uq_reservation_notice_message"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "message_id"],
+            [
+                "messaging_messages.tenant_id",
+                "messaging_messages.branch_id",
+                "messaging_messages.id",
+            ],
+        ),
+        CheckConstraint(
+            "num_nonnulls(appointment_id,booking_id,reservation_id) = 1",
+            name="ck_reservation_notice_source",
+        ),
+        CheckConstraint("kind IN ('confirmation','reminder')", name="ck_reservation_notice_kind"),
+        CheckConstraint("state IN ('prepared','suppressed')", name="ck_reservation_notice_state"),
+        *(
+            UniqueConstraint(column, "source_revision", "kind", name=f"uq_notice_{column}_revision")
+            for column in ("appointment_id", "booking_id", "reservation_id")
+        ),
+        *(
+            Index(
+                f"uq_notice_{column}_active",
+                column,
+                "kind",
+                unique=True,
+                postgresql_where=text("state = 'prepared'"),
+            )
+            for column in ("appointment_id", "booking_id", "reservation_id")
+        ),
+        Index(
+            "ix_reservation_notice_due",
+            "tenant_id",
+            "branch_id",
+            "policy_version",
+            "due_at",
+            "id",
+            postgresql_where=text("state = 'prepared' AND policy_version IS NOT NULL"),
+        ),
+        Index(
+            "ix_reservation_notice_upcoming", "tenant_id", "branch_id", "state", "starts_at", "id"
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    appointment_id: Mapped[UUID | None] = mapped_column()
+    booking_id: Mapped[UUID | None] = mapped_column()
+    reservation_id: Mapped[UUID | None] = mapped_column()
+    policy_version: Mapped[int | None] = mapped_column(Integer)
+    message_id: Mapped[UUID | None] = mapped_column()
+    source_revision: Mapped[str] = mapped_column(String(64), nullable=False)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    recipient_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), default="prepared", nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ReservationNoticePolicy(BranchScoped, Base):
+    __tablename__ = "messaging_reservation_policies"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "branch_id"),
+        ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
+        ForeignKeyConstraint(
+            ["tenant_id", "authorized_by_user_id"], ["memberships.tenant_id", "memberships.user_id"]
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "binding_id"],
+            [
+                "messaging_channel_bindings.tenant_id",
+                "messaging_channel_bindings.branch_id",
+                "messaging_channel_bindings.id",
+            ],
+        ),
+        CheckConstraint(
+            "version >= 1 AND daily_limit BETWEEN 1 AND 25", name="ck_reservation_policy"
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    binding_id: Mapped[UUID | None] = mapped_column()
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    authorized_by_user_id: Mapped[UUID] = mapped_column(nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    daily_limit: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    enabled_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class ChannelBinding(BranchScoped, Base):
     __tablename__ = "messaging_channel_bindings"
     __table_args__ = (
@@ -122,11 +229,11 @@ class Conversation(BranchScoped, Base):
             ],
         ),
         CheckConstraint(
-            "status IN ('open','closed') AND origin IN ('manual','whatsapp') AND version >= 1",
+            "status IN ('open','closed') AND origin IN ('manual','whatsapp','business') AND version >= 1",  # noqa: E501
             name="ck_messaging_conversation_state",
         ),
         CheckConstraint(
-            "(origin='whatsapp') = (binding_id IS NOT NULL AND external_party IS NOT NULL)",
+            "(origin IN ('whatsapp','business')) = (binding_id IS NOT NULL AND external_party IS NOT NULL)",  # noqa: E501
             name="ck_messaging_conversation_origin",
         ),
     )

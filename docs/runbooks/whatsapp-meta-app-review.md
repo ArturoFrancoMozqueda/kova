@@ -1,7 +1,8 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado actualizado: 16 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
-borrador técnico, sin enviar ni aprobar. La renovación anual de acceso a datos es un trámite
+Estado actualizado: 16 de noviembre de 2026. La solicitud de permisos de WhatsApp fue enviada
+con las declaraciones autorizadas y los dos videos; Meta confirmó **Revisión en curso**, sin
+aprobación todavía. La renovación anual de acceso a datos es un trámite
 separado: Meta ya la muestra **Completada** y confirmó la app **Activa**. Complementa el
 [runbook de alta](whatsapp-embedded-signup.md).
 
@@ -330,3 +331,25 @@ acredita suficiencia jurídica ni aprobación de Meta por sí mismo.
 Fuente primaria consultada en sesión autenticada el 12 de noviembre de 2026:
 [Implementación de Embedded Signup v4](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/).
 La página recomienda la plantilla de token de 60 días y sólo los activos/permisos necesarios.
+
+## Envío confirmado del 16 de noviembre de 2026
+
+Los videos privados de creación de plantilla y de envío/recepción quedaron adjuntos y guardados.
+El segundo une el único envío autorizado desde Meta con la comprobación posterior del mismo
+saludo recibido a las 9:51 en WhatsApp Web. Se excluyeron credenciales y otros chats; no se
+repitió el envío ni se simuló la recepción. Los nombres de archivo y las referencias privadas
+de videos no se publican aquí.
+
+Con confirmación explícita del titular se certificaron ambos usos permitidos de WhatsApp y
+public_profile; después autorizó y se aceptó la declaración final de Condiciones de la plataforma
+y Políticas para desarrolladores. Se pulsó Enviar y Meta mostró **Revisión en curso** para las dos
+nuevas solicitudes y el acceso existente public_profile. El panel indica que la mayoría se revisa
+en un plazo de 20 días y que puede demorar más si pide información o correcciones. Una actualización
+posterior del panel conserva ese estado. Esto reemplaza las referencias a evidencia pendiente y
+borrador sin enviar de las secciones históricas anteriores.
+
+La aprobación no se presume: falta respuesta de Meta, habilitación de coexistencia y aceptación
+real del número autorizado desde Sweet Home / Sucursal principal. Los [avisos de reservas](../../specs/integrations/reservation-notices.md) tienen dispatcher de
+plantillas integrado, con bloqueo de plataforma apagado y autorización adicional por sucursal.
+No hay entrega real ni activación automática por esta revisión; falta la
+[aceptación operativa](whatsapp-reservation-notices.md).

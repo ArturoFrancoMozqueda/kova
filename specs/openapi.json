@@ -7573,7 +7573,8 @@
           "origin": {
             "enum": [
               "manual",
-              "whatsapp"
+              "whatsapp",
+              "business"
             ],
             "title": "Origin",
             "type": "string"
@@ -16828,6 +16829,206 @@
           "status"
         ],
         "title": "RequestResolve",
+        "type": "object"
+      },
+      "ReservationNoticeList": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationNoticeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "reminder_hours": {
+            "const": 24,
+            "default": 24,
+            "title": "Reminder Hours",
+            "type": "integer"
+          },
+          "send_enabled": {
+            "default": false,
+            "title": "Send Enabled",
+            "type": "boolean"
+          },
+          "sending_settings": {
+            "$ref": "#/components/schemas/ReservationSendingStatus"
+          },
+          "template_status": {
+            "const": "not_checked",
+            "default": "not_checked",
+            "title": "Template Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "sending_settings"
+        ],
+        "title": "ReservationNoticeList",
+        "type": "object"
+      },
+      "ReservationNoticeResponse": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "contact_status": {
+            "enum": [
+              "customer_required",
+              "inactive",
+              "contact_mismatch",
+              "contact_changed",
+              "permitted",
+              "consent_required"
+            ],
+            "title": "Contact Status",
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "confirmation",
+              "reminder"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "recipient_name": {
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "appointment",
+              "booking",
+              "reservation"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "scheduled",
+              "prepared"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "template_name": {
+            "title": "Template Name",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "source_id",
+          "kind",
+          "recipient_name",
+          "body",
+          "starts_at",
+          "due_at",
+          "timezone",
+          "status",
+          "contact_status",
+          "template_name"
+        ],
+        "title": "ReservationNoticeResponse",
+        "type": "object"
+      },
+      "ReservationSendingSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "accept_costs": {
+            "default": false,
+            "title": "Accept Costs",
+            "type": "boolean"
+          },
+          "daily_limit": {
+            "default": 10,
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Daily Limit",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "enabled"
+        ],
+        "title": "ReservationSendingSettings",
+        "type": "object"
+      },
+      "ReservationSendingStatus": {
+        "properties": {
+          "can_manage": {
+            "default": false,
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "daily_limit": {
+            "title": "Daily Limit",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "platform_available": {
+            "title": "Platform Available",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "platform_available",
+          "enabled",
+          "version",
+          "daily_limit"
+        ],
+        "title": "ReservationSendingStatus",
         "type": "object"
       },
       "RestockAlertRow": {
@@ -33746,6 +33947,122 @@
           }
         },
         "summary": "Messaging Readiness",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/reservation-notices": {
+      "get": {
+        "operationId": "reservation_notices_api_v1_messaging_reservation_notices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationNoticeList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reservation Notices",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/api/v1/messaging/reservation-notices/settings": {
+      "get": {
+        "operationId": "reservation_sending_status_api_v1_messaging_reservation_notices_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationSendingStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reservation Sending Status",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "put": {
+        "operationId": "configure_reservation_sending_api_v1_messaging_reservation_notices_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationSendingSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationSendingStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure Reservation Sending",
         "tags": [
           "messaging"
         ]

@@ -78,7 +78,8 @@ def _conversation_response(db, row):
         **values,
         customer_name=customer.name if customer else contact.name if contact else None,
         contact_phone=row.external_party
-        if row.origin == "whatsapp" and re.fullmatch(r"[0-9]+", row.external_party or "")
+        if row.origin in {"whatsapp", "business"}
+        and re.fullmatch(r"[0-9]+", row.external_party or "")
         else None,
     ).model_dump(mode="json")
 
@@ -185,7 +186,7 @@ def update_conversation(db, tenant, actor, identifier, body, key):
     if "customer_id" in changes and changes["customer_id"] is not None:
         customer = _customer(db, tenant, changes["customer_id"])
         if not customer.is_active or (
-            row.origin == "whatsapp" and _phone(customer.phone) != row.external_party
+            row.origin in {"whatsapp", "business"} and _phone(customer.phone) != row.external_party
         ):
             raise conflict("Verifica que el contacto corresponde al cliente activo elegido")
     for name, value in changes.items():
@@ -382,7 +383,15 @@ def _send_policy(db, tenant, message, conversation, *, stamp, human_actor=None):
     party = conversation.external_party
     if not party or not re.fullmatch(r"[1-9][0-9]{7,14}", party) or _phone(customer.phone) != party:
         return "contact_mismatch", None
-    # This delivery path intentionally only implements transactional free text.
+    if message.message_type == "template":
+        if message.purpose != "transactional":
+            return "approved_template_required", None
+        from app.messaging.reservation_delivery import message_context
+
+        if message_context(db, tenant, message, conversation, stamp=stamp) is None:
+            return "reservation_authorization_changed", None
+        return None, (binding, current, party)
+    # Ordinary free text still requires a real inbound service window.
     if message.purpose != "transactional":
         return "approved_template_required", None
     inbound = conversation.last_inbound_at
@@ -647,7 +656,7 @@ def dispatch_one(
 
     Caller injects one adapter already resolved for the binding by its trusted resolver.
     Disabled by default. The assisted HTTP pilot requires explicit human authorization;
-    the scheduler still never injects a provider or enables external delivery.
+    the reservation scheduler additionally requires platform and owner opt-in gates.
     """
     if not enabled or provider is None:
         return {"status": "disabled"}
@@ -692,10 +701,33 @@ def dispatch_one(
             _state(row, "suppressed", "daily_send_limit")
             db.commit()
             return {"status": row.state}
+    template = None
+    if row.message_type == "template":
+        from app.messaging.reservation_delivery import message_context
+        from app.messaging.reservation_templates import LANGUAGE
+
+        template = message_context(db, tenant_id, row, conversation, stamp=now())
+        if template is None:
+            _state(row, "suppressed", "reservation_authorization_changed")
+            db.commit()
+            return {"status": row.state}
+        try:
+            provider.require_reservation_template(waba_id=binding.waba_id, name=template[0])
+        except ChannelError:
+            # No POST occurred; block visibly and require review rather than retrying.
+            _state(row, "suppressed", "approved_template_required")
+            db.commit()
+            return {"status": row.state}
     _state(row, "sending")
     db.commit()
     try:
-        result = provider.send_text(to=party, text=row.body)
+        result = (
+            provider.send_template(
+                to=party, name=template[0], language=LANGUAGE, body_parameters=template[1]
+            )
+            if template
+            else provider.send_text(to=party, text=row.body)
+        )
     except Exception as exc:
         # Fixed local codes only; arbitrary SDK/provider exception text is never stored.
         _lock(db, tenant_id)

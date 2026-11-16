@@ -156,6 +156,8 @@ BEGIN
             ('messaging_app_sync', 'SELECT'),
             ('messaging_app_contacts', 'SELECT, INSERT'),
             ('messaging_webhook_batches', 'SELECT, INSERT'),
+            ('messaging_reservation_notices', 'SELECT, INSERT'),
+            ('messaging_reservation_policies', 'SELECT, INSERT'),
             ('messaging_conversations', 'SELECT, INSERT'),
             ('messaging_messages', 'SELECT, INSERT'),
             ('messaging_channel_events', 'SELECT, INSERT'),
@@ -282,6 +284,10 @@ DO $$ BEGIN
         GRANT UPDATE(history_state, progress, updated_at) ON messaging_app_sync TO kova_app;
         GRANT UPDATE(name, removed, changed_at) ON messaging_app_contacts TO kova_app;
         GRANT UPDATE(cursor, state, encrypted_payload) ON messaging_webhook_batches TO kova_app;
+    END IF;
+    IF to_regclass('public.messaging_reservation_notices') IS NOT NULL THEN
+        GRANT UPDATE(state,message_id) ON messaging_reservation_notices TO kova_app;
+        GRANT UPDATE(enabled,binding_id,authorized_by_user_id,version,daily_limit,enabled_since,updated_at) ON messaging_reservation_policies TO kova_app;
     END IF;
     IF to_regclass('public.messaging_conversations') IS NOT NULL THEN
         GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id,
