@@ -4,7 +4,8 @@ import { build } from "esbuild";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { fileURLToPath } from "node:url";
 
-test("signup settings extend only four reviewed fields over private RPC, never HTTP", async () => {
+for (const reservationGate of [undefined, "false", "true", "invalid"]) {
+test(`private signup settings preserve original fields and fail closed for reservation gate ${reservationGate}`, async () => {
   const bundled = await build({ entryPoints: [fileURLToPath(new URL("../signup-settings.mjs", import.meta.url))],
     bundle: true, write: false, format: "esm", platform: "neutral", target: "es2022",
     external: ["cloudflare:workers"], conditions: ["workerd", "worker", "browser"] });
@@ -21,6 +22,7 @@ test("signup settings extend only four reviewed fields over private RPC, never H
       serviceBindings: { ORIGINAL: { name: "original", entrypoint: "Original" } },
       bindings: { WHATSAPP_APP_ID: "123", WHATSAPP_SIGNUP_CONFIG_ID: "456",
         WHATSAPP_SIGNUP_ENABLED: "true", WHATSAPP_CREDENTIALS_KEY: "synthetic-root",
+        ...(reservationGate === undefined ? {} : { WHATSAPP_RESERVATION_SENDING_ENABLED: reservationGate }),
         SECRET_KEY: "must-not-override", KOVA_BOOT_CONTROLLER_SHA: "must-not-override",
         CLOUDFLARE_API_TOKEN: "must-not-project" } },
     { name: "caller", modules: true, compatibilityDate: "2026-10-17",
@@ -31,6 +33,7 @@ test("signup settings extend only four reviewed fields over private RPC, never H
   try {
     const caller = await runtime.getWorker("caller");
     const result = await (await caller.fetch("https://private.test/")).json();
+    assert.equal(result.WHATSAPP_RESERVATION_SENDING_ENABLED, reservationGate === "true" ? "true" : "false");
     assert.equal(result.SECRET_KEY, "original-only");
     assert.equal(result.APP_DATABASE_URL, "original-database");
     assert.equal(result.WHATSAPP_APP_SECRET, "original-meta");
@@ -45,3 +48,5 @@ test("signup settings extend only four reviewed fields over private RPC, never H
     }
   } finally { await runtime.dispose(); }
 });
+
+}

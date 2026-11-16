@@ -13,6 +13,9 @@ inexistentes o desactivadas. No se enviaron mensajes reales ni se modificaron n�
    Esperar `APPROVED`; la aprobación de permisos no aprueba plantillas.
 3. Mediante la configuración operativa privada y el workflow de publicación, preparar API y jobs
    con la misma bandera de envíos, cohorte `AUTOMATION_TENANT_IDS` y conexión verificada. El job
+   recibe la bandera por el binding privado de jobs; la API nativa la recibe únicamente mediante
+   `SignupSettings`, con valor falso si falta o es inválido. No modificar `settings-keys.json`
+   del controlador compartido: la publicación lo mantiene inmutable. El job
    necesita los ajustes de WhatsApp y la clave de descifrado ya usada por la API, suministrados por
    los canales de secretos existentes; nunca en argumentos, logs ni navegador. Jobs conserva sólo
    el rol runtime, sin credenciales de migración. No ampliar el cohorte ni habilitar otros negocios.
