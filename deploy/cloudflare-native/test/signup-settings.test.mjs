@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { fileURLToPath } from "node:url";
 
-test("signup settings extend only four reviewed fields over private RPC, never HTTP", async () => {
+test("signup settings extend only five reviewed fields over private RPC, never HTTP", async () => {
   const bundled = await build({ entryPoints: [fileURLToPath(new URL("../signup-settings.mjs", import.meta.url))],
     bundle: true, write: false, format: "esm", platform: "neutral", target: "es2022",
     external: ["cloudflare:workers"], conditions: ["workerd", "worker", "browser"] });
@@ -21,6 +21,7 @@ test("signup settings extend only four reviewed fields over private RPC, never H
       serviceBindings: { ORIGINAL: { name: "original", entrypoint: "Original" } },
       bindings: { WHATSAPP_APP_ID: "123", WHATSAPP_SIGNUP_CONFIG_ID: "456",
         WHATSAPP_SIGNUP_ENABLED: "true", WHATSAPP_CREDENTIALS_KEY: "synthetic-root",
+        WHATSAPP_SIGNUP_TENANT_IDS: "11111111-1111-4111-8111-111111111111",
         SECRET_KEY: "must-not-override", KOVA_BOOT_CONTROLLER_SHA: "must-not-override",
         CLOUDFLARE_API_TOKEN: "must-not-project" } },
     { name: "caller", modules: true, compatibilityDate: "2026-10-17",
@@ -37,6 +38,7 @@ test("signup settings extend only four reviewed fields over private RPC, never H
     assert.equal(result.KOVA_BOOT_CONTROLLER_SHA, "a".repeat(40));
     assert.equal(result.WHATSAPP_CREDENTIALS_KEY, "synthetic-root");
     assert.equal(result.WHATSAPP_SIGNUP_CONFIG_ID, "456");
+    assert.equal(result.WHATSAPP_SIGNUP_TENANT_IDS, "11111111-1111-4111-8111-111111111111");
     assert.equal(result.CLOUDFLARE_API_TOKEN, undefined);
     const settings = await runtime.getWorker("settings");
     for (const path of ["/", "/getRuntimeEnvironment", "/SignupSettings"]) {

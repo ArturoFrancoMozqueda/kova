@@ -22,11 +22,11 @@ type VariantContent = {
 
 const content: Record<LegalPageProps["variant"], VariantContent> = {
   privacy: {
-    eyebrow: "Legal · Versión 1.1",
+    eyebrow: "Legal · Versión 1.2",
     title: "Aviso de privacidad integral",
     intro:
       "Este aviso describe qué datos personales tratamos al prestar el servicio, para qué los utilizamos y cómo solicitar su acceso, corrección o eliminación. Incluye el tratamiento asociado a WhatsApp cuando un negocio autoriza esa conexión.",
-    lastUpdated: "14 de noviembre de 2026",
+    lastUpdated: "15 de noviembre de 2026",
     sections: [
       {
         heading: "I. Propósito de este documento",
@@ -63,7 +63,8 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "• Identificadores de la cuenta de WhatsApp del negocio y del número comercial autorizado, estado de la conexión y permisos de atención.",
           "• Números de contacto, texto de mensajes recibidos y borradores o respuestas del negocio, identificadores y tipos de mensaje, fechas y estados de envío, entrega o lectura que Meta comunique.",
           "• Credenciales de autorización de la conexión, almacenadas cifradas en el servidor. Los códigos temporales de autorización se usan para completar la conexión y no forman parte de la exportación del negocio.",
-          "Esta integración no importa el historial personal del teléfono ni descarga imágenes, audios, videos o documentos recibidos por WhatsApp. Puede conservar el tipo de un mensaje sin guardar su archivo.",
+          "• Si el dueño autoriza conservar su número en WhatsApp Business mediante coexistencia: contactos e historial de la cuenta comercial que Meta permita compartir, y mensajes enviados desde la app del celular para reflejarlos en la bandeja de Kova. El dueño puede rechazar compartir el historial en Meta.",
+          "La integración sólo recibe los datos de la cuenta comercial autorizada que Meta entregue; no accede a otras cuentas del teléfono ni descarga imágenes, audios, videos o documentos recibidos por WhatsApp. Puede conservar el tipo de un mensaje sin guardar su archivo.",
           "2.6 Datos que no solicitamos de forma obligatoria para crear una cuenta:",
           "• Datos biométricos.",
           "• Datos de salud.",
@@ -108,6 +109,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "VI. WhatsApp, Meta y proveedores del servicio",
         body: [
           "El negocio decide conectar su cuenta de WhatsApp y es responsable de contar con una base legítima para contactar a sus clientes y del contenido que envía. Kova trata las conversaciones por cuenta de ese negocio para prestar la función de atención autorizada. Su personal sólo accede conforme a los permisos del negocio y de la sucursal correspondientes.",
+          "Cuando la cuenta sea compatible y el dueño lo autorice, la coexistencia permite conservar el número y seguir usando WhatsApp Business en el celular. Kova importa los datos comerciales autorizados para consultar conversaciones y reflejar la atención del negocio. Los contactos importados se mantienen separados del CRM y no se convierten automáticamente en clientes ni en consentimiento para enviar mensajes. El historial y los mensajes enviados desde el celular no autorizan por sí solos nuevas respuestas desde Kova.",
           "Meta y WhatsApp intervienen en la autorización de la cuenta y en el transporte y los estados de los mensajes, conforme a sus propias condiciones y avisos de privacidad. Para alojar y operar Kova utilizamos Cloudflare y Supabase como proveedores de infraestructura. El tratamiento puede realizarse fuera de México; no ofrecemos almacenamiento exclusivo en México.",
           "Los datos de WhatsApp se comparten con estos proveedores sólo en lo necesario para operar la conexión, alojar la información y proteger el servicio. No se venden ni se comparten con anunciantes para crear perfiles publicitarios.",
           "La conexión utiliza comunicaciones HTTPS, control de acceso por negocio y sucursal y credenciales cifradas en el servidor. No compartas contraseñas, códigos de autorización ni tokens por correo o en una conversación de soporte.",
@@ -127,7 +129,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "• Cuando el titular programe la eliminación de su cuenta, se aplicará un plazo reversible de al menos 30 días antes de la purga definitiva.",
           "• El tiempo adicional necesario para cumplir obligaciones legales, fiscales o contables (hasta 5 años conforme a legislación fiscal mexicana).",
           "• El tiempo necesario para resolver disputas o reclamaciones pendientes.",
-          "Las conversaciones de WhatsApp, sus estados y los datos de conexión forman parte de los datos del negocio sujetos a estas reglas. No se borran al cerrar una conversación ni al pausar respuestas. La exportación del negocio incluye el texto y los estados de sus mensajes; excluye las credenciales de conexión y los códigos de autorización. La purga de una cuenta comprende también su historial y sus credenciales de WhatsApp, salvo la información que deba conservarse por una obligación aplicable.",
+          "Las conversaciones de WhatsApp, sus estados, los contactos importados y los datos de conexión forman parte de los datos del negocio sujetos a estas reglas. No se borran al cerrar una conversación ni al pausar respuestas. La exportación del negocio incluye el texto, el origen y los estados de sus mensajes y los contactos importados; excluye las credenciales de conexión y los códigos de autorización. La purga de una cuenta comprende también su historial, sus contactos importados y sus credenciales de WhatsApp, salvo la información que deba conservarse por una obligación aplicable.",
           "Transcurridos estos períodos, los datos serán eliminados de forma segura o anonimizados de manera irreversible.",
         ],
       },

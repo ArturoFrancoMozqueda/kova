@@ -8,7 +8,7 @@ export class SignupSettings extends WorkerEntrypoint {
     const original = await this.env.ORIGINAL.getRuntimeEnvironment(input);
     const extra = {};
     for (const name of ["WHATSAPP_APP_ID", "WHATSAPP_SIGNUP_CONFIG_ID",
-      "WHATSAPP_SIGNUP_ENABLED", "WHATSAPP_CREDENTIALS_KEY"]) {
+      "WHATSAPP_SIGNUP_ENABLED", "WHATSAPP_SIGNUP_TENANT_IDS", "WHATSAPP_CREDENTIALS_KEY"]) {
       if (typeof this.env[name] === "string") extra[name] = this.env[name];
     }
     return { ...original, ...extra };

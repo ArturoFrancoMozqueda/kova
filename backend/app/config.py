@@ -129,6 +129,9 @@ class Settings(BaseSettings):
     # Embedded Signup v4 is a separate, explicit platform rollout. Public IDs
     # configure the SDK; the encryption key and Meta secret stay server-side.
     whatsapp_signup_enabled: bool = False
+    # Optional server-controlled pilot cohort. An empty list preserves the
+    # global rollout; a non-empty list limits new authorizations to its tenants.
+    whatsapp_signup_tenant_ids: str = ""
     whatsapp_app_id: str = Field(default="", pattern=r"^(?:[1-9][0-9]{0,31})?$")
     whatsapp_signup_config_id: str = Field(default="", pattern=r"^(?:[1-9][0-9]{0,31})?$")
     whatsapp_credentials_key: SecretStr | None = None
@@ -180,7 +183,7 @@ class Settings(BaseSettings):
     assistant_groq_minute_tokens: int = Field(default=7200, ge=1, le=8000)
     assistant_groq_minute_requests: int = Field(default=27, ge=1, le=30)
 
-    @field_validator("assistant_tenant_ids", "automation_tenant_ids")
+    @field_validator("assistant_tenant_ids", "automation_tenant_ids", "whatsapp_signup_tenant_ids")
     @classmethod
     def validate_assistant_cohort(cls, value: str) -> str:
         return ",".join(

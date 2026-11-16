@@ -1,6 +1,6 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado actualizado: 14 de noviembre de 2026. Este expediente es un borrador técnico, no una solicitud
+Estado actualizado: 15 de noviembre de 2026. Este expediente es un borrador técnico, no una solicitud
 enviada ni una aprobación de Meta. Complementa el [runbook de alta](whatsapp-embedded-signup.md).
 
 ## Alcance que debe revisar Meta
@@ -47,6 +47,15 @@ publicado con gate apagado; sigue pendiente de aceptación real, como se registr
 
 ## Acceso aislado para el revisor
 
+Comprobación del 15 de noviembre: correo y login válidos, cero clientes y conversaciones, canal
+sin conectar y alta apagada. La renovación anual de Meta exige credenciales activas durante un
+año; la prueba hasta el 21 de noviembre no cumplía ese plazo. El titular autorizó la cortesía
+permanente existente únicamente para este negocio aislado y la entrega de sus credenciales a Meta
+en el formulario privado. La operación verificó identidad, único dueño confirmado y ausencia de
+Stripe/datos de clientes, y dejó auditoría. La API normal confirma `reason=complimentary`.
+No se cambiaron fechas de prueba ni estados de pago ni suscripciones de otros negocios. La fecha
+`valid_until` de la sesión sigue siendo un límite de caché/offline, no vencimiento de la cortesía.
+
 Preparado el 14 de noviembre de 2026 mediante el registro público ordinario de Kova:
 
 - Inicio de sesión: `https://kovasuite.com/login`.
@@ -74,6 +83,33 @@ Instrucciones base para el formulario privado del revisor, después de aceptar e
 
 No enviar el expediente mientras el revisor no pueda reproducir realmente ese recorrido. Meta
 [requiere acceso a las funciones solicitadas y evidencia reproducible](https://developers.facebook.com/docs/resp-plat-initiatives/app-review/introduction).
+
+## Configuración de Meta comprobada el 15 de noviembre
+
+- Con autorización explícita del titular se activaron `history`, `smb_app_state_sync` y
+  `smb_message_echoes`, todos en v25.0, conservando `messages` y `account_update`. El MCP confirmó
+  cinco campos suscritos; no se cambió el callback ni el token de verificación.
+- El cambio autorizado a modo Activo fue bloqueado por Meta: exige una **Renovación del acceso
+  a datos**. Se solicitó la evaluación y apareció la acción correspondiente, con vencimiento el
+  14 de enero de 2027. La app **sigue en modo Desarrollo**.
+- El titular autorizó certificar `public_profile` y confirmar los proveedores, responsable y
+  respuestas de tratamiento anteriores. Esos apartados quedaron completos. Privacidad conserva
+  `https://kovasuite.com/privacy`; las instrucciones explican el login propio de Kova, el uso de
+  Facebook Login for Business sólo para WhatsApp y el gate público apagado. No se envió la nueva
+  evaluación. Se guardaron las credenciales autorizadas de la cuenta aislada con cortesía; Meta
+  habilitó **Enviar**. El formulario declara expresamente que el alta de WhatsApp continúa apagada
+  y no atribuye una conversación conectada a esa cuenta. El envío formal sigue pendiente.
+- Los textos de ambos permisos de WhatsApp se actualizaron en el borrador de App Review para
+  explicar coexistencia, importación autorizada y separación entre historial/eco y mensajes en
+  vivo. Sin video real ni nuevas certificaciones, ese borrador tampoco se envió.
+- El titular eligió **Cafetería Sweet Home / Sucursal principal** para la prueba real. El número
+  de WhatsApp Business móvil no se conectó, registró, migró ni importó. Conservar la app móvil.
+
+Para acotar la aceptación se agregó `WHATSAPP_SIGNUP_TENANT_IDS` al canal privado de configuración:
+una lista no vacía limita disponibilidad, inicio y finalización al negocio autenticado en servidor.
+No activar el interruptor global sin configurar y comprobar el alcance del piloto. Un valor vacío
+conserva el rollout general explícito, que todavía no está autorizado como disponibilidad pública.
+Las conexiones ya verificadas y sus eventos no se revocan al retirar el acceso a nuevas altas.
 
 ## Texto base para los formularios de Meta
 

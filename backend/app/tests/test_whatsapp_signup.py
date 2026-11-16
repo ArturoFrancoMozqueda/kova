@@ -10,13 +10,13 @@ import httpx
 import pytest
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership
 from app.branches.scope import tenant_wide_branches
-from app.config import settings
+from app.config import Settings, settings
 from app.messaging import credentials, delivery, onboarding
 from app.messaging.models import ChannelBinding, ChannelConnection, Conversation, SignupSession
 from app.messaging.schemas import SignupFinish
@@ -34,6 +34,7 @@ def configured(monkeypatch):
     for name, value in {
         "kova_whatsapp_enabled": True,
         "whatsapp_signup_enabled": True,
+        "whatsapp_signup_tenant_ids": "",
         "whatsapp_graph_api_version": "v25.0",
         "whatsapp_app_id": "123",
         "whatsapp_signup_config_id": "456",
@@ -83,6 +84,67 @@ def begin(client):
         code="synthetic-exchange-code", waba_id="987", phone_number_id="654", event="FINISH"
     )
     return account, body
+
+
+def test_pilot_cohort_uses_server_session_and_rejects_before_creating_session(
+    client, db, configured, monkeypatch
+):
+    _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Fuera del piloto")
+    allowed = uuid4()
+    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(allowed))
+    meta = FakeMeta()
+    monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
+    state = client.get(BASE, params={"tenant_id": str(allowed)})
+    assert state.status_code == 200
+    assert state.json()["available"] is False
+    assert state.json()["app_id"] is None
+    assert state.json()["config_id"] is None
+    readiness = client.get("/api/v1/messaging/readiness", params={"tenant_id": str(allowed)})
+    assert readiness.status_code == 200
+    assert readiness.json()["signup_available"] is False
+    assert client.post(f"{BASE}/start", json={}).status_code == 409
+    assert db.query(SignupSession).count() == 0
+    assert meta.calls == []
+
+
+def test_pilot_removal_blocks_pending_finish_and_global_switch_still_wins(
+    client, db, configured, monkeypatch
+):
+    account = _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Piloto autorizado")
+    tenant = account["tenant_id"]
+    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(tenant))
+    assert client.get(BASE).json()["available"] is True
+    assert client.get("/api/v1/messaging/readiness").json()["signup_available"] is True
+    response = client.post(f"{BASE}/start", json={})
+    assert response.status_code == 200
+    body = {k: v for k, v in response.json().items() if k != "expires_at"}
+    body.update(code="synthetic-exchange-code", waba_id="987", phone_number_id="654", event="FINISH")
+    meta = FakeMeta()
+    monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
+    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(uuid4()))
+    assert client.post(f"{BASE}/finish", json=body).status_code == 409
+    assert meta.calls == []
+    assert db.query(SignupSession).one().state == "pending"
+    assert db.query(ChannelBinding).count() == 0
+    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(tenant))
+    monkeypatch.setattr(settings, "whatsapp_signup_enabled", False)
+    assert client.get(BASE).json()["available"] is False
+    assert client.post(f"{BASE}/finish", json=body).status_code == 409
+    assert meta.calls == []
+    monkeypatch.setattr(settings, "whatsapp_signup_enabled", True)
+    assert client.post(f"{BASE}/finish", json=body).status_code == 200
+    assert meta.calls == ["exchange", "verify", "subscribe", "register"]
+
+
+def test_pilot_cohort_configuration_normalizes_and_rejects_invalid_scope():
+    first, second = uuid4(), uuid4()
+    value = f" {first}, {str(second).upper()}, {first}, "
+    configured = Settings(_env_file=None, whatsapp_signup_tenant_ids=value)
+    assert configured.whatsapp_signup_tenant_ids == ",".join(sorted([str(first), str(second)]))
+    assert not configured.whatsapp_signup_enabled
+    for invalid in ("*", "not-a-tenant", f"{first},not-a-tenant"):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, whatsapp_signup_tenant_ids=invalid)
 
 
 def test_happy_path_is_encrypted_scoped_and_replay_does_no_io(client, db, configured, monkeypatch):

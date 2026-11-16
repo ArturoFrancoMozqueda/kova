@@ -1,6 +1,6 @@
 # Alta de WhatsApp desde Kova
 
-Implementación local actualizada, 2026-11-14. Detrás de `WHATSAPP_SIGNUP_ENABLED=false` por defecto.
+Implementación local actualizada, 2026-11-15. Detrás de `WHATSAPP_SIGNUP_ENABLED=false` por defecto.
 No acredita publicación, aprobación de Meta, disponibilidad comercial ni recepción/entrega real.
 Complementa el piloto asistido; no migra su número ni su registro de Secrets.
 
@@ -13,6 +13,14 @@ número en Meta. Gerentes pueden consultar el estado; sólo el dueño inicia y f
 habilita respuestas. Se conserva el acceso comercial y `settings.manage`.
 
 ## Flujo y permisos
+
+El operador puede acotar el alta con `WHATSAPP_SIGNUP_TENANT_IDS`, lista de UUID validada y
+normalizada del servidor. Con una lista no vacía, disponibilidad, inicio y finalización exigen que
+el negocio de la sesión pertenezca a ella; ningún dato del navegador modifica ese alcance.
+Retirar un negocio bloquea también una autorización pendiente antes de I/O a Meta. El interruptor
+global sigue siendo obligatorio; una lista vacía conserva el despliegue global explícito. No se
+alteran permisos, acceso comercial, conexiones existentes ni entrega de eventos a bindings ya
+verificados. El webhook sin sesión mantiene su límite de coexistencia según la preparación global.
 
 1. `GET /api/v1/messaging/readiness` agrega `signup_available`. Sin configuración completa conserva
    el flujo asistido y no carga el SDK ni realiza lecturas nuevas desde el cliente.
