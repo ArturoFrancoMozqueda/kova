@@ -300,6 +300,15 @@ test("first bootstrap preserves the legacy image, process, public offer and data
     git: args => { if (args[0] === "diff" && args.length > 4) throw new Error("changed source"); return target; } });
   await assert.rejects(changed.prepare({}), /separate control-plane migration/);
   assert.equal(commands.length, before);
+  const changedSignup = nativeBlueGreenProvider({ run, env: { GITHUB_SHA: target }, fetcher,
+    git: args => {
+      if (args[0] === "diff" && args.includes("deploy/cloudflare-native/signup-settings.mjs")) {
+        throw new Error("changed private settings");
+      }
+      return target;
+    } });
+  await assert.rejects(changedSignup.prepare({}), /Private signup settings changes require a reviewed control-plane migration/);
+  assert.equal(commands.length, before, "private settings changes must not redeploy either protected holder");
 });
 
 for (const scenario of ["fresh", "already_present", "appeared", "foreign_identity", "unavailable"]) {
