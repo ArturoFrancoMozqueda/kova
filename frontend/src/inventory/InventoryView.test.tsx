@@ -8,6 +8,7 @@ import { copy } from "@/i18n/messages";
 import InventoryView from "./InventoryView";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { StockItem } from "./types";
+import { listLots, type Lot } from "./lots";
 
 const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" }, commercialAccess: undefined as CommercialAccess | undefined }));
 vi.mock("../auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", ...authIdentity } }) }));
@@ -26,6 +27,10 @@ vi.mock("./api", () => ({
   updateLowStockThreshold: vi.fn(),
 }));
 vi.mock("@/catalog/api", () => ({ listProducts: vi.fn(async () => []) }));
+vi.mock("./lots", async importOriginal => ({
+  ...await importOriginal<typeof import("./lots")>(),
+  listLots: vi.fn(),
+}));
 
 const item: StockItem = {
   product_id: "product-1",
@@ -64,6 +69,17 @@ beforeEach(() => {
 });
 
 describe("inventory write safety", () => {
+  it("requires an explicit physical count instead of submitting the initial zero", async () => {
+    const dialog = await openModal(copy.inventoryView.stockTake);
+    expect(within(dialog).getByLabelText(copy.inventoryModal.countedQuantity)).toHaveValue(null);
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeDisabled();
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(copy.inventoryModal.amountRequired);
+  });
+
   it("opens an adjustment without an error and previews the resulting stock", async () => {
     const dialog = await openModal();
     const amount = within(dialog).getByLabelText(copy.inventoryModal.quantityDelta);
@@ -212,6 +228,103 @@ describe("inventory write safety", () => {
       if (action === copy.inventoryView.stockTake) expect(recordStockTake).toHaveBeenCalledWith(item.product_id, 0, "Conteo físico", expect.any(String));
       else expect(updateLowStockThreshold).toHaveBeenCalledWith(item.product_id, 0, expect.any(String));
     });
+  });
+});
+
+describe("physical counts by lot", () => {
+  const lots: Lot[] = ["Lote A", "Lote B"].map((code, index) => ({
+    id: `lot-${index}`, product_id: item.product_id, code, is_unknown: false,
+    manufactured_on: null, rotation_on: null, expires_on: null,
+    rotation_label: "consumo_preferente", stock_on_hand: 5,
+    reserved_quantity: 0, available_quantity: 5, stock_conflict: false, date_status: "sin_fecha",
+  }));
+
+  beforeEach(() => {
+    vi.mocked(listStock).mockResolvedValue([{ ...item, track_lots: true }]);
+    vi.mocked(listLots).mockResolvedValue(lots);
+  });
+
+  it("requires every lot to be counted and preserves an explicitly entered zero", async () => {
+    const dialog = await openModal(copy.inventoryView.stockTake);
+    const first = await within(dialog).findByLabelText("Lote A");
+    const second = within(dialog).getByLabelText("Lote B");
+    expect(first).toHaveValue(null);
+    expect(second).toHaveValue(null);
+    const total = within(dialog).getByLabelText(copy.inventoryModal.countedQuantity);
+    expect(total).toHaveValue(null);
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    fireEvent.change(first, { target: { value: "3" } });
+    expect(total).toHaveValue(null);
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+    fireEvent.change(second, { target: { value: "0" } });
+    expect(total).toHaveValue(3);
+    fireEvent.change(second, { target: { value: "" } });
+    expect(total).toHaveValue(null);
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeDisabled();
+    fireEvent.change(second, { target: { value: "0" } });
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await waitFor(() => expect(recordStockTake).toHaveBeenCalledWith(item.product_id, 3, "Conteo físico", expect.any(String), [
+      { lot_id: "lot-0", counted_quantity: 3 }, { lot_id: "lot-1", counted_quantity: 0 },
+    ]));
+  });
+
+  it.each([["-1", "4"], ["1.5", "1.5"], ["2147483648", "0"]])(
+    "rejects invalid individual counts even when their sum could be valid: %s and %s",
+    async (first, second) => {
+      const dialog = await openModal(copy.inventoryView.stockTake);
+      fireEvent.change(await within(dialog).findByLabelText("Lote A"), { target: { value: first } });
+      fireEvent.change(within(dialog).getByLabelText("Lote B"), { target: { value: second } });
+      fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+      expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeDisabled();
+      fireEvent.submit(dialog.querySelector("form")!);
+      expect(recordStockTake).not.toHaveBeenCalled();
+      expect(within(dialog).getAllByRole("alert").length).toBeGreaterThan(0);
+    },
+  );
+
+  it("blocks a count when the lot list cannot be loaded", async () => {
+    vi.mocked(listLots).mockRejectedValue(new Error("offline"));
+    const dialog = await openModal(copy.inventoryView.stockTake);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/No pudimos cargar los lotes/);
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+  });
+
+  it("keeps the count blank and blocked while lots are loading", async () => {
+    vi.mocked(listLots).mockReturnValue(new Promise(() => {}));
+    const dialog = await openModal(copy.inventoryView.stockTake);
+    expect(within(dialog).getByRole("status")).toHaveTextContent(/Cargando lotes/);
+    expect(within(dialog).getByLabelText(copy.inventoryModal.countedQuantity)).toHaveValue(null);
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+  });
+
+  it("locks every lot field during the write and reuses the same key after a failed response", async () => {
+    let rejectWrite!: (error: Error) => void;
+    vi.mocked(recordStockTake).mockImplementationOnce(() => new Promise((_, reject) => { rejectWrite = reject; }));
+    const dialog = await openModal(copy.inventoryView.stockTake);
+    const first = await within(dialog).findByLabelText("Lote A");
+    const second = within(dialog).getByLabelText("Lote B");
+    fireEvent.change(first, { target: { value: "3" } });
+    fireEvent.change(second, { target: { value: "0" } });
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    const firstKey = vi.mocked(recordStockTake).mock.calls[0][3];
+    expect(first).toBeDisabled();
+    expect(second).toBeDisabled();
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).toHaveBeenCalledTimes(1);
+    await act(async () => { rejectWrite(new Error("connection failed")); });
+    expect(first).toHaveValue(3);
+    expect(second).toHaveValue(0);
+    fireEvent.submit(dialog.querySelector("form")!);
+    await waitFor(() => expect(recordStockTake).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(recordStockTake).mock.calls[1][3]).toBe(firstKey);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
 

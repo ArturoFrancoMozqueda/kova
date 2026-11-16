@@ -739,20 +739,25 @@ type InventoryModalProps = {
 function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalProps) {
   const [lotAllocations, setLotAllocations] = useState<LotAllocation[]>([]);
   const [countRows, setCountRows] = useState<Lot[]>([]);
-  const [lotCounts, setLotCounts] = useState<Record<string, number>>({});
+  const [lotCounts, setLotCounts] = useState<Record<string, string>>({});
   const [lotError, setLotError] = useState("");
+  const countingLots = Boolean(modal.item.track_lots && modal.type === "stockTake");
+  const [lotsLoading, setLotsLoading] = useState(countingLots);
   useEffect(() => {
     if (!modal.item.track_lots || modal.type !== "stockTake") return;
     let alive = true;
-    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(resolveApiErrorMessage(err, "No pudimos cargar los lotes. Cierra el conteo y vuelve a intentarlo.")); });
+    void listLots(modal.item.product_id)
+      .then(rows => { if (alive) setCountRows(rows); })
+      .catch(err => { if (alive) setLotError(resolveApiErrorMessage(err, "No pudimos cargar los lotes. Cierra el conteo y vuelve a intentarlo.")); })
+      .finally(() => { if (alive) setLotsLoading(false); });
     return () => { alive = false; };
   }, [modal.item.product_id, modal.item.track_lots, modal.type]);
-  // An adjustment starts empty: a prefilled "0" was itself invalid, so the
-  // dialog opened already showing an error the owner hadn't caused.
+  // Counts and adjustments require an explicit quantity. Neither zero nor the
+  // current balance represents a physical count until the operator enters it.
   const [amount, setAmount] = useState(
     modal.type === "threshold"
       ? String(modal.item.low_stock_threshold ?? "")
-      : modal.type === "adjust" ? "" : "0",
+      : "",
   );
   const [amountTouched, setAmountTouched] = useState(false);
   const [reason, setReason] = useState("");
@@ -773,15 +778,19 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   // Explain *why* the action is blocked instead of only disabling the button:
   // an empty/NaN amount, a stock-take/threshold that went negative, or an
   // adjustment that would drive stock below zero.
-  const numeric = modal.item.track_lots && modal.type === "stockTake" ? Object.values(lotCounts).reduce((sum, q) => sum + q, 0) : Number(amount);
-  const amountMissing = amount.trim() === "" || !Number.isFinite(numeric);
+  const lotAmounts = countRows.map(lot => lotCounts[lot.id] ?? "");
+  const missingLotCount = countRows.length === 0 || lotAmounts.some(value => value.trim() === "");
+  const numeric = countingLots ? lotAmounts.reduce((sum, value) => sum + Number(value), 0) : Number(amount);
+  const amountMissing = (countingLots ? missingLotCount : amount.trim() === "") || !Number.isFinite(numeric);
   let validationError: string | null = null;
   if (amountMissing) {
-    validationError = copy.inventoryModal.amountRequired;
-  } else if (!Number.isSafeInteger(numeric)) {
+    validationError = countingLots ? "Escribe el conteo físico de cada lote; escribe 0 si no hay unidades." : copy.inventoryModal.amountRequired;
+  } else if (!Number.isSafeInteger(numeric) || (countingLots && lotAmounts.some(value => !Number.isSafeInteger(Number(value))))) {
     validationError = copy.inventoryModal.wholeNumber;
-  } else if (numeric > INVENTORY_QUANTITY_MAX || numeric < INVENTORY_QUANTITY_MIN) {
+  } else if (numeric > INVENTORY_QUANTITY_MAX || numeric < INVENTORY_QUANTITY_MIN || (countingLots && lotAmounts.some(value => Number(value) > INVENTORY_QUANTITY_MAX))) {
     validationError = copy.inventoryModal.overLimit;
+  } else if (countingLots && lotAmounts.some(value => Number(value) < 0)) {
+    validationError = copy.inventoryModal.negativeCount;
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
     if (numeric === 0) validationError = copy.inventoryModal.zeroAdjustment;
@@ -794,13 +803,13 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     validationError = copy.inventoryModal.negativeThreshold;
   }
   if (modal.item.track_lots && modal.type === "adjust" && !allocationValid(lotAllocations, Math.abs(numeric))) validationError = "La cantidad debe estar asignada a sus lotes.";
-  if (modal.item.track_lots && modal.type === "stockTake" && (!countRows.length || Object.values(lotCounts).reduce((sum, q) => sum + q, 0) !== numeric)) validationError = "El total debe coincidir con el conteo de todos los lotes.";
+  if (countingLots && (lotsLoading || lotError)) validationError = lotError || "Espera a que carguen los lotes antes de registrar el conteo.";
   const reasonError = modal.type !== "threshold" && !reason.trim()
     ? "Escribe el motivo del movimiento."
     : null;
 
   // Errors appear once the owner typed a quantity or tried to save — not on open.
-  const showAmountError = validationError !== null && (amountTouched || !amountMissing);
+  const showAmountError = validationError !== null && !lotsLoading && !lotError && (amountTouched || !amountMissing);
   const adjustPreview =
     modal.type === "adjust" && !validationError && !amountMissing
       ? copy.inventoryModal.resultingStock(modal.item.stock_on_hand, modal.item.stock_on_hand + numeric)
@@ -815,7 +824,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
       reason: modal.type === "threshold" ? "threshold_update" : reason.trim(),
       reasonCode: modal.type === "adjust" && numeric < 0 ? reasonCode || null : null,
       ...(modal.item.track_lots && modal.type === "adjust" ? { lotAllocations } : {}),
-      ...(modal.item.track_lots && modal.type === "stockTake" ? { lotCounts: Object.entries(lotCounts).map(([lot_id, counted_quantity]) => ({ lot_id, counted_quantity })) } : {}),
+      ...(countingLots ? { lotCounts: countRows.map(lot => ({ lot_id: lot.id, counted_quantity: Number(lotCounts[lot.id]) })) } : {}),
     });
   };
 
@@ -836,8 +845,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             min={modal.type === "adjust" ? Math.max(INVENTORY_QUANTITY_MIN, -modal.item.stock_on_hand) : 0}
             max={modal.type === "adjust" ? Math.min(INVENTORY_QUANTITY_MAX, INVENTORY_QUANTITY_MAX - modal.item.stock_on_hand) : INVENTORY_QUANTITY_MAX}
             disabled={pending}
-            value={modal.item.track_lots && modal.type === "stockTake" ? Object.values(lotCounts).reduce((sum, q) => sum + q, 0) : amount}
-              readOnly={Boolean(modal.item.track_lots && modal.type === "stockTake")}
+            value={countingLots ? amountMissing || lotsLoading || lotError ? "" : numeric : amount}
+            readOnly={countingLots}
             onChange={(event) => {
               setAmount(event.target.value);
               setAmountTouched(true);
@@ -846,7 +855,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             aria-describedby={
               showAmountError
                 ? "inv-amount-error"
-                : modal.type === "threshold" || modal.type === "adjust" ? "inv-amount-help" : undefined
+                : "inv-amount-help"
             }
           />
           {showAmountError ? (
@@ -861,7 +870,11 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             <p id="inv-amount-help" className="text-xs text-muted-foreground tabular-nums">
               {adjustPreview ?? copy.inventoryModal.adjustHint}
             </p>
-          ) : null}
+          ) : (
+            <p id="inv-amount-help" className="text-xs text-muted-foreground">
+              Cuenta las unidades físicamente y escribe el total; escribe 0 si no hay existencias.
+            </p>
+          )}
         </div>
         {modal.type !== "threshold" && (
           <>
@@ -883,7 +896,26 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
               </div>
             ) : null}
             {modal.item.track_lots && modal.type === "adjust" && <LotAllocationEditor productId={modal.item.product_id} quantity={Math.abs(numeric)} value={lotAllocations} onChange={setLotAllocations} incoming={numeric > 0} physical={numeric < 0} canCreate />}
-            {modal.item.track_lots && modal.type === "stockTake" && <fieldset className="space-y-2"><legend>Conteo físico por lote</legend>{lotError && <p role="alert">{lotError}</p>}{countRows.map(lot => <div key={lot.id}><Label htmlFor={`count-${lot.id}`}>{lot.code}</Label><Input id={`count-${lot.id}`} type="number" min={0} step={1} value={lotCounts[lot.id] ?? 0} onChange={e => setLotCounts(previous => ({ ...previous, [lot.id]: Number(e.target.value) }))} /></div>)}</fieldset>}
+            {countingLots && (
+              <fieldset className="space-y-2" disabled={pending}>
+                <legend>Conteo físico por lote</legend>
+                {lotsLoading && <p role="status">Cargando lotes para contar…</p>}
+                {lotError && <p role="alert">{lotError}</p>}
+                {!lotsLoading && !lotError && !countRows.length && <p role="status">No hay lotes para contar. Registra los lotes del producto antes de continuar.</p>}
+                {countRows.map(lot => (
+                  <div key={lot.id}>
+                    <Label htmlFor={`count-${lot.id}`}>{lot.code}</Label>
+                    <Input id={`count-${lot.id}`} type="number" inputMode="numeric" min={0} max={INVENTORY_QUANTITY_MAX} step={1}
+                      value={lotCounts[lot.id] ?? ""}
+                      onChange={event => {
+                        const value = event.target.value;
+                        setLotCounts(previous => ({ ...previous, [lot.id]: value }));
+                        setAmountTouched(true);
+                      }} />
+                  </div>
+                ))}
+              </fieldset>
+            )}
             <div className="space-y-2">
               <Label htmlFor="inv-reason">{copy.inventoryModal.reason}</Label>
               <Input

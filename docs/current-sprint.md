@@ -16,8 +16,8 @@ La solicitud de permisos de WhatsApp ya fue enviada con los dos videos y las dec
 autorizadas; Meta confirmó **Revisión en curso**. Esto actualiza las referencias anteriores a un
 borrador pendiente, sin acreditar aprobación ni conexión del número real.
 
-La baseline publicada y verificada es `5c1175a93707ff2458de377194a4e85b14eaa95f`,
-[release 43814811101, intento 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43814811101).
+La baseline publicada y verificada es `d9e973bf2334e54757026b697f6690e27dfc9ace`,
+[release 43934149277](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43934149277).
 API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
 independientemente tras la aceptación del workflow. La coexistencia de WhatsApp está publicada
 con alta limitada a dos negocios admitidos, pendiente de permisos de WhatsApp y aceptación real. Se conserva la
@@ -163,6 +163,12 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    390/820/1440 px, sin desbordamiento horizontal, con menú y resumen móvil operables. No creó
    ventas ni modificó inventario o turno. No sustituye conteo físico, conciliación o aceptación de
    los pilotos. Los flujos transaccionales/offline se verificaron en CI sobre API/PostgreSQL/RLS.
+   La revisión del 16 de noviembre confirmó carga de inventario, recibos y agenda de mesas, y cola
+   offline vacía en el dispositivo revisado. El piloto mezcla datos reales y de ensayo: sus cifras
+   no acreditan todavía conciliación física ni rendimiento comercial. Un turno acumulado se cerró
+   por instrucción del dueño igualando el esperado; fue una regularización sin conteo físico,
+   no evidencia de caja conciliada. La corrección local del [conteo de inventario](../specs/inventory/physical-counts.md)
+   exige cantidades explícitas ordinarias y por lote; pendiente de publicación.
 5. **Dispositivos físicos.** El alcance indicado por el dueño es PC, móvil y tablet, sin modelos
    ni hardware definidos. La regresión de navegador no sustituye una prueba física. Impresora,
    lector y cajón siguen pendientes. [Matriz de equipos](runbooks/pos-hardware-acceptance.md) y
