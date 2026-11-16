@@ -1,6 +1,6 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado actualizado: 15 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
+Estado actualizado: 16 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
 borrador técnico, sin enviar ni aprobar. La renovación anual de acceso a datos es un trámite
 separado: Meta ya la muestra **Completada** y confirmó la app **Activa**. Complementa el
 [runbook de alta](whatsapp-embedded-signup.md).
@@ -17,7 +17,7 @@ Las operaciones reales están en `backend/app/messaging/signup_provider.py`, `on
 `delivery.py`. El SDK está en `frontend/src/messaging/embeddedSignup.ts`. No solicitar anuncios,
 páginas, catálogos ni permisos de eventos de marketing para este flujo. No atribuir a Kova una UI de
 plantillas, campañas, llamadas o migración no implementada. El soporte de coexistencia está
-publicado con gate apagado; sigue pendiente de aceptación real, como se registra abajo.
+publicado con admisión limitada del piloto; sigue pendiente de aceptación real, como se registra abajo.
 
 ## Configuración preparada
 
@@ -125,7 +125,7 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
 La admisión del piloto vive en `tenants.feature_overrides.whatsapp_signup_pilot=true`, sólo para
 Sweet Home y el negocio aislado del revisor, con auditoría de plataforma. La disponibilidad, inicio
 y finalización exigen esa admisión en el negocio autenticado. No se entrega este control al cliente.
-El interruptor global sigue apagado. Las conexiones verificadas y sus eventos no se revocan al
+El interruptor de plataforma ya está encendido para ese piloto. Las conexiones verificadas y sus eventos no se revocan al
 retirar la admisión para nuevas altas. No ofrecer el alta pública general durante este piloto.
 
 El primer intento de publicar la restricción mediante un campo nuevo del holder fue detenido
@@ -142,9 +142,47 @@ vinculaciones/conexiones en esa sucursal y exactamente un registro de retiro. La
 dueño muestra Sweet Home / Sucursal principal **Sin conectar**. No se eliminó ningún número en
 Meta ni se modificó la cuenta móvil del número real.
 
-La sucursal queda libre para una autorización nueva de coexistencia cuando Meta permita continuar.
+La sucursal queda libre para una autorización nueva de coexistencia.
 Una referencia vieja del registro asistido no puede ocultar la conexión nueva verificada; nunca
-aporta sus credenciales. El interruptor general continúa apagado y no se conectó ni importó el 3710.
+aporta sus credenciales. No se conectó ni importó el 3710.
+
+El 16 de noviembre, el release autorizado del gate por workflow aceptó
+`5c1175a93707ff2458de377194a4e85b14eaa95f` ([ejecución, intento 2](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43814811101)).
+Una desconexión del catálogo de auditoría de Python detuvo su primer intento antes de publicar;
+se repitió sólo ese trabajo y sus dependientes, conservando todos los controles y sin cambiar locks.
+La comprobación pública posterior confirmó API/frontend/controlador/arranque en el mismo SHA,
+sitio/proxy/base accesibles y privacidad sin nombre personal. La sesión real del dueño muestra
+Sweet Home / Sucursal principal con **Conectar WhatsApp**, prepara **Autorizar en Meta** y abre
+el SDK real con la variante de coexistencia. El titular autorizó aceptar las condiciones de Cloud
+API y WhatsApp Business Platform; se pulsó Continuar y se ingresó el número móvil autorizado.
+El acceso aislado del revisor conserva cortesía y alta disponible, una sucursal y cero clientes o
+conversaciones. Esto acredita disponibilidad de autorización, no una conexión ni entrega real.
+
+### Bloqueo real de coexistencia y evidencia de revisión
+
+El SDK v4 pide primero el número. La documentación oficial confirma que, con `featureType`
+configurado, detecta automáticamente el uso de WhatsApp Business y deriva a coexistencia; no
+requiere una opción separada previa. En la prueba real, Meta devolvió **3441107**: la app del socio
+todavía no está preparada para conectar números de WhatsApp Business. No se pidió SMS ni se
+registró, migró o desregistró el 3710. El panel del proveedor muestra **1 de 2 pasos**: negocio
+aprobado y revisión de app pendiente. La tabla de permisos confirma `Standard access` y
+**No se solicitó revisar la app** en ambos permisos de WhatsApp. La etiqueta genérica «En revisión»
+del panel del proveedor no acredita el envío del borrador.
+
+Meta [permite evidencia alternativa](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers):
+el envío de API Setup a un destinatario de prueba autorizado y la creación de una plantilla en
+WhatsApp Manager. Se dejó preparado `hello_world` para el destinatario autorizado terminado en
+0199, sin enviarlo de nuevo todavía. El acceso temporal del panel se renovó con la configuración
+anterior, sin copiar credenciales a Kova ni mostrarlas en la evidencia.
+
+En **Test Messaging Account** se creó `kova_revision_confirmacion_reserva`, categoría Utilidad,
+idioma `es_MX`, con muestras ficticias de nombre, folio, fecha y hora. Meta la muestra **En revisión**;
+este estado corresponde a esa plantilla, no a la revisión de la app. Se guardó un video de 20 s
+con 38 capturas reales de su creación, omitiendo las pausas entre pasos y sin pantallas simuladas.
+Falta completar el video de envío con recepción visible en WhatsApp, adjuntar la evidencia y
+obtener las declaraciones finales autorizadas antes de enviar App Review. El formulario de
+soporte de cumplimiento disponible sólo atiende evaluaciones solicitadas por Meta; no se marcó
+esa declaración ni se envió un ticket que no correspondía.
 
 ## Texto base para los formularios de Meta
 
@@ -226,7 +264,7 @@ que el número esté libre.
 Meta ofrece [coexistencia con la app móvil](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).
 El titular solicitó implementarla el 14 de noviembre. El soporte publicado ya incorpora el evento de
 coexistencia, verificación de compatibilidad en Meta sin registro/PIN, contactos/historial y ecos
-con cola durable cifrada y controles de ventana/consentimiento. Sigue detrás del gate apagado y
+con cola durable cifrada y controles de ventana/consentimiento. Sigue limitado al piloto admitido y
 requiere aceptación real. No basta usar el enlace alojado que muestra Meta. Véanse
 [contrato](../../specs/integrations/whatsapp-embedded-signup.md) y
 [ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
