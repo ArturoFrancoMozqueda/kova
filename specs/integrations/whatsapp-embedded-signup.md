@@ -14,11 +14,12 @@ habilita respuestas. Se conserva el acceso comercial y `settings.manage`.
 
 ## Flujo y permisos
 
-El operador puede acotar el alta con `WHATSAPP_SIGNUP_TENANT_IDS`, lista de UUID validada y
-normalizada del servidor. Con una lista no vacía, disponibilidad, inicio y finalización exigen que
-el negocio de la sesión pertenezca a ella; ningún dato del navegador modifica ese alcance.
-Retirar un negocio bloquea también una autorización pendiente antes de I/O a Meta. El interruptor
-global sigue siendo obligatorio; una lista vacía conserva el despliegue global explícito. No se
+El piloto exige `tenants.feature_overrides.whatsapp_signup_pilot=true`, admisión explícita que
+sólo configura el operador. Disponibilidad, inicio y finalización consultan el negocio de la
+sesión en servidor; ningún dato del navegador modifica ese alcance. Un valor ausente o distinto
+del booleano `true` no admite el negocio. El control no se exporta como flag del cliente.
+Retirar la admisión bloquea también una autorización pendiente antes de I/O a Meta. El interruptor
+global sigue siendo obligatorio; activarlo por sí solo nunca abre el alta a otros negocios. No se
 alteran permisos, acceso comercial, conexiones existentes ni entrega de eventos a bindings ya
 verificados. El webhook sin sesión mantiene su límite de coexistencia según la preparación global.
 
@@ -38,6 +39,10 @@ verificados. El webhook sin sesión mantiene su límite de coexistencia según l
    con el token y PIN cifrados. En coexistencia el número ya registrado se verifica con Meta y
    **no** se llama a `/register` ni se genera/cambia su PIN. Renovar la autorización del mismo binding conserva el PIN y no vuelve a registrar el
    número. Nunca reasigna un número ya vinculado ni sustituye una conexión del piloto.
+   Si un operador retira una vinculación de prueba vacía por el procedimiento revisado, una
+   entrada antigua de configuración del piloto no oculta una nueva conexión verificada para la
+   misma sucursal. Sin conexión nueva verificable, se mantiene sin conectar. Esto no autoriza
+   retirar conexiones con conversaciones ni cambiar automáticamente la propiedad de un número.
 7. Los envíos empiezan pausados. `PATCH /connection/sending` permite al dueño habilitar o pausar
    respuestas humanas. Mantiene consentimiento, destinatario exacto, ventana de atención, outbox,
    confirmación por mensaje y límite diario conservador del adaptador. No activa campañas.

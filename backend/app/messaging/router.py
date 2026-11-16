@@ -234,7 +234,7 @@ def messaging_readiness(db: Session = Depends(get_db), ctx=Depends(require_crm))
             "tenant_mapping_verified": connected,
             "setup_status": "configured" if connected else "setup_required",
             "account_mode": "verified" if connected else "not_verified",
-            "signup_available": onboarding.available(ctx[1].tenant_id),
+            "signup_available": onboarding.available(db, ctx[1].tenant_id),
         }
     )
 
