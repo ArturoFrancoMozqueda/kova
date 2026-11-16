@@ -190,7 +190,7 @@ def test_contact_permission_is_revalidated_and_phone_change_never_authorizes_del
     book(client, customer, resource(client))
     assert notices(client)[0]["contact_status"] == "consent_required"
     assert consent(client, customer).status_code == 200
-    assert notices(client)[0]["contact_status"] == "permitted"
+    assert notices(client)[0]["contact_status"] == "international_phone_required"
     assert consent(client, customer, enabled=False, expected_version=1).status_code == 200
     assert notices(client)[0]["contact_status"] == "consent_required"
     db.query(Customer).filter_by(id=UUID(customer["id"])).one().phone = "5598765432"

@@ -17,7 +17,7 @@ export type ReservationNotice = {
   due_at: string;
   timezone: string;
   status: "scheduled" | "prepared";
-  contact_status: "customer_required" | "inactive" | "contact_mismatch" | "contact_changed" | "permitted" | "consent_required";
+  contact_status: "customer_required" | "inactive" | "contact_mismatch" | "contact_changed" | "international_phone_required" | "permitted" | "consent_required";
 };
 type SendingSettings = { platform_available: boolean; enabled: boolean; version: number; daily_limit: number; can_manage: boolean };
 type Notices = { items: ReservationNotice[]; has_more: boolean; send_enabled: boolean; sending_settings?: SendingSettings };
@@ -26,6 +26,7 @@ const contactLabels: Record<ReservationNotice["contact_status"], string> = {
   inactive: "Revisa el cliente o la persona o espacio: está desactivado.",
   contact_mismatch: "El teléfono de la reserva no coincide con el del cliente vinculado.",
   contact_changed: "El teléfono cambió después de preparar este aviso. Revisa el contacto.",
+  international_phone_required: "Registra el teléfono del cliente con + y código de país para poder enviar el aviso.",
   permitted: "Permiso de contacto registrado. Este aviso aún no se ha enviado.",
   consent_required: "Falta registrar el permiso del cliente para recibir avisos por WhatsApp.",
 };

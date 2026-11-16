@@ -26,6 +26,7 @@ URL = "/api/v1/messaging/reservation-notices/settings"
 @pytest.fixture
 def pilot(client, db, monkeypatch):
     tenant, actor, customer, binding, conversation = bound(db, client)
+    customer.phone = "+" + customer.phone
     conversation.last_inbound_at = None
     db.commit()
     configure(monkeypatch, tenant, binding)
@@ -162,7 +163,7 @@ def test_confirmation_and_due_reminder_use_exact_templates_without_service_windo
     assert posts(calls)[1]["template"]["name"] == "kova_reserva_recordatorio_v1"
     # Signed, exact-binding receipt, not an HTTP success, establishes delivery.
     raw, signature = envelope(
-        binding, kind="status", mid=message.provider_message_id, party=customer.phone
+        binding, kind="status", mid=message.provider_message_id, party=customer.phone.lstrip("+")
     )
     service.ingest_webhook(
         db,
@@ -196,7 +197,7 @@ def test_activation_never_releases_previews_or_previous_policy_revision(client, 
 
 
 @pytest.mark.parametrize(
-    "change", ["cancel", "pause", "consent", "phone", "owner", "platform", "expired"]
+    "change", ["cancel", "pause", "consent", "phone", "owner", "platform", "expired", "national"]
 )
 def test_revocation_blocks_before_provider_post(client, db, monkeypatch, pilot, change):
     tenant, actor, customer, _, conversation, calls, _ = pilot
@@ -219,6 +220,9 @@ def test_revocation_blocks_before_provider_post(client, db, monkeypatch, pilot, 
         )
     elif change == "phone":
         customer.phone = "525599999999"
+        db.commit()
+    elif change == "national":
+        customer.phone = customer.phone.lstrip("+")
         db.commit()
     elif change == "owner":
         db.query(Membership).filter_by(tenant_id=tenant, user_id=actor).one().is_active = False

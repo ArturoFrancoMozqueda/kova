@@ -32,7 +32,8 @@ cambiar la configuración revoca pendientes de la versión anterior. Confirmacio
 El programador privado recorre únicamente negocios admitidos y sucursales con política. Usa
 RLS ordinario, procesa hasta 25 avisos por iteración y comparte el outbox existente. Antes de
 cada POST revalida reserva, horario, dueño activo/verificado y alcance, acceso comercial,
-cliente activo, destinatario exacto original, consentimiento transaccional de sucursal, canal,
+cliente activo con teléfono explícito en formato internacional (+ y código de país),
+destinatario exacto original, consentimiento transaccional de sucursal, canal,
 pausa/cierre y límites. Una conversación existente no se reasigna ni se despausa automáticamente.
 Si no existe se crea con origen `business`, sin simular una entrada ni abrir ventana de 24 horas.
 El texto libre conserva la exigencia de ventana de atención real.

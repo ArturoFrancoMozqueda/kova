@@ -171,6 +171,7 @@ def source_context(db, tenant, notice, *, stamp):
     party = reservations._phone(phone)
     if (
         not customer
+        or not reservations.international_phone(customer.phone)
         or not customer.is_active
         or not re.fullmatch(r"[1-9][0-9]{7,14}", party)
         or party != reservations._phone(customer.phone)

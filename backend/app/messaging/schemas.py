@@ -83,6 +83,7 @@ class ReservationNoticeResponse(BaseModel):
         "inactive",
         "contact_mismatch",
         "contact_changed",
+        "international_phone_required",
         "permitted",
         "consent_required",
     ]

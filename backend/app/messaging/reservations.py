@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -143,6 +144,14 @@ def _phone(value):
     return "".join(c for c in (value or "") if c.isascii() and c.isdigit())
 
 
+def international_phone(value):
+    return bool(
+        value
+        and re.fullmatch(r"\+[1-9][0-9 ()-]{7,29}", value.strip())
+        and 8 <= len(_phone(value)) <= 15
+    )
+
+
 def listing(db, tenant, *, limit=50, offset=0, owner=False):
     stamp = now()
     notices = (
@@ -248,7 +257,13 @@ def listing(db, tenant, *, limit=50, offset=0, owner=False):
                     channel="whatsapp",
                     purpose="transactional",
                 )
-            contact_status = "permitted" if contact_cache[customer.id] else "consent_required"
+            contact_status = (
+                "consent_required"
+                if not contact_cache[customer.id]
+                else "international_phone_required"
+                if not international_phone(customer.phone)
+                else "permitted"
+            )
         zone = row.timezone if not isinstance(row, Appointment) else resource.timezone
         local = effective.starts_at.astimezone(ZoneInfo(zone))
         timing = f"el {local:%d/%m/%Y} a las {local:%H:%M}"
