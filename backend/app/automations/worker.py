@@ -24,7 +24,8 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
     from app.loyalty.models import LoyaltyPolicyRevision
     from app.loyalty.service import process as process_loyalty
     from app.messaging.app_sync import process_pending as process_whatsapp_import
-    from app.messaging.models import Message, WebhookBatch
+    from app.messaging.models import Message, ReservationNoticePolicy, WebhookBatch
+    from app.messaging.reservation_delivery import process_due as process_reservation_notices
     from app.messaging.service import recover_uncertain
 
     tenant_id = UUID(str(tenant_id))
@@ -58,6 +59,12 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
                         )
                     ),
                     Branch.id.in_(
+                        select(ReservationNoticePolicy.branch_id).where(
+                            ReservationNoticePolicy.tenant_id == tenant_id,
+                            ReservationNoticePolicy.enabled.is_(True),
+                        )
+                    ),
+                    Branch.id.in_(
                         select(Message.branch_id).where(
                             Message.tenant_id == tenant_id, Message.state == "sending"
                         )
@@ -78,7 +85,9 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
                 loyalty = process_loyalty(db, tenant_id, limit=limit)
                 imported = process_whatsapp_import(db, tenant_id, limit=limit)
                 db.commit()
-                processed += result["processed"] + followups + loyalty + imported
+                notices = process_reservation_notices(db, tenant_id, limit=limit)
+                db.commit()
+                processed += result["processed"] + followups + loyalty + imported + notices
             except Exception:
                 # Keep this branch's events/effects atomic, then let independent
                 # branches advance. Session.after_begin restores tenant RLS on

@@ -81,6 +81,8 @@ def _arrival(db, page, starts_at):
 
 
 def _history(db, row, action, actor=None):
+    from app.messaging.reservations import refresh as refresh_notices
+
     db.add(
         TableReservationHistory(
             tenant_id=row.tenant_id,
@@ -94,6 +96,7 @@ def _history(db, row, action, actor=None):
             status=row.status,
         )
     )
+    refresh_notices(db, row)
 
 
 def _token(page, row):
@@ -112,7 +115,7 @@ def receipt(db, page, row, *, with_link=False, resource=None):
     )
     result = {
         "title": "Reserva de mesa",
-        "starts_at": row.starts_at.isoformat(),
+        "starts_at": row.starts_at.astimezone(UTC).isoformat(),
         "timezone": row.timezone,
         "party_size": row.party_size,
         "resource_name": resource.name if resource else None,

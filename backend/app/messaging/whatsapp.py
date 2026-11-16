@@ -1,4 +1,4 @@
-"""Small official Cloud API transport, deliberately not wired to a dispatcher.
+"""Bounded official Cloud API transport with explicit caller authorization.
 
 No credentials are loaded here. A caller must inject the server-resolved account and
 an explicit transport. Global setup does not authorize a tenant or an outbound send.
@@ -122,6 +122,7 @@ class WhatsAppCloudAdapter:
             raise ChannelError("invalid_timeout")
         if transport is None:
             raise ChannelError("explicit_transport_required")
+        self._api_version = api_version
         self._access_token = access_token
         self._url = f"{API_HOST}/{api_version}/{phone_number_id}/messages"
         self._transport = transport
@@ -136,6 +137,58 @@ class WhatsAppCloudAdapter:
         return self._submit(
             template_payload(to=to, name=name, language=language, body_parameters=body_parameters)
         )
+
+    def require_reservation_template(self, *, waba_id: str, name: str):
+        """Verify current approval and exact structure; never follow provider URLs."""
+        from app.messaging.reservation_templates import DEFINITIONS, LANGUAGE
+
+        if not _ACCOUNT_ID.fullmatch(waba_id) or name not in DEFINITIONS:
+            raise ChannelError("invalid_reservation_template")
+        try:
+            with httpx.Client(
+                transport=self._transport,
+                timeout=self._timeout_seconds,
+                follow_redirects=False,
+                trust_env=False,
+            ) as client:
+                with client.stream(
+                    "GET",
+                    f"{API_HOST}/{self._api_version}/{waba_id}/message_templates",
+                    params={
+                        "name": name,
+                        "fields": "name,language,status,category,components,parameter_format",
+                        "limit": "100",
+                    },
+                    headers={"Authorization": f"Bearer {self._access_token.get_secret_value()}"},
+                ) as response:
+                    if response.status_code != 200:
+                        raise ChannelError("template_unavailable")
+                    raw = bytearray()
+                    for chunk in response.iter_bytes():
+                        raw.extend(chunk)
+                        if len(raw) > MAX_RESPONSE_BYTES:
+                            raise ChannelError("template_unavailable")
+                    data = json.loads(raw, parse_constant=_reject_constant)
+            matches = [
+                t for t in data["data"] if t.get("name") == name and t.get("language") == LANGUAGE
+            ]
+            if len(matches) != 1:
+                raise ChannelError("template_not_approved")
+            template = matches[0]
+            components = template.get("components", [])
+            if (
+                template.get("status") != "APPROVED"
+                or template.get("category") != "UTILITY"
+                or len(components) != 1
+                or components[0].get("type") != "BODY"
+                or components[0].get("text") != DEFINITIONS[name]
+                or template.get("parameter_format", "POSITIONAL") != "POSITIONAL"
+            ):
+                raise ChannelError("template_not_approved")
+        except ChannelError:
+            raise
+        except Exception:
+            raise ChannelError("template_unavailable") from None
 
     def _submit(self, payload: dict) -> AcceptedMessage:
         # No retry transport and no provider-controlled URL. Receipt reconciliation is

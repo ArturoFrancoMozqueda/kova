@@ -156,7 +156,7 @@ def _provision_kova_app() -> None:
                 "loyalty_enrollment_policies loyalty_members "
                 "crm_catalog_requests crm_followup_policies crm_followup_tasks "
                 "messaging_conversations messaging_messages messaging_channel_events "
-                "messaging_app_contacts messaging_webhook_batches "
+                "messaging_app_contacts messaging_webhook_batches messaging_reservation_notices "
                 "automation_rules automation_runs business_events "
                 "reconciliation_import_batches settlement_entries reconciliation_matches "
                 "customer_quotes customer_quote_items "
@@ -196,6 +196,9 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE (processed_at) ON business_events TO kova_app"))
         conn.execute(text("GRANT UPDATE (status, shared_at, accepted_at, customer_order_id, updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app"))
         conn.execute(text("GRANT SELECT ON messaging_app_sync TO kova_app"))
+        conn.execute(text("GRANT SELECT, INSERT ON messaging_reservation_policies TO kova_app"))
+        conn.execute(text("GRANT UPDATE(enabled,binding_id,authorized_by_user_id,version,daily_limit,enabled_since,updated_at) ON messaging_reservation_policies TO kova_app"))
+        conn.execute(text("GRANT UPDATE(state,message_id) ON messaging_reservation_notices TO kova_app"))
         conn.execute(text("GRANT UPDATE(history_state, progress, updated_at) ON messaging_app_sync TO kova_app"))
         conn.execute(text("GRANT UPDATE(name, removed, changed_at) ON messaging_app_contacts TO kova_app"))
         conn.execute(text("GRANT UPDATE(cursor, state, encrypted_payload) ON messaging_webhook_batches TO kova_app"))

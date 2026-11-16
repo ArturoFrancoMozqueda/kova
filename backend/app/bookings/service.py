@@ -644,6 +644,8 @@ def member_grant(db, request, body):
 
 
 def _history(db, row, action, actor=None):
+    from app.messaging.reservations import refresh as refresh_notices
+
     db.add(
         BookingHistory(
             tenant_id=row.tenant_id,
@@ -666,6 +668,7 @@ def _history(db, row, action, actor=None):
         resource_id=row.id,
         changes={"version": row.version, "status": row.status},
     )
+    refresh_notices(db, row)
 
 
 def _manage_token(page, row):
@@ -694,8 +697,8 @@ def receipt(db, page, row, *, with_link=False):
     result = {
         "title": row.title,
         "resource_name": resource.name,
-        "starts_at": start.isoformat(),
-        "ends_at": end.isoformat(),
+        "starts_at": start.astimezone(UTC).isoformat(),
+        "ends_at": end.astimezone(UTC).isoformat(),
         "timezone": row.timezone,
         "status": status,
         "version": row.version + (appointment.version if appointment else 0),
@@ -1053,8 +1056,8 @@ def materialize(db, tenant, actor, booking_id, body, key):
     )
     db.add(appointment)
     db.flush()
-    agenda._record_change(db, appointment, actor, "created")
     row.customer_id, row.appointment_id = customer.id, appointment.id
+    agenda._record_change(db, appointment, actor, "created")
     row.version += 1
     _history(db, row, "linked", actor)
     return _finish(

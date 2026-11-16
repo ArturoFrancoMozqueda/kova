@@ -327,7 +327,7 @@ def test_runtime_rls_and_two_public_reservations_have_one_winner(
             assert len(session.execute(text("select * from public_bookings")).all()) == 1
         # The internal writer participates in exactly the same exclusion protocol.
         with owner_engine.begin() as connection:
-            for table in ("booking_history", "public_bookings"):
+            for table in ("messaging_reservation_notices", "booking_history", "public_bookings"):
                 connection.execute(
                     text(f"DELETE FROM {table} WHERE tenant_id=:tenant"), {"tenant": tenant}
                 )
@@ -372,6 +372,7 @@ def test_runtime_rls_and_two_public_reservations_have_one_winner(
     finally:
         with owner_engine.begin() as connection:
             for table in (
+                "messaging_reservation_notices",
                 "booking_history",
                 "public_bookings",
                 "booking_service_resources",

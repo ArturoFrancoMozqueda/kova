@@ -122,6 +122,7 @@ class Settings(BaseSettings):
     # Assisted WhatsApp pilot. Connections are provisioned by platform operators,
     # never from browser-supplied account IDs. Tokens stay in the host secret store.
     kova_whatsapp_enabled: bool = False
+    whatsapp_reservation_sending_enabled: bool = False
     whatsapp_graph_api_version: str = Field(default="", pattern=r"^(?:v[1-9][0-9]{0,2}\.0)?$")
     whatsapp_app_secret: SecretStr | None = None
     whatsapp_webhook_verify_token: SecretStr | None = None

@@ -51,6 +51,8 @@ TENANT_SCOPED_TABLES = (
     "messaging_app_sync",
     "messaging_app_contacts",
     "messaging_webhook_batches",
+    "messaging_reservation_notices",
+    "messaging_reservation_policies",
     "messaging_conversations",
     "messaging_messages",
     "messaging_channel_events",

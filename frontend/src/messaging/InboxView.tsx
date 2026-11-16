@@ -28,7 +28,7 @@ type Conversation = {
   customer_name: string | null;
   contact_phone?: string | null;
   subject: string;
-  origin: "manual" | "whatsapp";
+  origin: "manual" | "whatsapp" | "business";
   status: "open" | "closed";
   automation_paused: boolean;
   assigned_user_id: string | null;
@@ -603,7 +603,7 @@ function InboxWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                               !panel.online ||
                               panel.data?.channel_status !== "connected" ||
                               !panel.data.send_enabled ||
-                              selected.origin !== "whatsapp" ||
+                              selected.origin === "manual" ||
                               !selected.customer_id ||
                               selected.assigned_user_id !== identity.userId ||
                               message.purpose !== "transactional" ||

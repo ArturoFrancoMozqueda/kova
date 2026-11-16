@@ -171,3 +171,19 @@ def provider_for(connection: PilotConnection):
     )
     adapter.binding_id = connection.binding_id
     return adapter
+
+
+def reservation_provider_for(connection: PilotConnection):
+    """Private scheduler only; async Fetch bridge on Workers, native transport elsewhere."""
+    if sys.platform != "emscripten":
+        return provider_for(connection)
+    from app.messaging.worker_transport import GraphWorkerTransport
+
+    adapter = WhatsAppCloudAdapter(
+        access_token=connection.access_token,
+        phone_number_id=connection.phone_number_id,
+        api_version=settings.whatsapp_graph_api_version,
+        transport=GraphWorkerTransport(),
+    )
+    adapter.binding_id = connection.binding_id
+    return adapter

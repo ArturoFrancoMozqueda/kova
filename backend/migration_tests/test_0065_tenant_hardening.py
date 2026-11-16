@@ -76,6 +76,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "messaging_app_sync": {"SELECT"},
     "messaging_app_contacts": {"SELECT", "INSERT"},
     "messaging_webhook_batches": {"SELECT", "INSERT"},
+    "messaging_reservation_notices": {"SELECT", "INSERT"},
+    "messaging_reservation_policies": {"SELECT", "INSERT"},
     "messaging_conversations": {"SELECT", "INSERT"},
     "messaging_messages": {"SELECT", "INSERT"},
     "messaging_channel_events": {"SELECT", "INSERT"},
@@ -209,6 +211,11 @@ _RUNTIME_UPDATE_COLUMNS = {
     "messaging_app_sync": {"history_state", "progress", "updated_at"},
     "messaging_app_contacts": {"name", "removed", "changed_at"},
     "messaging_webhook_batches": {"cursor", "state", "encrypted_payload"},
+    "messaging_reservation_notices": {"state", "message_id"},
+    "messaging_reservation_policies": {
+        "enabled", "binding_id", "authorized_by_user_id", "version", "daily_limit",
+        "enabled_since", "updated_at",
+    },
     "messaging_conversations": {
         "customer_id", "status", "automation_paused", "assigned_user_id", "last_inbound_at",
         "version", "updated_at",
@@ -392,6 +399,8 @@ _SEMANTIC_INSERT_ORDER = (
     "messaging_channel_events",
     "appointment_resources",
     "appointments",
+    "messaging_reservation_notices",
+    "messaging_reservation_policies",
     "appointment_history",
     "appointment_sales",
     "appointment_reminders",
@@ -489,6 +498,15 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         return "pending"
     if table.name == "messaging_webhook_batches" and name == "state":
         return "pending"
+    if table.name == "messaging_reservation_policies" and name == "daily_limit":
+        return 10
+    if table.name == "messaging_reservation_notices":
+        if name in {"booking_id", "reservation_id"}:
+            return None
+        if name == "kind":
+            return "confirmation"
+        if name == "state":
+            return "prepared"
     if table.name == "messaging_conversations" and name == "origin":
         return "manual"
     if table.name == "messaging_messages" and name == "direction":
@@ -696,6 +714,10 @@ def _semantic_payloads(engine):
                     # Created events require the original immutable note even
                     # though later workflow events legitimately have no note.
                     values["note"] = "Semantic customer service note"
+                if table.name == "messaging_reservation_notices":
+                    # Notices require exactly one reservation source, despite
+                    # supporting three nullable alternatives in the schema.
+                    values["appointment_id"] = ids[("appointments", tenant, variant)]
                 if table.name == "loyalty_entries":
                     # Accruals require real immutable sale+policy evidence even
                     # though those FK columns are nullable for redemptions.
