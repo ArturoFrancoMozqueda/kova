@@ -56,6 +56,7 @@ vi.mock("@/settings/api", () => ({
 }));
 
 import { getSession, logout as apiLogout, refreshSession } from "./api";
+import { clearLogoutPending, markLogoutPending } from "./sessionCoordination";
 import { AuthProvider, useAuthContext } from "./AuthContext";
 import { TrialChip } from "@/billing/TrialChip";
 import { getActiveOfflineTenant } from "@/offline/activeTenant";
@@ -119,6 +120,8 @@ describe("AuthProvider identity continuity", () => {
     vi.mocked(getSession).mockReset();
     vi.mocked(refreshSession).mockReset();
     vi.mocked(apiLogout).mockReset().mockResolvedValue(undefined);
+    vi.mocked(clearLogoutPending).mockClear();
+    vi.mocked(markLogoutPending).mockClear();
     reportIdentity.mockReset();
     billingIdentity.mockReset();
     billingSubscription.mockReset();
@@ -279,6 +282,21 @@ describe("AuthProvider identity continuity", () => {
     act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
     await screen.findByText("tenant-a:user-a:owner:online");
     expect(screen.getByTestId("draft")).toHaveTextContent("0");
+  });
+
+  it("retains the logout marker when an expired session receives an unconfirmed 401", async () => {
+    window.fetch = vi.fn().mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+    const actualApi = await vi.importActual<typeof import("./api")>("./api");
+    vi.mocked(apiLogout).mockImplementation(actualApi.logout);
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    act(() => screen.getByRole("button", { name: "logout-probe" }).click());
+    await screen.findByText("unauthenticated");
+    expect(markLogoutPending).toHaveBeenCalledOnce();
+    expect(clearLogoutPending).not.toHaveBeenCalled();
+    expect(refreshSession).not.toHaveBeenCalled();
+    view.unmount();
   });
 
   it("suspends a stale tab and adopts only the freshly probed cookie identity", async () => {
@@ -581,6 +599,7 @@ describe("AuthProvider identity continuity", () => {
   });
 
   it("preserves Request bodies, identity, branch and cancellation when retrying after refresh", async () => {
+    document.cookie = "csrf_token=synthetic-csrf; path=/";
     const bodies: string[] = [];
     const signals: AbortSignal[] = [];
     const networkFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -593,14 +612,17 @@ describe("AuthProvider identity continuity", () => {
       expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
       expect(headers.get("X-Kova-Branch")).toBe("tenant-a");
       expect(headers.get("Idempotency-Key")).toBe("request-body-retry");
-      expect(headers.get("X-CSRF-Token")).toBe("synthetic-csrf");
+      expect(headers.get("X-CSRF-Token")).toBe(bodies.length === 1 ? "synthetic-csrf" : "rotated-csrf");
       expect(request.method).toBe("POST");
       expect(request.credentials).toBe("same-origin");
       return new Response("{}", { status: bodies.length === 1 ? 401 : 200 });
     });
     window.fetch = networkFetch;
     vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
-    vi.mocked(refreshSession).mockResolvedValueOnce(true);
+    vi.mocked(refreshSession).mockImplementationOnce(async () => {
+      document.cookie = "csrf_token=rotated-csrf; path=/";
+      return true;
+    });
     const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
     await screen.findByText("tenant-a:user-a:online");
     const abort = new AbortController();
@@ -616,6 +638,37 @@ describe("AuthProvider identity continuity", () => {
     abort.abort();
     expect(signals.every(signal => signal.aborted)).toBe(true);
     view.unmount();
+    document.cookie = "csrf_token=; path=/; max-age=0";
+  });
+
+  it("renews CSRF on a JSON mutation retry while preserving its idempotency key", async () => {
+    document.cookie = "csrf_token=original-csrf; path=/";
+    const networkFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(init?.body).toBe('{"amount":"10.00"}');
+      expect(headers.get("Idempotency-Key")).toBe("synthetic-sale");
+      if (headers.get("X-CSRF-Token") === "original-csrf") {
+        return new Response("expired access", { status: 401 });
+      }
+      expect(headers.get("X-CSRF-Token")).toBe("renewed-csrf");
+      return new Response("{}", { status: 200 });
+    });
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    vi.mocked(refreshSession).mockImplementationOnce(async () => {
+      document.cookie = "csrf_token=renewed-csrf; path=/";
+      return true;
+    });
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:online");
+    const result = await window.fetch("/api/v1/orders", {
+      method: "POST", body: '{"amount":"10.00"}',
+      headers: { "X-CSRF-Token": "original-csrf", "Idempotency-Key": "synthetic-sale" },
+    });
+    expect(result.status).toBe(200);
+    expect(networkFetch).toHaveBeenCalledTimes(2);
+    view.unmount();
+    document.cookie = "csrf_token=; path=/; max-age=0";
   });
 
   it("preserves cancellation while a Request waits for its refreshed cookie", async () => {

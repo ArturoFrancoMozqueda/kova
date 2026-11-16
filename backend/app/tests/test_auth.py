@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.catalog.models import Product
@@ -338,6 +339,67 @@ def test_logout_revokes_session(client):
     # Subsequent authenticated request fails
     r2 = client.get("/api/v1/auth/me")
     assert r2.status_code == 401
+
+
+@pytest.mark.parametrize("access_state", ["missing", "expired"])
+def test_logout_after_access_expiry_revokes_only_current_session(
+    client, db, monkeypatch, access_state,
+):
+    from app.auth import service
+    from app.auth.models import UserSession
+    from app.config import settings
+    from app.main import app
+
+    signup_and_login(client)
+    refresh = client.cookies.get("refresh_token")
+    csrf = client.cookies.get("csrf_token")
+    payload = service.decode_access_token(client.cookies.get("access_token"))
+    other = TestClient(app)
+    _login(other)
+
+    client.cookies.delete("access_token")
+    if access_state == "expired":
+        monkeypatch.setattr(settings, "access_token_ttl_seconds", -1)
+        expired = service.create_access_token(
+            payload["sub"], payload["tid"], payload["jti"],
+        )
+        client.cookies.set("access_token", expired, domain="testserver.local", path="/")
+
+    result = client.post("/api/v1/auth/logout")
+    assert result.status_code == 204, result.text
+    assert not any(client.cookies.get(name) for name in (
+        "access_token", "refresh_token", "csrf_token",
+    ))
+    assert db.query(UserSession).filter(UserSession.revoked_at.is_not(None)).count() == 1
+    assert other.get("/api/v1/auth/me").status_code == 200
+    # The cleared refresh cookie cannot reopen the account if replayed later.
+    client.cookies.set("refresh_token", refresh)
+    client.cookies.set("csrf_token", csrf)
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+    client.cookies.clear()
+    assert client.get("/api/v1/auth/session").json()["authenticated"] is False
+
+
+def test_logout_access_fallback_preserves_another_tenants_session(client):
+    from app.main import app
+
+    signup_and_login(client)
+    other = TestClient(app)
+    signup_and_login(other, email="other-logout@example.com", tenant="Other business")
+    other_identity = other.get("/api/v1/auth/me").json()
+    client.cookies.delete("refresh_token")
+    result = client.post("/api/v1/auth/logout", json={
+        "tenant_id": other_identity["tenant_id"],
+        "user_id": other_identity["user"]["id"],
+    })
+    assert result.status_code == 204, result.text
+    assert other.get("/api/v1/auth/me").status_code == 200
+    assert other.post("/api/v1/auth/refresh").status_code == 200
+
+
+def test_logout_without_session_is_idempotent(client):
+    assert client.post("/api/v1/auth/logout").status_code == 204
+    assert client.post("/api/v1/auth/logout").status_code == 204
 
 
 def test_logout_all_revokes_all_sessions(client):

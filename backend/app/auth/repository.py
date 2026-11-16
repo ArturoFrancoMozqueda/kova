@@ -136,6 +136,21 @@ def get_session_by_id(db: Session, session_id: UUID) -> UserSession | None:
     return db.query(UserSession).filter(UserSession.id == session_id).first()
 
 
+def get_session_by_access_identity(
+    db: Session, *, session_id: UUID, user_id: UUID, tenant_id: UUID,
+) -> UserSession | None:
+    return (
+        db.query(UserSession)
+        .filter(
+            UserSession.id == session_id,
+            UserSession.user_id == user_id,
+            UserSession.tenant_id == tenant_id,
+        )
+        .with_for_update()
+        .first()
+    )
+
+
 def revoke_session(db: Session, session: UserSession) -> None:
     session.revoked_at = datetime.now(UTC)
     db.flush()

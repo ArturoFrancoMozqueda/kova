@@ -83,10 +83,19 @@ do not call the API. No verification token is persisted in browser storage.
 
 ### Logout
 
-1. Requires valid `access_token` cookie.
-2. Revokes current session (`sessions.revoked_at = now()`).
-3. Clears both cookies.
+1. Requires the existing double-submit CSRF protection while either auth cookie is present.
+2. Resolves and locks only the session proven by the opaque `refresh_token` cookie, including
+   when the short-lived access cookie has expired. A valid signed access cookie is a fallback
+   when the refresh cookie is absent or no longer matches. No client-selected identity is accepted.
+3. Revokes that session (`sessions.revoked_at = now()`) and clears both auth cookies and CSRF.
 4. Returns 204.
+5. Missing, invalid or already-revoked credentials still clear local cookies and return 204;
+   other sessions remain untouched. A transport/server failure keeps the browser's durable
+   logout-pending marker so a later reload cannot silently renew the previous identity.
+
+When a commercial request retries after a successful refresh, the browser rereads the rotated
+CSRF cookie for the retry while preserving its body, expected identity, branch, cancellation
+signal and idempotency key.
 
 ### Logout-All
 
@@ -239,6 +248,9 @@ Refresh token rotation is replay-safe: old token is invalidated on rotation.
 | Refresh rotates token | Integration | Beta |
 | Old refresh token rejected after rotation | Integration | Beta |
 | Logout revokes session | Integration | Beta |
+| Logout after access expiry rejects subsequent refresh and preserves other sessions | Integration | Beta |
+| Logout without CSRF after access expiry | Integration | Beta |
+| Mutation retry echoes rotated CSRF and preserves idempotency/body | Frontend unit | Beta |
 | Logout-all revokes all sessions | Integration | Beta |
 | Password reset end-to-end | Integration | Beta |
 | Me returns correct tenant | Integration | Beta |

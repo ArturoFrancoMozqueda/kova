@@ -73,6 +73,7 @@ export type ReceiptRefund = {
   refunded_amount: string;
   created_at: string;
   items: ReceiptRefundItem[];
+  payments?: RefundPaymentAllocation[];
 };
 
 export type ReceiptVoid = {
@@ -108,9 +109,15 @@ export type Receipt = {
   void: ReceiptVoid | null;
 };
 
+export type RefundPaymentAllocation = {
+  method: "cash" | "bank_transfer" | "manual_card";
+  amount: string;
+};
+
 export type RefundPayload = {
   reason: string;
-  refund_payment_method: "cash" | "bank_transfer" | "manual_card";
+  refund_payment_method?: "cash" | "bank_transfer" | "manual_card";
+  refund_payments?: RefundPaymentAllocation[];
   items: Array<{ order_item_id: string; quantity: number }>;
 };
 

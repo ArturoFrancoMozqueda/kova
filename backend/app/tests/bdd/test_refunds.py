@@ -319,7 +319,7 @@ def _post_refund(
     refund_payment_method: str | None = None,
 ) -> None:
     order = refund_context["order"]
-    # refund_payment_method is required by the API; default to cash since the
+    # Use the legacy single-method API form; default to cash since the
     # refund fixtures ring cash orders.
     payload = {
         "items": items,

@@ -383,5 +383,25 @@ describe("ReportsView", () => {
     );
     renderView();
     expect(await screen.findByText(copy.reportsView.emptyStoryTitle)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Operación" })).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.reportsView.refundsSectionTitle)).not.toBeInTheDocument();
+  });
+
+  it("keeps cancellations visible when all sales in the period were voided", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory({
+      summary: { ...makeStory().summary, completed_orders: 0, cancellation_count: 3,
+        gross_sales: "0", net_sales: "0", refund_total: "0", average_ticket: "0" },
+      product_drivers: [], sales_by_day: [], sales_by_daypart: [], payment_mix: [],
+      sales_by_employee: [], refunds_by_reason: [], peak_hour: null,
+      dominant_payment: null, top_product_by_sales: null,
+    }));
+    renderView();
+    expect(await screen.findByText(copy.reportsView.emptyStoryTitle)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Operación" })).toHaveAttribute("href", "#analisis-operacion");
+    const operation = document.getElementById("analisis-operacion");
+    expect(operation).toHaveTextContent(copy.reportsView.refundsSectionTitle);
+    expect(operation).toHaveTextContent("3 cancelaciones");
+    expect(operation).toHaveTextContent(copy.reportsView.cancelHigh);
+    expect(screen.queryByText(copy.reportsView.refundsCleanState)).not.toBeInTheDocument();
   });
 });

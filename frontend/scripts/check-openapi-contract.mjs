@@ -36,6 +36,12 @@ expectProperties("ProductResponse", [
 expectProperties("OrderResponse", [
   "id", "tenant_id", "status", "subtotal_amount", "total_amount", "items", "payments",
 ]);
+expectProperties("RefundCreate", ["refund_payment_method", "refund_payments"]);
+expectProperties("RefundResponse", ["payments"]);
+const orderSort = contract.paths?.["/api/v1/orders"]?.get?.parameters?.find(parameter => parameter.name === "sort");
+if (!["created_desc", "created_asc", "amount_desc", "amount_asc"].every(value => orderSort?.schema?.enum?.includes(value))) {
+  errors.push("GET /api/v1/orders debe ordenar todas las ventas antes de paginar");
+}
 expectProperties("BusinessProfileResponse", [
   "tenant_id", "public_name", "timezone", "locale", "currency",
 ]);
@@ -59,6 +65,7 @@ expectStatus("/api/v1/auth/session", "get", "200");
 expectStatus("/api/v1/catalog/products", "get", "200");
 expectStatus("/api/v1/catalog/products", "post", "201");
 expectStatus("/api/v1/orders", "post", "201");
+expectStatus("/api/v1/orders/{order_id}/refunds/reconcile", "post", "200");
 expectStatus("/api/v1/settings/business-profile", "get", "200");
 expectStatus("/api/v1/internal/ops/me", "get", "200");
 expectStatus("/api/v1/internal/ops/overview", "get", "200");

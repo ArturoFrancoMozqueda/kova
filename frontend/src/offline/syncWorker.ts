@@ -4,6 +4,7 @@ import {
   claimPendingOfflineSales,
   markOfflineSaleFailed,
   recoverExpiredLeases,
+  SYNC_LEASE_MS,
 } from "./queue";
 import { BillingAccessError, RateLimitError, syncOfflineSales } from "./sync";
 import { purgeSyncedSales } from "./storage";
@@ -84,6 +85,22 @@ function nextBackoffMs() {
   return delay;
 }
 
+/** A previous tab may still own a lease when this tab first reloads. Its
+ * expiration must wake the worker even when there are no pending rows. */
+async function scheduleLeaseRecovery(tenantId: string) {
+  const leased = await offlineDb.offline_sales
+    .where("[tenant_id+status]")
+    .equals([tenantId, "syncing"])
+    .toArray();
+  if (leased.length === 0 || getActiveOfflineTenant() !== tenantId) return;
+  const now = Date.now();
+  const deadline = Math.min(...leased.map(row => {
+    const started = Date.parse(row.sync_started_at ?? "");
+    return Number.isFinite(started) ? started + SYNC_LEASE_MS : now;
+  }));
+  scheduleRetryIn(tenantId, Math.max(1, deadline - now));
+}
+
 function noteSyncIssue(tenantId: string, error: unknown) {
   if (error instanceof SyncSessionError) setSyncIssue({ tenantId, kind: error.kind });
 }
@@ -121,10 +138,16 @@ export async function triggerSync(tenantId: string): Promise<void> {
         .equals([tenantId, "pending"])
         .limit(SYNC_CHUNK_SIZE)
         .toArray();
-      if (candidates.length === 0) return;
+      if (candidates.length === 0) {
+        await scheduleLeaseRecovery(tenantId);
+        return;
+      }
 
       const claimed = await claimPendingOfflineSales(tenantId, workerId, SYNC_CHUNK_SIZE);
-      if (claimed.length === 0) return;
+      if (claimed.length === 0) {
+        await scheduleLeaseRecovery(tenantId);
+        return;
+      }
       // Transition exhausted rows before sending the remaining batch together.
       // Sending leased rows one at a time strands the unsent rows in `syncing`
       // when an earlier request throws, preventing the retry timer from finding

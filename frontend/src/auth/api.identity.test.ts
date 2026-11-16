@@ -14,7 +14,7 @@ vi.mock("./sessionCoordination", () => ({
   clearLogoutPending: vi.fn(() => events.push("clear-logout-marker")),
 }));
 
-import { login, refreshSession } from "./api";
+import { login, logout, refreshSession } from "./api";
 
 describe("login identity handoff", () => {
   beforeEach(() => {
@@ -49,5 +49,14 @@ describe("login identity handoff", () => {
 
     await expect(refreshSession()).resolves.toBe(false);
     await expect(refreshSession()).rejects.toMatchObject({ status: 503, message: "Unavailable" });
+  });
+
+  it("does not acknowledge logout until the server confirms cookie cleanup", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(logout()).rejects.toMatchObject({ status: 401 });
+    await expect(logout()).resolves.toBeUndefined();
   });
 });

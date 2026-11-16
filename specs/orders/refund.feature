@@ -47,3 +47,18 @@ Feature: Refund items from a completed order
     Given two separate tenants with orders
     When tenant B attempts to refund tenant A's order
     Then a 404 error is returned
+
+  # API/PostgreSQL regression coverage: test_refund_method_validation.py.
+  # Existing single-method requests keep their original idempotency hashes.
+  # A new request may instead name refund_payments, with one positive Decimal
+  # amount per original method. Both representations together are invalid.
+  # Allocations must sum to the selected items' server-calculated refund total,
+  # never exceed the remaining amount collected in each method, and commit
+  # atomically with one refund, one set of returned quantities and inventory.
+  # A $50 item paid $30 cash + $20 transfer can be returned as $30 + $20:
+  # the cash drawer records only a $30 payout, not the full $50.
+  # Receipts, payment-mix reports and account exports retain this distribution.
+  # Browser retry identity is durable per tenant/user/branch/order before POST;
+  # closing, reopening, navigating or reloading never creates a new identity
+  # while the previous outcome remains uncertain. Recovery replays the same
+  # payload/key, including when the receipt already shows a completed refund.

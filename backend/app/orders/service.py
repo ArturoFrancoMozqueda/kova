@@ -741,6 +741,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
     refund_items = repo.refund_items_for_refunds(
         db, tenant_id=tenant_id, refund_ids=[refund.id for refund in refunds]
     )
+    refund_payments = repo.refund_payments_for_refunds(db, tenant_id=tenant_id, refunds=refunds)
 
     total_tendered = calculator.money(
         sum(p.amount_tendered_amount for p in payments if p.amount_tendered_amount is not None)
@@ -781,6 +782,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                 "id": str(r.id),
                 "reason": r.reason,
                 "refunded_amount": str(r.refunded_amount),
+                "payments": refund_payments[r.id],
                 "created_at": r.created_at.isoformat(),
                 "items": [
                     {
@@ -816,12 +818,15 @@ def create_refund(
     from app.loyalty.rewards import lock_reward_reversal, return_reward
 
     lock_reward_reversal(db, tenant_id, order_id)
-    payload = body.model_dump(mode="json")
+    # Preserve hashes captured by pre-allocation clients and app versions.
+    payload = body.model_dump(mode="json", exclude_none=True)
     payload["order_id"] = str(order_id)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
     if stored:
+        if stored[0] == 409 and stored[1].get("refund_intent_cancelled") is True:
+            raise conflict("Esta devolución se canceló sin registrar movimientos; revisa la venta.")
         return stored
 
     order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
@@ -902,31 +907,37 @@ def create_refund(
     # in that method minus what has already been refunded to it. This blocks a
     # transfer-only order from draining the cash drawer, and blocks
     # over-refunding a split payment's cash portion.
-    method = body.refund_payment_method
-    collected = repo.collected_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
-        method, Decimal("0.00")
+    refund_payments = (
+        {payment.method: calculator.money(payment.amount) for payment in body.refund_payments}
+        if body.refund_payments is not None
+        else {body.refund_payment_method: total_refunded}
     )
-    already_refunded = repo.refunded_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
-        method, Decimal("0.00")
-    )
-    available_in_method = calculator.money(collected - already_refunded)
-    if total_refunded > available_in_method:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "REFUND_METHOD_EXCEEDS_COLLECTED",
-                "method": method,
-                "available": str(available_in_method),
-                "requested": str(total_refunded),
-                "message": (
-                    "No puedes devolver por este método más de lo que se cobró "
-                    f"en él (máx. {available_in_method})."
-                ),
-            },
+    if calculator.order_total(list(refund_payments.values())) != total_refunded:
+        raise bad_request("La distribución de la devolución debe coincidir con su importe")
+    collected = repo.collected_by_method(db, tenant_id=tenant_id, order_id=order_id)
+    already_refunded = repo.refunded_by_method(db, tenant_id=tenant_id, order_id=order_id)
+    for method, amount in refund_payments.items():
+        available_in_method = calculator.money(
+            collected.get(method, Decimal("0.00")) - already_refunded.get(method, Decimal("0.00"))
         )
+        if amount > available_in_method:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "REFUND_METHOD_EXCEEDS_COLLECTED",
+                    "method": method,
+                    "available": str(available_in_method),
+                    "requested": str(amount),
+                    "message": (
+                        "No puedes devolver por este método más de lo que se cobró "
+                        f"en él (máx. {available_in_method})."
+                    ),
+                },
+            )
 
+    cash_amount = refund_payments.get("cash", Decimal("0.00"))
     cash_refund_shift = None
-    if body.refund_payment_method == "cash":
+    if cash_amount > 0:
         cash_refund_shift = shifts_repo.get_open_shift_for_update(db, tenant_id=tenant_id)
         if not cash_refund_shift:
             raise bad_request("Open a shift before refunding cash from the drawer")
@@ -938,8 +949,14 @@ def create_refund(
         user_id=user_id,
         reason=body.reason,
         refunded_amount=total_refunded,
-        refund_payment_method=method,
+        refund_payment_method=next(iter(refund_payments)) if len(refund_payments) == 1 else None,
     )
+
+    for method, amount in refund_payments.items():
+        if amount > 0:
+            repo.create_refund_payment(
+                db, tenant_id=tenant_id, refund_id=refund.id, method=method, amount=amount
+            )
 
     for order_item, quantity, line_total in refund_lines:
         repo.create_refund_item(
@@ -994,6 +1011,10 @@ def create_refund(
         "order_id": str(refund.order_id),
         "reason": refund.reason,
         "refunded_amount": str(refund.refunded_amount),
+        "payments": [
+            {"method": method, "amount": str(amount)}
+            for method, amount in refund_payments.items() if amount > 0
+        ],
         "items": [
             {
                 "id": str(ri.id),
@@ -1013,7 +1034,7 @@ def create_refund(
             tenant_id=tenant_id,
             shift_id=cash_refund_shift.id,
             type="refund_payout",
-            amount=total_refunded,
+            amount=cash_amount,
             reason="refund_payout",
             user_id=user_id,
         )
@@ -1058,14 +1079,59 @@ def create_refund(
     return 201, response_body
 
 
+def reconcile_refund(
+    db: Session, *, tenant_id: UUID, user_id: UUID, order_id: UUID,
+    body: RefundCreate, idempotency_key: str,
+) -> dict[str, Any]:
+    """Resolve or cancel a single uncertain attempt, serializing with checkout.
+
+    A missing response is not proof that the original request never committed.
+    Reserving its same key either waits for that commit or prevents a delayed
+    original request from performing a mutation after we confirm cancellation.
+    """
+    from app.loyalty.rewards import lock_reward_reversal
+
+    # Match create_refund's lock order: loyalty -> key -> source order.
+    lock_reward_reversal(db, tenant_id, order_id)
+    payload = body.model_dump(mode="json", exclude_none=True)
+    payload["order_id"] = str(order_id)
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if not repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id):
+        raise not_found("Order not found")
+    if stored:
+        status, response = stored
+        if status == 409 and response.get("refund_intent_cancelled") is True:
+            result = {"status": "cancelled", "refund": None}
+        elif status in (200, 201) and response.get("order_id") == str(order_id):
+            result = {"status": "confirmed", "refund": response}
+        else:
+            raise conflict("No pudimos confirmar esta devolución; conserva su operación pendiente.")
+        db.commit()
+        return result
+    _store_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload,
+        status_code=409, response_body={"refund_intent_cancelled": True},
+    )
+    audit_service.log(
+        db, action="orders.refund_reconcile", tenant_id=tenant_id, user_id=user_id,
+        resource_type="order", resource_id=order_id, changes={"outcome": "cancelled"},
+    )
+    db.commit()
+    return {"status": "cancelled", "refund": None}
+
+
 def list_refunds(db: Session, *, tenant_id: UUID, order_id: UUID) -> list[dict[str, Any]]:
     refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+    payments = repo.refund_payments_for_refunds(db, tenant_id=tenant_id, refunds=refunds)
     return [
         {
             "id": str(r.id),
             "order_id": str(r.order_id),
             "reason": r.reason,
             "refunded_amount": str(r.refunded_amount),
+            "payments": payments[r.id],
             "items": [
                 {
                     "id": str(ri.id),
@@ -1093,6 +1159,9 @@ def get_refund(db: Session, *, tenant_id: UUID, refund_id: UUID) -> dict[str, An
         "order_id": str(refund.order_id),
         "reason": refund.reason,
         "refunded_amount": str(refund.refunded_amount),
+        "payments": repo.refund_payments_for_refunds(
+            db, tenant_id=tenant_id, refunds=[refund]
+        )[refund.id],
         "items": [
             {
                 "id": str(ri.id),

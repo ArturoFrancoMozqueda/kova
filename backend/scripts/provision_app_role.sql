@@ -216,6 +216,7 @@ BEGIN
             ('order_items', 'SELECT, INSERT'),
             ('payments', 'SELECT, INSERT'),
             ('refund_items', 'SELECT, INSERT'),
+            ('refund_payments', 'SELECT, INSERT'),
             ('refunds', 'SELECT, INSERT'),
             ('telemetry_events', 'INSERT'),
             ('voids', 'SELECT, INSERT'),

@@ -27,6 +27,7 @@ function renderView() {
 
 describe("OrderListView", () => {
   beforeEach(() => {
+    vi.mocked(listOrders).mockReset();
     vi.mocked(listOrders).mockResolvedValue({
       items: [
         {
@@ -75,5 +76,38 @@ describe("OrderListView", () => {
       });
     }
     expect(screen.queryByRole("button", { name: "Mes" })).not.toBeInTheDocument();
+  });
+
+  it("pages through all sales and resets pagination for server-side sorting and filters", async () => {
+    const orders = Array.from({ length: 60 }, (_, index) => ({
+      id: `order-${index}`, status: "completed", subtotal_amount: `${60 - index}.00`,
+      total_amount: `${60 - index}.00`, created_at: new Date(2026, 0, index + 1).toISOString(),
+    }));
+    vi.mocked(listOrders).mockImplementation(async filters => {
+      const ordered = [...orders].sort((a, b) => filters?.sort === "amount_desc"
+        ? Number(b.total_amount) - Number(a.total_amount)
+        : Date.parse(b.created_at) - Date.parse(a.created_at));
+      const offset = filters?.offset ?? 0;
+      return { items: ordered.slice(offset, offset + 50), total: 60, limit: 50, offset };
+    });
+    renderView();
+    await screen.findByText("1–50 de 60 ventas");
+    expect(screen.getByRole("button", { name: "Anteriores" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Siguientes" }));
+    await screen.findByText("51–60 de 60 ventas");
+    expect(screen.getByRole("navigation", { name: "Páginas de ventas" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Siguientes" })).toBeDisabled();
+    expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]).toMatchObject({ offset: 50, limit: 50 });
+
+    fireEvent.change(screen.getByLabelText(copy.orderList.sortLabel), { target: { value: "amount_desc" } });
+    await screen.findByText("1–50 de 60 ventas");
+    expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]).toMatchObject({ offset: 0, sort: "amount_desc" });
+    expect(screen.getAllByRole("row")[1].querySelector("a")).toHaveAttribute("href", "/orders/order-0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Siguientes" }));
+    await screen.findByText("51–60 de 60 ventas");
+    fireEvent.click(screen.getByRole("button", { name: "Canceladas" }));
+    await screen.findByText("1–50 de 60 ventas");
+    expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]).toMatchObject({ offset: 0, status: "voided" });
   });
 });

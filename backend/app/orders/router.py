@@ -1,4 +1,5 @@
 import datetime
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response
@@ -14,6 +15,7 @@ from app.orders.schemas import (
     OrderResponse,
     ReceiptResponse,
     RefundCreate,
+    RefundReconciliationResponse,
     RefundResponse,
     VoidCreate,
     VoidResponse,
@@ -38,6 +40,9 @@ def list_orders(
     status: str | None = Query(default=None, pattern="^(completed|voided)$"),
     start_date: datetime.date | None = Query(default=None),
     end_date: datetime.date | None = Query(default=None),
+    sort: Literal["created_desc", "created_asc", "amount_desc", "amount_asc"] = Query(
+        default="created_desc"
+    ),
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_commercial_access(Permission.ORDERS_CREATE)
@@ -46,7 +51,7 @@ def list_orders(
     _, membership, _ = ctx
     filters = dict(status=status, start_date=start_date, end_date=end_date)
     items = repository.list_orders_by_tenant(
-        db, tenant_id=membership.tenant_id, limit=limit, offset=offset, **filters
+        db, tenant_id=membership.tenant_id, limit=limit, offset=offset, sort=sort, **filters
     )
     total = repository.count_orders_by_tenant(db, tenant_id=membership.tenant_id, **filters)
     return OrderListResponse(items=items, total=total, limit=limit, offset=offset)
@@ -131,6 +136,23 @@ def list_refunds(
 ):
     _, membership, _ = ctx
     return service.list_refunds(db, tenant_id=membership.tenant_id, order_id=order_id)
+
+
+@router.post("/{order_id}/refunds/reconcile", response_model=RefundReconciliationResponse)
+def reconcile_refund(
+    order_id: UUID,
+    body: RefundCreate,
+    db: Session = Depends(get_db),
+    idempotency_key: str = Depends(_idempotency_key),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.ORDERS_REFUND)
+    ),
+):
+    user, membership, _ = ctx
+    return service.reconcile_refund(
+        db, tenant_id=membership.tenant_id, user_id=user.id, order_id=order_id,
+        body=body, idempotency_key=idempotency_key,
+    )
 
 
 @router.get("/refunds/{refund_id}", response_model=RefundResponse)

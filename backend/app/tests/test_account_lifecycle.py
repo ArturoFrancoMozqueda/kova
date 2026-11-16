@@ -174,6 +174,10 @@ def test_export_allowlist_excludes_ops_and_includes_only_owners_refund_graph(
         manifest = json.loads(archive.read("manifest.json"))
         assert manifest["format"] == "Kova account export v2"
         assert manifest["tables"]["refund_items"] == 1
+        assert manifest["tables"]["refund_payments"] == 1
+        refund_payments = archive.read("datos/refund_payments.csv").decode()
+        assert first_sale["refund_id"] in refund_payments
+        assert second_sale["refund_id"] not in refund_payments
         refund_items = archive.read("datos/refund_items.csv").decode()
         assert first_sale["refund_item_id"] in refund_items
         assert second_sale["refund_item_id"] not in refund_items

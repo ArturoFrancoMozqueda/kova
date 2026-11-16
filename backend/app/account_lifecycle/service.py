@@ -348,6 +348,10 @@ _EXPORT_TABLES = (
         ),
     ),
     ExportTable(
+        "refund_payments",
+        _columns("id tenant_id branch_id refund_id method amount"),
+    ),
+    ExportTable(
         "refunds",
         _columns(
             "id tenant_id branch_id order_id created_by_user_id reason refunded_amount "
@@ -673,6 +677,7 @@ _TENANT_DELETE_ORDER = (
     "fiscal_individual_invoice_events",
     "fiscal_global_draft_batches",
     "fiscal_global_draft_settings",
+    "refund_payments",
     "refunds",
     "voids",
     "order_item_modifiers",

@@ -23,6 +23,7 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
     id: refund.id,
     reason: refund.reason,
     refunded_amount: refund.refunded_amount,
+    payments: refund.payments,
     items: refund.items.map((item) => ({
       label: itemNames.get(item.order_item_id) ?? "Producto de la devolución",
       quantity: item.quantity,

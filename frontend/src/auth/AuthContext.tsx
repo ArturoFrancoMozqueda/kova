@@ -1,4 +1,5 @@
 import { getActiveBranchId } from "@/branches/activeBranch";
+import { CSRF_HEADER, csrfHeaders } from "@/lib/csrf";
 import {
   createContext,
   Fragment,
@@ -510,8 +511,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           || currentIdentity.user.id !== activeIdentity.user.id
           || currentIdentity.user.role !== activeIdentity.user.role
         ))) return response;
-      // Retry the original request once with refreshed cookies.
-      const retriedResponse = await originalFetch(retryInput, requestInit);
+      // Refresh rotates the readable CSRF cookie as well as the HttpOnly
+      // credentials. Keep the original payload/identity/idempotency, but echo
+      // the current cookie so a renewed write does not fail CSRF validation.
+      let retryInit = requestInit;
+      if (unsafeApiRequest) {
+        const headers = new Headers(input instanceof Request ? input.headers : undefined);
+        new Headers(requestInit?.headers).forEach((value, key) => headers.set(key, value));
+        headers.delete(CSRF_HEADER);
+        new Headers(csrfHeaders(method)).forEach((value, key) => headers.set(key, value));
+        retryInit = { ...requestInit, headers };
+      }
+      const retriedResponse = await originalFetch(retryInput, retryInit);
       captureApiRequestId(input, retriedResponse);
       revokeCommercialAccess(retriedResponse);
       return retriedResponse;

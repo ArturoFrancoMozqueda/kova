@@ -3,7 +3,7 @@ import Dexie from "dexie";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setActiveOfflineTenant } from "./activeTenant";
 import { offlineDb } from "./db";
-import { makeQueuedSale } from "./queue";
+import { makeQueuedSale, SYNC_LEASE_MS } from "./queue";
 import { stopOfflineSync, triggerSync } from "./syncWorker";
 
 const draft = {
@@ -67,6 +67,55 @@ describe("offline worker mixed retry budgets", () => {
     } finally {
       online.mockRestore();
     }
+  });
+
+  it("recovers a previous tab's lease automatically after a reload, preserving its UUID", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    await offlineDb.offline_sales.clear();
+    await offlineDb.offline_sales.bulkAdd([{
+      ...makeQueuedSale("tenant-a", draft, "interrupted-sale"),
+      status: "syncing", attempt_count: 1, lease_id: "old-lease", sync_owner: "old-tab",
+      sync_started_at: new Date().toISOString(),
+    }, {
+      ...makeQueuedSale("tenant-b", draft, "other-lease"),
+      status: "syncing", attempt_count: 1, lease_id: "other-lease", sync_owner: "other-tab",
+      sync_started_at: new Date().toISOString(),
+    }]);
+    const fetchMock = vi.fn(async (_url, init) => new Response(JSON.stringify({
+      results: JSON.parse(init.body).sales.map((sale: { client_uuid: string }) => ({
+        client_uuid: sale.client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001",
+      })),
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await triggerSync("tenant-a");
+    await vi.advanceTimersByTimeAsync(SYNC_LEASE_MS - 1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(async () => {
+      expect(await offlineDb.offline_sales.get("interrupted-sale")).toMatchObject({ status: "synced" });
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).sales[0].client_uuid).toBe("interrupted-sale");
+    expect(await offlineDb.offline_sales.get("other-lease")).toMatchObject({ status: "syncing", attempt_count: 1 });
+  });
+
+  it("cancels a scheduled lease recovery when the verified tenant is cleared", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    await offlineDb.offline_sales.clear();
+    await offlineDb.offline_sales.add({
+      ...makeQueuedSale("tenant-a", draft, "interrupted-sale"),
+      status: "syncing", attempt_count: 1, lease_id: "old-lease", sync_owner: "old-tab",
+      sync_started_at: new Date().toISOString(),
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await triggerSync("tenant-a");
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    setActiveOfflineTenant(null);
+    await vi.advanceTimersByTimeAsync(SYNC_LEASE_MS + 1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await offlineDb.offline_sales.get("interrupted-sale")).toMatchObject({ status: "syncing" });
   });
 
   it.each([503, 429])("releases every retryable lease on HTTP %s and resumes the original sales", async (status) => {

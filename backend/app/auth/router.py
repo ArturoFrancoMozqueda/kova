@@ -211,12 +211,16 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_priv
 def logout(
     request: Request,
     response: Response,
-    db: Session = Depends(get_db),
-    ctx=Depends(get_current_session),
+    # Like refresh, resolve the opaque cookie before tenant context exists.
+    # The service revokes only that cookie's session; CSRF remains mandatory.
+    db: Session = Depends(get_privileged_db),
 ):
-    _, _, session = ctx
-    ip = request_client_ip(request)
-    service.logout(db, session=session, ip_address=ip)
+    service.logout_current_session(
+        db,
+        access_token=request.cookies.get("access_token"),
+        refresh_token=request.cookies.get("refresh_token"),
+        ip_address=request_client_ip(request),
+    )
     _clear_auth_cookies(response)
 
 

@@ -14,6 +14,7 @@ from app.orders.models import (
     Payment,
     Refund,
     RefundItem,
+    RefundPayment,
     Void,
 )
 from app.shared.timezone import tenant_timezone
@@ -303,13 +304,20 @@ def list_orders_by_tenant(
     status: str | None = None,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    sort: str = "created_desc",
 ) -> list[Order]:
     start, end = _resolve_bounds(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
     )
     query = db.query(Order).filter(Order.tenant_id == tenant_id)
     query = _apply_order_filters(query, status=status, start=start, end=end)
-    return query.order_by(_SALE_TIME.desc()).limit(limit).offset(offset).all()
+    ordering = {
+        "created_desc": (_SALE_TIME.desc(), Order.id.desc()),
+        "created_asc": (_SALE_TIME.asc(), Order.id.asc()),
+        "amount_desc": (Order.total_amount.desc(), _SALE_TIME.desc(), Order.id.desc()),
+        "amount_asc": (Order.total_amount.asc(), _SALE_TIME.asc(), Order.id.asc()),
+    }[sort]
+    return query.order_by(*ordering).limit(limit).offset(offset).all()
 
 
 def count_orders_by_tenant(
@@ -444,26 +452,71 @@ def collected_by_method(
 def refunded_by_method(
     db: Session, *, tenant_id: UUID, order_id: UUID
 ) -> dict[str, Decimal]:
-    """Total already refunded per method for an order (tenant-scoped).
+    return refunds_by_method_for_orders(db, tenant_id=tenant_id, order_ids=[order_id])
 
-    Only rows that recorded a refund_payment_method count toward a method's
-    running total; legacy rows (method NULL) are excluded from the per-method
-    ceiling check because their tender is unknown.
-    """
-    rows = (
+
+def refunds_by_method_for_orders(
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+) -> dict[str, Decimal]:
+    """Count each allocation once; older single-method rows remain readable."""
+    if not order_ids:
+        return {}
+    allocations = (
+        db.query(RefundPayment.method, func.sum(RefundPayment.amount).label("total"))
+        .join(Refund, (Refund.id == RefundPayment.refund_id)
+              & (Refund.tenant_id == RefundPayment.tenant_id))
+        .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
+        .group_by(RefundPayment.method).all()
+    )
+    has_allocations = db.query(RefundPayment.id).filter(
+        RefundPayment.tenant_id == Refund.tenant_id,
+        RefundPayment.refund_id == Refund.id,
+    ).exists()
+    legacy = (
         db.query(
             Refund.refund_payment_method,
             func.coalesce(func.sum(Refund.refunded_amount), 0).label("total"),
         )
         .filter(
             Refund.tenant_id == tenant_id,
-            Refund.order_id == order_id,
+            Refund.order_id.in_(order_ids),
             Refund.refund_payment_method.isnot(None),
+            ~has_allocations,
         )
         .group_by(Refund.refund_payment_method)
         .all()
     )
-    return {row.refund_payment_method: Decimal(row.total or 0) for row in rows}
+    result = {row.method: Decimal(row.total or 0) for row in allocations}
+    for row in legacy:
+        method = row.refund_payment_method
+        result[method] = result.get(method, Decimal("0.00")) + Decimal(row.total or 0)
+    return result
+
+
+def create_refund_payment(
+    db: Session, *, tenant_id: UUID, refund_id: UUID, method: str, amount: Decimal
+) -> None:
+    db.add(RefundPayment(tenant_id=tenant_id, refund_id=refund_id, method=method, amount=amount))
+    db.flush()
+
+
+def refund_payments_for_refunds(
+    db: Session, *, tenant_id: UUID, refunds: list[Refund]
+) -> dict[UUID, list[dict[str, str]]]:
+    result: dict[UUID, list[dict[str, str]]] = {refund.id: [] for refund in refunds}
+    if not refunds:
+        return result
+    rows = db.query(RefundPayment).filter(
+        RefundPayment.tenant_id == tenant_id, RefundPayment.refund_id.in_(result)
+    ).order_by(RefundPayment.method).all()
+    for row in rows:
+        result[row.refund_id].append({"method": row.method, "amount": str(row.amount)})
+    for refund in refunds:
+        if not result[refund.id] and refund.refund_payment_method and refund.refunded_amount > 0:
+            result[refund.id].append({
+                "method": refund.refund_payment_method, "amount": str(refund.refunded_amount),
+            })
+    return result
 
 
 def create_refund_item(

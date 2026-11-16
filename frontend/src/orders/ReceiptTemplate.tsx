@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime, formatMoney, reasonLabel } from "./format";
 import type { HTMLAttributes } from "react";
 import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
-import type { LoyaltyRewardSnapshot } from "./types";
+import type { LoyaltyRewardSnapshot, RefundPaymentAllocation } from "./types";
 
 type ReceiptModifier = {
   modifier_group_name?: string;
@@ -28,6 +28,7 @@ export type ReceiptTemplateRefund = {
   id: string;
   reason: string;
   refunded_amount: string;
+  payments?: RefundPaymentAllocation[];
   items?: Array<{
     label: string;
     quantity: number;
@@ -199,6 +200,7 @@ export function ReceiptTemplate({
             {refunds.map((refund) => (
               <div key={refund.id}>
                 <ReceiptLine label={reasonLabel(refund.reason)} value={`-${formatMoney(refund.refunded_amount)}`} />
+                {(refund.payments ?? []).map(payment => <ReceiptLine key={payment.method} label={copy.refundModal.paymentMethods[payment.method]} value={`-${formatMoney(payment.amount)}`} />)}
                 {(refund.items ?? []).map((item) => (
                   <p key={`${refund.id}-${item.label}`} className="text-[10px] tkt-caption">
                     {item.label} x{item.quantity}

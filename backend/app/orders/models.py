@@ -211,6 +211,7 @@ class Refund(BranchScoped, Base):
             name="fk_refunds_branch",
         ),
         UniqueConstraint("tenant_id", "id", name="uq_refunds_tenant_id_id"),
+        UniqueConstraint("tenant_id", "branch_id", "id", name="uq_refunds_tenant_branch_id"),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id", "order_id"],
             ["orders.tenant_id", "orders.branch_id", "orders.id"],
@@ -225,10 +226,33 @@ class Refund(BranchScoped, Base):
     reason: Mapped[str] = mapped_column(String(30), nullable=False)
     refunded_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     # The tender the refund was paid back through (cash / bank_transfer /
-    # manual_card). Nullable for rows created before this column existed; new
-    # refunds always persist it so per-method drawer/report math ties out.
+    # manual_card). Nullable for legacy unknown tenders and mixed refunds;
+    # refund_payments records each tender for newly allocated refunds.
     refund_payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class RefundPayment(BranchScoped, Base):
+    __tablename__ = "refund_payments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "refund_id"],
+            ["refunds.tenant_id", "refunds.branch_id", "refunds.id"],
+            name="fk_refund_payments_refund",
+        ),
+        UniqueConstraint("refund_id", "method", name="uq_refund_payments_method"),
+        CheckConstraint("amount > 0", name="ck_refund_payments_amount"),
+        CheckConstraint(
+            "method IN ('cash', 'bank_transfer', 'manual_card')",
+            name="ck_refund_payments_method",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    refund_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
 
 class RefundItem(Base):
