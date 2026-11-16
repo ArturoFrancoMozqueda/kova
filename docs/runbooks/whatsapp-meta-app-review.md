@@ -1,7 +1,8 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado actualizado: 15 de noviembre de 2026. Este expediente es un borrador técnico, no una solicitud
-enviada ni una aprobación de Meta. Complementa el [runbook de alta](whatsapp-embedded-signup.md).
+Estado actualizado: 15 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
+borrador técnico, sin enviar ni aprobar. La renovación anual de acceso a datos es un trámite
+separado: ya se envió y sigue en revisión. Complementa el [runbook de alta](whatsapp-embedded-signup.md).
 
 ## Alcance que debe revisar Meta
 
@@ -101,6 +102,11 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
   un plazo de diez días. El nuevo intento de modo Activo sigue bloqueado hasta la aprobación.
   Se entregaron únicamente las credenciales autorizadas de la cuenta aislada con cortesía. El
   formulario no atribuye una conversación de WhatsApp conectada a esa cuenta.
+- Comprobación posterior: la renovación continúa **En revisión** y no pide acciones adicionales.
+  El propio borrador de permisos deshabilita **Enviar para revisión** con el mensaje «Completa
+  los requisitos de renovación del acceso a datos para enviar la app a revisión». Se contrastaron
+  sus respuestas precargadas de tratamiento con las que confirmó el titular, sin enviar esa
+  solicitud ni aceptar nuevas declaraciones. La renovación bloquea también ese envío.
 - Los textos de ambos permisos de WhatsApp se actualizaron en el borrador de App Review para
   explicar coexistencia, importación autorizada y separación entre historial/eco y mensajes en
   vivo. Sin video real ni nuevas certificaciones, ese borrador tampoco se envió.
@@ -118,11 +124,18 @@ por la protección de identidad del plano de control, antes de cambiar la app. S
 API, proxy y base sanos en el mismo SHA anterior. Se conserva intacto el holder de cuatro campos:
 la admisión usa la configuración por negocio existente, sin eludir esa protección ni leer secretos.
 
-Sucursal principal conserva la vinculación vacía del número de prueba anterior de Meta: cero
-conversaciones, mensajes y eventos comprobados. El titular confirmó que el destino del número real
-debe seguir siendo esa sucursal. No sustituirla automáticamente: preparar su retiro acotado según
-el runbook de alta y completar después una autorización nueva de coexistencia. Una referencia vieja
-del registro asistido no puede ocultar la conexión nueva verificada; nunca aporta sus credenciales.
+El titular confirmó que el destino del número real debe seguir siendo **Sucursal principal** y
+pidió completar lo pendiente. Se retiró su vinculación vacía del número de prueba anterior de Meta
+mediante el procedimiento acotado del runbook de alta: bloqueo de identidad y alcance, cero
+conversaciones, mensajes, eventos, credenciales cifradas, sincronizaciones, contactos, lotes y
+autorizaciones pendientes, y auditoría en la misma transacción. La consulta posterior confirma cero
+vinculaciones/conexiones en esa sucursal y exactamente un registro de retiro. La sesión real del
+dueño muestra Sweet Home / Sucursal principal **Sin conectar**. No se eliminó ningún número en
+Meta ni se modificó la cuenta móvil del número real.
+
+La sucursal queda libre para una autorización nueva de coexistencia cuando Meta permita continuar.
+Una referencia vieja del registro asistido no puede ocultar la conexión nueva verificada; nunca
+aporta sus credenciales. El interruptor general continúa apagado y no se conectó ni importó el 3710.
 
 ## Texto base para los formularios de Meta
 
