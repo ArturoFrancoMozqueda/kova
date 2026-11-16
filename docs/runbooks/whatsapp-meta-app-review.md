@@ -1,6 +1,6 @@
 # Preparar la revisión de la app de WhatsApp
 
-Estado actualizado: 15 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
+Estado actualizado: 16 de noviembre de 2026. La solicitud de permisos de WhatsApp sigue como
 borrador técnico, sin enviar ni aprobar. La renovación anual de acceso a datos es un trámite
 separado: Meta ya la muestra **Completada** y confirmó la app **Activa**. Complementa el
 [runbook de alta](whatsapp-embedded-signup.md).
@@ -153,10 +153,36 @@ se repitió sólo ese trabajo y sus dependientes, conservando todos los controle
 La comprobación pública posterior confirmó API/frontend/controlador/arranque en el mismo SHA,
 sitio/proxy/base accesibles y privacidad sin nombre personal. La sesión real del dueño muestra
 Sweet Home / Sucursal principal con **Conectar WhatsApp**, prepara **Autorizar en Meta** y abre
-el SDK real con la variante de coexistencia. Meta presenta las condiciones de Cloud API y
-WhatsApp Business Platform, pendientes de aceptación expresa del titular; no se pulsó Continuar.
+el SDK real con la variante de coexistencia. El titular autorizó aceptar las condiciones de Cloud
+API y WhatsApp Business Platform; se pulsó Continuar y se ingresó el número móvil autorizado.
 El acceso aislado del revisor conserva cortesía y alta disponible, una sucursal y cero clientes o
 conversaciones. Esto acredita disponibilidad de autorización, no una conexión ni entrega real.
+
+### Bloqueo real de coexistencia y evidencia de revisión
+
+El SDK v4 pide primero el número. La documentación oficial confirma que, con `featureType`
+configurado, detecta automáticamente el uso de WhatsApp Business y deriva a coexistencia; no
+requiere una opción separada previa. En la prueba real, Meta devolvió **3441107**: la app del socio
+todavía no está preparada para conectar números de WhatsApp Business. No se pidió SMS ni se
+registró, migró o desregistró el 3710. El panel del proveedor muestra **1 de 2 pasos**: negocio
+aprobado y revisión de app pendiente. La tabla de permisos confirma `Standard access` y
+**No se solicitó revisar la app** en ambos permisos de WhatsApp. La etiqueta genérica «En revisión»
+del panel del proveedor no acredita el envío del borrador.
+
+Meta [permite evidencia alternativa](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers):
+el envío de API Setup a un destinatario de prueba autorizado y la creación de una plantilla en
+WhatsApp Manager. Se dejó preparado `hello_world` para el destinatario autorizado terminado en
+0199, sin enviarlo de nuevo todavía. El acceso temporal del panel se renovó con la configuración
+anterior, sin copiar credenciales a Kova ni mostrarlas en la evidencia.
+
+En **Test Messaging Account** se creó `kova_revision_confirmacion_reserva`, categoría Utilidad,
+idioma `es_MX`, con muestras ficticias de nombre, folio, fecha y hora. Meta la muestra **En revisión**;
+este estado corresponde a esa plantilla, no a la revisión de la app. Se guardó un video de 20 s
+con 38 capturas reales de su creación, omitiendo las pausas entre pasos y sin pantallas simuladas.
+Falta completar el video de envío con recepción visible en WhatsApp, adjuntar la evidencia y
+obtener las declaraciones finales autorizadas antes de enviar App Review. El formulario de
+soporte de cumplimiento disponible sólo atiende evaluaciones solicitadas por Meta; no se marcó
+esa declaración ni se envió un ticket que no correspondía.
 
 ## Texto base para los formularios de Meta
 

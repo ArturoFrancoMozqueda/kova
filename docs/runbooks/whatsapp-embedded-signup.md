@@ -55,6 +55,13 @@ La renovación anual de Meta ya muestra **Completada** y el MCP confirmó la app
 15 de noviembre de 2026. Esto libera esos dos requisitos; no acredita todavía el acceso avanzado
 de WhatsApp ni la aceptación real de coexistencia.
 
+La prueba real del 16 de noviembre alcanzó el flujo Phone Number First, pero Meta devolvió
+**3441107** al detectar el número de la app móvil: falta la habilitación de la app del socio.
+No repetirlo como alta estándar ni pedir que se elimine la cuenta. Los permisos de WhatsApp
+siguen estándar y su borrador no fue enviado. Primero completar la evidencia alternativa que
+Meta admite para App Review y su aprobación; después volver a probar coexistencia. Véase el
+[expediente actualizado](whatsapp-meta-app-review.md#bloqueo-real-de-coexistencia-y-evidencia-de-revisión).
+
 ### Autorización del dueño
 
 El dueño selecciona la sucursal, pulsa Conectar WhatsApp y Autorizar en Meta. Meta gestiona sus
