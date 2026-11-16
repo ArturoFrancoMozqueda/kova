@@ -18,10 +18,11 @@ No pedir tokens ni claves a los comercios por chat o formularios de Kova.
    al holder existente. Nunca se reinicia el controlador de producción para agregar estos ajustes.
 5. En ese Worker privado, configurar `WHATSAPP_APP_ID`, `WHATSAPP_SIGNUP_CONFIG_ID`,
    `WHATSAPP_CREDENTIALS_KEY` (Fernet aleatorio, separado de otros secretos) y, al cumplir los gates,
-   `WHATSAPP_SIGNUP_ENABLED=true`. Para aceptación limitada, configurar primero
-   `WHATSAPP_SIGNUP_TENANT_IDS` con los negocios autorizados y comprobar que otro negocio no vea
-   el alta ni pueda iniciarla/finalizarla. Vacío conserva el rollout global explícito; no usarlo
-   para un piloto limitado. No imprimir ni versionar secretos. Los secretos comunes del
+   `WHATSAPP_SIGNUP_ENABLED=true`. Para aceptación limitada, admitir primero los negocios
+   autorizados con `tenants.feature_overrides.whatsapp_signup_pilot=true` mediante una operación
+   de plataforma auditada. Comprobar que otro negocio no vea el alta ni pueda iniciarla/finalizarla.
+   La admisión ausente o no booleana mantiene el alta apagada aun con el interruptor global activo.
+   No imprimir ni versionar secretos. Los secretos comunes del
    piloto permanecen en `kova-backend`: versión Graph fijada, app secret y verify token.
 6. Un release autorizado crea un proceso nuevo con esa configuración. Guardar un Secret no
    cambia la configuración de un proceso que ya estaba arrancado.
@@ -55,6 +56,28 @@ No agregar negocios al scheduler sin su admisión normal. Véase
 [ADR-036](../adr/ADR-036-whatsapp-business-app-coexistence.md).
 
 ## Revisión de un alta interrumpida
+
+### Retiro de una vinculación de prueba vacía
+
+Es una operación de plataforma, nunca una función de reasignación automática del alta. Requiere
+que el titular elija esa misma sucursal para un número diferente y que el operador compruebe que
+la vinculación anterior corresponde al número de prueba de Meta, no al teléfono del negocio.
+
+1. Capturar identidad exacta de negocio, sucursal, vinculación, WABA y número de prueba, sin tokens.
+2. En una transacción privilegiada explícita, bloquear sucursal y vinculación. Abortar si existe
+   cualquier conversación, mensaje, evento, conexión cifrada, sincronización, contacto o lote
+   importado; también ante una autorización pendiente para ese alcance. No purgar esos datos.
+3. Retirar sólo esa vinculación vacía y registrar auditoría de identidad/alcance y motivo. No
+   eliminar ni desregistrar el número en Meta, no cambiar PIN y no editar Secrets compartidos.
+4. Confirmar sin conectar, iniciar una autorización nueva y verificar con Meta el número real.
+   Una entrada antigua de configuración del piloto sólo se usa si conserva su vinculación exacta
+   habilitada. Si ya fue retirada, se consulta la conexión cifrada nueva, que debe verificar el
+   mismo negocio y sucursal; sin ella, sigue sin conectar. La propiedad no cambia automáticamente.
+
+Este procedimiento no sirve para reemplazar un canal con historial. En ese caso se requiere una
+migración y revisión específicas; no borrar historial ni mover la vinculación a otra sucursal.
+
+### Estados de autorización
 
 `exchanging`, `subscribing` o `registering` persistidos no se repiten. La UI pasa a revisión después
 de dos minutos. Consultar las evidencias de Meta con un operador autorizado y comparar la sesión,

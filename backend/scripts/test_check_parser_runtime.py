@@ -357,6 +357,23 @@ class RuntimeGateTests(unittest.TestCase):
             self.assertEqual(GATE.main(), 0)
         check.assert_called_once_with("parser:candidate", require_native_arch="x86_64")
 
+    def test_cli_strips_host_token_before_image_probe_and_never_reports_it(self):
+        token = "synthetic-upstream-read-token"
+        arguments = ["check_parser_runtime.py", "--image", "parser:candidate"]
+
+        def image_probe(*_args, **_kwargs):
+            self.assertNotIn("KOVA_UPSTREAM_GITHUB_TOKEN", GATE.os.environ)
+            return {"image_id": "sha256:" + "f" * 64, **valid_report(self.expected)}
+
+        with mock.patch.dict(GATE.os.environ, {"KOVA_UPSTREAM_GITHUB_TOKEN": token}), \
+             mock.patch.object(GATE.sys, "argv", arguments), \
+             mock.patch.object(GATE, "check_upstream_advisories", return_value=[]) as upstream, \
+             mock.patch.object(GATE, "check_image", side_effect=image_probe), \
+             mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertEqual(GATE.main(), 0)
+            self.assertNotIn(token, output.getvalue())
+        self.assertEqual(upstream.call_args.kwargs["token"], token)
+
 
 class AdvisoryFeedTests(unittest.TestCase):
     def setUp(self):
@@ -377,6 +394,47 @@ class AdvisoryFeedTests(unittest.TestCase):
             "api.github.com/repos/tesseract-ocr/tesseract/security-advisories", request.full_url
         )
         self.assertEqual(opener.call_args.kwargs["timeout"], 20)
+
+    def test_optional_host_auth_still_requires_complete_exact_public_feed(self):
+        token = "synthetic-upstream-read-token"
+        opener = mock.Mock(return_value=Response(self.rows))
+        self.assertEqual(len(GATE.check_upstream_advisories(
+            self.expected, open_url=opener, token=token,
+        )), 20)
+        request = opener.call_args.args[0]
+        self.assertEqual(request.get_header("Authorization"), f"Bearer {token}")
+        self.assertEqual(request.full_url, GATE.ADVISORY_URL + "?per_page=100&state=published")
+        self.assertNotIn("Cookie", dict(request.header_items()))
+        rows = self.rows + [{"ghsa_id": "GHSA-0000-1111-2222", "severity": "low"}]
+        with self.assertRaisesRegex(GATE.GateError, "Unreviewed upstream"):
+            GATE.check_upstream_advisories(self.expected, token=token,
+                                          open_url=lambda *_a, **_k: Response(rows))
+
+    def test_malformed_host_token_is_rejected_without_a_request_or_value_in_error(self):
+        token = "synthetic-private-token\nInjected: value"
+        opener = mock.Mock()
+        with self.assertRaisesRegex(GATE.GateError, "Invalid upstream") as caught:
+            GATE.check_upstream_advisories(self.expected, token=token, open_url=opener)
+        self.assertNotIn(token, str(caught.exception))
+        opener.assert_not_called()
+
+    def test_auth_never_follows_foreign_pagination_or_leaks_http_failure_details(self):
+        token = "synthetic-upstream-read-token"
+        rows = [{"ghsa_id": f"GHSA-{index:04x}-1111-2222"} for index in range(100)]
+        expected = {"manifest": {"advisories": rows}}
+        opener = mock.Mock(return_value=Response(
+            rows, link='<https://evil.invalid/?per_page=100>; rel="next"',
+        ))
+        with self.assertRaisesRegex(GATE.GateError, "Unsafe advisory"):
+            GATE.check_upstream_advisories(expected, token=token, open_url=opener)
+        self.assertEqual(opener.call_count, 1)
+        for status in (403, 429):
+            opener = mock.Mock(side_effect=HTTPError(
+                GATE.ADVISORY_URL, status, token, {"Authorization": token}, None,
+            ))
+            with self.assertRaisesRegex(GATE.GateError, f"HTTP {status}") as caught:
+                GATE.check_upstream_advisories(self.expected, token=token, open_url=opener)
+            self.assertNotIn(token, str(caught.exception))
 
     def test_new_advisory_blocks_even_when_low_or_unknown_severity(self):
         for severity in ("low", "medium", "high", "critical", None):

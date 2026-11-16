@@ -95,21 +95,34 @@ No enviar el expediente mientras el revisor no pueda reproducir realmente ese re
 - El titular autorizó certificar `public_profile` y confirmar los proveedores, responsable y
   respuestas de tratamiento anteriores. Esos apartados quedaron completos. Privacidad conserva
   `https://kovasuite.com/privacy`; las instrucciones explican el login propio de Kova, el uso de
-  Facebook Login for Business sólo para WhatsApp y el gate público apagado. No se envió la nueva
-  evaluación. Se guardaron las credenciales autorizadas de la cuenta aislada con cortesía; Meta
-  habilitó **Enviar**. El formulario declara expresamente que el alta de WhatsApp continúa apagada
-  y no atribuye una conversación conectada a esa cuenta. El envío formal sigue pendiente.
+  Facebook Login for Business sólo para WhatsApp y el gate público apagado. Con autorización
+  adicional del titular se aceptó la certificación final de cumplimiento y se envió la renovación.
+  Meta confirmó **En revisión**, sin acciones adicionales, e indica que la mayoría se revisa en
+  un plazo de diez días. El nuevo intento de modo Activo sigue bloqueado hasta la aprobación.
+  Se entregaron únicamente las credenciales autorizadas de la cuenta aislada con cortesía. El
+  formulario no atribuye una conversación de WhatsApp conectada a esa cuenta.
 - Los textos de ambos permisos de WhatsApp se actualizaron en el borrador de App Review para
   explicar coexistencia, importación autorizada y separación entre historial/eco y mensajes en
   vivo. Sin video real ni nuevas certificaciones, ese borrador tampoco se envió.
 - El titular eligió **Cafetería Sweet Home / Sucursal principal** para la prueba real. El número
   de WhatsApp Business móvil no se conectó, registró, migró ni importó. Conservar la app móvil.
 
-Para acotar la aceptación se agregó `WHATSAPP_SIGNUP_TENANT_IDS` al canal privado de configuración:
-una lista no vacía limita disponibilidad, inicio y finalización al negocio autenticado en servidor.
-No activar el interruptor global sin configurar y comprobar el alcance del piloto. Un valor vacío
-conserva el rollout general explícito, que todavía no está autorizado como disponibilidad pública.
-Las conexiones ya verificadas y sus eventos no se revocan al retirar el acceso a nuevas altas.
+La admisión del piloto vive en `tenants.feature_overrides.whatsapp_signup_pilot=true`, sólo para
+Sweet Home y el negocio aislado del revisor, con auditoría de plataforma. La disponibilidad, inicio
+y finalización exigen esa admisión en el negocio autenticado. No se entrega este control al cliente.
+El interruptor global sigue apagado. Las conexiones verificadas y sus eventos no se revocan al
+retirar la admisión para nuevas altas. No ofrecer el alta pública general durante este piloto.
+
+El primer intento de publicar la restricción mediante un campo nuevo del holder fue detenido
+por la protección de identidad del plano de control, antes de cambiar la app. Se comprobó sitio,
+API, proxy y base sanos en el mismo SHA anterior. Se conserva intacto el holder de cuatro campos:
+la admisión usa la configuración por negocio existente, sin eludir esa protección ni leer secretos.
+
+Sucursal principal conserva la vinculación vacía del número de prueba anterior de Meta: cero
+conversaciones, mensajes y eventos comprobados. El titular confirmó que el destino del número real
+debe seguir siendo esa sucursal. No sustituirla automáticamente: preparar su retiro acotado según
+el runbook de alta y completar después una autorización nueva de coexistencia. Una referencia vieja
+del registro asistido no puede ocultar la conexión nueva verificada; nunca aporta sus credenciales.
 
 ## Texto base para los formularios de Meta
 

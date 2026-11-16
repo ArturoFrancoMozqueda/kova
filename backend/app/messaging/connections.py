@@ -99,7 +99,12 @@ def resolve_connection(db, tenant_id, *, branch_id=None) -> PilotConnection | No
         )
         .first()
     )
-    return connection if binding is not None and binding.verified_at is not None else None
+    if binding is not None and binding.verified_at is not None:
+        return connection
+    # Retiring an empty assisted test binding must not let its stale host entry
+    # mask a later, independently verified Embedded Signup connection. Stored
+    # resolution still checks exact tenant/branch, enabled binding and encryption.
+    return stored_connection(db, tenant_id, branch)
 
 
 def stored_connection(db, tenant, branch):

@@ -26,6 +26,7 @@ from app.messaging.provisioning import provision_binding
 from app.messaging.signup_provider import SignupProvider
 from app.messaging.whatsapp import ChannelError
 from app.shared.exceptions import conflict, forbidden, not_found
+from app.tenants.models import Tenant
 
 IN_PROGRESS = {"exchanging", "subscribing", "registering"}
 
@@ -41,9 +42,12 @@ def platform_available():
     )
 
 
-def available(tenant):
-    cohort = settings.whatsapp_signup_tenant_ids
-    return platform_available() and (not cohort or str(tenant) in cohort.split(","))
+def available(db, tenant):
+    if not platform_available():
+        return False
+    business = db.get(Tenant, tenant)
+    flags = business.feature_overrides if business is not None else None
+    return isinstance(flags, dict) and flags.get("whatsapp_signup_pilot") is True
 
 
 def status(db, tenant, *, owner):
@@ -63,7 +67,7 @@ def status(db, tenant, *, owner):
         )
     if state == "pending" and row.expires_at <= datetime.now(UTC):
         state = "failed"
-    enabled = available(tenant)
+    enabled = available(db, tenant)
     return {
         "available": enabled,
         "can_manage": owner,
@@ -98,7 +102,7 @@ def _scope(db, tenant, branch, actor):
 
 
 def start(db, tenant, branch, actor):
-    if not available(tenant):
+    if not available(db, tenant):
         raise conflict("La conexión con Meta aún requiere preparación de Kova")
     _scope(db, tenant, branch, actor)
     rows = (
@@ -179,7 +183,7 @@ def _ownership(db, tenant, branch, waba, phone):
 
 
 def finish(db, tenant, branch, actor, body, *, provider=None):
-    if not available(tenant):
+    if not available(db, tenant):
         raise conflict("La conexión con Meta aún requiere preparación de Kova")
     row = _session(db, tenant, branch, actor, body)
     code_hash = hashlib.sha256(body.code.get_secret_value().encode()).hexdigest()

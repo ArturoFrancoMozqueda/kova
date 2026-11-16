@@ -10,18 +10,19 @@ import httpx
 import pytest
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
-from pydantic import SecretStr, ValidationError
+from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership
 from app.branches.scope import tenant_wide_branches
-from app.config import Settings, settings
-from app.messaging import credentials, delivery, onboarding
+from app.config import settings
+from app.messaging import connections, credentials, delivery, onboarding
 from app.messaging.models import ChannelBinding, ChannelConnection, Conversation, SignupSession
 from app.messaging.schemas import SignupFinish
 from app.messaging.signup_provider import SignupProvider
 from app.messaging.whatsapp import ChannelError
+from app.tenants.models import Tenant
 from app.tests.test_catalog import _signup_verify_login
 from app.tests.test_messaging_inbox import envelope
 
@@ -34,7 +35,6 @@ def configured(monkeypatch):
     for name, value in {
         "kova_whatsapp_enabled": True,
         "whatsapp_signup_enabled": True,
-        "whatsapp_signup_tenant_ids": "",
         "whatsapp_graph_api_version": "v25.0",
         "whatsapp_app_id": "123",
         "whatsapp_signup_config_id": "456",
@@ -75,8 +75,15 @@ class FakeMeta:
         assert len(pin) == 6 and pin.isdigit()
 
 
-def begin(client):
+def enroll(db, account, enabled=True):
+    tenant = db.get(Tenant, UUID(account["tenant_id"]))
+    tenant.feature_overrides = {**tenant.feature_overrides, "whatsapp_signup_pilot": enabled}
+    db.commit()
+
+
+def begin(client, db):
     account = _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Negocio WhatsApp")
+    enroll(db, account)
     response = client.post(f"{BASE}/start", json={})
     assert response.status_code == 200, response.text
     body = {k: v for k, v in response.json().items() if k != "expires_at"}
@@ -89,9 +96,11 @@ def begin(client):
 def test_pilot_cohort_uses_server_session_and_rejects_before_creating_session(
     client, db, configured, monkeypatch
 ):
+    admitted = _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Admitido al piloto")
+    enroll(db, admitted)
+    assert client.get(BASE).json()["available"] is True
     _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Fuera del piloto")
-    allowed = uuid4()
-    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(allowed))
+    allowed = admitted["tenant_id"]
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     state = client.get(BASE, params={"tenant_id": str(allowed)})
@@ -102,7 +111,9 @@ def test_pilot_cohort_uses_server_session_and_rejects_before_creating_session(
     readiness = client.get("/api/v1/messaging/readiness", params={"tenant_id": str(allowed)})
     assert readiness.status_code == 200
     assert readiness.json()["signup_available"] is False
-    assert client.post(f"{BASE}/start", json={}).status_code == 409
+    assert client.post(f"{BASE}/start", json={
+        "tenant_id": allowed, "feature_overrides": {"whatsapp_signup_pilot": True},
+    }).status_code == 409
     assert db.query(SignupSession).count() == 0
     assert meta.calls == []
 
@@ -111,9 +122,9 @@ def test_pilot_removal_blocks_pending_finish_and_global_switch_still_wins(
     client, db, configured, monkeypatch
 ):
     account = _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Piloto autorizado")
-    tenant = account["tenant_id"]
-    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(tenant))
+    enroll(db, account)
     assert client.get(BASE).json()["available"] is True
+    assert "whatsapp_signup_pilot" not in client.get("/api/v1/auth/session").json()["feature_flags"]
     assert client.get("/api/v1/messaging/readiness").json()["signup_available"] is True
     response = client.post(f"{BASE}/start", json={})
     assert response.status_code == 200
@@ -121,12 +132,12 @@ def test_pilot_removal_blocks_pending_finish_and_global_switch_still_wins(
     body.update(code="synthetic-exchange-code", waba_id="987", phone_number_id="654", event="FINISH")
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
-    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(uuid4()))
+    enroll(db, account, False)
     assert client.post(f"{BASE}/finish", json=body).status_code == 409
     assert meta.calls == []
     assert db.query(SignupSession).one().state == "pending"
     assert db.query(ChannelBinding).count() == 0
-    monkeypatch.setattr(settings, "whatsapp_signup_tenant_ids", str(tenant))
+    enroll(db, account)
     monkeypatch.setattr(settings, "whatsapp_signup_enabled", False)
     assert client.get(BASE).json()["available"] is False
     assert client.post(f"{BASE}/finish", json=body).status_code == 409
@@ -136,19 +147,17 @@ def test_pilot_removal_blocks_pending_finish_and_global_switch_still_wins(
     assert meta.calls == ["exchange", "verify", "subscribe", "register"]
 
 
-def test_pilot_cohort_configuration_normalizes_and_rejects_invalid_scope():
-    first, second = uuid4(), uuid4()
-    value = f" {first}, {str(second).upper()}, {first}, "
-    configured = Settings(_env_file=None, whatsapp_signup_tenant_ids=value)
-    assert configured.whatsapp_signup_tenant_ids == ",".join(sorted([str(first), str(second)]))
-    assert not configured.whatsapp_signup_enabled
-    for invalid in ("*", "not-a-tenant", f"{first},not-a-tenant"):
-        with pytest.raises(ValidationError):
-            Settings(_env_file=None, whatsapp_signup_tenant_ids=invalid)
+@pytest.mark.parametrize("flag", [None, False, "true", 1, {}, []])
+def test_pilot_requires_an_explicit_server_boolean(client, db, configured, flag):
+    account = _signup_verify_login(client, f"wa-{uuid4().hex}@example.com", "Sin admisión")
+    enroll(db, account, flag)
+    assert client.get(BASE).json()["available"] is False
+    assert client.post(f"{BASE}/start", json={}).status_code == 409
+    assert db.query(SignupSession).count() == 0
 
 
 def test_happy_path_is_encrypted_scoped_and_replay_does_no_io(client, db, configured, monkeypatch):
-    account, body = begin(client)
+    account, body = begin(client, db)
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     response = client.post(f"{BASE}/finish", json=body)
@@ -183,7 +192,7 @@ def test_happy_path_is_encrypted_scoped_and_replay_does_no_io(client, db, config
 def test_ambiguous_steps_are_journaled_and_never_replayed(
     client, db, configured, monkeypatch, stage
 ):
-    _, body = begin(client)
+    _, body = begin(client, db)
     meta = FakeMeta(fail=stage)
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     assert client.post(f"{BASE}/finish", json=body).status_code == 409
@@ -197,7 +206,7 @@ def test_ambiguous_steps_are_journaled_and_never_replayed(
 
 
 def test_expired_nonce_foreign_scope_and_csrf_fail_before_meta(client, db, configured, monkeypatch):
-    _, body = begin(client)
+    _, body = begin(client, db)
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     wrong = {**body, "nonce": "x" * 43}
@@ -304,13 +313,24 @@ def test_provider_never_follows_redirects_or_retries_or_leaks_errors(configured)
     assert "test-app-secret" not in str(caught.value)
 
 
+@pytest.mark.parametrize("retired_pilot", [False, True])
 def test_signed_ingress_resolves_stored_credentials_and_deduplicates(
-    client, db, configured, monkeypatch
+    client, db, configured, monkeypatch, retired_pilot
 ):
-    _, body = begin(client)
+    _, body = begin(client, db)
     monkeypatch.setattr(onboarding, "SignupProvider", FakeMeta)
     assert client.post(f"{BASE}/finish", json=body).status_code == 200
     binding = db.query(ChannelBinding).one()
+    if retired_pilot:
+        stale = connections.PilotConnection(
+            tenant_id=binding.tenant_id, branch_id=binding.branch_id, binding_id=uuid4(),
+            waba_id="876", phone_number_id="543", access_token=SecretStr("retired-pilot-token"),
+        )
+        monkeypatch.setattr(connections, "configured_connections", lambda: [stale])
+        resolved = connections.resolve_connection(db, binding.tenant_id)
+        assert resolved.binding_id == binding.id
+        assert resolved.access_token.get_secret_value() == "synthetic-merchant-token"
+        assert client.get("/api/v1/messaging/connection").json()["status"] == "connected"
     raw, _ = envelope(binding)
     signature = "sha256=" + hmac.new(b"test-app-secret", raw, hashlib.sha256).hexdigest()
 
@@ -331,10 +351,14 @@ def test_signed_ingress_resolves_stored_credentials_and_deduplicates(
     response = client.get("/api/v1/messaging/conversations")
     assert response.status_code == 200
     assert "synthetic-merchant-token" not in response.text
+    if retired_pilot:
+        db.delete(db.query(ChannelConnection).one())
+        db.commit()
+        assert client.get("/api/v1/messaging/connection").json()["status"] == "not_connected"
 
 
-def test_branch_and_tenant_changes_cannot_finish_another_session(client, configured, monkeypatch):
-    _, body = begin(client)
+def test_branch_and_tenant_changes_cannot_finish_another_session(client, db, configured, monkeypatch):
+    _, body = begin(client, db)
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     created = client.post(
@@ -349,7 +373,8 @@ def test_branch_and_tenant_changes_cannot_finish_another_session(client, configu
         ).status_code
         == 404
     )
-    _signup_verify_login(client, f"other-{uuid4().hex}@example.com", "Otro negocio")
+    other = _signup_verify_login(client, f"other-{uuid4().hex}@example.com", "Otro negocio")
+    enroll(db, other)
     assert client.post(f"{BASE}/finish", json=body).status_code == 404
     assert meta.calls == []
 
@@ -357,7 +382,7 @@ def test_branch_and_tenant_changes_cannot_finish_another_session(client, configu
 def test_rotation_keeps_binding_and_pin_without_registering_again(
     client, db, configured, monkeypatch
 ):
-    _, body = begin(client)
+    _, body = begin(client, db)
     meta = FakeMeta()
     monkeypatch.setattr(onboarding, "SignupProvider", lambda: meta)
     assert client.post(f"{BASE}/finish", json=body).status_code == 200
@@ -409,7 +434,7 @@ def test_malformed_authorization_data_fails_without_provider_details(configured,
 def test_owner_controls_sending_and_can_pause_after_token_expiry(
     client, db, configured, monkeypatch
 ):
-    _, body = begin(client)
+    _, body = begin(client, db)
     monkeypatch.setattr(onboarding, "SignupProvider", FakeMeta)
     assert client.post(f"{BASE}/finish", json=body).status_code == 200
     endpoint = "/api/v1/messaging/connection/sending"
@@ -433,8 +458,8 @@ def test_owner_controls_sending_and_can_pause_after_token_expiry(
 def test_competing_verified_phone_claims_fail_before_any_external_write(
     client, db, configured, competing_state
 ):
-    account, body = begin(client)
-    other, other_body = begin(client)
+    account, body = begin(client, db)
+    other, other_body = begin(client, db)
     tenant, other_tenant = UUID(account["tenant_id"]), UUID(other["tenant_id"])
     actor = db.query(Membership).filter_by(tenant_id=tenant, role="owner").one().user_id
     meta = FakeMeta()
@@ -466,9 +491,9 @@ def test_competing_verified_phone_claims_fail_before_any_external_write(
 
 
 def test_crm_and_dashboard_project_real_configuration_for_the_selected_branch(
-    client, configured, monkeypatch
+    client, db, configured, monkeypatch
 ):
-    account, body = begin(client)
+    account, body = begin(client, db)
     monkeypatch.setattr(onboarding, "SignupProvider", FakeMeta)
     assert client.post(f"{BASE}/finish", json=body).status_code == 200
     assert client.get("/api/v1/crm").json()["capabilities"]["whatsapp"] == "connected"

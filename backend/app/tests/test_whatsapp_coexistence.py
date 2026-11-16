@@ -41,8 +41,8 @@ class AppMeta(FakeMeta):
         return f"synthetic-{kind}-request"
 
 
-def connect(client, monkeypatch, *, fail=None):
-    account, body = begin(client)
+def connect(client, db, monkeypatch, *, fail=None):
+    account, body = begin(client, db)
     body.pop("phone_number_id")  # Meta's official coexistence completion can be account-only.
     body["event"] = EVENT
     meta = AppMeta(fail=fail)
@@ -127,7 +127,7 @@ def test_app_number_is_never_registered_or_given_a_pin_and_requests_are_one_shot
     db,
     monkeypatch,
 ):
-    _, body, meta = connect(client, monkeypatch)
+    _, body, meta = connect(client, db, monkeypatch)
     assert meta.calls == ["exchange", "verify_app", "subscribe", "contacts", "history"]
     row = db.query(AppSync).one()
     assert row.contacts_state == row.history_state == "requested"
@@ -160,7 +160,7 @@ def test_ambiguous_sync_requires_review_without_repeating_requests(
     monkeypatch,
     stage,
 ):
-    _, body, meta = connect(client, monkeypatch, fail=stage)
+    _, body, meta = connect(client, db, monkeypatch, fail=stage)
     calls = list(meta.calls)
     assert client.get(BASE).json()["sync_status"] == "review_required"
     assert client.post(f"{BASE}/finish", json=body).status_code == 200
@@ -176,7 +176,7 @@ def test_history_does_not_open_window_echoes_do_not_send_and_duplicates_preserve
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     original = datetime.now(UTC) - timedelta(days=3)
     old = message("old", **{"from": PARTY, "timestamp": str(int(original.timestamp()))})
     ingest(client, db, monkeypatch, history([old]))
@@ -217,7 +217,7 @@ def test_contacts_are_separate_and_out_of_order_remove_cannot_resurrect_them(
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     stamp = int(datetime.now(UTC).timestamp())
 
     def contact(action, timestamp):
@@ -246,7 +246,7 @@ def test_large_history_is_captured_encrypted_and_resumes_after_lost_worker(
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     data = history([message(f"bulk{i}", **{"from": PARTY}) for i in range(125)])
     ingest(client, db, monkeypatch, data, background=False)
     batch = db.query(WebhookBatch).one()
@@ -270,7 +270,7 @@ def test_declined_history_is_respected_and_disconnect_blocks_sending(
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     ingest(client, db, monkeypatch, payload("history", history=[{"errors": [{"code": 2593109}]}]))
     assert db.query(AppSync).one().history_state == "declined"
     assert db.query(Message).count() == 0
@@ -355,8 +355,8 @@ def test_sync_post_contract_is_fixed_and_never_registers():
     assert len(calls) == 2
 
 
-def test_sync_route_preserves_csrf_and_server_branch_scope(client, monkeypatch):
-    connect(client, monkeypatch)
+def test_sync_route_preserves_csrf_and_server_branch_scope(client, db, monkeypatch):
+    connect(client, db, monkeypatch)
     assert (
         client.post(f"{BASE}/sync", json={}, headers={"X-CSRF-Token": "wrong"}).status_code == 403
     )
@@ -398,7 +398,7 @@ def test_runtime_import_commits_under_rls_and_cannot_read_another_tenant(
     from app.messaging.models import ChannelBinding
     from app.messaging.webhooks import parse_verified_webhook
 
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     binding = db.query(ChannelBinding).one()
     tenant, branch = binding.tenant_id, binding.branch_id
     raw, signature = raw_signed(history([message("runtime", **{"from": PARTY})]))
@@ -435,7 +435,7 @@ def test_signed_large_payload_uses_app_limit_and_preserves_invalid_signature_rej
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     data = history([message(f"many{i}", **{"from": PARTY}) for i in range(2200)])
     raw = ingest(client, db, monkeypatch, data, background=False)
     assert len(raw) > 262144
@@ -451,7 +451,7 @@ def test_signed_large_payload_uses_app_limit_and_preserves_invalid_signature_rej
 
 
 def test_invalid_future_history_is_quarantined_atomically(client, db, monkeypatch):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     future = message(
         "future",
         **{
@@ -470,7 +470,7 @@ def test_receipt_before_mobile_echo_reconciles_without_claiming_api_delivery(
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     stamp = str(int(datetime.now(UTC).timestamp()))
     ingest(
         client,
@@ -508,7 +508,7 @@ def test_bsuid_contacts_never_become_phone_numbers_or_crm_customers(
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     ingest(
         client,
         db,
@@ -549,7 +549,7 @@ def test_modified_encrypted_import_scope_is_quarantined_without_leaking_messages
     db,
     monkeypatch,
 ):
-    connect(client, monkeypatch)
+    connect(client, db, monkeypatch)
     ingest(
         client, db, monkeypatch, history([message("private", **{"from": PARTY})]), background=False
     )

@@ -430,6 +430,9 @@ jobs:
               --tmpfs /tmp:size=32m,mode=1777 -i --entrypoint python kova-assistant-parser:1 -I -c \
               'import sys,tarfile,unittest; tarfile.open(fileobj=sys.stdin.buffer,mode="r|").extractall("/tmp/parser-tests",filter="data"); sys.path.insert(0,"/tmp/parser-tests"); result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover("/tmp/parser-tests")); sys.exit(not result.wasSuccessful())'
       - name: Verify patched parser binaries and current upstream advisories
+        env:
+          # Read-only host lookup only; the checker strips this before Docker.
+          KOVA_UPSTREAM_GITHUB_TOKEN: ${{ github.token }}
         run: python backend/scripts/check_parser_runtime.py --image kova-assistant-parser:1 --require-native-arch x86_64 --report reports/security/parser-runtime.json
       - name: Reject HIGH and CRITICAL parser image vulnerabilities including unfixed
         run: python scripts/audit_dependencies.py image --name parser --image kova-assistant-parser:1
