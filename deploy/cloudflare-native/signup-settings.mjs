@@ -11,6 +11,10 @@ export class SignupSettings extends WorkerEntrypoint {
       "WHATSAPP_SIGNUP_ENABLED", "WHATSAPP_CREDENTIALS_KEY"]) {
       if (typeof this.env[name] === "string") extra[name] = this.env[name];
     }
+    // Keep the shared settings holder immutable. Only this private extension
+    // projects the reservation gate; an absent or malformed binding stays OFF.
+    extra.WHATSAPP_RESERVATION_SENDING_ENABLED =
+      this.env.WHATSAPP_RESERVATION_SENDING_ENABLED === "true" ? "true" : "false";
     return { ...original, ...extra };
   }
 }
