@@ -32,6 +32,24 @@ No pedir tokens ni claves a los comercios por chat o formularios de Kova.
 
 ## Operación por comercio
 
+### Activación del piloto por publicación
+
+El workflow **CI and release** admite en un dispatch explícito sobre `main` la opción
+`whatsapp_signup=enable` o `disable`; por defecto conserva `preserve`, sin tocar ajustes.
+Después de validar CI y capturar producción, modifica únicamente el booleano
+`WHATSAPP_SIGNUP_ENABLED` del delegado privado y publica un proceso nuevo mediante el release
+normal. No lee credenciales ni cambia el holder original. El gate de admisión por negocio sigue
+siendo obligatorio: encenderlo no abre el alta a otros comercios. Si falla la publicación, se cierra
+el gate para procesos posteriores y el flujo conserva su recuperación de aplicación habitual.
+No atribuir efecto al proceso que ya servía antes: comprobar la disponibilidad del dueño en Kova
+después de la aceptación del release. Deshabilitar nuevas altas no revoca conexiones existentes.
+
+La renovación anual de Meta ya muestra **Completada** y el MCP confirmó la app **Activa** el
+15 de noviembre de 2026. Esto libera esos dos requisitos; no acredita todavía el acceso avanzado
+de WhatsApp ni la aceptación real de coexistencia.
+
+### Autorización del dueño
+
 El dueño selecciona la sucursal, pulsa Conectar WhatsApp y Autorizar en Meta. Meta gestiona sus
 datos, autorización y número. Kova verifica los activos, intercambia el código, suscribe, registra
 un número nuevo y guarda sus credenciales cifradas automáticamente. Los envíos comienzan pausados;

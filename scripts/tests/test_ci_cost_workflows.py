@@ -1,6 +1,9 @@
 """Keep cost reductions separate from production safety and scheduled operations."""
 
 import re
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,6 +21,65 @@ def job(filename, name):
 
 
 class CiCostWorkflowTests(unittest.TestCase):
+    def test_whatsapp_gate_is_explicit_serialized_and_closes_on_failed_rollout(self):
+        source = (WORKFLOWS / "ci.yml").read_text()
+        self.assertIn("default: preserve", source)
+        self.assertIn("options: [preserve, enable, disable]", source)
+        release = job("ci.yml", "release")
+        steps = re.split(r"(?m)^      - ", release)[1:]
+        gate = next(step for step in steps if "id: whatsapp_signup" in step)
+        self.assertIn("github.event_name == 'workflow_dispatch'", gate)
+        self.assertIn("github.ref == 'refs/heads/main'", gate)
+        self.assertIn("vars.KOVA_NATIVE_BACKEND == '1'", gate)
+        self.assertIn("inputs.whatsapp_signup != 'preserve'", gate)
+        self.assertIn("SIGNUP_ACTION: ${{ inputs.whatsapp_signup }}", gate)
+        self.assertLess(release.index("Prepare independent native API publication"),
+                        release.index("id: whatsapp_signup"))
+        self.assertLess(release.index("id: whatsapp_signup"),
+                        release.index("Release candidate, promote and recover by phase"))
+        close = next(step for step in steps if "Close new WhatsApp signups" in step)
+        self.assertIn("failure() && contains(fromJSON('[\"success\",\"failure\"]'), steps.whatsapp_signup.outcome)", close)
+        self.assertIn("--text false", close)
+        self.assertIn("--worker kova-native-signup-settings", close)
+
+    def test_whatsapp_gate_commands_only_write_the_fixed_boolean_and_stop_on_error(self):
+        release = job("ci.yml", "release")
+        gate = next(step for step in re.split(r"(?m)^      - ", release)[1:]
+                    if "id: whatsapp_signup" in step)
+        script = "\n".join(line[10:] for line in gate.split("        run: |\n", 1)[1].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "node_modules/.bin/cf"
+            binary.parent.mkdir(parents=True)
+            binary.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$CALLS"\n'
+                              'if [[ "$*" == *--dry-run* ]]; then exit "${DRY_EXIT:-0}"; fi\n'
+                              'exit "${APPLY_EXIT:-0}"\n')
+            binary.chmod(0o700)
+            for action, expected, dry_exit, apply_exit in (
+                ("enable", "true", "0", "0"), ("disable", "false", "0", "0"),
+                ("preserve", None, "0", "0"), ("enable; touch unexpected", None, "0", "0"),
+                ("enable", "true", "1", "0"), ("enable", "true", "0", "1"),
+            ):
+                with self.subTest(action=action, dry_exit=dry_exit, apply_exit=apply_exit):
+                    calls = root / "calls"
+                    calls.unlink(missing_ok=True)
+                    result = subprocess.run(["bash", "-c", script], cwd=root, capture_output=True,
+                        env={**os.environ, "SIGNUP_ACTION": action, "CALLS": str(calls),
+                             "DRY_EXIT": dry_exit, "APPLY_EXIT": apply_exit})
+                    commands = calls.read_text().splitlines() if calls.exists() else []
+                    self.assertEqual(result.returncode == 0,
+                                     expected is not None and dry_exit == apply_exit == "0")
+                    self.assertEqual(len(commands), 0 if expected is None else 1 if dry_exit != "0" else 2)
+                    for command in commands:
+                        self.assertTrue(command.startswith("workers secrets update WHATSAPP_SIGNUP_ENABLED "))
+                        self.assertIn("--worker kova-native-signup-settings --type secret_text", command)
+                        self.assertIn(f"--text {expected}", command)
+                    if commands:
+                        self.assertIn("--dry-run", commands[0])
+                    if len(commands) == 2:
+                        self.assertNotIn("--dry-run", commands[1])
+            self.assertFalse((root / "unexpected").exists())
+
     def test_ci_only_does_not_publish_but_retains_all_required_validations(self):
         release = job("ci.yml", "release")
         self.assertIn("needs.changes.outputs.code == 'true'", release)
