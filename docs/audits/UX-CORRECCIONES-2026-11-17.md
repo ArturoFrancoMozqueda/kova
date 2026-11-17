@@ -53,7 +53,7 @@ de experiencia es interna y exige la autorización operativa existente.
   La regresión adicional de cambio de identidad y su consulta asociada: **2 aprobadas**.
 - Integración real sobre el build: **36 escenarios existentes y 4 nuevos aprobados**, cero
   omisiones, reintentos o resultados intermitentes. PostgreSQL runtime con RLS, Python 3.12.16.
-- Navegador adicional con APIs simuladas: **41 escenarios cubiertos y aprobados** entre la pasada
+- Navegador adicional con APIs simuladas: **48 escenarios cubiertos y aprobados** entre la pasada
   integrada y la repetición focalizada de Panel tras adoptar explícitamente los cinco grupos.
   Los esperados de seis tarjetas y prioridad de agenda se actualizaron por ese cambio de diseño;
   la información sigue disponible mediante el detalle de su área.

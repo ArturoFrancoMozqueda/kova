@@ -36,7 +36,7 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     const control = page.getByRole("region", { name: "Cada área, a la vista" });
     await expect(control.getByText("10 ventas completadas", { exact: true })).toBeVisible();
     await expect(control.getByText("1 producto por reponer", { exact: true })).toBeVisible();
-    await expect(control.getByRole("heading", { level: 3 })).toHaveCount(6);
+    await expect(control.getByRole("heading", { level: 3 })).toHaveCount(5);
     for (const path of ["/register", "/orders", "/pedidos", "/quotes", "/shifts", "/inventory", "/catalog", "/replenishment", "/purchasing", "/customers", "/crm", "/commercial-requests", "/followups", "/loyalty", "/settings/public-catalog", "/operations-queue", "/appointments", "/service-cases", "/inbox", "/reports", "/expenses", "/reconciliation", "/settings", "/automations", "/settings/integrations", "/settings/billing"]) {
       await expect(control.locator(`a[href="${path}"]`)).toBeVisible();
     }
@@ -84,6 +84,6 @@ test("report failure keeps area navigation usable without zero or healthy claims
   await expect(page.getByText("No se pudo cargar el panel", { exact: true })).toBeVisible();
   const control = page.getByRole("region", { name: "Cada área, a la vista" });
   await expect(control.getByText("Consulta tus existencias", { exact: true })).toBeVisible();
-  await expect(control.getByText("Consulta pendientes y citas", { exact: true })).toBeVisible();
+  await expect(control.getByText("Consulta clientes, pendientes y citas", { exact: true })).toBeVisible();
   await expect(control.getByText(/0 productos|0 ventas|Sin pendientes|Saludable/)).toHaveCount(0);
 });
