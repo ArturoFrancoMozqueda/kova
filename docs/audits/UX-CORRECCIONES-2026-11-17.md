@@ -58,7 +58,9 @@ de experiencia es interna y exige la autorización operativa existente.
   Los esperados de seis tarjetas y prioridad de agenda se actualizaron por ese cambio de diseño;
   la información sigue disponible mediante el detalle de su área.
 - QA visual de Pedidos a 390/1440: un solo pedido confirmado, cantidades e importes sin recortes.
-  Las evidencias locales adicionales de reglas y pendientes se conservan con la ejecución.
+  QA real de reglas/Pendientes en ambos tamaños: tarea visible antes de configuración plegada,
+  producto exacto y foco correctos, sin overflow ni errores JS. A 390 × 844, el encabezado de
+  pendientes pasó de 2,518 a 348 px desde arriba (86.2% menos distancia inicial).
 - Ruff y `git diff --check`: aprobados.
 
 Los logs, JSON y PNG locales están en `workspace/ux-fixes/`, fuera del commit. No se publican

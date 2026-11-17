@@ -235,7 +235,7 @@ function AutomationsWorkspace({
               Pendientes e historial reciente
             </h2>
             <p className="text-sm text-muted-foreground">
-              {pending.length} pendientes en esta consulta. También puedes
+              {pending.length} {pending.length === 1 ? "pendiente" : "pendientes"} en esta consulta. También puedes
               revisarlos en{" "}
               <Link className="underline" to="/operations-queue">
                 Pendientes del negocio
