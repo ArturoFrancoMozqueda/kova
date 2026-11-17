@@ -135,10 +135,16 @@ def message_create(
         raise HTTPException(409, "La sucursal cambió. Abre otra conversación.")
     if not 1 <= len(key) <= 100:
         raise HTTPException(422, "Clave de idempotencia inválida.")
-    pref = repo.records(db, tenant, user, "preferences").first()
-    if not pref or not provider.chat_consent_valid(pref.data):
-        raise HTTPException(403, "Acepta el procesamiento externo antes de consultar.")
     content = knowledge.safe_text(body.content)
+    local = direct.match(content)
+    if not local:
+        pref = repo.records(db, tenant, user, "preferences").first()
+        if not pref or not provider.chat_consent_valid(pref.data):
+            if not provider.ready():
+                raise HTTPException(503, "El proveedor de IA aún no está configurado.")
+            raise HTTPException(
+                403, "Esta pregunta requiere tu permiso para usar IA externa en Preferencias."
+            )
     digest = executor.fingerprint(
         {"content": content, "conversation": str(identifier), "branch": str(branch)}
     )
@@ -148,7 +154,7 @@ def message_create(
         if replay.data["request_hash"] != digest:
             raise HTTPException(409, "La clave ya se usó para otra consulta.")
         return repo.view(db, tenant, user, replay)
-    if not provider.ready() and not direct.match(content):
+    if not provider.ready() and not local:
         raise HTTPException(503, "El proveedor de IA aún no está configurado.")
     if provider.grounded_answers():
         deadline.expire_pending(db, tenant, user)
@@ -177,7 +183,7 @@ def message_create(
         dedupe=dedupe,
     )
     db.commit()
-    if settings.cloudflare_container_mode and direct.match(content):
+    if settings.cloudflare_container_mode and local:
         # Deterministic reads can use the already-initialized native API. Claim
         # the committed job through the existing locks, quotas, session checks
         # and completion guards; external inference stays in the private worker.

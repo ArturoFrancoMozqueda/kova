@@ -54,7 +54,7 @@ for (const width of [390, 1440]) {
     await expect(loading).toBeVisible();
     const areas = page.getByRole("region", { name: "Tu operación, de un vistazo" });
     await expect(areas).toHaveAttribute("aria-busy", "true");
-    await expect(areas.getByRole("heading", { level: 3 })).toHaveCount(6);
+    await expect(areas.getByRole("heading", { level: 3 })).toHaveCount(5);
     await expect(page.getByText("Cada área, a la vista", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Consulta tus existencias", { exact: true })).toHaveCount(0);
     const initialLabel = await loading.getByText("Ventas netas", { exact: true }).boundingBox();
@@ -70,7 +70,7 @@ for (const width of [390, 1440]) {
     expect(Math.abs(initialLabel!.y - readyLabel!.y)).toBeLessThan(8);
     expect(Math.abs(initialChart!.y - readyChart!.y)).toBeLessThan(16);
     await expect(areas).not.toHaveAttribute("aria-busy", "true");
-    const inventory = page.getByRole("article", { name: "Productos e inventario" });
+    const inventory = page.getByRole("article", { name: "Productos y operación" });
     await expect(inventory.locator('dl svg[aria-hidden="true"]')).toHaveCount(2);
     await areas.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`dashboard-areas-${width}.png`) });
@@ -106,6 +106,7 @@ for (const width of [320, 390, 768, 1440, 1920]) {
     const attention = page.getByRole("region", { name: "Necesita tu atención" });
     await expect(attention.getByRole("link", { name: /Pedidos con entrega vencida/ })).toContainText("Norte");
     const areas = page.getByRole("region", { name: "Tu operación, de un vistazo" });
+    await areas.getByRole("article", { name: "Clientes y atención" }).getByText("Ver detalle y herramientas", { exact: true }).click();
     await expect(areas.getByText("Citas programadas para hoy", { exact: true })).toBeVisible();
     await expect(areas.getByText("Sin datos suficientes", { exact: true })).toBeVisible();
     await areas.scrollIntoViewIfNeeded();
@@ -157,7 +158,7 @@ test("a source failure is visible and never displayed as zero stock alerts", asy
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Lectura parcial" })).toBeVisible();
   await expect(page.getByText("Algunas áreas no pudieron actualizarse.", { exact: false })).toBeVisible();
-  const products = page.getByRole("article", { name: "Productos e inventario" });
+  const products = page.getByRole("article", { name: "Productos y operación" });
   await expect(products).toContainText("No pudimos consultar esta área.");
   await expect(products.getByText("Stock bajo", { exact: true })).toHaveCount(0);
 });

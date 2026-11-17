@@ -59,7 +59,7 @@ describe("dashboard supervision", () => {
     expect(screen.queryByRole("status", { name: "Cargando centro de control" })).not.toBeInTheDocument();
     expect(areas).not.toHaveAttribute("aria-busy");
     expect(screen.getByRole("img", { name: "Gráfica de ventas netas por hora" }).compareDocumentPosition(areas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const products = screen.getByRole("article", { name: "Productos e inventario" });
+    const products = screen.getByRole("article", { name: "Productos y operación" });
     for (const label of ["Stock bajo", "Sin existencias disponibles"]) {
       const metric = within(products).getByText(label).closest("div")!;
       expect(metric.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
@@ -82,7 +82,7 @@ describe("dashboard supervision", () => {
     const chart = await screen.findByRole("img", { name: "Gráfica de ventas netas por hora" });
     const areas = screen.getByRole("region", { name: "Tu operación, de un vistazo" });
     expect(chart.compareDocumentPosition(areas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const products = screen.getByRole("article", { name: "Productos e inventario" });
+    const products = screen.getByRole("article", { name: "Productos y operación" });
     expect(within(products).getByText("Compras con recepción parcial")).not.toBeVisible();
     fireEvent.click(within(products).getByText("Ver detalle y herramientas"));
     expect(within(products).getByText("Compras con recepción parcial")).toBeVisible();
@@ -96,9 +96,10 @@ describe("dashboard supervision", () => {
     expect(await screen.findByLabelText("Consultar")).toHaveValue("all");
     expect(getDashboardOverview).toHaveBeenCalledExactlyOnceWith("day", "all");
     expect(screen.getByRole("heading", { name: "Resultados por sucursal" })).toBeVisible();
+    fireEvent.click(within(screen.getByRole("article", { name: "Clientes y atención" })).getByText("Ver detalle y herramientas"));
     expect(screen.getByText("Citas programadas para hoy")).toBeVisible();
     expect(screen.getByText("Sin datos suficientes")).toBeVisible();
-    const business = screen.getByRole("article", { name: "Configuración del negocio" });
+    const business = screen.getByRole("article", { name: "Configuración" });
     expect(within(business).getByText("Sin conexión", { exact: true })).toBeVisible();
     expect(screen.getByText(/2 por sincronizar/)).toBeVisible();
     expect(screen.queryByText("Lectura del periodo", { exact: true })).not.toBeInTheDocument();
@@ -133,7 +134,7 @@ describe("dashboard supervision", () => {
 
   it("asks for a branch when opening an area from the consolidated view", async () => {
     host();
-    const products = await screen.findByRole("article", { name: "Productos e inventario" });
+    const products = await screen.findByRole("article", { name: "Productos y operación" });
     fireEvent.click(within(products).getByText("Ver detalle y herramientas"));
     fireEvent.click(within(products).getByRole("link", { name: "Inventario" }));
     const dialog = screen.getByRole("dialog", { name: "¿Qué sucursal quieres abrir?" });
@@ -148,7 +149,7 @@ describe("dashboard supervision", () => {
     host();
     expect(await screen.findByRole("heading", { name: "Lectura parcial" })).toBeVisible();
     expect(screen.getByText(/Algunas áreas no pudieron actualizarse/)).toBeVisible();
-    const products = screen.getByRole("article", { name: "Productos e inventario" });
+    const products = screen.getByRole("article", { name: "Productos y operación" });
     expect(within(products).queryByText("Stock bajo", { exact: true })).not.toBeInTheDocument();
     for (const summary of screen.getAllByText("Caja e inventario actuales")) fireEvent.click(summary);
     // Unavailable sources read as "No disponible", never as empty data.

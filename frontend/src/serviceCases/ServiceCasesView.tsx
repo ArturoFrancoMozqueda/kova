@@ -6,7 +6,7 @@ import { InitialsAvatar } from "@/components/visual";
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   OperationsSession,
   useOperationsRequest,
@@ -63,6 +63,15 @@ type References = {
   sales_has_more: boolean;
   customer_orders_has_more: boolean;
 };
+type FollowupSource = {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  sale_order_id: string | null;
+  title: string;
+  note: string | null;
+  due_at: string;
+};
 export default function ServiceCasesView() {
   useDocumentTitle("Casos de atención");
   return (
@@ -73,6 +82,8 @@ export default function ServiceCasesView() {
 }
 function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const fieldId = useId();
+  const [params, setParams] = useSearchParams();
+  const origin = useLinkedRecord<FollowupSource>(identity, "followup_id", "/api/v1/crm/followups");
   const linked = useLinkedRecord<ServiceCase>(
     identity,
     "case_id",
@@ -94,7 +105,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [assigneeOffset, setAssigneeOffset] = useState(0);
   const [assigneesHasMore, setAssigneesHasMore] = useState(false);
   const [assigneeLoading, setAssigneeLoading] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(() => params.get("new") === "1");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -121,6 +132,20 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [deviceZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
+  const appliedOrigin = useRef("");
+  useEffect(() => {
+    const source = origin.record;
+    if (!source || appliedOrigin.current === source.id) return;
+    appliedOrigin.current = source.id;
+    setCreateOpen(true);
+    setCustomerId(source.customer_id);
+    setSaleId(source.sale_order_id ?? "");
+    setOrderId("");
+    setTitle(source.title);
+    setNote(source.note ?? `Revisar el seguimiento «${source.title}».`);
+    setDueAt(utcToZonedInput(source.due_at, deviceZone));
+    setReferenceOffset(0);
+  }, [origin.record, deviceZone]);
   useEffect(() => {
     let active = true;
     setAssigneeLoading(true);
@@ -203,12 +228,15 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   }, [customerId, request, referenceRevision, referenceOffset]);
   const create = async (event: FormEvent) => {
     event.preventDefault();
+    if (origin.requested && !origin.record) return;
     setFormError("");
     try {
       const body = {
         customer_id: customerId,
         title: title.trim(),
-        note: note.trim(),
+        note: origin.record
+          ? `Origen: seguimiento postventa — ${origin.record.title}\n${note.trim()}`
+          : note.trim(),
         assigned_user_id: assigneeId || null,
         due_at: dueAt ? zonedInputToUtc(dueAt, deviceZone) : null,
         sale_order_id: saleId || null,
@@ -230,6 +258,12 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         setSaleId("");
         setOrderId("");
         setAssigneeId("");
+        setParams((current) => {
+          const next = new URLSearchParams(current);
+          next.delete("new");
+          next.delete("followup_id");
+          return next;
+        }, { replace: true });
       }
     } catch (e) {
       setFormError(
@@ -272,6 +306,13 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           {panel.notice}
         </p>
       )}
+      <LinkedRecordNotice linked={origin}>
+        {origin.record && <div className="space-y-2 text-sm">
+          <p>Esta atención parte del seguimiento «{origin.record.title}». Su historial se conserva y permanece disponible por separado.</p>
+          <p>Se conserva el cliente y, cuando existe, la venta de origen. Para atender otro asunto, abre una atención independiente.</p>
+          <Link className="inline-flex min-h-11 items-center underline" to={`/followups?task_id=${encodeURIComponent(origin.record.id)}`}>Consultar seguimiento de origen</Link>
+        </div>}
+      </LinkedRecordNotice>
       {assigneeError && (
         <ViewError
           message={assigneeError}
@@ -315,8 +356,10 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               <Select id={`${fieldId}-2`}
                 className={fieldClass}
                 required
+                disabled={Boolean(origin.record)}
                 value={customerId}
                 onChange={(event) => {
+                  if (origin.record) return;
                   setCustomerId(event.target.value);
                   setSaleId("");
                   setOrderId("");
@@ -324,6 +367,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 }}
               >
                 <option value="">Elige un cliente registrado</option>
+                {origin.record && !customers.some(customer => customer.id === origin.record?.customer_id) && (
+                  <option value={origin.record.customer_id}>{origin.record.customer_name}</option>
+                )}
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
@@ -356,7 +402,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
             <Textarea id={`${fieldId}-4`}
               className={fieldClass}
               required
-              maxLength={2000}
+              maxLength={origin.record ? 1750 : 2000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
@@ -418,14 +464,18 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   className={fieldClass}
                   value={saleId}
                   disabled={
-                    !customerId || references?.customerId !== customerId
+                    !customerId || references?.customerId !== customerId || Boolean(origin.record?.sale_order_id)
                   }
                   onChange={(event) => {
+                    if (origin.record?.sale_order_id) return;
                     setSaleId(event.target.value);
                     setOrderId("");
                   }}
                 >
                   <option value="">Sin venta</option>
+                  {origin.record?.sale_order_id && customerId === origin.record.customer_id && references?.customerId === customerId && !references.data.sales.some(sale => sale.id === origin.record?.sale_order_id) && (
+                    <option value={origin.record.sale_order_id}>Venta del seguimiento de origen</option>
+                  )}
                   {references?.customerId === customerId &&
                     references.data.sales.map((row) => (
                       <option key={row.id} value={row.id}>
@@ -440,9 +490,10 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   className={fieldClass}
                   value={orderId}
                   disabled={
-                    !customerId || references?.customerId !== customerId
+                    !customerId || references?.customerId !== customerId || Boolean(origin.record?.sale_order_id)
                   }
                   onChange={(event) => {
+                    if (origin.record?.sale_order_id) return;
                     setOrderId(event.target.value);
                     setSaleId("");
                   }}
@@ -463,7 +514,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={referenceOffset === 0 || !references}
+                disabled={referenceOffset === 0 || !references || Boolean(origin.record?.sale_order_id)}
                 onClick={() => {
                   setReferenceOffset((value) => Math.max(0, value - 50));
                   setSaleId("");
@@ -478,8 +529,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 variant="outline"
                 size="sm"
                 disabled={
-                  !references?.data.sales_has_more &&
-                  !references?.data.customer_orders_has_more
+                  Boolean(origin.record?.sale_order_id) ||
+                  (!references?.data.sales_has_more &&
+                  !references?.data.customer_orders_has_more)
                 }
                 onClick={() => {
                   setReferenceOffset((value) => value + 50);
@@ -499,7 +551,8 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 !panel.online ||
                 !customerId ||
                 !title.trim() ||
-                !note.trim()
+                !note.trim() ||
+                (origin.requested && !origin.record)
               }
             >
               Registrar atención

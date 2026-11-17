@@ -310,7 +310,7 @@ function CrmWorkspace({ identity, canCreate }: { identity: WorkspaceIdentity; ca
           },
           crypto.randomUUID(),
         ),
-      "Permiso registrado. El canal permanece sin conectar y no se enviaron mensajes.",
+      "Permiso registrado. Guardarlo no envía mensajes ni cambia la conexión del canal.",
       () => setConfirmedConsent(false),
     );
   };

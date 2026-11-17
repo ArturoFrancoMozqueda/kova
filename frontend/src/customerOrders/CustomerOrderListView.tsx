@@ -99,6 +99,7 @@ export default function CustomerOrderListView() {
   const [promisedDate, setPromisedDate] = useState("");
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<CustomerOrderListResponse | null>(null);
+  const [fromCache, setFromCache] = useState(false);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -114,7 +115,8 @@ export default function CustomerOrderListView() {
       const cached = await readCustomerOrderCache(tenantId, branchId);
       if (!isCurrent()) return;
       setData(cached?.list ?? null);
-      setCachedAt(cached?.cached_at ?? null);
+      setFromCache(Boolean(cached));
+      setCachedAt(cached?.list_cached_at ?? null);
       setError(!cached);
       setLoading(false);
       return;
@@ -131,6 +133,7 @@ export default function CustomerOrderListView() {
       });
       if (!isCurrent()) return;
       setData(result);
+      setFromCache(false);
       setCachedAt(null);
       await saveCustomerOrderList(tenantId, result, branchId);
     } catch {
@@ -138,7 +141,8 @@ export default function CustomerOrderListView() {
       const cached = await readCustomerOrderCache(tenantId, branchId);
       if (!isCurrent()) return;
       setData(cached?.list ?? null);
-      setCachedAt(cached?.cached_at ?? null);
+      setFromCache(Boolean(cached));
+      setCachedAt(cached?.list_cached_at ?? null);
       setError(!cached);
     } finally {
       if (isCurrent()) setLoading(false);
@@ -155,7 +159,7 @@ export default function CustomerOrderListView() {
   const promisedBounds = promisedRange(promisedDate);
   const promisedFrom = promisedBounds.promised_from ? new Date(promisedBounds.promised_from).getTime() : NaN;
   const promisedTo = promisedBounds.promised_to ? new Date(promisedBounds.promised_to).getTime() : NaN;
-  const visibleItems = cachedAt
+  const visibleItems = fromCache
     ? (data?.items ?? []).filter((item) => {
         const statusMatches = !status || item.status === status;
         const paymentMatches = !paymentStatus || item.payment_status === paymentStatus;
@@ -193,10 +197,10 @@ export default function CustomerOrderListView() {
         }
       />
 
-      {cachedAt ? (
+      {fromCache ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
           <CloudOff className="h-4 w-4 shrink-0" />
-          <span>Solo lectura · última actualización {formatDateTime(cachedAt)}.</span>
+          <span>{cachedAt ? `Solo lectura · última actualización ${formatDateTime(cachedAt)}.` : "Solo lectura · no conocemos la fecha de actualización de esta copia. Conéctate para consultar el estado actual."}</span>
         </div>
       ) : null}
 
@@ -303,7 +307,7 @@ export default function CustomerOrderListView() {
               </Card>
             </Link>
           ))}
-          {!cachedAt && data && data.total > PAGE_SIZE ? (
+          {!fromCache && data && data.total > PAGE_SIZE ? (
             <div className="flex items-center justify-between pt-2">
               <Button variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft className="mr-2 h-4 w-4" /> Anterior</Button>
               <span className="text-sm text-muted-foreground">{offset + 1}–{Math.min(offset + PAGE_SIZE, data.total)} de {data.total}</span>

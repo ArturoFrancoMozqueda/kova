@@ -194,3 +194,14 @@ def growth_snapshot(
     """Operator-only acquisition truth; no identities leave the server."""
     _require_internal_key(x_internal_key)
     return GrowthSnapshot.model_validate(export.build_growth_snapshot(db))
+
+
+@router.get("/internal/task-experience", include_in_schema=False)
+def task_experience(
+    days: AnalysisWindowDays = Query(default=AnalysisWindowDays.WEEK),
+    x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
+    db: Session = Depends(get_privileged_db),
+) -> dict:
+    """Operator-only, identity-free aggregate of client-reported task attempts."""
+    _require_internal_key(x_internal_key)
+    return export.build_task_experience_report(db, days=int(days))

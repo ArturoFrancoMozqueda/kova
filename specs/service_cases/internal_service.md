@@ -28,6 +28,14 @@ activos. Resueltos/cancelados no figuran como vencidos. No existe SLA prometido 
 
 ## Contrato privado y permisos
 
+La entrada “Registrar incidencia” de Seguimiento abre este módulo como alta canónica. Desde una
+tarea concreta, `followup_id` se resuelve con el GET privado de seguimiento, no con los datos de
+la URL. Precarga cliente, venta y contexto, conserva el seguimiento original y permite volver a
+su historial. Mientras ese origen esté seleccionado, el cliente y su venta original no se pueden
+reemplazar por otra referencia. La nota inicial registra su procedencia en lenguaje de negocio; no crea una nueva
+relación en base de datos ni resuelve automáticamente la tarea original. Un origen inválido,
+ajeno o no accesible bloquea ese alta hasta cerrar el enlace o recuperar el registro autorizado.
+
 `/api/v1/service-cases` requiere el mismo acceso comercial owner/manager que CRM. GET lista
 casos con filtros de estado, cliente, responsable y sólo vencidos; GET `/{id}` devuelve detalle.
 POST crea con cliente, título y nota inicial obligatorios. PATCH `/{id}` cambia estado,

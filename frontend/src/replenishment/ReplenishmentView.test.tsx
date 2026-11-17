@@ -65,7 +65,7 @@ it("requires a supplier and two-step review before creating a pending purchase",
   });
   fireEvent.click(screen.getByRole("button", { name: "Revisar compra" }));
   expect(
-    fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    fetchMock.mock.calls.filter(([url, init]) => init?.method === "POST" && String(url).endsWith("/approve-purchase")),
   ).toHaveLength(0);
   expect(
     screen.getByRole("region", { name: "Confirmación de compra" }),
@@ -130,7 +130,7 @@ it("blocks a stale purchase and requires reviewing current evidence again", asyn
     "Los datos cambiaron",
   );
   expect(
-    fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    fetchMock.mock.calls.filter(([url, init]) => init?.method === "POST" && String(url).endsWith("/approve-purchase")),
   ).toHaveLength(1);
   fireEvent.click(
     screen.getByRole("button", { name: "Revisar datos actuales" }),
@@ -176,4 +176,18 @@ it("shows a guiding empty state when nothing is below the minimum", async () => 
   mount();
   expect(await screen.findByText("Sin productos debajo del mínimo")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Ir a Catálogo" })).toHaveAttribute("href", "/catalog");
+});
+
+it.each(["/replenishment", "/purchasing/suppliers"])("never presents a failed %s read as no stock to replenish", async (failedPath) => {
+  fetchMock.mockImplementation(async (url) => String(url).endsWith(failedPath)
+    ? json({ detail: "unavailable" }, 503)
+    : String(url).endsWith("/purchasing/suppliers") ? json([supplier]) : json([suggestion]));
+  mount();
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(screen.queryByText("Sin productos debajo del mínimo")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Revisar compra" })).not.toBeInTheDocument();
+  fetchMock.mockImplementation(async (url) => String(url).endsWith("/purchasing/suppliers") ? json([supplier]) : json([suggestion]));
+  fireEvent.click(screen.getByRole("button", { name: "Revisar datos actuales" }));
+  expect(await screen.findByText("Harina")).toBeVisible();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });

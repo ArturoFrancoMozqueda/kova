@@ -103,6 +103,40 @@ describe("anonymous funnel path", () => {
     expect(response.bodyUsed).toBe(true);
   });
 
+  it("binds queued task events to their original identity and drops a changed-session rejection", async () => {
+    window.history.replaceState({}, "", "/pedidos/private-record-id");
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+    await trackFunnelEvent("task_started", { task: "customer_order", attempt_id: crypto.randomUUID(), offline: true }, { tenantId: "tenant-a", userId: "user-a" });
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 409 }));
+    await flushFunnelEvents();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const init = fetchMock.mock.calls[1][1];
+    expect(init.headers["X-Kova-Expected-Tenant"]).toBe("tenant-a");
+    expect(init.headers["X-Kova-Expected-User"]).toBe("user-a");
+    const body = JSON.parse(init.body);
+    expect(body.deliveryGuard).toBeUndefined();
+    expect(body.properties.path).toBe("/pedidos");
+    expect(JSON.stringify(body)).not.toMatch(/tenant-a|user-a|private-record-id/);
+    await flushFunnelEvents();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves a new event queued while an earlier flush is still waiting", async () => {
+    const owner = { tenantId: "tenant-a", userId: "user-a" };
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+    await trackFunnelEvent("task_started", { task: "cash_sale" }, owner);
+    let resolve!: (response: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(done => { resolve = done; }));
+    const flushing = flushFunnelEvents();
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+    await trackFunnelEvent("task_finished", { task: "cash_sale" }, owner);
+    resolve(new Response(null, { status: 202 }));
+    await flushing;
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 202 }));
+    await flushFunnelEvents();
+    expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body).event_name).toBe("task_finished");
+  });
+
   it("sends signup failures with categorical metadata only", async () => {
     await trackSignupValidationFailed("password", "weak_password");
 

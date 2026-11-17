@@ -4,6 +4,25 @@ import axe from "axe-core";
 
 test.beforeEach(async ({ page }) => {
   await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/automations?limit=200", (route) =>
+    route.fulfill({
+      json: {
+        rules: [],
+        runs: [
+          {
+            id: "55555555-5555-4555-8555-555555555555",
+            title: "Revisar reposición desde una regla",
+            status: "pending",
+          },
+        ],
+        capabilities: {
+          internal_tasks: true,
+          external_messaging: false,
+          financial_actions: false,
+        },
+      },
+    }),
+  );
   await page.route("**/api/v1/settings/business-profile", (route) =>
     route.fulfill({ json: { timezone: "America/Mexico_City" } }),
   );
@@ -186,7 +205,14 @@ for (const width of [1440, 768, 390, 320]) {
       await mainLinks.evaluateAll((links) =>
         links.map((link) => link.getAttribute("href")),
       ),
-    ).toEqual(["/service-cases", "/crm", "/followups", "/appointments"]);
+    ).toEqual([
+      "/service-cases",
+      "/crm",
+      "/followups",
+      "/appointments",
+      "/automations?run_id=55555555-5555-4555-8555-555555555555",
+      "/automations",
+    ]);
     const reads = queueMethods.length;
     await page.getByRole("button", { name: "Actualizar pendientes" }).click();
     await expect(
@@ -204,7 +230,7 @@ for (const width of [1440, 768, 390, 320]) {
       .getByRole("link", { name: "Consultar el resto en Atención postventa" })
       .click();
     await expect(
-      page.getByRole("heading", { name: "Atención postventa", exact: true }),
+      page.getByRole("heading", { name: "Casos de atención", exact: true }),
     ).toBeVisible();
     expect(new URL(page.url()).pathname).toBe("/service-cases");
     expect(errors).toEqual([]);

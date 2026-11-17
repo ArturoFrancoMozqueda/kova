@@ -4,6 +4,31 @@ Implementación inicial del plan E2E: eventos transaccionales, reglas opt-in por
 internas durables. No envía WhatsApp/correo, no cobra, no factura y no modifica inventario.
 La respuesta de capacidades declara expresamente esos límites.
 
+## Experiencia de reglas de tareas
+
+La pantalla `/automations` se presenta como **Reglas de tareas**. La acción **Buscar nuevos
+pendientes** procesa cambios elegibles; la lista de trabajo aparece antes de la configuración,
+que comienza plegada y se abre con un botón con `aria-expanded` y `aria-controls`. Activar y
+pausar siguen requiriendo confirmación y conservan los controles comerciales y de versión.
+
+Las tareas pendientes también aparecen en **Pendientes del negocio** mediante una lectura
+independiente autorizada del motor. Son tareas internas: conectar un canal no cambia sus efectos.
+La interfaz no presenta el `external_messaging:false` del motor como un canal desconectado.
+
+Ambas lecturas solicitan las últimas 200 revisiones como máximo. El enlace
+`/automations?run_id=UUID` enfoca la tarea exacta si pertenece a esa consulta; si no aparece,
+explica el límite sin afirmar que fue eliminada o completada. Este enlace no permite elegir
+tenant o sucursal ni consulta una ruta individual inexistente. Reposición continúa a
+`/inventory?product=UUID`, conservando el producto real. Las versiones se usan para concurrencia,
+sin mostrarlas al comercio. La resolución solo registra el seguimiento: no entrega, compra ni
+modifica el caso de origen.
+
+La medición `automation_task` inicia al abrir una tarea seleccionada, revisar su contexto o
+resolverla. El tiempo activo excluye la espera de resolución del servidor. Solo registra
+`completed` cuando la resolución `completed` o `dismissed` fue aceptada por la API; un rechazo
+registra `failed`. Activar o pausar reglas no completa una tarea medida. Salir de la vista descarta
+el intento local sin inventar éxito o fracaso, y no acredita la acción física fuera de Kova.
+
 ## Contratos y autorización
 
 - `GET /api/v1/automations`: reglas (con el texto de la tarea interna que crea cada una, `task`), últimas 100 ejecuciones y capacidades; `limit` máximo 200.

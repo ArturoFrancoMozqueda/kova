@@ -135,8 +135,8 @@ export default function AppShell() {
     if (path.startsWith("/followups")) return "Seguimiento después de la venta";
     if (path.startsWith("/crm")) return "Oportunidades";
     if (path.startsWith("/quotes")) return "Cotizaciones";
-    if (path.startsWith("/automations")) return "Automatizaciones";
-    if (path.startsWith("/reconciliation")) return "Conciliación";
+    if (path.startsWith("/automations")) return "Reglas de tareas";
+    if (path.startsWith("/reconciliation")) return "Conciliación de depósitos";
     if (path.startsWith("/replenishment")) return "Reposición";
     if (path.startsWith("/settings/public-catalog")) return "Catálogo público";
     if (path.startsWith("/settings/channels")) return "Canales";

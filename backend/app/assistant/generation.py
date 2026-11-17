@@ -282,19 +282,17 @@ def _run(db, ctx, job):
     user, member, _ = ctx
     bind_branch(db, tenant_id=member.tenant_id, branch_id=job.branch_id)
     conversation = repo.get(db, member.tenant_id, user.id, "conversation", job.parent_id)
-    preference = repo.records(db, member.tenant_id, user.id, "preferences").first()
-    if not preference or not provider.chat_consent_valid(preference.data):
-        raise HTTPException(403, "Acepta el procesamiento externo antes de consultar.")
     if job.data.get("remote_started"):
         raise HTTPException(503, "La consulta anterior tuvo un resultado incierto. Crea una nueva.")
     matched = direct.match(job.data["content"])
     if matched:
-        authorize(db, ctx)
+        authorize(db, ctx, external=False)
         content, evidence, metrics, cards = direct.answer(db, member.tenant_id, user.id, matched)
         answer = Answer(answer=content, source_ids=[item["id"] for item in evidence])
         _complete(db, ctx, job, conversation, answer, {item["id"] for item in evidence},
                   evidence, metrics, cards, [], response_mode="direct")
         return
+    authorize(db, ctx)
     rows = (
         repo.records(db, member.tenant_id, user.id, "message")
         .filter_by(parent_id=conversation.id)
@@ -417,6 +415,9 @@ def _run(db, ctx, job):
         )
         db.commit()
         try:
+            # Revalidate after reserving/committing and immediately before any
+            # provider request. Local answers never reach this boundary.
+            authorize(db, ctx)
             if structured_answer and provider.grounded_cloudflare():
                 response = provider.generate_passages(provider_messages, model=model)
             else:
@@ -546,7 +547,7 @@ def _complete(db, ctx, job, conversation, answer, source_ids, evidence, metrics,
     db.refresh(job)
     if job.status != "running":
         raise HTTPException(409, "La consulta fue cancelada.")
-    authorize(db, ctx)
+    authorize(db, ctx, external=response_mode != "direct")
     if not knowledge.valid_sources(db, member.tenant_id, user.id, source_ids):
         raise HTTPException(409, "La fuente cambió durante la consulta.")
     if not repo.references_valid(db, member.tenant_id, user.id, context_refs):
@@ -618,7 +619,7 @@ def settings_model(content):
     )
 
 
-def authorize(db, ctx):
+def authorize(db, ctx, *, external=True):
     from app.assistant.access import enabled
     from app.auth.models import UserSession
     from app.billing.access import get_billing_access_status
@@ -638,10 +639,11 @@ def authorize(db, ctx):
         or active.expires_at <= now()
     ):
         raise HTTPException(403, "La autorización dejó de estar vigente.")
-    preference = (
-        repo.records(db, member.tenant_id, user.id, "preferences").populate_existing().first()
-    )
-    if not preference or not provider.chat_consent_valid(preference.data):
-        raise HTTPException(403, "El permiso de procesamiento externo fue retirado.")
+    if external:
+        preference = (
+            repo.records(db, member.tenant_id, user.id, "preferences").populate_existing().first()
+        )
+        if not preference or not provider.chat_consent_valid(preference.data):
+            raise HTTPException(403, "El permiso de procesamiento externo fue retirado.")
     if not get_billing_access_status(db, tenant_id=member.tenant_id).allowed:
         raise HTTPException(403, "La consulta requiere acceso comercial vigente.")

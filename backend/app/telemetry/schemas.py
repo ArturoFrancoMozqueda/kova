@@ -164,6 +164,14 @@ ANALYSIS_PRESETS = frozenset({"today", "seven_days", "month", "custom"})
 ANALYSIS_TEMPLATE_PATTERN = re.compile(r"^R(?:[1-9]|1[0-3])$")
 ANALYSIS_ACTION_TEMPLATE_PATTERN = re.compile(r"^R(?:[1-9]|1[0-2])$")
 ANALYSIS_HELPFULNESS = frozenset({"helpful", "not_yet"})
+TASK_EVENT_NAMES = frozenset({"task_started", "task_finished"})
+MEASURED_TASKS = frozenset(
+    {"cash_sale", "customer_order", "purchase_receipt", "replenishment_purchase", "automation_task"}
+)
+TASK_OUTCOMES = frozenset({"completed", "failed", "cancelled", "queued"})
+TASK_ATTEMPT_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
 ACTIVATION_EVENT_NAMES = frozenset(
     {"first_product_created", "first_sale_completed", "open_shift", "close_shift"}
 )
@@ -332,6 +340,33 @@ def _validate_activation_event(event_name: str, properties: dict[str, Any]) -> N
         raise ValueError("activation event contains unsupported properties")
 
 
+def _validate_task_event(event_name: str, properties: dict[str, Any]) -> None:
+    if event_name not in TASK_EVENT_NAMES:
+        return
+    _require_category(properties, "task", MEASURED_TASKS)
+    attempt = properties.get("attempt_id")
+    if not isinstance(attempt, str) or not TASK_ATTEMPT_PATTERN.fullmatch(attempt):
+        raise ValueError("attempt_id must be an anonymous UUID v4")
+    if not isinstance(properties.get("offline"), bool):
+        raise ValueError("offline must be boolean")
+    allowed = ADOPTION_CONTEXT_KEYS | {"task", "attempt_id", "offline"}
+    if event_name == "task_finished":
+        allowed |= {"outcome", "active_ms", "elapsed_ms"}
+        _require_category(properties, "outcome", TASK_OUTCOMES)
+        for key in ("active_ms", "elapsed_ms"):
+            value = properties.get(key)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or not 0 <= value <= 86_400_000
+            ):
+                raise ValueError(f"{key} must be an integer duration between 0 and 86400000")
+        if properties["active_ms"] > properties["elapsed_ms"]:
+            raise ValueError("active_ms cannot exceed elapsed_ms")
+    if set(properties) - allowed:
+        raise ValueError("task event contains unsupported properties")
+
+
 class TelemetryEventCreate(StrictModel):
     event_name: str = Field(min_length=1, max_length=120, pattern=r"^[a-z0-9_.:-]+$")
     client_event_id: str = Field(min_length=1, max_length=80)
@@ -348,6 +383,7 @@ class TelemetryEventCreate(StrictModel):
         _validate_diagnostic_event(self.event_name, self.properties)
         _validate_analysis_event(self.event_name, self.properties)
         _validate_activation_event(self.event_name, self.properties)
+        _validate_task_event(self.event_name, self.properties)
         return self
 
 

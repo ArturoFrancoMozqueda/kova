@@ -5,7 +5,7 @@ import {
   Settings, ShoppingCart, Sparkles, Store, Truck, Users, WalletCards, Workflow,
 } from "lucide-react";
 import { copy } from "@/i18n/messages";
-import type { WorkspaceGroupId } from "./workspaceNavigation";
+export { workspaceGroupLabels } from "./workspaceNavigation";
 import {
   APPOINTMENTS_OPERATE_PERMISSION,
   BILLING_VIEW_PERMISSION,
@@ -72,14 +72,6 @@ export function isAdminRole(role: string): boolean {
   return role === "owner" || role === "manager";
 }
 
-
-export const workspaceGroupLabels: Record<WorkspaceGroupId, string> = {
-  sales: "Menú y ventas",
-  customers: "Clientes y atención",
-  operation: "Productos y operación",
-  analysis: "Análisis y finanzas",
-  settings: copy.app.settings,
-};
 
 export type NavigationGates = {
   role: string;

@@ -16,7 +16,7 @@ import {
   useOperationsRequest,
   type WorkspaceIdentity,
 } from "@/automations/workspace";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -275,13 +275,28 @@ function ReconciliationWorkspace({
         <div className="flex items-center gap-3">
           <Upload className="h-5 w-5 text-kova-blue" aria-hidden="true" />
           <h2 id="reconciliation-import" className="text-lg font-semibold">
-            Importar CSV preparado
+            Importar depósitos
           </h2>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Descarga la plantilla, agrega tus depósitos reales y guárdala como CSV UTF-8.
+          Podrás revisar cada fila antes de importarla.
+        </p>
+        <a className={buttonVariants({ variant: "outline" })}
+          href="/templates/conciliacion-depositos.csv" download="plantilla-conciliacion-depositos.csv">
+          Descargar plantilla CSV
+        </a>
         <details className="rounded-xl bg-muted p-4 text-sm">
           <summary className="cursor-pointer font-medium">
-            Columnas y requisitos del archivo
+            Cómo llenar la plantilla
           </summary>
+          <dl className="mt-3 space-y-2">
+            <div><dt className="font-medium">Fecha del depósito (settled_at)</dt><dd>Incluye hora y zona. Ejemplo de formato: 2026-11-17T12:00:00-06:00.</dd></div>
+            <div><dt className="font-medium">Importe bruto, comisión y neto</dt><dd>Usa punto decimal y sin símbolo de pesos. El bruto menos la comisión debe ser igual al neto.</dd></div>
+            <div><dt className="font-medium">Moneda y medio de pago</dt><dd>Escribe MXN. Para transferencia, bank_transfer; para tarjeta registrada manualmente, manual_card.</dd></div>
+            <div><dt className="font-medium">Referencia (reference)</dt><dd>Usa sólo una referencia enmascarada, por ejemplo ***1234.</dd></div>
+          </dl>
+          <p className="mt-3">La plantilla está vacía para que importes únicamente movimientos reales.</p>
           <p className="mt-3 leading-6">
             UTF-8, máximo 500 filas y 256 KiB. Fechas ISO con zona horaria,
             importes con dos decimales, moneda MXN y método bank_transfer o

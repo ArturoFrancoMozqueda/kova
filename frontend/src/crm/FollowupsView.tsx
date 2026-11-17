@@ -8,7 +8,7 @@ import { InitialsAvatar } from "@/components/visual";
 import { Link } from "react-router-dom";
 import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
 import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
-import { useId, useEffect, useState, type FormEvent } from "react";
+import { useId, useEffect, useState } from "react";
 import {
   OperationsSession,
   type WorkspaceIdentity,
@@ -17,13 +17,11 @@ import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import type { Customer } from "@/customers/api";
 
 type Policy = {
   enabled: boolean;
@@ -83,67 +81,13 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
     identity,
     `/crm/followups?limit=50&offset=${offset}`,
   );
-  const { request } = panel;
   const [policy, setPolicy] = useState<Policy | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [search, setSearch] = useState("");
-  const [customerError, setCustomerError] = useState("");
-  const [customerId, setCustomerId] = useState("");
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [dueAt, setDueAt] = useState("");
-  const [incidentOpen, setIncidentOpen] = useState(false);
   const [selected, setSelected] = useState<Task | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
   useEffect(() => {
     setSelected(null);
     setResolutionNote("");
   }, [linked.id]);
-  useEffect(() => {
-    let active = true;
-    const timer = window.setTimeout(() => {
-      void request<Customer[]>(`/customers?q=${encodeURIComponent(search)}`)
-        .then((rows) => {
-          if (active) {
-            setCustomers(rows);
-            setCustomerError("");
-          }
-        })
-        .catch(() => {
-          if (active)
-            setCustomerError(
-              "No pudimos buscar clientes. Cambia la búsqueda para reintentar.",
-            );
-        });
-    }, 200);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [request, search]);
-  const createIncident = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canConfigure) return;
-    if (
-      await panel.mutate(
-        "/crm/followups",
-        "POST",
-        {
-          customer_id: customerId,
-          title: title.trim(),
-          note: note.trim() || null,
-          due_at: new Date(dueAt).toISOString(),
-        },
-        "Incidencia registrada para seguimiento interno.",
-      )
-    ) {
-      setIncidentOpen(false);
-      setTitle("");
-      setNote("");
-      setCustomerId("");
-      setDueAt("");
-    }
-  };
   const review = (row: Task) => {
     setSelected(row);
     setResolutionNote(row.note ?? "");
@@ -178,17 +122,11 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
         eyebrow="Relación con clientes"
         title="Seguimiento después de la venta"
         meta="Revisa a quién contactar después de una compra: una opinión, una próxima visita o un pendiente."
-        actions={panel.data ? (
-          <Button
-            className="h-auto min-h-11 whitespace-normal"
-            disabled={panel.busy || !panel.online || !canConfigure}
-            aria-expanded={incidentOpen}
-            aria-controls="followup-incident-form"
-            onClick={() => setIncidentOpen((value) => !value)}
-          >
+        actions={panel.data ? panel.online ? (
+          <Link className={buttonVariants({ className: "h-auto min-h-11 whitespace-normal" })} to="/service-cases?new=1">
             Registrar incidencia
-          </Button>
-        ) : undefined}
+          </Link>
+        ) : <Button disabled>Registrar incidencia</Button> : undefined}
       />
       <p className="max-w-3xl text-sm text-kova-muted">
         Las reglas crean pendientes internos. El equipo revisa el consentimiento
@@ -307,98 +245,13 @@ function FollowupsWorkspace({ identity, canConfigure }: { identity: WorkspaceIde
           </div>
         </form>
       )}
-      {canConfigure && incidentOpen && (
-        <form
-          id="followup-incident-form"
-          className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
-          onSubmit={(event) => void createIncident(event)}
-        >
-          <h2 className="text-xl font-semibold">Nueva incidencia</h2>
-          <Label htmlFor={`${fieldId}-3`} className="block text-sm">
-            Buscar cliente
-            <Input id={`${fieldId}-3`}
-              className={fieldClass}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </Label>
-          {customerError && <p role="alert">{customerError}</p>}
-          <Label htmlFor={`${fieldId}-4`} className="block text-sm">
-            Cliente de la incidencia
-            <Select id={`${fieldId}-4`}
-              className={fieldClass}
-              required
-              value={customerId}
-              onChange={(event) => setCustomerId(event.target.value)}
-            >
-              <option value="">Selecciona un cliente</option>
-              {customers.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.name}
-                </option>
-              ))}
-            </Select>
-          </Label>
-          <Label htmlFor={`${fieldId}-5`} className="block text-sm">
-            Asunto de la incidencia
-            <Input id={`${fieldId}-5`}
-              className={fieldClass}
-              required
-              maxLength={160}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </Label>
-          <Label htmlFor={`${fieldId}-6`} className="block text-sm">
-            Nota interna
-            <Textarea id={`${fieldId}-6`}
-              className={fieldClass}
-              maxLength={1000}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </Label>
-          <Label htmlFor={`${fieldId}-7`} className="block text-sm">
-            Fecha de seguimiento
-            <Input id={`${fieldId}-7`}
-              className={fieldClass}
-              type="datetime-local"
-              required
-              value={dueAt}
-              onChange={(event) => setDueAt(event.target.value)}
-            />
-          </Label>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              className="h-auto min-h-11 whitespace-normal text-left"
-              disabled={
-                !customerId ||
-                !title.trim() ||
-                !dueAt ||
-                panel.busy ||
-                !panel.online
-              }
-            >
-              Guardar incidencia
-            </Button>
-            <Button
-              className="h-auto min-h-11 whitespace-normal text-left"
-              type="button"
-              variant="ghost"
-              onClick={() => setIncidentOpen(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </form>
-      )}
       <section className="space-y-4" aria-label="Pendientes de postventa">
         <h2 className="text-xl font-semibold">Pendientes del equipo</h2>
         {!panel.loading && !panel.error && panel.data?.tasks.length === 0 && (
           <ViewEmpty illustration="people"
             icon={<ClipboardList className="h-6 w-6" aria-hidden="true" />}
             title="No hay tareas de postventa en esta página."
-            body="Activa la regla cuando estés listo o registra una incidencia."
+            body="Activa la regla cuando estés listo. Registra nuevas incidencias en Casos de atención."
           />
         )}
         <div className="grid gap-4 lg:grid-cols-2">
@@ -555,6 +408,12 @@ function FollowupCard({
             to={`/customers?customerId=${encodeURIComponent(row.customer_id)}`}
           >
             Ver cliente
+          </Link>
+          <Link
+            className={buttonVariants({ variant: "outline", size: "sm", className: "min-h-11" })}
+            to={`/service-cases?new=1&followup_id=${encodeURIComponent(row.id)}`}
+          >
+            Abrir atención postventa
           </Link>
           {row.sale_order_id && (
             <Link

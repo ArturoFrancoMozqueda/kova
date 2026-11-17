@@ -37,6 +37,38 @@ test("disabled cohort keeps the companion and assistant navigation hidden", asyn
   await expect(page.locator('a[href="/assistant"]')).toHaveCount(0);
 });
 
+for (const width of [390, 1440]) {
+  test(`local questions remain available without external consent at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 950 });
+    const writes: { path: string; body: unknown }[] = [];
+    await page.route("**/api/v1/assistant/**", route => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.split("/assistant")[1];
+      if (request.method() !== "GET") writes.push({ path, body: request.postDataJSON() });
+      const json = path === "/capabilities" ? { ...capabilities, local_answers_ready: true }
+        : path === "/preferences" ? { chat_consent: false, document_consent: false, email_opt_in: false, frequency: "weekly" }
+        : path === "/usage" ? { tenant_used: 0, tenant_limit: 0, user_used: 0, user_limit: 0, reset_at: "2026-12-01T00:00:00Z" }
+        : path === "/conversations" ? request.method() === "POST" ? { id: "local-chat", data: {} } : []
+        : path === "/conversations/local-chat/messages" ? { id: "local-run", status: "completed", data: { response_mode: "direct" } }
+        : path === "/conversations/local-chat" ? { messages: [{ id: "local-answer", data: {
+          role: "assistant", run_id: "local-run", content: "Consulta local completada con los datos de esta sucursal.",
+        } }] } : [];
+      return route.fulfill({ json });
+    });
+    await page.goto("/assistant");
+    const field = page.getByRole("textbox", { name: "Tu pregunta" });
+    await expect(field).toBeVisible();
+    await expect(page.getByRole("button", { name: "Habilitar IA externa" })).toHaveCount(0);
+    expect(writes).toEqual([]);
+    await field.fill("¿Cuánto vendí hoy?");
+    await page.getByRole("button", { name: "Consultar", exact: true }).click();
+    await expect(page.getByText("Consulta local completada con los datos de esta sucursal.")).toBeVisible();
+    expect(writes.some(write => write.path === "/preferences")).toBe(false);
+    expect(writes.find(write => write.path.endsWith("/messages"))?.body).toEqual({ content: "¿Cuánto vendí hoy?" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  });
+}
+
 for (const width of [1280, 320]) {
   test(`companion preserves a private draft across routes without inference at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 320 ? 568 : 800 });
@@ -57,7 +89,7 @@ for (const width of [1280, 320]) {
     const panel = page.getByRole("dialog", { name: "Asistente Kova" });
     await expect(panel).toBeVisible();
     await expect(page).toHaveURL(/\/dashboard\?range=private$/);
-    await expect(panel.getByText("La IA aún no está conectada.", { exact: false })).toBeVisible();
+    await expect(panel.getByText(/sin compartir tu consulta con un proveedor de IA/)).toBeVisible();
     await panel.getByLabel("Tu pregunta").fill("Borrador privado del negocio");
     await expect(panel.getByRole("button", { name: "Enviar pregunta" })).toBeDisabled();
     const box = await panel.boundingBox();

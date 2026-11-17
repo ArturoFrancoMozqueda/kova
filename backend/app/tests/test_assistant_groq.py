@@ -254,6 +254,68 @@ def test_direct_chat_can_enqueue_when_provider_unavailable(enabled_client, monke
     assert ctx[0].id is not None
 
 
+@pytest.mark.parametrize("preference_state", ["missing", "withdrawn", "other_provider"])
+def test_local_answers_do_not_require_external_consent(
+    enabled_client, monkeypatch, preference_state
+):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Cuánto vendí hoy")
+    preference = repo.records(db, tenant, ctx[0].id, "preferences").first()
+    if preference_state == "missing":
+        db.delete(preference)
+    else:
+        repo.update(preference, chat_consent=preference_state != "withdrawn",
+                    chat_provider="other-provider")
+    db.commit()
+    monkeypatch.setattr(provider, "generate", lambda *a, **kw: pytest.fail("No external request"))
+    monkeypatch.setattr(budget, "reserve", lambda *a, **kw: pytest.fail("No model reservation"))
+    generation.run(db, ctx, job)
+    assert job.status == "completed"
+    assert job.data["response_mode"] == "direct"
+
+
+def test_local_route_without_preferences_and_external_route_blocked(enabled_client, monkeypatch):
+    client, _, _, _ = enabled_client
+    monkeypatch.setattr(provider, "ready", lambda: True)
+    monkeypatch.setattr(provider, "generate", lambda *a, **kw: pytest.fail("No external request"))
+    chat = client.post("/api/v1/assistant/conversations", json={}).json()
+    path = f"/api/v1/assistant/conversations/{chat['id']}/messages"
+    external = client.post(path, headers={"Idempotency-Key": "external-without-consent"},
+                           json={"content": "Ayúdame a interpretar todos mis indicadores"})
+    assert external.status_code == 403
+    local = client.post(path, headers={"Idempotency-Key": "local-without-consent"},
+                        json={"content": "Cuánto vendí hoy"})
+    assert local.status_code == 202, local.text
+    assert client.get("/api/v1/assistant/preferences").json()["chat_consent"] is False
+
+
+def test_unavailable_external_provider_does_not_request_unusable_consent(enabled_client, monkeypatch):
+    client, db, tenant, _ = enabled_client
+    monkeypatch.setattr(provider, "ready", lambda: False)
+    monkeypatch.setattr(provider, "generate", lambda *a, **kw: pytest.fail("No external request"))
+    monkeypatch.setattr(budget, "reserve", lambda *a, **kw: pytest.fail("No model reservation"))
+    chat = client.post("/api/v1/assistant/conversations", json={}).json()
+    path = f"/api/v1/assistant/conversations/{chat['id']}/messages"
+    response = client.post(path, headers={"Idempotency-Key": "unavailable-without-consent"},
+                           json={"content": "Ayúdame a interpretar todos mis indicadores"})
+    assert response.status_code == 503
+    assert "aún no está configurado" in response.json()["detail"]
+    ctx = context(db, tenant)
+    assert repo.records(db, tenant, ctx[0].id, "run").count() == 0
+
+
+def test_local_answer_still_checks_revoked_session(enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Cuánto vendí hoy")
+    ctx[2].revoked_at = datetime.now(UTC)
+    db.commit()
+    monkeypatch.setattr(provider, "generate", lambda *a, **kw: pytest.fail("No external request"))
+    with pytest.raises(HTTPException) as exc:
+        generation.run(db, ctx, job)
+    assert exc.value.status_code == 403
+    assert job.status != "completed"
+
+
 def test_evaluation_manifest_covers_all_required_capabilities():
     from collections import Counter
 

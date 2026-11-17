@@ -3,6 +3,7 @@ import io
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
+from statistics import median
 from typing import Any
 
 from sqlalchemy import exists, func, select
@@ -13,6 +14,106 @@ from app.billing.models import Subscription, WebhookEvent
 from app.orders.models import Order
 from app.shifts.models import Shift
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
+from app.telemetry.schemas import MEASURED_TASKS, TASK_EVENT_NAMES, TelemetryEventCreate
+
+
+def summarize_task_experience(events: Iterable[Any]) -> list[dict[str, Any]]:
+    """Client-reported usability attempts, never financial truth or satisfaction.
+
+    Delivery may be reordered offline. Pair by authenticated ownership and the
+    opaque attempt, never by arrival-time differences. Ignore malformed legacy
+    rows and collapse duplicate outcomes. Contradictory results are excluded.
+    """
+    attempts: dict[tuple, dict[str, Any]] = {}
+    for event in events:
+        if event.event_name not in TASK_EVENT_NAMES:
+            continue
+        try:
+            parsed = TelemetryEventCreate(
+                event_name=event.event_name,
+                client_event_id="aggregate-validation",
+                properties=event.properties,
+            )
+        except ValueError:
+            continue
+        properties = parsed.properties
+        key = (event.tenant_id, event.user_id, properties["attempt_id"])
+        item = attempts.setdefault(
+            key, {"task": properties["task"], "started": False, "results": {}}
+        )
+        if item["task"] != properties["task"]:
+            item["conflicting"] = True
+        if event.event_name == "task_started":
+            item["started"] = True
+        else:
+            result = (
+                properties["outcome"],
+                properties["active_ms"],
+                properties["elapsed_ms"],
+                properties["offline"],
+            )
+            item["results"][result] = properties
+
+    rows = []
+    for task in sorted(MEASURED_TASKS):
+        matching = [item for item in attempts.values() if item["task"] == task]
+        started = sum(item["started"] for item in matching)
+        finished = [
+            next(iter(item["results"].values()))
+            for item in matching
+            if item["started"] and len(item["results"]) == 1 and not item.get("conflicting")
+        ]
+        outcomes = Counter(result["outcome"] for result in finished)
+        completed = [result for result in finished if result["outcome"] == "completed"]
+        rows.append(
+            {
+                "task": task,
+                "started": started,
+                "finished": len(finished),
+                "completed": outcomes["completed"],
+                "failed": outcomes["failed"],
+                "cancelled": outcomes["cancelled"],
+                "queued": outcomes["queued"],
+                "unresolved": started - len(finished),
+                "unpaired_results": sum(
+                    not item["started"] and bool(item["results"]) for item in matching
+                ),
+                "conflicting_results": sum(
+                    len(item["results"]) > 1 or bool(item.get("conflicting")) for item in matching
+                ),
+                "completion_rate": round(outcomes["completed"] / started, 4) if started else None,
+                "completed_active_median_ms": int(
+                    median(result["active_ms"] for result in completed)
+                )
+                if completed
+                else None,
+                "completed_elapsed_median_ms": int(
+                    median(result["elapsed_ms"] for result in completed)
+                )
+                if completed
+                else None,
+            }
+        )
+    return rows
+
+
+def build_task_experience_report(db: Session, *, days: int) -> dict[str, Any]:
+    end = datetime.now(UTC)
+    start = end - timedelta(days=days)
+    events = db.scalars(
+        select(TelemetryEvent).where(
+            TelemetryEvent.created_at >= start,
+            TelemetryEvent.created_at <= end,
+            TelemetryEvent.event_name.in_(TASK_EVENT_NAMES),
+        )
+    )
+    return {
+        "generated_at": end,
+        "window": {"start": start, "end": end, "days": days},
+        "measurement_source": "client_reported",
+        "tasks": summarize_task_experience(events),
+    }
+
 
 CRO_EXPORT_COLUMNS = (
     "date",

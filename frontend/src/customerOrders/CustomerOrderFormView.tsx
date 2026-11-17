@@ -1,11 +1,12 @@
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
-import { resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
+import { apiErrorStatus, resolveApiErrorMessage, safeUserMessage, resolveUserFacingError } from "@/lib/apiError";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
+import { useTaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { useFeature } from "@/auth/useFeature";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { listCustomers, resolveActiveCustomer, type Customer } from "@/customers/api";
@@ -84,12 +85,13 @@ export default function CustomerOrderFormView() {
   if (!hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "customer_orders")) {
     return <ViewLayout className="space-y-6"><ViewHeader title={orderId ? "Editar pedido" : "Nuevo pedido"} /><PlanFeatureNotice>Conservas tus pedidos anteriores y puedes terminarlos o cobrarlos desde su detalle. Para crear o editar pedidos necesitas Gestión.</PlanFeatureNotice></ViewLayout>;
   }
-  return <CustomerOrderFormSession key={`${identity}:${orderId ?? "new"}:${incomingCustomerId}`} orderId={orderId} incomingCustomerId={incomingCustomerId} />;
+  return <CustomerOrderFormSession key={`${identity}:${orderId ?? "new"}:${incomingCustomerId}`} orderId={orderId} incomingCustomerId={incomingCustomerId} measurementScope={`${identity}:${orderId ?? "new"}`} measurementOwner={state.status === "authenticated" ? { tenantId: state.tenantId, userId: state.user.id } : null} />;
 }
 
-function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: string; incomingCustomerId: string }) {
+function CustomerOrderFormSession({ orderId, incomingCustomerId, measurementScope, measurementOwner }: { orderId?: string; incomingCustomerId: string; measurementScope: string; measurementOwner: { tenantId: string; userId: string } | null }) {
   const formId = useId();
-  useDocumentTitle("Nuevo pedido");
+  const measurement = useTaskMeasurement("customer_order", measurementScope, measurementOwner);
+
   const enabled = useFeature("customer_orders");
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -98,6 +100,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   const [stockAttempt, setStockAttempt] = useState(0);
   const [stockRetrying, setStockRetrying] = useState(false);
   const [existing, setExisting] = useState<CustomerOrder | null>(null);
+  useDocumentTitle(existing ? `Editar ${existing.folio}` : "Nuevo pedido");
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
@@ -122,6 +125,12 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   // A response may be lost after the server commits. Replay each unchanged
   // mutation with its original identity, including the save/confirm sequence.
   const mutationKeys = useRef(new Map<string, string>());
+  const pendingWrite = useRef<{
+    run: () => Promise<CustomerOrder>;
+    action: "save" | "confirm" | "checkout";
+    uncertain: boolean;
+  } | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!incomingCustomerId || orderId) return;
@@ -142,7 +151,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
     return () => { active = false; controller.abort(); };
   }, [incomingCustomerId, orderId]);
   useEffect(() => {
-    if (orderId || !customerSelectorOpen) return;
+    if (orderId || existing || !customerSelectorOpen) return;
     let active = true;
     const timer = window.setTimeout(() => {
       void listCustomers(customerSearch)
@@ -150,7 +159,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
         .catch(() => { if (active) setCustomerSearchError("No pudimos buscar clientes. Cambia la búsqueda para reintentar."); });
     }, 200);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [customerSearch, customerSelectorOpen, orderId]);
+  }, [customerSearch, customerSelectorOpen, existing, orderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,7 +235,16 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
 
   if (!enabled) return <Navigate to="/register" replace />;
 
+  const canIncrease = (productId: string, current: DraftLine[], amount = 1) => {
+    const tracked = products.find(product => product.id === productId)?.track_inventory
+      ?? stock[productId] !== undefined;
+    return !tracked || (!stockError && stock[productId] !== undefined
+      && current.filter(line => line.productId === productId).reduce((sum, line) => sum + line.quantity, 0) + amount <= stock[productId]);
+  };
+
   const addProduct = (product: Product) => {
+    if (submittingRef.current || pendingWrite.current?.uncertain) return;
+    measurement.start();
     const activeGroups = product.modifier_groups.filter((group) => group.is_active);
     if (activeGroups.length > 0) {
       setModifierProduct(product);
@@ -236,10 +254,16 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   };
 
   const addLine = (product: Product, modifiers: SelectedModifier[]) => {
+    if (submittingRef.current || pendingWrite.current?.uncertain) return;
+    if (!canIncrease(product.id, lines)) {
+      setError(`No hay más unidades disponibles de ${product.name}.`);
+      return;
+    }
     const key = lineKey(product.id, modifiers);
     const modifierCents = modifiers.reduce((sum, modifier) => sum + moneyToCents(modifier.priceDelta), 0);
     const unitPrice = centsToMoney(moneyToCents(product.price_amount) + modifierCents);
     setLines((current) => {
+      if (!canIncrease(product.id, current)) return current;
       const found = current.find((line) =>
         !line.existingId && !line.note && lineKey(line.productId, line.modifiers) === key,
       );
@@ -262,13 +286,19 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   };
 
   const updateLine = (key: string, patch: Partial<DraftLine>) => {
-    setLines((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
+    if (submittingRef.current || pendingWrite.current?.uncertain) return;
+    setLines((current) => current.map((line) => {
+      if (line.key !== key) return line;
+      if (patch.quantity !== undefined && patch.quantity > line.quantity
+        && !canIncrease(line.productId, current, patch.quantity - line.quantity)) return line;
+      return { ...line, ...patch };
+    }));
   };
 
   const payload = (): CustomerOrderInput => ({
     fulfillment_type: fulfillmentType,
     source_channel: sourceChannel,
-    ...(!orderId ? { customer_id: customerId || null } : {}),
+    ...(!existing ? { customer_id: customerId || null } : {}),
     customer_name: customerName.trim() || null,
     customer_phone: customerPhone.trim() || null,
     delivery_address: fulfillmentType === "delivery" ? deliveryAddress.trim() || null : null,
@@ -287,11 +317,15 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
   const persist = async (action: "save" | "confirm" | "checkout") => {
     if (submittingRef.current || customerLoading || customerError) return;
     setError(null);
+    measurement.start();
+    if (pendingWrite.current?.uncertain) measurement.resume();
     if (lines.length === 0) {
+      measurement.finish("failed");
       setError("Agrega al menos un producto.");
       return;
     }
     if (fulfillmentType === "delivery" && (!customerName.trim() || !deliveryAddress.trim())) {
+      measurement.finish("failed");
       setError("Para entrega indica el nombre y la dirección del cliente.");
       return;
     }
@@ -302,23 +336,67 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
       return key;
     };
     submittingRef.current = true;
+    measurement.pause();
     setSubmitting(true);
+    const remember = (saved: CustomerOrder) => {
+      // The creation is already durable even if the following confirmation fails.
+      setExisting(saved);
+      setLines(saved.items.map(item => ({
+        key: item.id, existingId: item.id, productId: item.product_id,
+        productName: item.product_name, unitPrice: item.unit_price_amount,
+        quantity: item.quantity, note: item.note ?? "",
+        modifiers: item.modifiers.map(modifier => ({
+          groupId: modifier.modifier_group_id, groupName: modifier.modifier_group_name,
+          optionId: modifier.modifier_option_id, optionName: modifier.modifier_option_name,
+          priceDelta: modifier.price_delta_amount,
+        })),
+      })));
+    };
+    const write = async (run: () => Promise<CustomerOrder>) => {
+      pendingWrite.current = { run, action, uncertain: false };
+      const saved = await run();
+      pendingWrite.current = null;
+      setRecovering(false);
+      remember(saved);
+      return saved;
+    };
     try {
-      const body = payload();
-      let saved = existing
-        ? await updateCustomerOrder(existing.id, { ...body, version: existing.version },
-          keyFor(`update:${existing.id}`, { ...body, version: existing.version }))
-        : await createCustomerOrder(body, keyFor("create", body));
-      if ((action === "confirm" || action === "checkout") && saved.status === "new") {
-        saved = await confirmCustomerOrder(saved.id, saved.version,
-          keyFor(`confirm:${saved.id}`, { version: saved.version }));
+      const recovery = pendingWrite.current;
+      let saved: CustomerOrder;
+      if (recovery) {
+        // Replay the exact mutation before accepting edits or another action.
+        action = recovery.action;
+        saved = await recovery.run();
+        pendingWrite.current = null;
+        setRecovering(false);
+        remember(saved);
+      } else {
+        const body = payload();
+        saved = existing
+          ? await write(() => updateCustomerOrder(existing.id, { ...body, version: existing.version },
+            keyFor(`update:${existing.id}`, { ...body, version: existing.version })))
+          : await write(() => createCustomerOrder(body, keyFor("create", body)));
       }
+      if ((action === "confirm" || action === "checkout") && saved.status === "new") {
+        const order = saved;
+        saved = await write(() => confirmCustomerOrder(order.id, order.version,
+          keyFor(`confirm:${order.id}`, { version: order.version })));
+      }
+      measurement.finish("completed");
       if (action === "checkout") {
         navigate(`/register?customerOrderId=${saved.id}`);
       } else {
         navigate(`/pedidos/${saved.id}`);
       }
     } catch (caught) {
+      const status = apiErrorStatus(caught);
+      if (pendingWrite.current && (pendingWrite.current.uncertain || status === null || status === 408 || status >= 500)) {
+        pendingWrite.current.uncertain = true;
+        setRecovering(true);
+      } else {
+        pendingWrite.current = null;
+        measurement.finish("failed");
+      }
       const body = caught as { detail?: { detail?: { message?: string } } };
       setError(resolveApiErrorMessage(caught, safeUserMessage(body.detail?.detail?.message, "No se pudo guardar el pedido. Revisa los datos e intenta de nuevo.")));
     } finally {
@@ -341,7 +419,15 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
 
       {error ? <div className="my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_420px]">
+      {recovering && <div role="status" className="my-4 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+        <p>Falta confirmar el resultado del último intento. Recupera el mismo pedido antes de cambiarlo.</p>
+        <Button variant="outline" disabled={submitting} onClick={() => void persist(pendingWrite.current?.action ?? "save")}>
+          {submitting ? "Recuperando pedido…" : "Recuperar resultado del pedido"}
+        </Button>
+      </div>}
+      {existing && !orderId && !recovering && <p role="status" className="my-4 text-sm text-muted-foreground">El pedido {existing.folio} ya está guardado. Los cambios se aplicarán a este mismo pedido.</p>}
+
+      <fieldset aria-label="Datos del pedido" disabled={submitting || recovering} onChangeCapture={() => measurement.start()} onClickCapture={event => { if (event.target instanceof Element && event.target.closest("button")) measurement.start(); }} className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[1fr_420px]">
         <div className="space-y-4">
           <Label htmlFor={`${formId}-search`} className="sr-only">Buscar producto o SKU</Label>
           <Input id={`${formId}-search`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto o SKU" />
@@ -353,7 +439,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => {
               const available = product.track_inventory && !stockError ? stock[product.id] : undefined;
-              const disabled = product.track_inventory && (stockError || (available ?? 0) <= 0);
+              const disabled = !canIncrease(product.id, lines);
               return (
                 <RegisterProductCard
                   key={product.id}
@@ -383,7 +469,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
                   <div className="mt-3 flex items-center gap-2">
                     <Button type="button" size="icon" variant="outline" aria-label="Quitar una unidad" aria-describedby={`${formId}-${line.key}-product`} onClick={() => line.quantity === 1 ? setLines((current) => current.filter((item) => item.key !== line.key)) : updateLine(line.key, { quantity: line.quantity - 1 })}><Minus className="h-3.5 w-3.5" /></Button>
                     <span className="w-8 text-center font-semibold tabular-nums">{line.quantity}</span>
-                    <Button type="button" size="icon" variant="outline" aria-label="Agregar una unidad" aria-describedby={`${formId}-${line.key}-product`} disabled={stock[line.productId] !== undefined && lines.filter((item) => item.productId === line.productId).reduce((sum, item) => sum + item.quantity, 0) >= stock[line.productId]} onClick={() => updateLine(line.key, { quantity: line.quantity + 1 })}><Plus className="h-3.5 w-3.5" /></Button>
+                    <Button type="button" size="icon" variant="outline" aria-label="Agregar una unidad" aria-describedby={`${formId}-${line.key}-product`} disabled={!canIncrease(line.productId, lines)} onClick={() => updateLine(line.key, { quantity: line.quantity + 1 })}><Plus className="h-3.5 w-3.5" /></Button>
                     <Button type="button" size="icon" variant="ghost" className="ml-auto text-destructive" aria-label="Eliminar artículo" aria-describedby={`${formId}-${line.key}-product`} onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                   <Label htmlFor={`${formId}-${line.key}-note`} className="sr-only">Nota de {line.productName} (opcional)</Label>
@@ -397,7 +483,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
           <Card>
             <CardHeader><CardTitle>Entrega y cliente</CardTitle></CardHeader>
             <CardContent className="grid gap-3">
-              {orderId ? customerId && <p className="text-sm">Cliente registrado: <Link className="font-medium text-primary underline underline-offset-4" to={`/customers?customerId=${encodeURIComponent(customerId)}`}>{customerName || "Ver cliente"}</Link>. La asociación se conserva al editar.</p> : <details open={customerSelectorOpen} onToggle={(event) => setCustomerSelectorOpen(event.currentTarget.open)} className="rounded-lg border p-3">
+              {existing ? customerId && <p className="text-sm">Cliente registrado: <Link className="font-medium text-primary underline underline-offset-4" to={`/customers?customerId=${encodeURIComponent(customerId)}`}>{customerName || "Ver cliente"}</Link>. La asociación se conserva al editar.</p> : <details open={customerSelectorOpen} onToggle={(event) => setCustomerSelectorOpen(event.currentTarget.open)} className="rounded-lg border p-3">
                 <summary className="cursor-pointer text-sm font-medium">{customerId ? `Cliente registrado: ${customerName}` : "Asociar cliente registrado (opcional)"}</summary>
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-muted-foreground">Al cobrar, la compra quedará en su historial. También puedes crear el pedido sin asociarlo a un cliente registrado.</p>
@@ -435,7 +521,7 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId }: { orderId?: s
             <Button disabled={submitting || customerLoading || Boolean(customerError)} onClick={() => void persist("checkout")}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Confirmar y cobrar</Button>
           </div>
         </div>
-      </div>
+      </fieldset>
 
       {modifierProduct ? (
         <ModifierSelectionModal

@@ -175,6 +175,8 @@ it("continues a followup through its exact customer and sale without writing or 
   mount(<FollowupsView />);
 
   expect(await screen.findByRole("link", { name: "Ver venta" })).toHaveAttribute("href", "/orders/sale-1");
+  expect(screen.getByRole("link", { name: "Registrar incidencia" })).toHaveAttribute("href", "/service-cases?new=1");
+  expect(screen.getAllByRole("link", { name: "Abrir atención postventa" })[0]).toHaveAttribute("href", "/service-cases?new=1&followup_id=followup-1");
   expect(screen.queryByText(/Venta de origen: sale-1/)).not.toBeInTheDocument();
   const customerLinks = screen.getAllByRole("link", { name: "Ver cliente" });
   expect(customerLinks).toHaveLength(2);

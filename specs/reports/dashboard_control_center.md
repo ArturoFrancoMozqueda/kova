@@ -1,5 +1,17 @@
 # Centro de control del negocio
 
+## Organización compartida con el menú
+
+El Panel agrupa herramientas en los mismos cinco ámbitos de `workspaceGroups`: Menú y ventas,
+Clientes y atención, Productos y operación, Análisis y finanzas y Configuración. Las rutas y sus
+nombres provienen de la misma fuente que la navegación, conservando los destinos permitidos por
+el shell. Caja, Pedidos y Ventas también aparecen en el área de ventas.
+
+La API conserva sus seis áreas técnicas y las definiciones de métricas. La presentación ubica
+cada métrica junto al destino real de su acción, sin duplicarla ni inventar ceros. Al combinar
+fuentes, un error parcial se anuncia sin ocultar cifras independientes confirmadas. Se muestran
+dos prioridades por tarjeta; las demás siguen disponibles en «Ver detalle y herramientas».
+
 ## Consulta y autorización
 
 `GET /api/v1/reports/dashboard?period=day|week|month&branch_id=all|UUID`

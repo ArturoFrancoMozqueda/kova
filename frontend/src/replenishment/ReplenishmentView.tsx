@@ -1,3 +1,4 @@
+import { useTaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { useAuth } from "@/auth/useAuth";
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
@@ -49,6 +50,7 @@ export default function ReplenishmentView() {
 function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const request = useOperationsRequest("/api/v1", identity);
   const online = useOnline();
+  const measurement = useTaskMeasurement("replenishment_purchase", `${identity.tenantId}:${identity.userId}:${identity.branchId}`, identity);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplier, setSupplier] = useState("");
@@ -75,17 +77,20 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const selected = rows.filter(row => row.selected);
   const total = formatPurchaseTotal(selected.map(row => ({ quantity: Number(row.quantity), unit_cost: row.cost })));
   const valid = selected.length > 0 && !!supplier && selected.every(row => /^\d+$/.test(row.quantity) && Number(row.quantity) > 0 && Number(row.quantity) <= 2147483647 && /^\d+(\.\d{1,2})?$/.test(row.cost));
-  const edit = (id: string, changes: Partial<DraftRow>) => { setRows(current => current.map(row => row.product_id === id ? { ...row, ...changes } : row)); setReviewing(false); key.current = null; };
+  const edit = (id: string, changes: Partial<DraftRow>) => { measurement.start(); setRows(current => current.map(row => row.product_id === id ? { ...row, ...changes } : row)); setReviewing(false); key.current = null; };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (locked.current || !valid || !online) return;
+    measurement.start();
     if (!reviewing) { setReviewing(true); return; }
+    measurement.pause();
     locked.current = true; setBusy(true); setError(""); setNotice(""); setCreatedPurchaseId(null);
     key.current ??= crypto.randomUUID();
     try {
       const purchase = await request<Purchase>("/replenishment/approve-purchase", "POST", { supplier_id: supplier, items: selected.map(row => ({ product_id: row.product_id, quantity: Number(row.quantity), unit_cost: row.cost, evidence_version: row.evidence_version })) }, key.current);
+      measurement.finish("completed");
       if (alive.current) { await load(); if (alive.current) { setCreatedPurchaseId(purchase.id); setNotice("Compra pendiente creada. Revisa su recepción en Compras cuando llegue la mercancía."); } }
-    } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos crear la compra. Revisa las cantidades y el proveedor.")); }
+    } catch (e) { measurement.finish("failed"); if (alive.current) setError(resolveUserFacingError(e, "No pudimos crear la compra. Revisa las cantidades y el proveedor.")); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   };
   return <ViewLayout className="space-y-6">
@@ -94,9 +99,9 @@ function ReplenishmentWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     {error && <ViewError message={error} onRetry={() => void load()} retryLabel="Revisar datos actuales" />}
     {notice && <p role="status" className="rounded-xl bg-kova-growth/10 p-4 text-kova-growth-strong">{notice} <Link to={createdPurchaseId ? `/purchasing?purchase_id=${encodeURIComponent(createdPurchaseId)}` : "/purchasing"} className="inline-flex min-h-11 items-center underline">Revisar compra creada</Link></p>}
     {!online && <p role="status">Conéctate para crear o actualizar una compra.</p>}
-    {loading ? <SectionSkeleton label="Consultando existencias y compras pendientes…" variant="list" /> : rows.length === 0 ? <ViewEmpty illustration="box" icon={<PackageCheck className="h-6 w-6" />} title="Sin productos debajo del mínimo" body="Configura mínimos de inventario para los productos que quieras supervisar." primaryCta={{ label: "Ir a Catálogo", to: "/catalog" }} /> : <form className="space-y-6" onSubmit={event => void submit(event)}>
+    {loading ? <SectionSkeleton label="Consultando existencias y compras pendientes…" variant="list" /> : error ? null : rows.length === 0 ? <ViewEmpty illustration="box" icon={<PackageCheck className="h-6 w-6" />} title="Sin productos debajo del mínimo" body="Configura mínimos de inventario para los productos que quieras supervisar." primaryCta={{ label: "Ir a Catálogo", to: "/catalog" }} /> : <form className="space-y-6" onSubmit={event => void submit(event)}>
       <fieldset disabled={busy || !online || reviewing} className="grid gap-4 md:grid-cols-2"><legend className="sr-only">Productos para reponer</legend>{rows.map(row => <article key={row.product_id} className="min-w-0 space-y-4 rounded-2xl border border-kova-border bg-white p-5"><label className="flex items-start gap-3 font-semibold"><input type="checkbox" className="mt-1" checked={row.selected} onChange={e => edit(row.product_id, { selected: e.target.checked })} />{row.product_name}</label><StockPicture row={row} /><p className="text-sm text-kova-muted">Mínimo: {row.low_stock_threshold}. Sugerencia: {row.suggested_quantity} unidades.</p><div className="grid grid-cols-2 gap-3"><div><Label htmlFor={`qty-${row.product_id}`}>Cantidad</Label><Input id={`qty-${row.product_id}`} inputMode="numeric" value={row.quantity} onChange={e => edit(row.product_id, { quantity: e.target.value })} /></div><div><Label htmlFor={`cost-${row.product_id}`}>Costo unitario MXN</Label><Input id={`cost-${row.product_id}`} inputMode="decimal" placeholder="Captura el costo" value={row.cost} onChange={e => edit(row.product_id, { cost: e.target.value })} /></div></div>{row.unit_cost === null && <p className="text-sm text-kova-muted">No hay costo registrado. Confírmalo con el proveedor antes de seleccionar este producto.</p>}</article>)}</fieldset>
-      <div className="max-w-md"><Label htmlFor="restock-supplier">Proveedor</Label><select id="restock-supplier" className="mt-1 min-h-11 w-full rounded-xl border bg-white px-3" value={supplier} disabled={busy || reviewing || !online} onChange={e => { setSupplier(e.target.value); key.current = null; }}><option value="">Elige un proveedor</option>{suppliers.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select>{suppliers.length === 0 && <p className="mt-2 text-sm">Agrega un proveedor en <Link to="/purchasing" className="underline">Compras</Link>.</p>}</div>
+      <div className="max-w-md"><Label htmlFor="restock-supplier">Proveedor</Label><select id="restock-supplier" className="mt-1 min-h-11 w-full rounded-xl border bg-white px-3" value={supplier} disabled={busy || reviewing || !online} onChange={e => { measurement.start(); setSupplier(e.target.value); key.current = null; }}><option value="">Elige un proveedor</option>{suppliers.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select>{suppliers.length === 0 && <p className="mt-2 text-sm">Agrega un proveedor en <Link to="/purchasing" className="underline">Compras</Link>.</p>}</div>
       {reviewing && <section aria-label="Confirmación de compra" className="rounded-2xl border border-kova-ink p-5"><h2 className="font-semibold">Revisa antes de crear la compra</h2><p className="mt-2">Proveedor: {suppliers.find(row => row.id === supplier)?.name}</p><ul className="mt-3 space-y-2">{selected.map(row => <li key={row.product_id}>{row.quantity} × {row.product_name} · {formatPurchaseTotal([{ quantity: 1, unit_cost: row.cost }])} por unidad</li>)}</ul><p className="mt-4 font-semibold">Total de mercancía: {total}</p><p className="mt-2 text-sm">Se registrará como compra pendiente de recepción.</p></section>}
       {!valid && <p role="status" className="text-sm text-kova-muted">{selected.length === 0 ? "Selecciona los productos que quieres reponer." : !supplier ? "Elige un proveedor para continuar." : "Revisa que cada producto tenga una cantidad entera mayor que cero y un costo válido en MXN."}</p>}
       <div className="flex flex-wrap gap-3">{reviewing && <Button type="button" variant="outline" disabled={busy} onClick={() => setReviewing(false)}>Volver a editar</Button>}<Button disabled={!valid || busy || !online} type="submit">{busy ? "Creando compra…" : reviewing ? "Confirmar y crear compra pendiente" : "Revisar compra"}</Button></div>
