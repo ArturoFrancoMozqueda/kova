@@ -1,112 +1,94 @@
-# Beta Agreement Template
+# Acuerdo de servicio Kova con acompañamiento — plantilla
 
-**Borrador para revisión profesional; no es un acuerdo ya aprobado o firmado.** Completar las
-identidades y el plan de cada negocio antes de presentarlo. El precio y alcance de Standard
-se conservan sólo para acuerdos anteriores. Las altas nuevas usan Esencial o Gestión según
-la oferta del servidor; no deben heredar el precio histórico por copiar esta plantilla.
+**Borrador para revisión profesional y aceptación de las partes.** Completar los campos en
+privado antes de usarlo. Kovasuite se identifica por instrucción del dueño como nombre comercial;
+no se presume una sociedad constituida, identidad fiscal o domicilio a partir de ese nombre.
+Las firmas, domicilios, documentos fiscales y datos del cliente no se guardan en el repositorio.
 
-## Parties
+## 1. Partes y vigencia
 
-This Beta Agreement is between:
+- Nombre comercial del prestador: **Kovasuite**.
+- Persona física o moral que presta el servicio: `[Completar identidad legal]`.
+- Domicilio y contacto contractual del prestador: `[Completar en privado]`.
+- Negocio y persona contratante: `[Completar]`.
+- Representante autorizado y fecha de aceptación: `[Completar]`.
+- Servicio contratado: **Kova**, punto de venta y administración comercial.
 
-- Provider: `[Company / Founder Legal Name]`
-- Beta Tenant: `[Business Legal Name]`
-- Effective Date: `[Date]`
+## 2. Plan y alcance
 
-## 1. Beta Access
+Seleccionar un solo plan de la oferta disponible y registrar su precio final y límites:
 
-The Provider grants the Beta Tenant limited access to the POS SaaS platform during the closed beta period. The product is still under active development and may contain defects, incomplete flows, or temporary service interruptions.
+- Plan: `[Esencial / Gestión / Standard de un acuerdo anterior]`.
+- Importe mensual en MXN: `[Confirmar antes de aceptar el pago]`.
+- Oferta actual para altas nuevas: Esencial **$399** o Gestión **$699**, con impuestos incluidos.
+- Standard **$299** se conserva exclusivamente cuando existe un acuerdo anterior vigente.
+- Funciones y límites aceptados para el negocio: `[Registrar]`.
+- Equipos y flujo operativo revisados con el dueño: `[Registrar resultados reales]`.
 
-## 2. Beta Scope
+La cuenta nueva tiene 7 días de prueba sin tarjeta; crearla no autoriza cargos. Las funciones
+operativas pagadas se habilitan conforme al pago y acceso verificados. Las capacidades dependen
+del plan, permisos y configuración. Registrar tarjeta en Caja no procesa un cargo bancario.
+No ofrecer como disponibles CFDI, WhatsApp integrado, terminal bancaria o hardware certificado
+sin su aceptación específica. Las condiciones vigentes se consultan en
+[los términos públicos](https://kovasuite.com/terms).
 
-The beta service includes the selected plan made available by the Provider for small retail
-and bakery operations. Catalog, inventory, register, sales, shifts, basic reports, billing access and
-the public catalog form the core scope. Additional capabilities depend on the selected plan
-and actual activation for the business. Record exclusions and the devices accepted with the
-owner; do not promise CFDI issuance, an integrated payment terminal, WhatsApp integration or
-certified hardware while their separate acceptance remains pending.
+## 3. Cobro, renovación y cancelación
 
-## 3. Price
+La suscripción pagada es mensual, con renovación automática y autorización expresa e informada.
+Stripe procesa el cargo. Antes de contratar deben informarse monto, periodicidad y fechas.
+Cuando aplique la normativa de consumo, el aviso de renovación debe permitir cancelar sin
+penalización y emitirse al menos cinco días naturales antes; comprobar su operación antes de
+marcar esa condición aceptada. La plantilla no acredita que un aviso haya sido enviado.
 
-Complete one plan and its final monthly price, confirmed against the available offer:
+La renovación se cancela desde Facturación mediante la opción disponible o el Portal de Stripe,
+sin plazo forzoso ni penalización. Se conserva el periodo pagado verificado hasta su término.
+Cancelar la renovación no elimina la cuenta ni genera por sí solo un reembolso automático;
+las aclaraciones y devoluciones se atienden conforme a los acuerdos y derechos aplicables.
+Los acuerdos anteriores y periodos ya pagados no se modifican retroactivamente.
 
-- Selected plan: `[Esencial / Gestión / Standard under an existing agreement]`
-- Monthly price in MXN: `[Amount confirmed with the business]`
-- Current new-business reference: Esencial `MX$399` or Gestión `MX$699`, tax-inclusive
-- Standard `MX$299` only where an existing agreement already applies
-- No long-term commitment
+## 4. Datos, exportación y eliminación
 
-The account offers a 7-day trial without a payment method. A trial is not a paid subscription.
-Stripe processes the subscription; access is confirmed by Kova after authoritative payment
-verification. Cancelling renewal preserves access through the verified paid period. Recording
-a customer's payment in the POS does not process or transfer that customer's money.
+El negocio conserva los derechos sobre su contenido y las responsabilidades sobre sus usuarios,
+los datos personales que incorpora y la revisión de caja e inventario. Kovasuite utiliza el
+contenido para prestar y proteger el servicio conforme al Aviso de privacidad.
 
-The Provider may change commercial terms after the beta period with prior notice. Any future change will not apply retroactively to already paid periods.
+El propietario puede exportar su información y solicitar la eliminación por separado. La
+eliminación tiene un plazo reversible de al menos 30 días, extendido si el periodo ya pagado
+termina después. Cancelar la eliminación no reactiva una renovación previamente cancelada.
+La purga elimina los datos activos y conserva una constancia mínima de la solicitud. Los
+respaldos pueden conservar una copia hasta 7 días adicionales; cualquier conservación
+excepcional debe revisarse con su fundamento y alcance. Esto no sustituye los derechos ARCO
+ni elimina automáticamente los registros de terceros sujetos a sus propias obligaciones.
 
-## 4. Data Handling
+## 5. Acompañamiento y soporte
 
-The Beta Tenant may use production business data in the platform. The Provider will use reasonable care to protect that data and intends to maintain daily database backup coverage during beta operations.
+- Correo público: **soporte@kovasuite.com**.
+- Las respuestas manuales pueden llegar desde **posprojectsupport@gmail.com**.
+- Horario publicado: lunes a viernes de 9:00 a 19:00, hora de Ciudad de México.
+- Responsable y contacto de escalación aceptados: `[Completar]`.
+- Próxima sesión de aceptación y seguimiento acordada: `[Completar]`.
 
-The Beta Tenant remains responsible for:
+Los incidentes que impiden operar tienen prioridad durante ese horario. La etapa beta tiene
+acompañamiento y no ofrece SLA formal, disponibilidad ininterrumpida ni un plazo fijo de
+resolución. No se comprometen parches en cuatro horas. No solicitar contraseñas, tokens ni
+datos completos de tarjeta por soporte.
 
-- Choosing who may access the account
-- Reviewing sales and operational data for correctness
-- Reporting suspected data issues promptly
+La revisión con el dueño comprende su flujo de caja, conteo humano, existencias y uso del
+reporte; las emulaciones de navegador no certifican equipos físicos. Acordar seguimiento al
+séptimo día y sesiones semanales de 30 minutos durante el primer mes según disponibilidad.
 
-The owner can export account data and request account deletion. Deletion has a reversible
-waiting period of at least 30 days, extended to cover a later paid-period end where applicable.
-Backups can retain a copy for up to 7 additional days after purge under the current retention
-configuration. Legal or fiscal retention needs separate professional review; this template
-does not establish a blanket exception or certify regulatory compliance.
+## 6. Derechos y cambios
 
-## 5. Feedback Commitment
+Este acuerdo se complementa con los términos, aviso de privacidad y política de cookies.
+Conserva las condiciones particulares expresamente pactadas y los derechos irrenunciables.
+Los cambios materiales se notifican con al menos 15 días de anticipación; continuar usando el
+servicio no sustituye el consentimiento expreso cuando sea exigible. La aceptación de esta
+plantilla no certifica cumplimiento legal o fiscal ni una función pendiente de habilitación.
 
-The Beta Tenant agrees to provide practical product feedback during the beta period, including:
+## 7. Aceptación de las partes
 
-- One weekly feedback call during the first month when reasonably scheduled
-- Written feedback after the first week of use
-- Prompt reporting of blocking or high-impact issues
+Confirmar plan, importe, límites, responsable de soporte, dispositivos revisados y condiciones
+de datos. La revisión profesional y la firma se completan fuera del repositorio.
 
-## 6. Support Expectations
-
-The official beta support channel is `soporte@kovasuite.com`.
-
-Incoming mail is forwarded to the existing support Gmail. Manual replies identify
-`posprojectsupport@gmail.com` as the sender. The business should recognize both addresses.
-
-- Responsible person and escalation contact: `[To agree with the business]`
-- Published hours: Monday–Friday, 09:00–19:00, Mexico City time
-
-Issues that prevent operation receive priority during those hours. Agree how the business will
-receive incident updates. No fixed response time, resolution deadline or formal service-level
-agreement applies during beta.
-
-## 7. No SLA / Beta Disclaimer
-
-The platform is provided in beta form. The Provider does not guarantee uninterrupted availability, defect-free behavior, or suitability for every operational requirement during the beta period.
-
-To the maximum extent permitted by law, beta access is provided without a formal uptime or support SLA.
-
-## 8. Cancellation
-
-Either party may end beta participation at any time by written notice. The Beta Tenant may stop using the product without a long-term contract.
-
-## 9. Confidentiality
-
-Both parties should treat non-public product plans, account access details, and business-sensitive information shared during beta participation as confidential, except where disclosure is legally required.
-
-## 10. Acceptance
-
-By signing below, both parties confirm that they understand the beta nature of the product, the monthly price, the feedback expectations, and the absence of a formal beta SLA.
-
-Provider Representative: ___________________________
-
-Name / Title: ______________________________________
-
-Date: _____________________________________________
-
-Beta Tenant Representative: ________________________
-
-Business / Title: __________________________________
-
-Date: _____________________________________________
+- Prestador: nombre, representación, firma y fecha: `[Completar en privado]`.
+- Contratante: nombre, representación, firma y fecha: `[Completar en privado]`.

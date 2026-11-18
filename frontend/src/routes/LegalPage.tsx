@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import Logo from "@/components/brand/Logo";
 import { SUPPORT_EMAIL } from "@/lib/support";
 
+const PROVIDER_TRADE_NAME = "Kovasuite";
+
 type LegalPageProps = {
   variant: "privacy" | "terms" | "security" | "cookies";
 };
@@ -22,11 +24,11 @@ type VariantContent = {
 
 const content: Record<LegalPageProps["variant"], VariantContent> = {
   privacy: {
-    eyebrow: "Legal · Versión 1.2",
+    eyebrow: "Legal · Versión 1.3",
     title: "Aviso de privacidad integral",
     intro:
       "Este aviso describe qué datos personales tratamos al prestar el servicio, para qué los utilizamos y cómo solicitar su acceso, corrección o eliminación. Incluye el tratamiento asociado a WhatsApp cuando un negocio autoriza esa conexión.",
-    lastUpdated: "15 de noviembre de 2026",
+    lastUpdated: "18 de noviembre de 2026",
     sections: [
       {
         heading: "I. Propósito de este documento",
@@ -37,7 +39,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "II. Responsable y contacto",
         body: [
-          `El responsable del tratamiento de los datos personales es Kova, nombre comercial bajo el cual se opera una plataforma digital de administración comercial para negocios, emprendedores y comercios locales. Para cualquier asunto relacionado con el tratamiento de datos personales, derechos ARCO, revocación del consentimiento o dudas sobre este Aviso de Privacidad, puede comunicarse al correo electrónico: ${SUPPORT_EMAIL}.`,
+          `El servicio Kova se presta bajo el nombre comercial ${PROVIDER_TRADE_NAME}. Para asuntos relacionados con el tratamiento de datos personales, derechos ARCO, revocación del consentimiento o dudas sobre este Aviso de Privacidad, puedes comunicarte a ${SUPPORT_EMAIL}.`,
         ],
       },
       {
@@ -126,11 +128,11 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "VIII. Retención y eliminación de datos",
         body: [
           "• Mientras la cuenta permanezca activa en la plataforma.",
-          "• Cuando el titular programe la eliminación de su cuenta, se aplicará un plazo reversible de al menos 30 días antes de la purga definitiva.",
-          "• El tiempo adicional necesario para cumplir obligaciones legales, fiscales o contables (hasta 5 años conforme a legislación fiscal mexicana).",
-          "• El tiempo necesario para resolver disputas o reclamaciones pendientes.",
+          "• La eliminación de la cuenta del negocio se programa con un plazo reversible de al menos 30 días, extendido si un periodo ya pagado termina después. Ese plazo no sustituye los mecanismos ni los plazos legales para ejercer derechos sobre datos personales.",
+          "• Al purgar la cuenta se eliminan sus datos activos y se conserva una constancia mínima del estado y fechas de la solicitud. Los respaldos pueden conservar una copia hasta 7 días adicionales conforme a la retención vigente.",
+          "• Cualquier conservación excepcional para cumplir una obligación legal o atender una reclamación requiere su propio fundamento y alcance. No se presume una retención indefinida por defecto ni un periodo fiscal uniforme para toda la información del negocio.",
           "Las conversaciones de WhatsApp, sus estados, los contactos importados y los datos de conexión forman parte de los datos del negocio sujetos a estas reglas. No se borran al cerrar una conversación ni al pausar respuestas. La exportación del negocio incluye el texto, el origen y los estados de sus mensajes y los contactos importados; excluye las credenciales de conexión y los códigos de autorización. La purga de una cuenta comprende también su historial, sus contactos importados y sus credenciales de WhatsApp, salvo la información que deba conservarse por una obligación aplicable.",
-          "Transcurridos estos períodos, los datos serán eliminados de forma segura o anonimizados de manera irreversible.",
+          "La eliminación en Kova no borra automáticamente las copias que el negocio, los destinatarios o los proveedores conserven conforme a sus propias obligaciones y avisos. Los datos que dejen de ser necesarios se suprimen o disocian conforme a las obligaciones aplicables.",
         ],
       },
       {
@@ -142,140 +144,136 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "X. Cambios al aviso de privacidad",
         body: [
-          "Kova se reserva el derecho de modificar el presente Aviso de Privacidad. Cualquier cambio material será notificado mediante: (i) publicación en la plataforma; (ii) notificación por correo electrónico al último correo registrado; o (iii) aviso al iniciar sesión. El uso continuado del servicio después de la notificación implica la aceptación de los cambios.",
+          "Los cambios materiales a este Aviso de Privacidad se comunicarán mediante su publicación, correo electrónico o aviso al iniciar sesión, según corresponda. Si una nueva finalidad o tratamiento requiere consentimiento expreso, continuar usando el servicio no sustituye ese consentimiento. Los derechos y obligaciones legales conservan su alcance.",
         ],
       },
     ],
   },
   terms: {
-    eyebrow: "Legal · Versión 1.2",
+    eyebrow: "Legal · Versión 1.3",
     title: "Términos y condiciones de uso",
     intro:
-      "Contrato de servicio SaaS. Al crear una cuenta, acceder o utilizar la plataforma Kova, usted acepta íntegramente los presentes Términos y Condiciones. Si no está de acuerdo con alguna de sus disposiciones, no utilice el servicio.",
-    lastUpdated: "17 de noviembre de 2026",
+      "Estos términos explican las condiciones para usar Kova, contratar una suscripción y administrar los datos de tu negocio. Revísalos antes de crear tu cuenta o confirmar un pago. Los acuerdos particulares vigentes y los derechos que la ley te reconoce conservan su alcance.",
+    lastUpdated: "18 de noviembre de 2026",
     sections: [
       {
-        heading: "1. Definiciones",
+        heading: "1. Prestador, servicio y personas usuarias",
         body: [
-          "“Kova” o “Plataforma”: Software como Servicio (SaaS) de administración comercial para negocios, accesible en web y aplicación móvil.",
-          "“Usuario”: Cualquier persona física o moral que crea una cuenta y utiliza la plataforma.",
-          "“Cuenta”: Perfil único creado por el usuario para acceder a los servicios de Kova.",
-          "“Contenido del Usuario”: Información, imágenes, datos y materiales que el usuario sube o genera en la plataforma.",
-          "“Servicio”: El conjunto de funcionalidades ofrecidas por Kova: cobro de ventas, administración de inventario, control de caja y generación de reportes.",
+          `Kova es un servicio de punto de venta y administración comercial ofrecido bajo el nombre comercial ${PROVIDER_TRADE_NAME}. El canal de contacto para este servicio es ${SUPPORT_EMAIL}.`,
+          "El servicio funciona en el navegador de una computadora, tablet o teléfono compatible. Su instalación como aplicación web depende de las capacidades del navegador y del dispositivo.",
+          "La persona propietaria administra la cuenta del negocio, sus usuarios y permisos. Si actúas por un negocio o por otra persona, debes contar con autorización para representarlos y para registrar su información.",
         ],
       },
       {
-        heading: "2. Aceptación y elegibilidad",
+        heading: "2. Aceptación y requisitos de uso",
         body: [
-          "2.1 Para utilizar Kova, usted debe: (i) ser mayor de 18 años y contar con capacidad legal suficiente para celebrar contratos vinculantes conforme a la legislación aplicable; (ii) tener capacidad legal para celebrar contratos vinculantes; (iii) proporcionar información veraz y actualizada al registrarse.",
-          "2.2 Al marcar la casilla de aceptación o utilizar el servicio, usted declara haber leído, comprendido y aceptado estos Términos, el Aviso de Privacidad y la Política de Cookies.",
-          "2.3 Si utiliza Kova en nombre de una empresa o negocio, declara tener autoridad para vincular a dicha entidad con estos Términos.",
+          "Para contratar debes ser mayor de 18 años, tener capacidad legal y proporcionar información veraz. El registro requiere la aceptación expresa de los términos y la puesta a disposición del Aviso de privacidad y la Política de cookies.",
+          "Crear una cuenta de prueba no autoriza cargos ni equivale a contratar una suscripción pagada. Los cobros recurrentes requieren una autorización expresa e informada al contratar.",
+          "La persona propietaria debe informar a su equipo sobre estas condiciones y sobre las responsabilidades de cada rol. La aceptación de estos términos no sustituye el consentimiento que corresponda para otros tratamientos o servicios.",
         ],
       },
       {
-        heading: "3. Registro y seguridad de la cuenta",
+        heading: "3. Cuenta y seguridad",
         body: [
-          "3.1 El usuario es responsable de mantener la confidencialidad de sus credenciales de acceso. Kova no será responsable por accesos no autorizados derivados de negligencia del usuario en la custodia de sus credenciales.",
-          `3.2 El usuario debe notificar a Kova de inmediato ante cualquier uso no autorizado de su cuenta mediante: ${SUPPORT_EMAIL}.`,
-          "3.3 Kova se reserva el derecho de suspender, bloquear o eliminar cuentas que presenten actividad sospechosa, incumplan estos Términos, o que a juicio de Kova representen un riesgo para la plataforma o sus usuarios.",
+          "Cada persona debe usar su propio usuario y mantener sus credenciales confidenciales. La persona propietaria elige los accesos de su equipo y debe retirarlos cuando dejen de ser necesarios.",
+          `Si sospechas de un acceso no autorizado, notifícalo a ${SUPPORT_EMAIL}. Soporte no te pedirá contraseñas, códigos de acceso ni datos completos de tarjeta.`,
+          "Podemos restringir accesos para atender riesgos de seguridad o usos contrarios a estas condiciones y comunicar las medidas cuando sea posible y legalmente permitido. Una restricción de acceso no equivale por sí misma a eliminar los datos del negocio ni autoriza su uso para otros fines.",
         ],
       },
       {
-        heading: "4. Descripción del servicio y limitaciones",
+        heading: "4. Funciones y alcance del servicio",
         body: [
-          "4.1 Kova es una herramienta de administración operacional para negocios. El servicio incluye: registro de productos, control de inventario, registro de ventas, control de caja, generación de reportes y acceso desde múltiples dispositivos.",
-          "4.2 Kova registra el método con el que un cliente pagó en el mostrador, incluida la tarjeta manual, pero no es una terminal bancaria ni procesa ese dinero. El negocio utiliza por separado la terminal o el medio de cobro que elija.",
-          "4.3 La disponibilidad del servicio es un objetivo de Kova, pero no está garantizada de forma absoluta. Pueden ocurrir interrupciones por mantenimiento, actualizaciones, fallas de infraestructura o causas de fuerza mayor.",
-          "4.4 Los recibos de Kova son comprobantes operativos de la venta. Aunque pueden mostrar texto fiscal configurado por el negocio, no son facturas ni CFDI. Puedes configurar una tasa de impuesto adicional para la venta; Kova no determina IVA o IEPS por producto ni sustituye tu proceso fiscal o contable.",
-          "4.5 Kova se ofrece actualmente como beta privada controlada, con cambios frecuentes y acompañamiento directo. No existe un SLA formal durante esta etapa.",
+          "Kova permite registrar ventas y sus métodos de pago, administrar productos e inventario, operar turnos y consultar reportes. Las funciones adicionales, límites y condiciones disponibles para tu negocio dependen del plan contratado, los permisos y la configuración que se informe al contratar.",
+          "Los pagos que tus clientes hacen en el mostrador se registran como operaciones del negocio. Kova no es una terminal bancaria ni procesa ese dinero. La terminal o el medio de cobro se contrata por separado.",
+          "Registrar un pedido, una tarea o un seguimiento no cobra al cliente, paga al proveedor ni envía un mensaje por sí mismo. Las integraciones externas requieren disponibilidad, habilitación y autorización específicas. El enlace de contacto por WhatsApp no acredita una integración de WhatsApp en el POS.",
+          "Los recibos de venta de Kova no son facturas ni CFDI. Puedes configurar una tasa de impuesto adicional para la venta; Kova no determina IVA o IEPS por producto ni sustituye tu proceso fiscal o contable. La oferta inicial no incluye emisión de CFDI ni una terminal bancaria integrada.",
+          "La caja sin conexión requiere preparar el catálogo y abrir el turno con conexión, además de una sesión y acceso comercial vigentes. Algunas funciones necesitan internet. Conserva las ventas pendientes hasta que la aplicación confirme su sincronización; borrar el almacenamiento del navegador o perder el dispositivo puede impedir su recuperación.",
+          "La impresión usa el navegador y el controlador del equipo. La compatibilidad de impresoras, lectores, cajones y otros dispositivos debe comprobarse con el modelo concreto antes de incorporarlos a tu operación.",
+          "Kova se ofrece en una etapa beta controlada con acompañamiento. No existe un SLA formal de disponibilidad o resolución durante esta etapa.",
         ],
       },
       {
-        heading: "5. Planes, precios y facturación",
+        heading: "5. Planes, prueba y cobros recurrentes",
         body: [
-          "5.1 Kova ofrece un período de prueba gratuita de 7 días sin requerir método de pago. Al finalizar, el usuario deberá contratar un plan de pago para continuar.",
-          "5.2 Si un pago falla, las funciones operativas pueden quedar restringidas. Cuando existe un periodo de gracia verificado, dura como máximo 48 horas desde el primer intento fallido. Al terminar, debes recuperar el pago de la suscripción existente desde Facturación. La recuperación de facturación, la exportación de datos y la solicitud de eliminación de la cuenta permanecen disponibles para la persona propietaria.",
-          "5.3 El cobro de la suscripción de Kova se realiza mediante Stripe. Kova no recibe ni almacena en sus servidores los datos completos de la tarjeta usada para pagar la suscripción.",
+          "La oferta vigente para nuevas contrataciones es Esencial por $399 MXN al mes o Gestión por $699 MXN al mes, con impuestos incluidos. Antes de pagar, revisa el catálogo disponible para tu negocio, sus funciones y límites, el importe final, la periodicidad y las fechas de cobro informadas en la contratación y en Facturación.",
+          "Los acuerdos Standard anteriores de $299 MXN al mes conservan las condiciones expresamente pactadas. Su importe y alcance no se sustituyen automáticamente por los de Esencial o Gestión.",
+          "La prueba de una cuenta nueva dura 7 días y no requiere tarjeta. Al terminar, debes contratar un plan para conservar las funciones operativas. La prueba no se convierte en un cobro automático por el solo hecho de crear la cuenta.",
+          "Las suscripciones pagadas son mensuales y tienen renovación automática hasta su cancelación. Los cargos se procesan mediante Stripe conforme al importe y periodicidad autorizados. Kova no recibe ni almacena los datos completos de la tarjeta usada para la suscripción.",
+          "Cuando resulte aplicable la normativa de protección al consumidor, tienes derecho al aviso de renovación automática con al menos cinco días naturales de anticipación y a cancelar sin penalización mediante un mecanismo accesible. Estos términos no eliminan esos derechos ni sustituyen el consentimiento expreso requerido para un cobro recurrente.",
         ],
       },
       {
-        heading: "6. Propiedad intelectual",
+        heading: "6. Confirmación de pago y acceso",
         body: [
-          "6.1 Kova y sus componentes (software, diseño, marca, logotipos, algoritmos, base de datos estructural) son propiedad intelectual de Kova y están protegidos por las leyes mexicanas e internacionales de propiedad intelectual.",
-          "6.2 Titularidad del contenido del usuario. El usuario conserva íntegramente la titularidad y propiedad sobre todo el contenido que sube a la plataforma (imágenes de productos, datos de inventario, registros comerciales, etc.). Kova NO adquiere ningún derecho de propiedad sobre dicho contenido.",
-          "6.3 Licencia del usuario a Kova. Al subir contenido, el usuario otorga a Kova una licencia limitada, no exclusiva, no transferible, revocable y libre de regalías, únicamente para: (i) almacenar el contenido en los servidores de la plataforma; (ii) procesar y mostrar el contenido dentro de la plataforma para la correcta operación del servicio; (iii) realizar copias de seguridad como medida técnica de protección. Esta licencia NO incluye el derecho de Kova a comercializar, sublicenciar, publicitar o compartir el contenido del usuario con terceros no vinculados al servicio.",
-          "6.4 El usuario garantiza que el contenido que sube no infringe derechos de terceros y asume total responsabilidad por el contenido que introduce en la plataforma.",
+          "El acceso pagado se confirma a partir del estado verificado del pago y la suscripción. Volver de la página de pago o ver un recibo de un periodo anterior no acredita por sí solo que la suscripción siga vigente.",
+          "Si un pago falla, las funciones operativas pueden quedar restringidas. Cuando existe un periodo de gracia verificado, dura como máximo 48 horas desde el primer intento fallido. Al terminar, debes recuperar el pago de la suscripción existente desde Facturación.",
+          "La recuperación de facturación, la exportación de datos y la solicitud de eliminación de la cuenta permanecen disponibles para la persona propietaria autenticada, aunque falte acceso comercial por pago. La restricción por falta de pago no elimina automáticamente la cuenta ni sus registros.",
+          `Si el pago o la renovación aparecen pendientes de verificación, consulta el estado en Facturación o escribe a ${SUPPORT_EMAIL} antes de repetir el pago.`,
         ],
       },
       {
-        heading: "7. Uso aceptable y conductas prohibidas",
+        heading: "7. Cancelación de renovación y revisión de cargos",
         body: [
-          "El usuario se compromete expresamente a NO:",
-          "• Utilizar la plataforma para actividades ilegales, fraudulentas o que violen derechos de terceros.",
-          "• Subir contenido que infrinja derechos de propiedad intelectual de terceros.",
-          "• Intentar acceder, modificar, dañar o interrumpir sistemas de Kova o cuentas de otros usuarios.",
-          "• Usar técnicas de ingeniería inversa, descompilación o desensamblado del software.",
-          "• Revender, sublicenciar o transferir el acceso a la plataforma sin autorización escrita de Kova.",
-          "• Subir malware, virus, ransomware u otro código dañino.",
-          "• Utilizar la plataforma para almacenar o procesar datos de terceros sin las autorizaciones legales correspondientes.",
-          "• Sobrecargar intencionalmente la infraestructura de Kova (ataques de denegación de servicio).",
-          "• Eludir medidas de seguridad, autenticación o control de acceso de la plataforma.",
+          "Puedes cancelar la renovación desde Facturación mediante las opciones de cancelación o el Portal de Stripe disponible para tu cuenta. No hay plazo forzoso ni penalización por cancelar. La confirmación muestra el estado y, cuando corresponda, la fecha hasta la que se conserva el periodo pagado verificado.",
+          "Cancelar la renovación no elimina la cuenta ni constituye una solicitud de borrar sus datos. Puedes exportar la información del negocio por separado y conservar el acceso correspondiente al periodo ya pagado y verificado.",
+          `La cancelación no genera por sí sola un reembolso automático. Si detectas un cargo no autorizado, duplicado o incorrecto, o necesitas solicitar una devolución, escribe a ${SUPPORT_EMAIL}. La solicitud se atiende conforme a las circunstancias, los acuerdos aplicables y tus derechos legales; esta cláusula no establece una renuncia a reembolsos o compensaciones que procedan.`,
         ],
       },
       {
-        heading: "8. Moderación y gestión de contenido",
+        heading: "8. Contenido del negocio y propiedad intelectual",
         body: [
-          "8.1 Kova se reserva el derecho de revisar, moderar, suspender o eliminar contenido que: (i) viole estos Términos o la legislación aplicable; (ii) sea reportado como infractor de derechos de terceros; (iii) represente un riesgo de seguridad para la plataforma o sus usuarios.",
-          "8.2 Kova notificará al usuario, cuando sea posible y legalmente permitido, sobre las acciones de moderación que afecten su cuenta, salvo que la notificación comprometa una investigación de seguridad o sea prohibida por autoridad competente.",
+          "Conservas los derechos que te correspondan sobre los datos, imágenes y demás contenido que registras. Debes contar con los derechos y autorizaciones necesarios para usarlos, incluidos los datos personales de clientes y empleados.",
+          "Autorizas únicamente el almacenamiento, procesamiento, presentación y respaldo de ese contenido necesarios para prestar y proteger el servicio. Los proveedores que intervengan quedan sujetos a los alcances y condiciones descritos en el Aviso de privacidad. Este permiso no autoriza vender tus datos ni usar tus imágenes para publicidad sin la autorización correspondiente.",
+          "Los derechos sobre el software, diseño y marca de Kova corresponden a sus titulares o licenciantes. Los componentes de terceros conservan sus propias licencias. La suscripción concede acceso al servicio y no transfiere la propiedad del software.",
         ],
       },
       {
-        heading: "9. Disponibilidad del servicio y fuerza mayor digital",
+        heading: "9. Uso permitido y disponibilidad",
         body: [
-          "9.1 Kova realizará esfuerzos razonables para mantener el servicio disponible, pero no garantiza disponibilidad ininterrumpida o libre de errores.",
-          "9.2 Kova no será responsable por interrupciones o fallas causadas por: (i) fallas en servicios de terceros (proveedores de nube, procesadores de pago, CDNs, APIs externas); (ii) ataques cibernéticos externos; (iii) cortes de internet o telecomunicaciones; (iv) fuerza mayor (desastres naturales, pandemias, actos de autoridad); (v) mantenimiento programado con aviso previo; (vi) errores o fallos de dispositivos del usuario.",
-          "9.3 Kova comunicará las interrupciones programadas con al menos 24 horas de anticipación, salvo emergencias técnicas.",
+          "Debes usar el servicio para actividades lícitas. Está prohibido intentar acceder a otros negocios, eludir controles de seguridad o permisos, introducir software malicioso, sobrecargar deliberadamente el servicio, infringir derechos de terceros o tratar datos sin las autorizaciones necesarias.",
+          "La disponibilidad puede depender de conectividad, dispositivos, mantenimiento y proveedores externos. Atendemos los incidentes conforme al alcance contratado y a las obligaciones aplicables; la referencia a terceros o a fallas de red no constituye una exoneración general de responsabilidad.",
+          "Los mantenimientos programados que impliquen interrupciones se comunicarán con al menos 24 horas de anticipación, salvo emergencias técnicas. Durante la beta no se garantiza disponibilidad ininterrumpida ni un tiempo máximo de resolución.",
         ],
       },
       {
-        heading: "10. Cancelación y eliminación de cuenta",
+        heading: "10. Exportación, eliminación y conservación",
         body: [
-          `10.1 El usuario puede cancelar su cuenta en cualquier momento desde la configuración de su perfil o solicitándolo a ${SUPPORT_EMAIL}.`,
-          "10.2 La eliminación solicitada por el usuario se programa con un plazo reversible de al menos 30 días. Después de la purga, Kova conservará únicamente la información que deba retener para cumplir obligaciones legales, fiscales, contables, de seguridad o para resolver reclamaciones pendientes.",
-          "10.3 Kova puede terminar la cuenta del usuario si: (i) viola estos Términos de forma grave o reiterada; (ii) no paga el servicio transcurrido el período de gracia; (iii) la cuenta presenta actividad fraudulenta o ilegal.",
-          `10.4 El usuario puede exportar sus datos en formato estándar desde Configuración antes de la eliminación, o solicitar asistencia a ${SUPPORT_EMAIL}.`,
+          "La persona propietaria puede descargar una exportación del negocio desde Configuración, con los archivos y metadatos disponibles para su cuenta. Se excluyen credenciales, sesiones e información interna de seguridad y operación. La descarga requiere conexión y autenticación.",
+          "La eliminación del negocio es una acción distinta de cancelar la renovación. Se solicita desde Configuración, confirmando la contraseña actual y el nombre del negocio. Se programa con un plazo reversible de al menos 30 días, que se extiende si el periodo ya pagado termina después.",
+          "Puedes cancelar la solicitud de eliminación durante ese plazo. Cancelar esa solicitud no equivale a reactivar la renovación de una suscripción que ya se hubiera cancelado; revisa su estado en Facturación.",
+          "La purga elimina los datos activos del negocio y conserva una constancia mínima del estado y fechas de la solicitud, sin conservar su información operativa en esa constancia. Los accesos que correspondan a otros negocios se administran por separado.",
+          "Los respaldos diarios pueden conservar una copia hasta 7 días adicionales después de la purga, conforme a la retención vigente. Las obligaciones legales de conservación requieren su propio fundamento y tratamiento; no se presume una retención indefinida por defecto. La eliminación en Kova no elimina automáticamente información conservada por terceros conforme a sus propias obligaciones y avisos.",
+          `La exportación o eliminación de toda la cuenta no sustituye las solicitudes sobre datos personales. Puedes ejercer tus derechos o pedir asistencia en ${SUPPORT_EMAIL} conforme al Aviso de privacidad.`,
         ],
       },
       {
-        heading: "11. Divisibilidad e integración",
+        heading: "11. Soporte y comunicación",
         body: [
-          "Si alguna cláusula de estos Términos fuera declarada nula, inválida o inaplicable por autoridad competente, dicha declaración no afectará la validez y exigibilidad del resto de los Términos, que continuarán en plena vigencia. Los presentes Términos, junto con el Aviso de Privacidad y la Política de Cookies, constituyen el acuerdo íntegro entre las partes en relación con el uso del servicio, y reemplazan cualquier acuerdo previo sobre la misma materia.",
+          `El correo público de soporte es ${SUPPORT_EMAIL}. Las respuestas de atención pueden llegar desde posprojectsupport@gmail.com.`,
+          "El horario publicado es de lunes a viernes, de 9:00 a 19:00, hora de Ciudad de México. Los incidentes que impiden operar tienen prioridad; no se promete un plazo fijo de respuesta o resolución ni atención permanente durante la beta.",
+          "Los reportes de errores, acceso indebido o contenido contrario a estas condiciones se reciben por ese canal. Al reportar un problema, comparte sólo el contexto necesario y evita datos sensibles o información de terceros que no sea indispensable.",
         ],
       },
       {
-        heading: "12. No renuncia",
+        heading: "12. Acuerdos particulares y derechos",
         body: [
-          "El hecho de que Kova no ejerza o no haga cumplir algún derecho o disposición de estos Términos no constituirá una renuncia a dicho derecho o disposición. Kova podrá ejercer sus derechos en cualquier momento futuro.",
+          "Estos términos se complementan con el Aviso de privacidad, la Política de cookies y las condiciones particulares expresamente acordadas para el negocio. No sustituyen por sí solos las condiciones vigentes de acuerdos Standard anteriores ni modifican retroactivamente periodos ya pagados.",
+          "Si una disposición resulta inválida o inaplicable, las demás conservan su alcance en lo que permita la ley. La falta de ejercicio de un derecho no implica por sí sola su renuncia.",
+          "Las limitaciones descritas no eliminan los derechos irrenunciables que correspondan en materia de consumo, privacidad, datos personales u otras normas obligatorias. No se exige renunciar a ellos para utilizar Kova.",
         ],
       },
       {
-        heading: "13. Jurisdicción y ley aplicable",
+        heading: "13. Ley aplicable y solución de controversias",
         body: [
-          "Los presentes Términos se regirán e interpretarán conforme a las leyes federales aplicables de los Estados Unidos Mexicanos.",
-          "Para cualquier controversia derivada de estos Términos, las partes se someten a la jurisdicción de los tribunales competentes de México, renunciando, en la medida permitida por la legislación aplicable, a cualquier otro fuero que pudiera corresponderles por razón de su domicilio presente o futuro, ubicación o cualquier otra causa.",
-          "Sin perjuicio de lo anterior, cuando la legislación aplicable reconozca al usuario derechos irrenunciables en materia de protección al consumidor, privacidad, protección de datos personales u otras normas obligatorias de su país de residencia, Kova respetará dichos derechos en la medida en que resulten aplicables.",
+          `Para aclaraciones o controversias puedes contactar primero a ${SUPPORT_EMAIL}, sin que ello limite tu acceso a las autoridades o medios de reclamación que te correspondan.`,
+          "La relación se rige por las leyes aplicables de los Estados Unidos Mexicanos. La competencia de autoridades y tribunales se determina conforme a las reglas legales que correspondan; estos términos no imponen una renuncia a derechos o medios de defensa irrenunciables.",
         ],
       },
       {
-        heading: "14. Modificaciones a los términos",
+        heading: "14. Cambios a estas condiciones",
         body: [
-          "Kova se reserva el derecho de modificar estos Términos. Los cambios materiales serán notificados con al menos 15 días de anticipación. El uso continuado del servicio después de la notificación implica aceptación de los nuevos términos. Si no acepta los cambios, debe cancelar su cuenta antes de la fecha de entrada en vigor.",
-        ],
-      },
-      {
-        heading: "Contacto",
-        body: [
-          `Para dudas, soporte o ejercicio de derechos relacionados con estos Términos: ${SUPPORT_EMAIL}.`,
+          "La fecha de actualización identifica esta versión del documento. Los cambios materiales aplicables a acuerdos vigentes se notificarán con al menos 15 días de anticipación y no se aplicarán retroactivamente a periodos ya pagados.",
+          "El uso posterior del servicio no sustituye un consentimiento expreso cuando éste sea exigible, en especial para cobros recurrentes. Si no aceptas un cambio, puedes cancelar la renovación y exportar tus datos; no se exige eliminar la cuenta como única alternativa. Los derechos legales y acuerdos particulares vigentes conservan su protección.",
         ],
       },
     ],
@@ -285,7 +283,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
     title: "Cómo protegemos tu negocio",
     intro:
       "Kova maneja la operación de tu PyME: ventas, inventario, turnos, y datos de tus clientes. Esta página explica con honestidad cómo cuidamos esa información durante la beta y qué puedes esperar de nosotros.",
-    lastUpdated: "17 de noviembre de 2026",
+    lastUpdated: "18 de noviembre de 2026",
     sections: [
       {
         heading: "Aislamiento por inquilino",
@@ -313,7 +311,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "Monitoreo de disponibilidad",
         body: [
           "Monitoreamos tres puntos críticos con UptimeRobot: el frontend (kovasuite.com), la API (api.kovasuite.com/health) y la API + base (api.kovasuite.com/health/db).",
-          "Los monitores consultan esos puntos cada 5 minutos y alertan después de confirmar una falla. No ofrecemos un SLA formal durante la beta privada controlada.",
+          "Los monitores consultan esos puntos cada 5 minutos y alertan después de confirmar una falla. No ofrecemos un SLA formal durante la beta controlada con acompañamiento.",
         ],
       },
       {
@@ -334,7 +332,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "Qué esperar como tenant en beta",
         body: [
-          "Estamos en beta privada controlada. Esto significa: estabilidad sobre cantidad de funciones, despliegues frecuentes con pruebas, contacto directo con el equipo y compromiso de comunicar cualquier incidente que afecte tu operación.",
+          "Estamos en beta controlada con acompañamiento. Esto significa: estabilidad sobre cantidad de funciones, despliegues frecuentes con pruebas, contacto directo con el equipo y compromiso de comunicar cualquier incidente que afecte tu operación.",
           "No garantizamos disponibilidad ininterrumpida durante la beta. Kova incluye modo offline para que la caja siga funcionando si la red falla.",
           "Si descubres una vulnerabilidad, escríbenos antes de divulgarla públicamente. Coordinaremos un parche y te reconoceremos el reporte.",
         ],
