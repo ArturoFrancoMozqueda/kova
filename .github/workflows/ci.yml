@@ -228,7 +228,9 @@ jobs:
     # The full second shard takes ~8 minutes; install/build and artifact cleanup
     # must fit too. A passing 193-case run crossed the former 10-minute job cap.
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    # Locked Playwright 1.59 has no Ubuntu 26 Chromium binary. Review this
+    # explicit platform alongside browser upgrades; ubuntu-latest can drift.
+    runs-on: ubuntu-24.04
     # Each shard owns its runner and preview server; more workers on one
     # runner were slower because they shared its CPU with the server.
     strategy:
@@ -275,7 +277,8 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.code == 'true' && needs.changes.outputs.reused != 'true'
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    # Match the supported browser platform used by the preview shards.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5

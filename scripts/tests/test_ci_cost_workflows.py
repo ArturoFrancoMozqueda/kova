@@ -21,6 +21,17 @@ def job(filename, name):
 
 
 class CiCostWorkflowTests(unittest.TestCase):
+    def test_chromium_jobs_use_an_explicit_supported_distribution(self):
+        # Prevent an ubuntu-latest rollout from breaking all browser gates
+        # before tests start. Review the explicit platforms when upgrading
+        # the locked browser version; do not bypass the browser launch probe.
+        for name in ("frontend", "integration"):
+            with self.subTest(job=name):
+                browser = job("ci.yml", name)
+                self.assertRegex(browser, r"(?m)^    runs-on: ubuntu-(?:22|24)\.04$")
+                self.assertIn("npx playwright install --only-shell chromium", browser)
+                self.assertIn("await chromium.launch()", browser)
+
     def test_whatsapp_gate_is_explicit_serialized_and_closes_on_failed_rollout(self):
         source = (WORKFLOWS / "ci.yml").read_text()
         self.assertIn("default: preserve", source)

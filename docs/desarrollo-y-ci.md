@@ -35,6 +35,11 @@ La integración real incluye recarga offline con el service worker y pérdida de
 sincronización exitosa: la venta, el pago y el descuento de inventario deben ocurrir una sola vez.
 El servidor de desarrollo no acredita este recorrido porque tiene el service worker desactivado.
 
+Los jobs de navegador y de integración real fijan Ubuntu 24.04: Playwright 1.59 del lock no
+incluye Chromium para Ubuntu 26.04. El alias `ubuntu-latest` puede cambiar de distribución;
+revisar esa selección junto con la versión de Playwright y comprobar un lanzamiento real
+del navegador antes de ejecutar las suites. Los demás jobs conservan sus plataformas.
+
 | Qué | Comando | Dónde |
 |---|---|---|
 | Backend completo con base desechable | `scripts/test-stack.sh backend` | raíz |
