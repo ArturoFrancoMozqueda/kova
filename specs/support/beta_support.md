@@ -5,6 +5,8 @@
 Kova se ofrece como beta controlada con acompañamiento del fundador. La capacidad de cobro y
 las pruebas automatizadas no sustituyen la aceptación de la operación del negocio ni una
 revisión profesional del acuerdo. Estado y evidencias: [preparación comercial](../../docs/runbooks/sales-readiness.md).
+La cohorte inicial prevista comprende tres negocios con acompañamiento; ampliar ventas requiere
+revisar la capacidad de soporte y las aceptaciones pendientes.
 
 Las altas nuevas contratan Esencial o Gestión según el catálogo público del servidor.
 Standard de $299 MXN/mes se conserva exclusivamente para acuerdos anteriores; no se ofrece

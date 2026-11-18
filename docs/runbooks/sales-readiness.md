@@ -4,6 +4,8 @@ Corte: 17 de noviembre de 2026, Ciudad de México. Este registro distingue una c
 una prueba con datos desechables y la aceptación por un negocio. No asigna una puntuación de
 preparación ni convierte una prueba automática en satisfacción, cumplimiento legal o disponibilidad
 garantizada. La publicación de las correcciones se acredita por su PR y release.
+Seguimiento de este cambio: [PR #384](https://github.com/ArturoFrancoMozqueda/kova/pull/384),
+con los resultados del CI sobre su SHA exacto y la publicación posterior al merge.
 
 ## Oferta que se puede presentar
 
@@ -21,13 +23,13 @@ como incluidos y listos a partir de la disponibilidad del núcleo POS.
 
 | Frente | Evidencia disponible | Qué queda por aceptar |
 |---|---|---|
-| Publicación | Release `44217617849` aprobado; frontend, API y proxy observados en `606b870076a4`, base accesible. Las correcciones de este corte requieren su propio CI y release. | Comprobar la versión publicada al terminar el PR. |
+| Publicación | Release `44217617849` aprobado; frontend, API y proxy observados en `606b870076a4`, base accesible antes del cambio. La publicación de las correcciones de este corte se registra en el PR #384. | Cada publicación requiere CI required y comprobación posterior de versiones y base. |
 | Caja y offline | Circuitos con build real, API y PostgreSQL/RLS: ventas, pagos divididos, devoluciones, corte y reconexión sin duplicados. Repetición actual aprobada entre los 23 recorridos de navegador registrados abajo. | Conteo humano en los equipos del negocio. |
 | Cuenta y portabilidad | 151 pruebas backend aprobadas en este corte, incluidas exportación ZIP/CSV, neutralización de fórmulas, autorización, cancelación reversible, purga y RLS. La nueva secuencia comprueba sesión y login denegados tras la purga y otro negocio intacto. Descarga y programación/cancelación desde UI aprobadas a 390/1440 px. | Aceptación del dueño del proceso de retención. La prueba mueve sólo el vencimiento de una solicitud desechable, no espera 30 días reales. |
 | Suscripción | Cobro live de Esencial, activación y cancelación ya comprobados; bienvenida desde conciliación del Checkout pagado entregada. [Alcance](commercial-plan-acceptance.md#evidencia-vigente). | Recibo actual disparado por un pago real y compra nueva posterior a las correcciones. No crear cargos ni reactivar una renovación sin autorización concreta. |
 | Soporte | `soporte@kovasuite.com` reenvía a `posprojectsupport@gmail.com`; recepción real ya probada. El dueño eligió responder desde Gmail; su identidad SMTP externa se retiró y Gmail quedó como único remitente tras recargar ajustes. | Responsable, cobertura y una conversación de ida y respuesta con un piloto. No se declara tiempo de respuesta o resolución medido. |
 | Correo transaccional | Dominio y plantillas disponibles; pruebas backend de recibo y bienvenida incluidas en los 151 casos. [Evidencia con fecha y cliente](../email-deliverability.md). | Enlaces y disparadores reales restantes; presentación móvil/oscura y Outlook/Hotmail. Muestras de plantilla no acreditan un disparador de pago. |
-| Respaldo | Restore lógico real anterior: integridad, RLS, login, exportación y limpieza. [Procedimiento](restore-supabase-backup.md). El workflow actualizado está preparado para ejecutar una copia aislada del último backup. | Autorización para dispararlo y resultado de esta nueva ejecución. Recuperación regional, cambio de tráfico y RTO/RPO del servicio completo permanecen separados. |
+| Respaldo | Restore lógico real anterior: integridad, RLS, login, exportación y limpieza. [Procedimiento](restore-supabase-backup.md). El workflow actual está preparado para ejecutar una copia aislada del último backup. | Autorización para dispararlo y resultado de esta nueva ejecución. Recuperación regional, cambio de tráfico y RTO/RPO del servicio completo permanecen separados. |
 | Tareas programadas | Las dos últimas ejecuciones consultadas de backup, purga, recordatorios y borradores globales concluyeron en `success`. Últimas del 17 de noviembre: [backup](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44145099785), [purga](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44139299771), [recordatorios](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44112734307) y [borradores](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44176117678). | El resultado de un job no prueba entrega de cada correo ni recuperación regional. Conservar vigilancia y atención de fallos. |
 | Seguridad de dependencias | Auditoría actual de los cuatro locks aprobada con verificación de fuentes y catálogo upstream; cuatro pruebas del instalador/verificador aprobadas. Los reportes originales conservan los avisos. | Picomatch oficial sigue en 4.0.7 sin versión corregida declarada. La revisión local vence el **24 de noviembre a las 18:41:40 CDMX** y exige sustitución oficial o revisión nueva sustentada; no se prolonga por este corte. [Expediente](../audits/PICOMATCH-2026-11-17.md). |
 | Claridad comercial | Acuerdo y alta alineados a Esencial/Gestión, sin ofrecer Standard a altas nuevas ni prometer corrección en cuatro horas. Textos públicos ajustados al acceso comercial y al alcance real del restore. | Revisión profesional y aceptación de las partes; completar identidades en privado. |
@@ -88,7 +90,7 @@ No guardar datos de clientes, contraseñas, documentos fiscales o firmas en git.
 - Lint y tipos de frontend aprobados; **35 contratos de repositorio y 3 subtests aprobados**.
 - QA visual en navegador de `/terms` y `/seguridad` a 390/1440 px: texto actual visible y sin
   desbordamiento horizontal; navegación por teclado con foco visible en los enlaces legales.
-- Publicación: pendiente de registrar al completar PR, CI required y release.
+- CI required y publicación: resultados en el PR #384; la validación local no los sustituye.
 
 Este registro no prueba equipos físicos, un nuevo cobro live, un recibo real nuevo, firmas,
 recuperación regional ni satisfacción de clientes. Cada fila conserva su propia aceptación.

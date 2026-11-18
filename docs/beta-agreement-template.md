@@ -20,7 +20,7 @@ The Provider grants the Beta Tenant limited access to the POS SaaS platform duri
 ## 2. Beta Scope
 
 The beta service includes the selected plan made available by the Provider for small retail
-and bakery operations. Catalog, register, sales, shifts, basic reports, billing access and
+and bakery operations. Catalog, inventory, register, sales, shifts, basic reports, billing access and
 the public catalog form the core scope. Additional capabilities depend on the selected plan
 and actual activation for the business. Record exclusions and the devices accepted with the
 owner; do not promise CFDI issuance, an integrated payment terminal, WhatsApp integration or
