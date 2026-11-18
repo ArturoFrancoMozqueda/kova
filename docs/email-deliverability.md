@@ -57,6 +57,33 @@ registra ni recibe por chat. Después debe completar la verificación de direcci
 No se debe marcar el envío manual como terminado sin comprobar el alias confirmado y el
 remitente de un correo nuevo expresamente autorizado.
 
+### Confirmación de la identidad en Gmail
+
+La conexión SMTP aceptó la credencial introducida directamente por el dueño. La ventana
+inicial sólo confirmaba el servidor y la autenticación; Gmail aún mostraba `unverified`.
+Se abrió el correo oficial de confirmación sin copiar su código ni URL privados y se
+completó la confirmación de `soporte@kovasuite.com`. Google mostró Confirmation Success
+y el alias dejó de aparecer como no verificado.
+
+Se seleccionó `Soporte Kova <soporte@kovasuite.com>` como remitente predeterminado.
+La política existente de responder siempre desde la dirección predeterminada quedó
+apuntando al alias de Kova; se comprobó su radio seleccionado. Se guardó también el
+Reply-To con la misma dirección pública sin leer ni modificar la credencial SMTP.
+Un nuevo borrador mostró automáticamente el remitente del dominio.
+
+Con una segunda autorización explícita del dueño se envió un único correo de salida desde
+ese alias hacia el Gmail de soporte, con asunto «Kova — prueba de envío con dominio» y
+referencia `soporte-salida-20261117`. Gmail mostró Message sent y el mensaje apareció en
+Inbox a las 20:19 CDMX del 17 de noviembre. El detalle visible del mensaje confirmó
+`From: Soporte Kova <soporte@kovasuite.com>` y `mailed-by: kovasuite.com`.
+
+El Activity log de Cloudflare Email Sending mostró un único registro del mismo asunto,
+remitente y destinatario con resultado Delivered. Esto acredita que pasó por el SMTP de
+Cloudflare y fue recibido, además de la prueba anterior de recepción por Email Routing.
+No se enviaron correos a clientes, no se leyó la clave SMTP ni se alteró el transporte
+transaccional de Resend. No se declara un PASS DKIM a partir de un campo que Gmail no mostró;
+la evidencia es el remitente observado, la llegada a Inbox y la entrega del proveedor.
+
 El [SMTP oficial](https://developers.cloudflare.com/email-service/api/send-emails/smtp/)
 acepta sólo el puerto 465 con TLS implícito. No se debe utilizar un MX de recepción como
 servidor de salida. El [plan Workers Paid existente](https://developers.cloudflare.com/email-service/platform/pricing/)
