@@ -1,20 +1,33 @@
-// Vista de Kova en escritorio y móvil. La captura se presenta como evidencia
-// del producto, sin chrome de navegador ni estados decorativos.
+import { copy } from "@/i18n/messages";
+
+// Device frames use current app captures, without baking the UI into a mockup.
 
 export default function HeroProductFrame() {
   return (
     <figure className="lp-hero-frame">
       <div className="lp-hero-frame-screen">
         <img
-          src="/showcase/kova-laptop-mobile.webp"
-          alt="Kova funcionando en una laptop y un teléfono con Caja y Análisis"
+          src="/showcase/current/register.jpg"
+          alt={copy.landing.hero.desktopAlt}
           className="lp-hero-product-capture"
-          width={1536}
-          height={1024}
+          width={2160}
+          height={1350}
+          loading="eager"
+          {...{ fetchpriority: "high" }}
+          decoding="async"
+        />
+      </div>
+      <div className="lp-hero-phone">
+        <img
+          src="/showcase/current/mobile/reports.jpg"
+          alt={copy.landing.hero.mobileAlt}
+          width={585}
+          height={1266}
           loading="eager"
           decoding="async"
         />
       </div>
+      <figcaption className="lp-hero-caption">{copy.landing.hero.caption}</figcaption>
     </figure>
   );
 }

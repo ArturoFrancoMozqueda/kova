@@ -19,9 +19,9 @@ const CANONICAL_ORIGIN = "https://kovasuite.com";
 // injectHead() string-replaces them to give each legal route its own head. If
 // they drift from the shell, the replacement silently no-ops and legal pages
 // inherit the landing's title/description.
-const DEFAULT_TITLE = "Kova | Punto de venta e inventario para negocios en México";
+const DEFAULT_TITLE = "Kova | Punto de venta y gestión para negocios en México";
 const DEFAULT_DESCRIPTION =
-  "Kova conecta ventas, inventario, caja y reportes para que entiendas tu negocio y decidas con claridad. Pruébalo 7 días gratis, sin tarjeta.";
+  "Kova conecta ventas, inventario, pedidos, compras, clientes y equipo para hacer más fácil tu operación diaria. Pruébalo 7 días gratis, sin tarjeta.";
 
 // A <script type="application/ld+json"> is a passive data block, not
 // executable JS. Commercial offers are resolved by the server at runtime;
@@ -61,12 +61,11 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Cobra una vez. Kova cuadra el resto.",
+    assert: "Toda tu operación, más fácil.",
     moduleKey: "src/routes/Home.tsx",
-    // HeroProductFrame's capture is the LCP on every viewport: it is the only
-    // image in the first fold and renders eagerly at a single source (no
-    // <picture>, no media variants), so one unconditional preload is exact.
-    preloadImages: [{ href: "/showcase/kova-laptop-mobile.webp" }],
+    // The desktop screen is the hero's main image at every viewport. Preload
+    // only that source; the smaller companion phone loads normally.
+    preloadImages: [{ href: "/showcase/current/register.jpg" }],
   },
   {
     path: "/privacy",

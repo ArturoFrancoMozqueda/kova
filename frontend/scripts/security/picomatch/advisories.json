@@ -5,7 +5,7 @@
     "html_url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
     "severity": "high",
     "type": "reviewed",
-    "updated_at": "2026-11-17T15:56:44Z",
+    "updated_at": "2026-11-18T15:38:58Z",
     "vulnerabilities": [
       {
         "first_patched_version": null,
@@ -17,7 +17,7 @@
         "vulnerable_version_range": "<= 4.0.7"
       }
     ],
-    "withdrawn_at": null
+    "withdrawn_at": "2026-11-18T15:38:56Z"
   },
   {
     "cve_id": "CVE-2026-33672",

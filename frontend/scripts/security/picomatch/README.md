@@ -2,6 +2,25 @@
 
 This is a locally reviewed, private backport for GHSA-fc5q-39xc-vjpf / CVE-2026-112366. It is **not an upstream release, an upstream-approved fix, or advisory-database clearance**. Package names and versions are unchanged. The raw advisory continues to apply to those published versions; any remediation report must separately describe the verified backport rather than rewriting that result.
 
+## Upstream catalog review — 2026-11-18
+
+GitHub withdrew [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+at `2026-11-18T15:38:56Z` and updated its record at `2026-11-18T15:38:58Z`.
+The live global catalog differs from the prior reviewed snapshot only in those
+two fields. The advisory ID, CVE, severity, affected range, package and patch
+availability are unchanged, as are the other two catalog entries.
+
+`advisories.json` records those exact metadata changes. This does not remove
+the local backport, change package versions or hashes, extend the existing
+review expiry, suppress npm findings, or relax catalog comparison. Installation
+checks, reconstruction of the three official packages and isolated regressions
+remain required, even if the registry later stops reporting the withdrawn notice.
+
+The PR audit artifact `security-dependencies-1` from
+[run 44351519076](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44351519076)
+retains the observed global responses and raw npm reports. The record can also
+be checked through the [official advisory API](https://api.github.com/advisories/GHSA-fc5q-39xc-vjpf).
+
 ## Immutable provenance
 
 Original packages were downloaded from the official npm registry and their tarball SHA-512 integrity values verified. The recipe lists every executable JavaScript file and package.json from each original package, with before/after SHA-256 digests. Only lib/parse.js changes. package.json, package names, versions, entry points, constants, other runtime files and MIT notices remain unchanged.

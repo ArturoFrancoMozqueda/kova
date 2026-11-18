@@ -58,12 +58,12 @@ describe("ProductTour", () => {
     );
   }
 
-  it("starts on the sale step, tracks the view and shows the local register demo", () => {
+  it("starts on the sale step, tracks the view and shows the current register", () => {
     renderTour();
     expect(screen.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("Carrito");
+    expect(screen.getByRole("tabpanel").querySelector("img")).toHaveAttribute("src", "/showcase/current/register.jpg");
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
-    expect(screen.getByText("Demostración con datos de ejemplo: no registra ventas.")).toBeInTheDocument();
+    expect(screen.getByText("Recorrido del producto con datos de ejemplo.")).toBeInTheDocument();
   });
 
   it("advances on its own while visible and stops once the visitor picks a step", () => {
@@ -72,13 +72,13 @@ describe("ProductTour", () => {
     expect(screen.getByRole("tab", { name: /Baja el inventario/ })).toHaveAttribute("aria-selected", "true");
     expect(onStepView).toHaveBeenCalledWith("inventory", "scroll");
 
-    fireEvent.click(screen.getByRole("tab", { name: /Cuadra el turno/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Revisas tu turno/ }));
     expect(onStepView).toHaveBeenCalledWith("cash", "control");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("Efectivo esperado");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("$2,040.00");
+    expect(screen.getByRole("tabpanel").querySelector("img")).toHaveAttribute("src", "/showcase/current/shifts.jpg");
+    expect(screen.getByRole("tabpanel").querySelector("img")).toHaveAccessibleName(/\$2,040 de efectivo esperado/);
 
     act(() => { vi.advanceTimersByTime(20000); });
-    expect(screen.getByRole("tab", { name: /Cuadra el turno/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Revisas tu turno/ })).toHaveAttribute("aria-selected", "true");
   });
 
   it("lets the visitor pause the tour", () => {
@@ -96,7 +96,7 @@ describe("ProductTour", () => {
     const last = screen.getByRole("tab", { name: /Entiendes el día/ });
     expect(last).toHaveAttribute("aria-selected", "true");
     expect(last).toHaveFocus();
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("Ventas netas");
+    expect(screen.getByRole("tabpanel").querySelector("img")).toHaveAttribute("src", "/showcase/current/reports.jpg");
     fireEvent.keyDown(last, { key: "Home" });
     expect(first).toHaveAttribute("aria-selected", "true");
   });

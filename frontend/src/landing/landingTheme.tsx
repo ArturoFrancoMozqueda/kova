@@ -219,6 +219,7 @@ export const LANDING_STYLES = `
     position: relative;
     width: 100%;
     margin: 0;
+    padding: 12px 38px 0 0;
   }
   .lp-root.lp-motion-ready .lp-hero-frame {
     animation: lp-hero-frame-in 700ms var(--kova-ease-entrance) both;
@@ -228,7 +229,11 @@ export const LANDING_STYLES = `
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
   .lp-hero-frame-screen {
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 8 / 5;
+    overflow: hidden;
+    border: 6px solid #262b37;
+    border-radius: 12px;
+    box-shadow: 0 24px 60px -30px #000;
   }
   .lp-hero-product-capture {
     display: block;
@@ -236,6 +241,25 @@ export const LANDING_STYLES = `
     height: 100%;
     object-fit: cover;
     object-position: center top;
+  }
+  .lp-hero-phone {
+    position: absolute;
+    top: 16%;
+    right: 0;
+    width: 25%;
+    overflow: hidden;
+    border: 5px solid #262b37;
+    border-radius: 20px;
+    background: #f5f6fa;
+    box-shadow: 0 18px 40px -16px #000;
+  }
+  .lp-hero-phone img { display: block; width: 100%; height: auto; }
+  .lp-hero-caption {
+    margin-top: 64px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
   }
   /* Microinteracciones de la historia: solo corren dentro de un contenedor
      con data-lp-anim="on" (entrada del estado), una vez, sin loops. */

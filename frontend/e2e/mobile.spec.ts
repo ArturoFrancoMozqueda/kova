@@ -363,11 +363,11 @@ test("mobile product tour keeps every step reachable without overflow", async ({
   await tour.scrollIntoViewIfNeeded();
   const tabs = tour.getByRole("tab");
   await expect(tabs).toHaveCount(4);
-  await expect(tour.getByRole("tabpanel")).toContainText("Carrito");
+  await expect(tour.getByRole("tabpanel").getByRole("img")).toHaveAttribute("src", "/showcase/current/register.jpg");
   await tabs.nth(3).click();
   await expect(tabs.nth(3)).toHaveAttribute("aria-selected", "true");
   await expect(tabs.nth(3)).toBeInViewport();
-  await expect(tour.getByRole("tabpanel")).toContainText("Ventas netas");
+  await expect(tour.getByRole("tabpanel").getByRole("img")).toHaveAttribute("src", "/showcase/current/reports.jpg");
   await expectNoHorizontalOverflow(page);
 });
 
@@ -383,9 +383,9 @@ test("desktop product tour steps stay keyboard navigable", async ({ page }) => {
   await first.focus();
   await page.keyboard.press("ArrowDown");
   await expect(tour.getByRole("tab", { name: /Baja el inventario/ })).toBeFocused();
-  await expect(tour.getByRole("tabpanel")).toContainText("Existencias bajas");
+  await expect(tour.getByRole("tabpanel").getByRole("img")).toHaveAttribute("src", "/showcase/current/inventory.jpg");
   await page.keyboard.press("ArrowDown");
-  await expect(tour.getByRole("tabpanel")).toContainText("Efectivo esperado");
+  await expect(tour.getByRole("tabpanel").getByRole("img")).toHaveAttribute("src", "/showcase/current/shifts.jpg");
   await expectNoHorizontalOverflow(page);
 });
 

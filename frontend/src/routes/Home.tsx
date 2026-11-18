@@ -577,7 +577,7 @@ const footerLinkStyle: CSSProperties = { color: "var(--text-tertiary)", textDeco
 /* ─── Home ───────────────────────────────────────────────────────────────── */
 export default function Home(): ReactNode {
   useEffect(() => {
-    document.title = "Kova | Punto de venta e inventario para negocios en México";
+    document.title = "Kova | Punto de venta y gestión para negocios en México";
   }, []);
   const { state } = useAuth();
   const offer = usePublicPlans();

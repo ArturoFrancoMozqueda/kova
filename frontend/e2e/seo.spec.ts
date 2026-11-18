@@ -14,15 +14,15 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/");
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Cobra una vez. Kova cuadra el resto.");
+    expect(html).toContain("Toda tu operación, más fácil.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
     expect(html).not.toContain('<meta name="robots" content="noindex"');
     expect(html).toContain(
-      '<meta property="og:title" content="Kova | Controla cada venta y entiende tu negocio" />',
+      '<meta property="og:title" content="Kova | Toda tu operación, más fácil" />',
     );
     expect(html).toContain(
-      '<meta property="og:description" content="Cobra, controla inventario, cuadra caja y convierte tus ventas en respuestas claras para decidir mejor. 7 días gratis, sin tarjeta." />',
+      '<meta property="og:description" content="Ventas, inventario, pedidos, compras y clientes conectados. Menos trabajo manual y más claridad para dirigir tu negocio. 7 días gratis, sin tarjeta." />',
     );
     expect(html).toContain(
       '<meta property="og:image" content="https://kovasuite.com/og-image-v3.png" />',
@@ -47,7 +47,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     // preloaded una sola vez, sin media query, con fetchpriority alto.
     const heroImage = html.match(/<img\b[^>]*class="lp-hero-product-capture"[^>]*>/)?.[0];
     const heroSource = heroImage?.match(/\bsrc="([^"]+)"/)?.[1];
-    expect(heroSource).toBe("/showcase/kova-laptop-mobile.webp");
+    expect(heroSource).toBe("/showcase/current/register.jpg");
     expect(html).toContain(
       `<link rel="preload" as="image" href="${heroSource}" fetchpriority="high">`,
     );
@@ -173,7 +173,7 @@ test.describe("technical SEO (prerendered build only)", () => {
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
     const res = await request.get("/dashboard");
     const html = await res.text();
-    expect(html).not.toContain("Cobra una vez. Kova cuadra el resto.");
+    expect(html).not.toContain("Toda tu operación, más fácil.");
     expect(html).toContain('<script type="module"');
     expect(html).toContain('<meta name="robots" content="noindex"');
     expect(html).not.toContain('src="/hydrate-prerender.js"');
