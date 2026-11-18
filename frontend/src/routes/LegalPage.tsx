@@ -148,11 +148,11 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
     ],
   },
   terms: {
-    eyebrow: "Legal · Versión 1.1",
+    eyebrow: "Legal · Versión 1.2",
     title: "Términos y condiciones de uso",
     intro:
       "Contrato de servicio SaaS. Al crear una cuenta, acceder o utilizar la plataforma Kova, usted acepta íntegramente los presentes Términos y Condiciones. Si no está de acuerdo con alguna de sus disposiciones, no utilice el servicio.",
-    lastUpdated: "13 de agosto de 2026",
+    lastUpdated: "17 de noviembre de 2026",
     sections: [
       {
         heading: "1. Definiciones",
@@ -186,7 +186,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "4.1 Kova es una herramienta de administración operacional para negocios. El servicio incluye: registro de productos, control de inventario, registro de ventas, control de caja, generación de reportes y acceso desde múltiples dispositivos.",
           "4.2 Kova registra el método con el que un cliente pagó en el mostrador, incluida la tarjeta manual, pero no es una terminal bancaria ni procesa ese dinero. El negocio utiliza por separado la terminal o el medio de cobro que elija.",
           "4.3 La disponibilidad del servicio es un objetivo de Kova, pero no está garantizada de forma absoluta. Pueden ocurrir interrupciones por mantenimiento, actualizaciones, fallas de infraestructura o causas de fuerza mayor.",
-          "4.4 Los recibos de Kova son comprobantes operativos de la venta. Aunque pueden mostrar texto fiscal configurado por el negocio, no son facturas ni CFDI. Kova no emite CFDI ni calcula o desglosa impuestos actualmente.",
+          "4.4 Los recibos de Kova son comprobantes operativos de la venta. Aunque pueden mostrar texto fiscal configurado por el negocio, no son facturas ni CFDI. Puedes configurar una tasa de impuesto adicional para la venta; Kova no determina IVA o IEPS por producto ni sustituye tu proceso fiscal o contable.",
           "4.5 Kova se ofrece actualmente como beta privada controlada, con cambios frecuentes y acompañamiento directo. No existe un SLA formal durante esta etapa.",
         ],
       },
@@ -194,7 +194,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "5. Planes, precios y facturación",
         body: [
           "5.1 Kova ofrece un período de prueba gratuita de 7 días sin requerir método de pago. Al finalizar, el usuario deberá contratar un plan de pago para continuar.",
-          "5.2 Incumplimiento de pago. El incumplimiento de pago podrá resultar en: (i) suspensión temporal de funcionalidades premium; (ii) suspensión total de la cuenta tras 180 días naturales de mora; y (iii) restricción de acceso a la información asociada a la cuenta mientras el adeudo permanezca pendiente.",
+          "5.2 Si un pago falla, las funciones operativas pueden quedar restringidas. Cuando existe un periodo de gracia verificado, dura como máximo 48 horas desde el primer intento fallido. Al terminar, debes recuperar el pago de la suscripción existente desde Facturación. La recuperación de facturación, la exportación de datos y la solicitud de eliminación de la cuenta permanecen disponibles para la persona propietaria.",
           "5.3 El cobro de la suscripción de Kova se realiza mediante Stripe. Kova no recibe ni almacena en sus servidores los datos completos de la tarjeta usada para pagar la suscripción.",
         ],
       },
@@ -285,7 +285,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
     title: "Cómo protegemos tu negocio",
     intro:
       "Kova maneja la operación de tu PyME: ventas, inventario, turnos, y datos de tus clientes. Esta página explica con honestidad cómo cuidamos esa información durante la beta y qué puedes esperar de nosotros.",
-    lastUpdated: "13 de agosto de 2026",
+    lastUpdated: "17 de noviembre de 2026",
     sections: [
       {
         heading: "Aislamiento por inquilino",
@@ -306,7 +306,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "Respaldos y recuperación",
         body: [
           "Kova mantiene un proceso programado para crear un respaldo lógico diario y conservarlo por 7 días en almacenamiento separado. Cada ejecución valida que el archivo se haya subido; una falla queda visible en el sistema de automatización.",
-          "El procedimiento de restauración está documentado, pero el simulacro completo con un respaldo real todavía es un gate operativo pendiente. No presentamos la recuperación como probada hasta completar y registrar ese ejercicio.",
+          "Las pruebas con respaldos reales han verificado la restauración lógica, la integridad y el acceso a una copia aislada. Falta completar y medir la recuperación del servicio ante una falla regional, incluido el cambio de tráfico. Estas pruebas no garantizan un tiempo máximo de recuperación ni una pérdida máxima de datos.",
         ],
       },
       {

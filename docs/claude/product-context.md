@@ -49,14 +49,19 @@ proveedores externos no se presentan como activos salvo que `current-sprint.md` 
 confirmen. Registrar que algo se compartió no lo envía; cerrar una atención no devuelve dinero ni
 contacta al cliente.
 
-## Dirección comercial aprobada, sin publicar
+## Dirección comercial vigente
 
 El dueño aprobó avanzar con el diseño de Esencial a $399 y Gestión a $699 MXN/mes, conservando
 los acuerdos actuales y midiendo atención y consumo antes de cerrar la rentabilidad. El alcance y
-las condiciones están en [ADR-019](../adr/ADR-019-commercial-plan-design.md). Después autorizó su
-implementación con activación apagada ([ADR-020](../adr/ADR-020-commercial-plan-foundation.md)).
-No cambia el Standard vigente de $299 ni autoriza publicar precios, migrar clientes o contratar
-proveedores.
+las condiciones están en [ADR-019](../adr/ADR-019-commercial-plan-design.md). La implementación
+inicial conservó la activación apagada ([ADR-020](../adr/ADR-020-commercial-plan-foundation.md));
+la autorización posterior de [ADR-021](../adr/ADR-021-commercial-production-activation.md)
+habilitó la oferta productiva. El catálogo público consultado el 17 de noviembre devuelve
+Esencial $399 y Gestión $699 MXN mensuales, inclusivos. Standard $299 conserva los acuerdos
+anteriores y no se ofrece a nuevas altas. Esta dirección no autoriza migrar acuerdos anteriores
+ni contratar proveedores adicionales. La evidencia de publicación y las aceptaciones pendientes
+se conservan en [estado actual](../current-sprint.md) y
+[preparación comercial](../runbooks/sales-readiness.md).
 
 ## Decisiones del dueño sobre lealtad
 

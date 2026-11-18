@@ -26,6 +26,8 @@ escribe un ADR nuevo que reemplaza al anterior.
   para crear publicaciones, imágenes y videos.
 - [commercial-strategy.md](commercial-strategy.md): propuesta de posicionamiento, venta asistida,
   difusión y medición para conseguir los primeros clientes, con fuentes comerciales vigentes.
+- [Preparación comercial y aceptación](runbooks/sales-readiness.md): evidencia vigente,
+  pendientes técnicos y operativos y sesión de aceptación con el dueño antes de ampliar ventas.
 - [Diseño comercial de Esencial y Gestión](adr/ADR-019-commercial-plan-design.md): dirección
   aprobada de $399/$699, protección de acuerdos actuales y mediciones pendientes.
 - [Base comercial multiplan](adr/ADR-020-commercial-plan-foundation.md): cohortes y capacidades
