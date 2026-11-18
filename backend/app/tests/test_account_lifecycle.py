@@ -332,6 +332,49 @@ def test_internal_purge_is_guarded(client: TestClient, monkeypatch) -> None:
     assert response.json() == {"purged": 0}
 
 
+def test_reversible_deletion_then_due_purge_revokes_access_and_preserves_other_business(
+    client: TestClient, db: Session,
+) -> None:
+    first = _signup_login(client, "lifecycle-full-a@example.com", "Ciclo reversible")
+    second_client = TestClient(client.app)
+    second = _signup_login(second_client, "lifecycle-full-b@example.com", "Negocio intacto")
+    body = {"password": "S3cur3pass!", "tenant_name": "Ciclo reversible"}
+
+    scheduled_at = datetime.now(UTC)
+    scheduled = client.post("/api/v1/account/deletion", json=body)
+    assert scheduled.status_code == 200
+    assert datetime.fromisoformat(scheduled.json()["purge_after"]) >= scheduled_at + timedelta(days=30)
+    assert purge_due_accounts(db) == 0
+    assert client.get("/api/v1/export/account").status_code == 200
+
+    assert client.delete("/api/v1/account/deletion").json()["status"] == "canceled"
+    assert purge_due_accounts(db) == 0
+    assert client.get("/api/v1/auth/me").status_code == 200
+    assert client.post("/api/v1/account/deletion", json=body).json()["status"] == "pending"
+
+    # Move only the disposable request's deadline; production's clock and
+    # minimum waiting period remain untouched.
+    request = db.scalar(select(AccountDeletionRequest).where(
+        AccountDeletionRequest.tenant_id == UUID(first["tenant_id"]),
+    ))
+    assert request is not None
+    request.purge_after = datetime.now(UTC) - timedelta(seconds=1)
+    db.commit()
+    assert purge_due_accounts(db) == 1
+    assert purge_due_accounts(db) == 0
+    assert client.get("/api/v1/auth/me").status_code == 401
+    assert client.get("/api/v1/export/account").status_code == 401
+    assert client.post("/api/v1/auth/login", json={
+        "email": "lifecycle-full-a@example.com", "password": "S3cur3pass!",
+    }).status_code == 401
+    assert second_client.get("/api/v1/auth/me").status_code == 200
+    assert second_client.get("/api/v1/export/account").status_code == 200
+    assert db.get(Tenant, UUID(second["tenant_id"])) is not None
+    db.refresh(request)
+    assert request.status == "completed"
+    assert request.requested_by_user_id is None
+
+
 def test_due_purge_removes_only_requested_tenant(client: TestClient, db: Session) -> None:
     first = _signup_login(client, "purge-a@example.com", "Purge A")
     second_client = TestClient(client.app)

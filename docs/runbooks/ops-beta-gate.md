@@ -4,6 +4,13 @@ Este checklist reúne evidencia; no sustituye asesoría legal profesional ni aut
 producción. Debe existir un registro por tenant pagado, almacenado fuera del repositorio si contiene
 datos personales o firmas.
 
+Actualización del 17 de noviembre de 2026: la
+[preparación comercial](sales-readiness.md) concentra la evidencia nueva y las intervenciones
+del dueño. El correo público ya recibe por reenvío y el dueño eligió respuestas desde Gmail.
+El ciclo técnico de cuenta se ejecutó en PostgreSQL desechable y en navegador con API/RLS reales;
+los checks humanos, legales, de hardware y recuperación regional conservan su alcance pendiente.
+Las comprobaciones históricas siguientes no sustituyen este corte ni se fechan de nuevo.
+
 Reconciliación documental: 26 de octubre de 2026. Las comprobaciones históricas conservan su
 fecha y alcance; no certifican automáticamente el despliegue ni las plantillas actuales. Esta
 revisión no envió correos, no ejecutó restauraciones ni cambió proveedores.
@@ -50,13 +57,15 @@ y limpieza aprobados. Los gates sin aceptación física, comercial o de proveedo
 - [x] Gmail es el canal oficial aceptado para la beta controlada: decisión SELL-06 en
       [sprint-planning.md](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/sprint-planning.md) y fuente vigente
       [`frontend/src/lib/support.ts`](../../frontend/src/lib/support.ts).
-- [ ] `soporte@kovasuite.com` recibe y responde durante la beta controlada.
-- [ ] No cambiar a `soporte@kovasuite.com` hasta probar recepción **y respuesta**; mantener Gmail en
-      paralelo durante la transición y definir rollback.
+- [x] `soporte@kovasuite.com` recibe y reenvía al Gmail de operación. Prueba autorizada entregada
+      el 17 de noviembre; regla exacta Active y destino comprobados.
+- [x] Respuestas manuales desde `posprojectsupport@gmail.com`, elegidas expresamente por el dueño.
+      El alias SMTP externo se retiró; tras recargar, Gmail conserva sólo su identidad original.
+- [ ] Responsable, cobertura y conversación de ida/respuesta aceptados con cada piloto.
 
-La falta del buzón de dominio no invalida la decisión de usar Gmail durante la beta. La prueba de
-recepción y respuesta del soporte sigue siendo distinta de haber recibido un correo transaccional.
-No se exige contratar ni migrar un buzón para repetir la prueba del canal aceptado.
+La dirección pública de dominio usa reenvío, sin buzón de pago. Las respuestas salen desde Gmail;
+no requieren Enviar como externo ni Workspace. La prueba de conversación con un piloto sigue
+siendo distinta de recibir un correo transaccional. [Decisión y evidencia](../email-deliverability.md).
 
 La [evidencia del 12 de agosto](../email-deliverability.md) acredita cinco plantillas en Gmail,
 incluidos SPF/DKIM/DMARC PASS en el mensaje observado. No incluye la invitación presente hoy en
@@ -155,10 +164,19 @@ checklist no la concede.
 
 ## OPS-5 — ciclo de cuenta
 
-- [ ] Tenant desechable: ZIP/CSV completo y neutralización de fórmulas verificados.
-- [ ] Solicitud, ventana reversible ≥30 días y cancelación verificadas.
-- [ ] Purga autorizada en entorno desechable; acceso posterior negado y constancia mínima validada.
+- [x] Tenant desechable: ZIP/CSV completo, exclusiones y neutralización de fórmulas verificados
+      por API con PostgreSQL. La descarga desde UI también aprobó a 390/1440 px.
+- [x] Solicitud, ventana reversible ≥30 días y cancelación verificadas por API y navegador.
+- [x] Purga local de la solicitud desechable vencida; login/sesión/exportación posteriores negados,
+      otro negocio intacto y constancia mínima validada. Sólo se adelantó la fecha de esa solicitud
+      sintética; no se purgaron negocios alojados ni se esperaron 30 días reales.
 - [ ] Se informó la ventana residual de backups y se documentó cualquier retención legal.
+
+El alcance técnico del 17 de noviembre está en `test_account_lifecycle.py`,
+`test_cfdi_account_lifecycle.py` y `account-lifecycle-real.spec.ts`, dentro de las 151 pruebas
+backend y 23 de navegador aprobadas del corte. No acredita la aceptación de condiciones por
+un cliente ni un periodo real de espera completado. La retención residual se explica en el
+acuerdo preparado; debe ser aceptada y revisada profesionalmente.
 
 ## OPS-6 — legal y comercial
 
@@ -179,8 +197,9 @@ checklist no la concede.
 | OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
 | OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |
 
-Las filas OPS-4 a OPS-6 conservan el corte histórico del 14 de agosto y no acreditan nuevas
-ejecuciones. El detalle de ese corte y sus comandos históricos está en:
+Las filas OPS-4 a OPS-6 de esta tabla conservan el corte histórico del 14 de agosto. Los checks
+OPS-5 y el registro de preparación comercial anteriores sí acreditan la nueva ejecución técnica
+del 17 de noviembre, sin cerrar aceptación humana o legal. El detalle histórico está en:
 [`AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md`](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md).
 
 El preflight histórico de capacidad está en:

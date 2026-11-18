@@ -1,7 +1,22 @@
 # Entregabilidad de correo — Kova
 
-Evidencia acumulada al 14 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
+Evidencia acumulada al 17 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
+
+## Decisión vigente de soporte — reenvío y respuestas desde Gmail
+
+El dueño eligió conservar `soporte@kovasuite.com` como dirección pública de recepción y
+`posprojectsupport@gmail.com` como remitente de las respuestas manuales, sin contratar Workspace.
+Se confirmó la regla exacta Active de Cloudflare Email Routing. En Gmail se seleccionó su
+dirección original como predeterminada y se retiró la identidad SMTP `Soporte Kova`; tras
+recargar, sólo quedó el remitente Gmail. No se modificaron los MX ni las rutas de verificación
+y DMARC. El transporte transaccional de Resend conserva su configuración.
+
+Esta elección usa reenvío entrante y correo nativo de Gmail, por lo que no depende del Enviar como
+externo que [Google retira en enero de 2027](https://support.google.com/mail/answer/17101213?hl=es).
+No se envió otro correo para este ajuste. Las pruebas de recepción y salida del dominio que
+siguen abajo conservan su carácter histórico; el envío manual desde el dominio ya no es la
+configuración elegida. Quedan por acordar responsable, cobertura y aceptación con cada piloto.
 
 ## Dirección pública de soporte — 17 de noviembre de 2026
 

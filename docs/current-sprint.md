@@ -1,9 +1,16 @@
 # Estado actual
 
-Última actualización: 2026-11-16.
+Última actualización: 2026-11-17.
 
 Este archivo dice qué está en producción y qué falta. Las bitácoras de cada corte (pruebas, cifras,
 archivos) viven en sus PRs y en el historial de git; la versión anterior de este archivo también.
+
+El [corte de preparación comercial](runbooks/sales-readiness.md) reúne la aceptación técnica
+actual, las correcciones de copy y los pasos concretos que requieren al dueño. La corrección de
+los 17 hallazgos UX y el correo público ya están publicados; la configuración vigente de soporte
+recibe en `soporte@kovasuite.com` y responde desde el Gmail de operación por decisión del dueño.
+Las nuevas correcciones de preparación requieren su propio PR, CI y release antes de declararse
+publicadas. Una beta acompañada no equivale a cerrar los gates operativos de lanzamiento general.
 
 ## En producción
 
@@ -16,8 +23,8 @@ La solicitud de permisos de WhatsApp ya fue enviada con los dos videos y las dec
 autorizadas; Meta confirmó **Revisión en curso**. Esto actualiza las referencias anteriores a un
 borrador pendiente, sin acreditar aprobación ni conexión del número real.
 
-La baseline publicada y verificada antes de este corte es `d9e973bf2334e54757026b697f6690e27dfc9ace`,
-[release 43934149277](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/43934149277).
+La baseline publicada y verificada antes de este corte es `606b870076a4417f5347f73e0e2a0419e3082db8`,
+[release 44217617849](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44217617849).
 API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
 independientemente tras la aceptación del workflow. La coexistencia de WhatsApp está publicada
 con alta limitada a dos negocios admitidos, pendiente de permisos de WhatsApp y aceptación real. Se conserva la
