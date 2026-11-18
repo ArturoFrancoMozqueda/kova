@@ -27,6 +27,10 @@ frontend admitido, su Worker de assets, documentación o pruebas/política de CI
 Los workflows, los proveedores de backend/Container dentro de `frontend/scripts/` y scripts
 desconocidos exigen publicación completa. La comparación falla hacia publicación
 completa ante historia/rutas desconocidas. Un dispatch manual sigue siendo completo.
+La lista cerrada admite `frontend/scripts/capture-landing.mjs` (capturas aisladas contra
+loopback, sin configuración de backend) y `specs/marketing/landing_metrics.md` (copy e
+ilustraciones públicas). Sus cambios junto con la landing conservan la API publicada;
+otros scripts y specs desconocidos siguen exigiendo publicación completa.
 Frontend y API conservan identidades exactas independientes; el artefacto de recuperación añade
 `frontendSha` y `releaseSha` sigue siendo el SHA del backend. La verificación exige cada identidad,
 salud/base/proxy y oferta comercial antes y después. Un fallo del frontend no restaura un backend
