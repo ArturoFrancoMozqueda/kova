@@ -9,7 +9,7 @@ const ciFiles = new Set([
   "scripts/tests/test_ci_cost_workflows.py",
 ]);
 const frontendScripts = new Set([
-  "backend-release-plan", "capture-cloudflare", "capture-showcase", "check-bundle-secrets",
+  "backend-release-plan", "capture-cloudflare", "capture-showcase", "capture-landing", "check-bundle-secrets",
   "check-e2e-imports", "check-openapi-contract", "cloudflare-provider",
   "complete-stripe-test-checkout", "complete-stripe-test-portal", "optimize-og", "prerender",
   "readiness-fetch", "release-billing-offer", "release-recovery", "release",
@@ -23,6 +23,8 @@ export function backendUnchanged(paths) {
     typeof path === "string" && !path.includes("\0") && !path.split("/").includes("..") && (
       (path.startsWith("frontend/") && !path.startsWith("frontend/scripts/"))
       || frontendScripts.has(path)
+      // This spec describes public marketing copy/images, never API behavior.
+      || path === "specs/marketing/landing_metrics.md"
       || path.startsWith("frontend/scripts/film/")
       || (path.startsWith("deploy/cloudflare/") && !path.includes("/../"))
       || ((path.startsWith("docs/") || ["README.md", "CHANGELOG.md", "CLAUDE.md"].includes(path))

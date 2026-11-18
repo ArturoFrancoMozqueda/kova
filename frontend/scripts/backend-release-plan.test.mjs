@@ -54,6 +54,22 @@ test("backend publishing tools and workflow configuration require a full release
   }
 });
 
+test("local landing captures and its marketing spec retain the deployed API", () => {
+  const repo = repositoryFixture();
+  try {
+    repo.put("frontend/scripts/capture-landing.mjs", "local isolated screenshot tooling\n");
+    repo.put("specs/marketing/landing_metrics.md", "public marketing copy and illustrations\n");
+    repo.put("frontend/public/showcase/current/dashboard.jpg", "new frontend asset\n");
+    const sha = repo.commit();
+    assert.deepEqual(backendReleasePlan({ ...repo, sha, eventName: "push" }),
+      { publishBackend: false, backendSha: repo.previousSha });
+    for (const extra of ["frontend/scripts/capture-new-backend.mjs",
+      "specs/marketing/new-contract.md", "specs/billing/billing.md", "backend/app/main.py"])
+      assert.equal(backendUnchanged(["frontend/scripts/capture-landing.mjs",
+        "specs/marketing/landing_metrics.md", extra]), false, extra);
+  } finally { repo.cleanup(); }
+});
+
 test("the production baseline, rather than the previous commit, controls backend reuse", () => {
   const repo = repositoryFixture();
   try {
