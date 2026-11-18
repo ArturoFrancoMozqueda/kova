@@ -180,7 +180,7 @@ describe("App shell", () => {
     render(<App />);
     expect(
       await screen.findByRole("heading", {
-        name: /cobra una vez\. kova cuadra el resto\./i,
+        name: /toda tu operación, más fácil\./i,
       }),
     ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Gestión" })).toBeInTheDocument();
