@@ -1,6 +1,7 @@
 # Preparación comercial y aceptación de Kova
 
-Corte: 17 de noviembre de 2026, Ciudad de México. Este registro distingue una corrección técnica,
+Corte técnico: 17 de noviembre de 2026; alineación de términos: 18 de noviembre, Ciudad de México.
+Este registro distingue una corrección técnica,
 una prueba con datos desechables y la aceptación por un negocio. No asigna una puntuación de
 preparación ni convierte una prueba automática en satisfacción, cumplimiento legal o disponibilidad
 garantizada. La publicación de las correcciones se acredita por su PR y release.
@@ -81,7 +82,55 @@ No guardar datos de clientes, contraseñas, documentos fiscales o firmas en git.
 - El restore lógico ya está autorizado y aprobado. Un simulacro regional completo necesita
   destino, límites de gasto y un procedimiento revisado antes de cambiar tráfico.
 
-## Validación de este corte
+## Alineación de términos — 18 de noviembre
+
+El dueño eligió **Kovasuite por ahora** como nombre del prestador. Se usa como nombre comercial,
+sin inventar una razón social, persona jurídica, RFC o domicilio. La identidad legal y el domicilio
+del responsable siguen por completar en privado para la revisión profesional; el nombre comercial
+no los acredita. La plantilla del acuerdo conserva esos campos y está en español de México.
+
+Los términos y el aviso de privacidad se alinean a la oferta y a los contratos vigentes:
+
+- Esencial/Gestión mensuales con precios inclusivos; Standard conserva acuerdos anteriores.
+- Prueba sin tarjeta, autorización expresa para cobros recurrentes y pago verificado por servidor.
+- Cancelar renovación, programar eliminación y cancelar esa eliminación son acciones distintas.
+  Cancelar la eliminación no reactiva una renovación cancelada; los datos permanecen exportables
+  para el propietario autenticado aunque falte acceso comercial por pago.
+- Purga reversible de al menos 30 días, extendida al periodo pagado posterior; backups hasta
+  7 días adicionales y constancia mínima. No se presume una retención uniforme de cinco años
+  para todo el negocio ni un hold legal automático que el código no implementa.
+- Alcance real de offline, registros de pago, recibos, equipos, integraciones y soporte.
+- Acuerdos particulares, derechos irrenunciables, aviso de mantenimiento de 24 horas y aviso
+  de cambios materiales de 15 días conservados. No se presenta el uso continuado como sustituto
+  de un consentimiento expreso exigible.
+
+La reforma del [artículo 76 Bis, fracciones VIII y IX](https://www.dof.gob.mx/nota_detalle.php?codigo=5775999&fecha=12/12/2025)
+de la LFPC exige transparencia y consentimiento de cobros recurrentes, aviso previo mínimo de
+cinco días naturales para renovación automática y un mecanismo de cancelación, en su ámbito
+de aplicación. El [artículo 15 de la LFPDPPP](https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf)
+incluye identidad y domicilio del responsable entre los contenidos del aviso de privacidad.
+Estas fuentes orientan la revisión; el cambio de texto no certifica cumplimiento.
+
+**Verificación operativa pendiente del aviso de renovación:** la última aceptación registrada de
+Stripe mantenía apagado el aviso de próxima renovación, junto con fin de prueba y débito bancario
+([evidencia histórica](commercial-plan-acceptance.md)). Este corte no consultó ni cambió esa
+configuración live y no acredita un aviso previo enviado. Antes de declarar aceptado ese punto,
+comprobar su configuración actual, anticipación y llegada a un buzón autorizado. No se habilitan
+correos a clientes ni se reenvían eventos por modificar estos términos.
+
+El cambio tampoco envía notificaciones de modificación ni registra nuevas aceptaciones de usuarios
+existentes. El registro actual guarda aceptación fechada, sin añadir en este corte un sistema de
+versionado de consentimiento. Conservar la revisión profesional y acordar la comunicación que
+corresponda antes de aplicar cambios materiales a acuerdos vigentes.
+
+Validación local de esta alineación: 29 pruebas focalizadas de términos, landing y oferta de
+registro aprobadas; lint, tipos y build con prerender de las cinco páginas públicas aprobados.
+En navegador, términos y privacidad a 390/1440 px muestran el nombre comercial, conservan el
+contenido y no desbordan; los enlaces entre ambos documentos funcionan por teclado y el foco
+permanece visible. Son comprobaciones de presentación y coherencia, no una aprobación jurídica
+ni aceptación de notificaciones live.
+
+## Validación del corte técnico del 17 de noviembre
 
 - Backend con PostgreSQL desechable: **151 casos aprobados** en cuenta, fiscal/purga, recibo,
   bienvenida, plantillas, acceso comercial, orden temporal, conciliación, Checkout y RLS.
