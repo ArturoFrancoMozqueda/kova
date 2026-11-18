@@ -26,8 +26,8 @@ Evidencia local: regla activa observada en Cloudflare; 37 pruebas de ayuda/factu
 14 contratos OPS, build de producción y 12 escenarios Playwright de facturación aprobados.
 Después, con autorización explícita del dueño, se envió un único correo de prueba desde
 el remitente verificado de Kova a `soporte@kovasuite.com`, con Reply-To al mismo alias.
-Resend lo confirmó como `delivered` a las 01:30:58 UTC del 18 de noviembre (19:30:58 CDMX
-del 17 de noviembre). La búsqueda del asunto exacto en el Gmail del destino mostró un
+El envío se creó a las 01:30:58 UTC del 18 de noviembre (19:30:58 CDMX del 17 de noviembre)
+y Resend lo confirmó como `delivered`. La búsqueda del asunto exacto en el Gmail del destino mostró un
 único mensaje en Inbox a las 19:31 CDMX. Esto acredita la recepción y el reenvío extremo
 a extremo para esa prueba; no acredita envío manual desde el alias ni todos los proveedores.
 
