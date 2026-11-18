@@ -22,6 +22,21 @@ pendientes existentes; no crea otra lista de tareas ni completa el horizonte de 
 
 ## Acceso y respuesta
 
+### Tareas de reglas en la interfaz
+
+Además de las cuatro fuentes del endpoint, la pantalla consulta `GET /api/v1/automations?limit=200`
+por separado. Esta lectura conserva `settings.manage`, acceso comercial y sucursal de sesión;
+se ejecuta dentro de la misma admisión de dueño/gerente y el servidor revalida sus permisos. No
+cambia el DTO de `/operations/queue`, no amplía los permisos de las fuentes ni introduce escrituras.
+
+La sección **Tareas de reglas** muestra hasta 20 ejecuciones `pending` entre las últimas 200
+revisiones, con el límite explícito. No presenta la muestra como total. Cada enlace válido abre
+`/automations?run_id=UUID`; esa pantalla enfoca la coincidencia y ofrece la acción original.
+Un error de la cola no oculta las tareas de reglas ya consultadas, y un error o denegación del
+motor tiene su reintento local sin ocultar las cuatro fuentes originales. Carga, error y vacío se
+presentan por separado. Sin conexión se retiran ambas consultas; al cambiar sucursal/identidad se
+aborta el ámbito anterior y se descartan sus resultados tardíos.
+
 GET `/api/v1/operations/queue` requiere `require_crm`: dueño/gerente, sesión, acceso comercial y
 sucursal verificada del negocio. Usa la conexión runtime ordinaria con RLS. No incorpora lealtad,
 que tiene acceso exclusivo del dueño, ni permite seleccionar tenant/sucursal mediante payload.

@@ -221,4 +221,26 @@ it("lets managers discover menu requests from orders while preserving cashier ac
   expect(screen.getByRole("link", { name: "Nuevo pedido" })).toBeVisible();
 });
 
+  it("labels a legacy cached list without claiming a fresh timestamp or enabling remote pagination", async () => {
+    mocks.online = false;
+    mocks.readCache.mockResolvedValue({ list: list([order("PED-COPIA")], 26), cached_at: "2026-11-17T12:00:00Z" });
+    renderList();
+    await screen.findByText("PED-COPIA");
+    expect(screen.getByText(/no conocemos la fecha de actualización/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Siguiente/ })).not.toBeInTheDocument();
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
+  it("displays the list's own timestamp after a different detail refreshed the cache", async () => {
+    mocks.online = false;
+    mocks.readCache.mockResolvedValue({
+      list: list([order("PED-COPIA")]), cached_at: "2026-11-17T12:00:00Z",
+      list_cached_at: "2026-11-01T12:00:00Z",
+    });
+    renderList();
+    await screen.findByText("PED-COPIA");
+    expect(screen.getByText(/Solo lectura/)).toHaveTextContent(/01\/11\/2026/);
+    expect(screen.getByText(/Solo lectura/)).not.toHaveTextContent(/17\/11\/2026/);
+  });
+
 });

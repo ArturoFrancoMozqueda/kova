@@ -60,8 +60,8 @@ jobs:
       - name: Test controller and prepare native artifact
         run: |
           # API/jobs configuration and strict-comparator tests exercise both pinned SDKs.
-          npm ci --prefix deploy/cloudflare-backend
-          npm ci --prefix deploy/cloudflare-native
+          node frontend/scripts/security/install.mjs --project deploy/cloudflare-backend
+          node frontend/scripts/security/install.mjs --project deploy/cloudflare-native
           npm test --prefix deploy/cloudflare-native
           node deploy/cloudflare-native/build.mjs
       - name: Verify minimal native runtime ABI and security surface

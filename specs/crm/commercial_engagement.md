@@ -52,6 +52,11 @@ Hay como máximo una incidencia vinculada por venta; las incidencias sin venta p
 `PATCH /api/v1/crm/followups/{id}` asigna/reprograma/anota o resuelve un pendiente con versión e
 idempotencia. Los cerrados conservan su historial y no se reabren silenciosamente.
 
+La UI conserva consulta y resolución de estas incidencias históricas. Las nuevas altas desde
+“Registrar incidencia” continúan en Casos de atención; el enlace por tarea conserva su origen,
+cliente y venta tras resolver el registro privado. No se crean dos incidencias ni se convierte
+o cierra automáticamente el seguimiento. El endpoint anterior sigue disponible por compatibilidad.
+
 ## Datos y límites
 
 Migración aditiva `0086_commercial_engagement`: `crm_catalog_requests`,

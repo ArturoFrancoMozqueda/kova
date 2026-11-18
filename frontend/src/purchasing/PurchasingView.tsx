@@ -1,3 +1,4 @@
+import { useTaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { useOptionalAuth } from "@/auth/useAuth";
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
@@ -72,6 +73,9 @@ export default function PurchasingView() {
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ product_id: "", quantity: 1, unit_cost: "0.00" }]);
+  const measurementOwner = auth?.state.status === "authenticated" && auth.state.user?.id
+    ? { tenantId: auth.state.tenantId, userId: auth.state.user.id } : null;
+  const receiptMeasurement = useTaskMeasurement("purchase_receipt", measurementOwner ? `${measurementOwner.tenantId}:${measurementOwner.userId}` : "", measurementOwner);
   const [receiving, setReceiving] = useState<Purchase | null>(null);
   const [receiveLots, setReceiveLots] = useState<Record<string, LotAllocation[]>>({});
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -112,9 +116,11 @@ export default function PurchasingView() {
     const signature = JSON.stringify(payload);
     const key = keys.current.get(signature) ?? crypto.randomUUID();
     keys.current.set(signature, key);
+    const isReceipt = typeof payload === "object" && payload !== null && "receive" in payload;
+    if (isReceipt) { receiptMeasurement.start(); receiptMeasurement.pause(); }
     setBusy(true); setError(""); setNotice("");
-    try { const result = await action(key); keys.current.delete(signature); done(result); await load(); }
-    catch (e) { setError(resolveUserFacingError(e, "No pudimos guardar el cambio. Revisa los datos e intenta de nuevo.")); }
+    try { const result = await action(key); keys.current.delete(signature); if (isReceipt) receiptMeasurement.finish("completed"); done(result); await load(); }
+    catch (e) { if (isReceipt) receiptMeasurement.finish("failed"); setError(resolveUserFacingError(e, "No pudimos guardar el cambio. Revisa los datos e intenta de nuevo.")); }
     finally { setBusy(false); }
   }
   function submitSupplier(event: FormEvent) {
@@ -157,15 +163,15 @@ export default function PurchasingView() {
         {purchase.notes && <p className="text-sm text-muted-foreground">{purchase.notes}</p>}
         <PurchaseReceiptProgress purchase={purchase} />
         <ul className="space-y-2.5 text-sm">{purchase.items.map(item => <li key={item.id} className="space-y-1"><p>{item.product_name}: <span className="tabular-nums">{item.received_quantity} de {item.quantity} recibidas · {formatMoney(item.unit_cost)} por unidad</span></p><Meter size="sm" label={`${item.product_name}, unidades recibidas`} value={item.received_quantity} max={item.quantity} valueLabel={`${item.received_quantity} de ${item.quantity}`} tone={receiptTone(purchase.status, item.received_quantity, item.quantity)} /></li>)}</ul>
-        {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
+        {(purchase.status === "pending" || purchase.status === "partial") && <div className="flex flex-wrap gap-2"><Button disabled={disabled} onClick={() => { receiptMeasurement.finish("cancelled"); receiptMeasurement.start(); setReceiving(purchase); setReceiveLots({}); setUpdateCost(false); setQuantities(Object.fromEntries(purchase.items.map(item => [item.id, item.quantity - item.received_quantity]))); }}>Recibir mercancía</Button><Button variant="outline" disabled={disabled} onClick={() => { if (window.confirm("¿Cancelar las unidades pendientes? Las recepciones registradas se conservarán.")) void mutate({ cancel: purchase.id }, key => cancelPurchase(purchase.id, key), () => { if (receiving?.id === purchase.id) setReceiving(null); }); }}>Cancelar pendiente</Button></div>}
       </CardContent></Card>)}
       <div className="flex gap-3"><Button variant="outline" disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 100))}>Anteriores</Button><Button variant="outline" disabled={loading || purchases.length < 100} onClick={() => setOffset(value => value + 100)}>Más compras</Button></div>
     </section>
     {receiving && <Card><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Recibir compra de {receiving.supplier_name}</h2><p>Registra únicamente las unidades que llegaron. El resto quedará pendiente.</p>
-      <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (receiving.items.some(item => (quantities[item.id] ?? 0) > 0 && products.find(product => product.id === item.product_id)?.track_lots && !allocationValid(receiveLots[item.id] ?? [], quantities[item.id]))) { setError("Asigna a sus lotes todas las unidades a recibir."); return; } const items = receiving.items.filter(item => (quantities[item.id] ?? 0) > 0).map(item => ({ item_id: item.id, quantity: quantities[item.id], ...(products.find(product => product.id === item.product_id)?.track_lots ? { lot_allocations: receiveLots[item.id] ?? [] } : {}) })); void mutate({ receive: receiving.id, items, updateCost }, key => receivePurchase(receiving.id, items, updateCost, key), () => setReceiving(null)); }}>
+      <form className="space-y-4" onChangeCapture={() => receiptMeasurement.start()} onSubmit={e => { e.preventDefault(); if (receiving.items.some(item => (quantities[item.id] ?? 0) > 0 && products.find(product => product.id === item.product_id)?.track_lots && !allocationValid(receiveLots[item.id] ?? [], quantities[item.id]))) { setError("Asigna a sus lotes todas las unidades a recibir."); return; } const items = receiving.items.filter(item => (quantities[item.id] ?? 0) > 0).map(item => ({ item_id: item.id, quantity: quantities[item.id], ...(products.find(product => product.id === item.product_id)?.track_lots ? { lot_allocations: receiveLots[item.id] ?? [] } : {}) })); void mutate({ receive: receiving.id, items, updateCost }, key => receivePurchase(receiving.id, items, updateCost, key), () => setReceiving(null)); }}>
         {receiving.items.filter(item => item.quantity > item.received_quantity).map(item => <div key={item.id}><Label htmlFor={`receive-${item.id}`}>{item.product_name} · pendientes {item.quantity - item.received_quantity}</Label><Input id={`receive-${item.id}`} type="number" required min={0} max={item.quantity - item.received_quantity} step={1} value={quantities[item.id] ?? 0} onChange={e => setQuantities(rows => ({ ...rows, [item.id]: Number(e.target.value) }))} />{products.find(product => product.id === item.product_id)?.track_lots && (quantities[item.id] ?? 0) > 0 && <LotAllocationEditor productId={item.product_id} quantity={quantities[item.id] ?? 0} value={receiveLots[item.id] ?? []} onChange={parts => setReceiveLots(previous => ({ ...previous, [item.id]: parts }))} incoming canCreate />}</div>)}
         <label className="flex items-start gap-3"><input type="checkbox" checked={updateCost} onChange={e => setUpdateCost(e.target.checked)} /><span>Actualizar el costo del catálogo con el costo unitario de esta compra. Las ventas anteriores conservan su costo registrado.</span></label>
-        <div className="flex gap-3"><Button disabled={disabled || !Object.values(quantities).some(value => value > 0)} type="submit">Confirmar recepción</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setReceiving(null)}>Cerrar</Button></div>
+        <div className="flex gap-3"><Button disabled={disabled || !Object.values(quantities).some(value => value > 0)} type="submit">Confirmar recepción</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { receiptMeasurement.finish("cancelled"); setReceiving(null); }}>Cerrar</Button></div>
       </form>
     </CardContent></Card>}
     {canCreate && activeSetup === "supplier" && <Card id={supplierPanelId} ref={setupPanelRef} tabIndex={-1} role="region" aria-label="Registrar proveedor" className="max-w-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"><CardContent className="space-y-4 pt-6"><h2 className="text-lg font-semibold">Nuevo proveedor</h2>

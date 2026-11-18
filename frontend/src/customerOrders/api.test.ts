@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { confirmCustomerOrder, createCustomerOrder, updateCustomerOrder } from "./api";
+import { CustomerOrderApiError, confirmCustomerOrder, createCustomerOrder, updateCustomerOrder } from "./api";
 import type { CustomerOrderInput } from "./types";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -25,4 +25,13 @@ it("transports the original save and confirmation keys without changing their pa
     { url: "/api/v1/customer-orders/pedido", method: "PATCH", key: "update-attempt", body: { ...body, version: 3 } },
     { url: "/api/v1/customer-orders/pedido/confirm", method: "POST", key: "confirm-attempt", body: { version: 4 } },
   ]);
+});
+
+
+it("preserves a plain-text rejection status for safe confirmation recovery", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("Invalid pedido", { status: 422 })));
+  await expect(confirmCustomerOrder("pedido", 1, "confirmation"))
+    .rejects.toMatchObject({ status: 422, detail: "Invalid pedido", name: "Error" });
+  await expect(confirmCustomerOrder("pedido", 1, "confirmation"))
+    .rejects.toBeInstanceOf(CustomerOrderApiError);
 });

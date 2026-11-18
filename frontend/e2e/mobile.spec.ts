@@ -741,7 +741,11 @@ test("cash checkout waits for interaction before showing an error on common phon
     await expect(page.getByText(/aún no cubre el total/i)).toHaveCount(0);
     await expect(cashInput).not.toHaveAttribute("aria-invalid", "true");
     await expect(chargeButton).toHaveAttribute("aria-disabled", "true");
-    expect(telemetryEvents).toHaveLength(0);
+    // Adding the first product now records the task start. It must not report
+    // a validation error or a completed sale before checkout interaction.
+    expect(telemetryEvents.filter(event => event.event_name === "sale_validation_blocked")).toHaveLength(0);
+    expect(telemetryEvents.filter(event => event.event_name === "task_finished")).toHaveLength(0);
+    await expect.poll(() => telemetryEvents.filter(event => event.event_name === "task_started")).toHaveLength(1);
 
     // A shorter visual viewport approximates the space left by an open mobile
     // keyboard. The payment selector and CTA must remain reachable in-sheet.

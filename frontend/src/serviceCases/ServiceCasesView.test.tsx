@@ -82,12 +82,57 @@ const route = async (url: RequestInfo | URL) => {
     return json({ items: events, has_more: false });
   return json({ items: [record], has_more: false });
 };
-const mount = () =>
+const mount = (path = "/service-cases") =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <ServiceCasesView />
     </MemoryRouter>,
   );
+
+it("opens the canonical case from a scoped followup and preserves customer, sale and provenance", async () => {
+  const sourceId = "b3a64115-8d3e-47a2-9b0f-55e232f39173";
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url) === `/api/v1/crm/followups/${sourceId}`) return json({
+      id: sourceId, customer_id: customer.id, customer_name: customer.name,
+      sale_order_id: "sale-1", title: "Revisar entrega", note: "El cliente reportó un problema.",
+      due_at: "2026-11-17T17:00:00Z",
+    });
+    if (String(url) === "/api/v1/service-cases" && init?.method === "POST") return json(record, 201);
+    return route(url);
+  });
+  mount(`/service-cases?new=1&followup_id=${sourceId}`);
+  await waitFor(() => expect(screen.getByLabelText("Asunto de la atención")).toHaveValue("Revisar entrega"));
+  expect(screen.getByLabelText("Cliente de la atención")).toHaveValue(customer.id);
+  await waitFor(() => expect(screen.getByLabelText("Venta relacionada")).toHaveValue("sale-1"));
+  expect(screen.getByLabelText("Cliente de la atención")).toBeDisabled();
+  expect(screen.getByLabelText("Venta relacionada")).toBeDisabled();
+  expect(screen.getByLabelText("Pedido relacionado")).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Cliente de la atención"), { target: { value: "customer-2" } });
+  fireEvent.change(screen.getByLabelText("Venta relacionada"), { target: { value: "" } });
+  fireEvent.change(screen.getByLabelText("Pedido relacionado"), { target: { value: "order-1" } });
+  expect(screen.getByLabelText("Cliente de la atención")).toHaveValue(customer.id);
+  expect(screen.getByLabelText("Venta relacionada")).toHaveValue("sale-1");
+  expect(screen.getByRole("link", { name: "Consultar seguimiento de origen" })).toHaveAttribute("href", `/followups?task_id=${sourceId}`);
+  expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Registrar atención" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => String(url) === "/api/v1/service-cases" && init?.method === "POST")).toBe(true));
+  const [, init] = fetchMock.mock.calls.find(([url, init]) => String(url) === "/api/v1/service-cases" && init?.method === "POST")!;
+  expect(JSON.parse(String(init?.body))).toMatchObject({
+    customer_id: customer.id, sale_order_id: "sale-1", customer_order_id: null, title: "Revisar entrega",
+    note: "Origen: seguimiento postventa — Revisar entrega\nEl cliente reportó un problema.",
+  });
+  expect(fetchMock.mock.calls.some(([url, init]) => String(url).includes("/crm/followups") && init?.method !== "GET")).toBe(false);
+});
+
+it("does not create a case from a followup that is unavailable in the current scope", async () => {
+  const sourceId = "d5c64945-3224-41cd-8c4a-87bc58af5370";
+  fetchMock.mockImplementation(async (url) => String(url) === `/api/v1/crm/followups/${sourceId}`
+    ? json({ detail: "No encontrado" }, 404) : route(url));
+  mount(`/service-cases?new=1&followup_id=${sourceId}`);
+  await screen.findByText("Este registro no está disponible en tu sucursal o no tienes acceso.");
+  expect(screen.getByRole("button", { name: "Registrar atención" })).toBeDisabled();
+  expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+});
 beforeEach(() => {
   vi.clearAllMocks();
   session.role = "owner";

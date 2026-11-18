@@ -4,6 +4,17 @@ import { beforeEach, expect, it, vi } from "vitest";
 import AutomationsView from "./AutomationsView";
 import type { AutomationsData } from "./types";
 
+const measurement = vi.hoisted(() => ({
+  start: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  finish: vi.fn(),
+  discard: vi.fn(),
+}));
+vi.mock("@/telemetry/useTaskMeasurement", () => ({
+  useTaskMeasurement: () => measurement,
+}));
+
 const session = vi.hoisted(() => ({
   role: "owner",
   mode: "online",
@@ -45,9 +56,9 @@ const json = (data: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 const fetchMock = vi.fn<typeof fetch>();
-const mount = () =>
+const mount = (initialEntries = ["/"]) =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <AutomationsView />
     </MemoryRouter>,
   );
@@ -65,12 +76,24 @@ beforeEach(() => {
   fetchMock.mockImplementation(async () => json(overview()));
 });
 
-it("shows a truthful empty state and disconnected messaging", async () => {
+it("shows pending work first and a collapsed configuration without suggesting external messaging", async () => {
   mount();
   expect(
     await screen.findByText("Todo empieza con un cambio real"),
   ).toBeVisible();
-  expect(screen.getByText("Mensajería externa sin conectar")).toBeVisible();
+  expect(
+    screen.queryByText("Mensajería externa sin conectar"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Configurar reglas" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(
+    screen.queryByRole("button", { name: "Activar Pedido listo" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Configurar reglas" }));
+  expect(
+    screen.getByText(/Estas reglas crean tareas para el equipo/),
+  ).toBeVisible();
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
@@ -82,8 +105,9 @@ it("requires explicit confirmation to activate and sends the current version wit
   );
   mount();
   fireEvent.click(
-    await screen.findByRole("button", { name: "Activar Pedido listo" }),
+    await screen.findByRole("button", { name: "Configurar reglas" }),
   );
+  fireEvent.click(screen.getByRole("button", { name: "Activar Pedido listo" }));
   expect(
     fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT"),
   ).toHaveLength(0);
@@ -119,8 +143,9 @@ it("reloads a stale rule and asks the owner to review before retrying", async ()
   });
   mount();
   fireEvent.click(
-    await screen.findByRole("button", { name: "Activar Pedido listo" }),
+    await screen.findByRole("button", { name: "Configurar reglas" }),
   );
+  fireEvent.click(screen.getByRole("button", { name: "Activar Pedido listo" }));
   fireEvent.click(screen.getByRole("button", { name: "Confirmar activación" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Los datos cambiaron",
@@ -140,7 +165,9 @@ it("does not fetch administrative data for a cashier or offline session", () => 
   session.role = "owner";
   session.mode = "offline";
   mount();
-  expect(screen.getByRole("main")).toContainElement(screen.getByRole("heading", { name: "Seguimiento del negocio" }));
+  expect(screen.getByRole("main")).toContainElement(
+    screen.getByRole("heading", { name: "Seguimiento del negocio" }),
+  );
   expect(screen.getByText(/Conéctate para consultar/)).toBeVisible();
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -148,6 +175,7 @@ it("does not fetch administrative data for a cashier or offline session", () => 
 it("blocks mutations immediately when connectivity drops", async () => {
   mount();
   await screen.findByText("Todo empieza con un cambio real");
+  fireEvent.click(screen.getByRole("button", { name: "Configurar reglas" }));
   Object.defineProperty(navigator, "onLine", {
     configurable: true,
     value: false,
@@ -157,7 +185,7 @@ it("blocks mutations immediately when connectivity drops", async () => {
     screen.getByRole("button", { name: "Activar Pedido listo" }),
   ).toBeDisabled();
   expect(
-    screen.getByRole("button", { name: "Revisar eventos" }),
+    screen.getByRole("button", { name: "Buscar nuevos pendientes" }),
   ).toBeDisabled();
 });
 
@@ -205,6 +233,9 @@ it("resolves a pending task with its version without executing a financial actio
   expect(
     await screen.findByText("Tarea marcada como completada."),
   ).toBeVisible();
+  expect(measurement.start).toHaveBeenCalledTimes(1);
+  expect(measurement.pause).toHaveBeenCalledTimes(1);
+  expect(measurement.finish).toHaveBeenCalledWith("completed");
 });
 
 it("discards pending private responses after changing the business", async () => {
@@ -226,6 +257,9 @@ it("discards pending private responses after changing the business", async () =>
     <MemoryRouter>
       <AutomationsView />
     </MemoryRouter>,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Configurar reglas" }),
   );
   expect(await screen.findByText("Regla del nuevo negocio")).toBeVisible();
   const previous = overview();
@@ -271,6 +305,7 @@ it("keeps overdue service-case rules opt-in and links the actual case without tr
     "href",
     "/service-cases?case_id=11111111-1111-4111-8111-111111111111",
   );
+  fireEvent.click(screen.getByRole("button", { name: "Configurar reglas" }));
   expect(screen.getByRole("button", { name: /Activar/ })).toBeVisible();
   expect(
     screen.queryByText(/Versión del recurso 179240/),
@@ -278,4 +313,90 @@ it("keeps overdue service-case rules opt-in and links the actual case without tr
   expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(
     true,
   );
+});
+
+it("opens the exact inventory product, hides internal revisions and focuses a linked task before configuration", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const productId = "22222222-2222-4222-8222-222222222222";
+  const data = overview();
+  data.runs = [
+    {
+      id,
+      template_key: "restock_review",
+      title: "Revisa la reposición del producto",
+      status: "pending",
+      entity_id: productId,
+      entity_type: "product",
+      entity_version: 1792400000000000,
+      version: 1,
+      created_at: "2026-10-19T12:00:00Z",
+      resolved_at: null,
+    },
+  ];
+  fetchMock.mockImplementation(async () => json(data));
+  mount([`/automations?run_id=${id}`]);
+  expect(
+    await screen.findByRole("link", { name: "Revisar producto en inventario" }),
+  ).toHaveAttribute("href", `/inventory?product=${productId}`);
+  await waitFor(() =>
+    expect(
+      screen.getByRole("article", { name: /Tarea seleccionada:/ }),
+    ).toHaveFocus(),
+  );
+  expect(
+    screen.queryByText(/Versión del recurso|1792400000000000/),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Configurar reglas" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/automations?limit=200");
+});
+
+it("explains the bounded lookup when a linked task is outside the current sample", async () => {
+  mount(["/automations?run_id=11111111-1111-4111-8111-111111111111"]);
+  expect(
+    await screen.findByText(/La tarea no está disponible en las últimas 200/),
+  ).toBeVisible();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(
+    true,
+  );
+});
+
+it("reports a failed attempt only after the server rejects task resolution, never on local click", async () => {
+  let finishResolution: ((response: Response) => void) | undefined;
+  const data = overview();
+  data.runs = [
+    {
+      id: "run-1",
+      template_key: "restock_review",
+      title: "Revisar producto",
+      status: "pending",
+      entity_id: "product-1",
+      entity_type: "product",
+      entity_version: 1,
+      version: 1,
+      created_at: "2026-10-19T12:00:00Z",
+      resolved_at: null,
+    },
+  ];
+  fetchMock.mockImplementation(async (_url, init) =>
+    init?.method === "POST"
+      ? new Promise<Response>((resolve) => {
+          finishResolution = resolve;
+        })
+      : json(data),
+  );
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Completar Revisar producto" }),
+  );
+  expect(measurement.start).toHaveBeenCalledTimes(1);
+  expect(measurement.pause).toHaveBeenCalledTimes(1);
+  expect(measurement.finish).not.toHaveBeenCalled();
+  finishResolution!(json({ detail: "No disponible" }, 503));
+  await screen.findByRole("alert");
+  expect(measurement.finish).toHaveBeenCalledExactlyOnceWith("failed");
+  expect(
+    screen.queryByText("Tarea marcada como completada."),
+  ).not.toBeInTheDocument();
 });

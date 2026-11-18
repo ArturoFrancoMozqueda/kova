@@ -41,7 +41,7 @@ export function OperationsSession({
     return (
       <ViewPermissionDenied
         title="Acceso de administración"
-        description="El dueño o gerente puede administrar el seguimiento y las automatizaciones del negocio."
+        description="El dueño o gerente puede administrar el seguimiento y las reglas de tareas del negocio."
       />
     );
   }

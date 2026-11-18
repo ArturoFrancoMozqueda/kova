@@ -31,7 +31,7 @@ const sectionDetails: Record<string, { description: string; keywords: string; ta
   "/followups": { description: "Da seguimiento después de una venta.", keywords: "postventa seguimiento después de la venta seguimiento recompra clientes tareas" },
   "/crm": { description: "Organiza oportunidades y próximas acciones comerciales.", keywords: "seguimiento comercial oportunidades prospectos interesados seguimiento comercial vender clientes" },
   "/quotes": { description: "Prepara cotizaciones para tus clientes.", keywords: "crear nuevo nueva preparar cotizar cotizaciones presupuesto propuesta precios" },
-  "/automations": { description: "Configura reglas y revisa sus ejecuciones.", keywords: "automatizar automatizaciones reglas recordatorios tareas" },
+  "/automations": { description: "Configura reglas que crean tareas internas para tu equipo.", keywords: "automatizar automatizaciones reglas recordatorios tareas" },
   "/assistant": { description: "Consulta al asistente sobre tu negocio.", keywords: "asistente preguntas ayuda analisis negocio" },
   "/settings/public-catalog": { description: "Comparte productos con fotos y recibe solicitudes.", keywords: "compartir publicar productos catalogo publico menu digital enlace link copiar codigo qr fotos whatsapp" },
   "/settings/channels": { description: "Consulta la disponibilidad y conexión de canales.", keywords: "canales conectar whatsapp meta mensajes integracion" },

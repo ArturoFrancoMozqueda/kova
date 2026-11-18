@@ -5,6 +5,9 @@ export type CachedCustomerOrders = {
   tenant_id: string;
   branch_id?: string;
   cached_at: string;
+  // Legacy cached_at could describe a different record; never infer freshness.
+  list_cached_at?: string | null;
+  detail_cached_at?: Record<string, string>;
   list: CustomerOrderListResponse;
   details: Record<string, CustomerOrder>;
 };
@@ -14,13 +17,18 @@ export async function saveCustomerOrderList(
   list: CustomerOrderListResponse,
   branchId = tenantId,
 ): Promise<void> {
-  const existing = await readCustomerOrderCache(tenantId, branchId);
-  await offlineDb.customer_orders_cache.put({
-    tenant_id: tenantId,
-    branch_id: branchId,
-    cached_at: new Date().toISOString(),
-    list,
-    details: existing?.details ?? {},
+  await offlineDb.transaction("rw", offlineDb.customer_orders_cache, async () => {
+    const existing = await readCustomerOrderCache(tenantId, branchId);
+    const cachedAt = new Date().toISOString();
+    await offlineDb.customer_orders_cache.put({
+      tenant_id: tenantId,
+      branch_id: branchId,
+      cached_at: cachedAt,
+      list_cached_at: cachedAt,
+      detail_cached_at: existing?.detail_cached_at ?? {},
+      list,
+      details: existing?.details ?? {},
+    });
   });
 }
 
@@ -29,26 +37,31 @@ export async function saveCustomerOrderDetail(
   detail: CustomerOrder,
   branchId = tenantId,
 ): Promise<void> {
-  const existing = await readCustomerOrderCache(tenantId, branchId);
-  await offlineDb.customer_orders_cache.put({
-    tenant_id: tenantId,
-    branch_id: branchId,
-    cached_at: new Date().toISOString(),
-    list: existing?.list ?? {
-      items: [],
-      total: 0,
-      limit: 0,
-      offset: 0,
-      status_counts: {
-        new: 0,
-        confirmed: 0,
-        in_progress: 0,
-        ready: 0,
-        fulfilled: 0,
-        cancelled: 0,
+  await offlineDb.transaction("rw", offlineDb.customer_orders_cache, async () => {
+    const existing = await readCustomerOrderCache(tenantId, branchId);
+    const cachedAt = new Date().toISOString();
+    await offlineDb.customer_orders_cache.put({
+      tenant_id: tenantId,
+      branch_id: branchId,
+      cached_at: cachedAt,
+      list_cached_at: existing?.list_cached_at ?? null,
+      detail_cached_at: { ...(existing?.detail_cached_at ?? {}), [detail.id]: cachedAt },
+      list: existing?.list ?? {
+        items: [],
+        total: 0,
+        limit: 0,
+        offset: 0,
+        status_counts: {
+          new: 0,
+          confirmed: 0,
+          in_progress: 0,
+          ready: 0,
+          fulfilled: 0,
+          cancelled: 0,
+        },
       },
-    },
-    details: { ...(existing?.details ?? {}), [detail.id]: detail },
+      details: { ...(existing?.details ?? {}), [detail.id]: detail },
+    });
   });
 }
 

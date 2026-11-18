@@ -1,0 +1,142 @@
+{
+  "2.3.2": {
+    "npmGitHead": "81cba8d4b767cab3cb29d26eb4f691eed75b73b2",
+    "originalTarball": "https://registry.npmjs.org/picomatch/-/picomatch-2.3.2.tgz",
+    "originalIntegrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==",
+    "testFile": "test/options.maxExtglobRecursion.js",
+    "testFileSha256": "e19d89d71069b11cf838518fa98c3245a06eb35d59b9f19c179f2e504cc80a9d",
+    "upstreamStats": {
+      "suites": 130,
+      "tests": 1972,
+      "passes": 1970,
+      "pending": 0,
+      "failures": 2,
+      "start": "2026-11-18T00:40:13.654Z",
+      "end": "2026-11-18T00:40:14.002Z",
+      "duration": 348
+    },
+    "intentionalUnsafeFailures": [
+      "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+      "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false"
+    ],
+    "securityRegressions": {
+      "status": "passed",
+      "packageVersion": "2.3.2",
+      "cases": 81
+    },
+    "vulnerableControl": {
+      "status": "failed",
+      "packageVersion": "2.3.2",
+      "cases": 81,
+      "case": "leading-star",
+      "reason": "ETIMEDOUT"
+    },
+    "parseSha256": "725a0361f36536dfc68d4ea7f16fdfbe839275d2b90f19f5e59865d0558a207f",
+    "onlyChangedRuntimeFile": "lib/parse.js",
+    "upstreamReportSha256": "683a6303c4d26c30f17b975ab54afe4d049f221494971344c8f82e107ff7f46c",
+    "intentionalFailureMessages": [
+      {
+        "test": "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '^(?:(?=.)(?:a)+)$'\n- '^(?:(?=.)(?:(?:a)+)+)$'\n               ^\n"
+      },
+      {
+        "test": "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false",
+        "message": "The expression evaluated to a falsy value:\n\n  assert(\n"
+      }
+    ]
+  },
+  "4.0.4": {
+    "npmGitHead": "e5474fc1a4d7991870058170407dda8a42be5334",
+    "originalTarball": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.4.tgz",
+    "originalIntegrity": "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==",
+    "testFile": "test/options.maxExtglobRecursion.js",
+    "testFileSha256": "e19d89d71069b11cf838518fa98c3245a06eb35d59b9f19c179f2e504cc80a9d",
+    "upstreamStats": {
+      "suites": 131,
+      "tests": 1975,
+      "passes": 1973,
+      "pending": 0,
+      "failures": 2,
+      "start": "2026-11-18T00:40:13.637Z",
+      "end": "2026-11-18T00:40:13.982Z",
+      "duration": 345
+    },
+    "intentionalUnsafeFailures": [
+      "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+      "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false"
+    ],
+    "securityRegressions": {
+      "status": "passed",
+      "packageVersion": "4.0.4",
+      "cases": 82
+    },
+    "vulnerableControl": {
+      "status": "failed",
+      "packageVersion": "4.0.4",
+      "cases": 82,
+      "case": "leading-star",
+      "reason": "ETIMEDOUT"
+    },
+    "parseSha256": "b5630a73da593f08b73b71e1f7740fd55287ed705579aa98f69bb2804c9166fb",
+    "onlyChangedRuntimeFile": "lib/parse.js",
+    "upstreamReportSha256": "1a09ff3a795d0cc328dc8c47a1ed767856a4ed95480572f661f35aa61762ce3a",
+    "intentionalFailureMessages": [
+      {
+        "test": "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '^(?:(?=.)(?:a)+)$'\n- '^(?:(?=.)(?:(?:a)+)+)$'\n               ^\n"
+      },
+      {
+        "test": "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false",
+        "message": "The expression evaluated to a falsy value:\n\n  assert(\n"
+      }
+    ]
+  },
+  "4.0.7": {
+    "npmGitHead": "6bb40679c218cefba5d4e9662408c5fdf699a8bb",
+    "originalTarball": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz",
+    "originalIntegrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+    "testFile": "test/options.maxExtglobRecursion.js",
+    "testFileSha256": "5f327500924b9c6563b1ddf3b48b17f65632ee14abdab9a49c29d80b77b1db2a",
+    "upstreamStats": {
+      "suites": 131,
+      "tests": 1983,
+      "passes": 1981,
+      "pending": 0,
+      "failures": 2,
+      "start": "2026-11-18T00:40:13.648Z",
+      "end": "2026-11-18T00:40:13.994Z",
+      "duration": 346
+    },
+    "intentionalUnsafeFailures": [
+      "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+      "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false"
+    ],
+    "securityRegressions": {
+      "status": "passed",
+      "packageVersion": "4.0.7",
+      "cases": 82
+    },
+    "vulnerableControl": {
+      "status": "failed",
+      "packageVersion": "4.0.7",
+      "cases": 82,
+      "case": "leading-star",
+      "reason": "ETIMEDOUT"
+    },
+    "parseSha256": "bf395b0edbfda479084632474ec66baff63ae4b7188d17495e1aaf7fe5d09bc7",
+    "onlyChangedRuntimeFile": "lib/parse.js",
+    "upstreamReportSha256": "14635bf7c90e970ecb0aff953a42c07093a6e59b5783232ef4668fa93b71c3cc",
+    "intentionalFailureMessages": [
+      {
+        "test": "options.maxExtglobRecursion should allow limited nested repeated extglobs when configured",
+        "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '^(?:(?=.)(?:a)+)$'\n- '^(?:(?=.)(?:(?:a)+)+)$'\n               ^\n"
+      },
+      {
+        "test": "options.maxExtglobRecursion should disable the safeguard when maxExtglobRecursion is false",
+        "message": "The expression evaluated to a falsy value:\n\n  assert(\n"
+      }
+    ]
+  },
+  "runnerSha256": "43a8cddb10a8d0adad1285deae446a2951d9de9eba86d77b1065adbd5b20d70a",
+  "recipeSha256": "23c845d6a9b3e4847daad481181ca09fc3acd31dd9f75c3e0755acd10ebf6134"
+}

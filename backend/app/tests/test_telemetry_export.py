@@ -3,6 +3,7 @@ import io
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -13,6 +14,58 @@ from app.orders.models import Order
 from app.telemetry.export import summarize_analysis_adoption
 from app.telemetry.models import TelemetryEvent
 from app.telemetry.schemas import AnalysisAdoptionReport
+
+
+def test_task_experience_requires_operator_key_and_excludes_queued_success(client, monkeypatch):
+    monkeypatch.setattr(settings, "internal_api_key", "task-experience-test-only")
+    url = "/api/v1/telemetry/internal/task-experience"
+    assert client.get(url).status_code == 403
+    headers = {"X-Internal-Key": "task-experience-test-only"}
+    before = client.get(url, headers=headers).json()
+    previous = next(row for row in before["tasks"] if row["task"] == "cash_sale")
+    _signup_and_login(client)
+    context = {"task": "cash_sale", "attempt_id": str(uuid4()), "offline": True}
+    for name, values in (("task_started", context), ("task_finished", {
+        **context, "outcome": "queued", "active_ms": 300, "elapsed_ms": 900,
+    })):
+        payload = {"event_name": name, "client_event_id": str(uuid4()), "properties": values}
+        assert client.post("/api/v1/telemetry/events", json=payload).status_code == 202
+        assert client.post("/api/v1/telemetry/events", json=payload).status_code == 202
+    response = client.get(url, headers=headers)
+    report = response.json()
+    row = next(row for row in report["tasks"] if row["task"] == "cash_sale")
+    assert row["started"] == previous["started"] + 1
+    assert row["queued"] == previous["queued"] + 1
+    assert row["completed"] == previous["completed"]
+    assert report["measurement_source"] == "client_reported"
+    assert "tenant_id" not in response.text and "user_id" not in response.text
+    assert context["attempt_id"] not in response.text
+    assert client.get(url + "?days=8", headers=headers).status_code == 422
+
+
+def test_task_event_with_previous_identity_is_rejected_after_switching_session(client, db):
+    _signup_and_login(client)
+    before = client.get("/api/v1/auth/session").json()
+    response = client.post("/api/v1/auth/signup", json={
+        "email": "other-task-context@example.com", "password": "S3cur3pass!",
+        "tenant_name": "Otro negocio de tareas", "accepted_terms": True,
+    })
+    assert response.status_code == 201
+    login = client.post("/api/v1/auth/login", json={
+        "email": "other-task-context@example.com", "password": "S3cur3pass!",
+    })
+    assert login.status_code == 200
+    assert client.get("/api/v1/auth/session").json()["tenant_id"] != before["tenant_id"]
+    event_id = str(uuid4())
+    response = client.post("/api/v1/telemetry/events", headers={
+        "X-Kova-Expected-Tenant": before["tenant_id"],
+        "X-Kova-Expected-User": before["user"]["id"],
+    }, json={"event_name": "task_started", "client_event_id": event_id,
+             "properties": {"task": "cash_sale", "attempt_id": str(uuid4()), "offline": True}})
+    assert response.status_code == 409
+    assert db.scalar(select(func.count()).select_from(TelemetryEvent).where(
+        TelemetryEvent.client_event_id == event_id,
+    )) == 0
 
 # Password cost is incidental to these business scenarios; real auth routes stay active.
 pytestmark = pytest.mark.usefixtures("fast_business_auth")

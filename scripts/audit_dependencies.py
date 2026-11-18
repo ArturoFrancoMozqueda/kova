@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """Audit the exact shipped/build dependency inventories without installing them.
 
-Python advisories of any severity and npm HIGH/CRITICAL findings block CI.
+Python advisories of any severity and unremediated npm HIGH/CRITICAL findings block CI.
 Image scans include unfixed HIGH/CRITICAL OS and language vulnerabilities.
-No vulnerability is suppressed. Network/tool/report errors also fail closed.
+Raw advisories are retained; the exact, expiring picomatch source remediation
+is verified separately. Network/tool/report errors also fail closed.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -18,6 +21,9 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+_BACKPORT_SPEC = importlib.util.spec_from_file_location("kova_npm_backport", ROOT / "scripts/npm_backport.py")
+BACKPORT = importlib.util.module_from_spec(_BACKPORT_SPEC)
+_BACKPORT_SPEC.loader.exec_module(BACKPORT)
 NPM_LOCKS = (
     "frontend/package-lock.json",
     "deploy/cloudflare/package-lock.json",
@@ -110,7 +116,9 @@ def npm_report_passed(report: Path) -> bool:
     try:
         data = json.loads(report.read_text())
         counts = data["metadata"]["vulnerabilities"]
-        return not data.get("error") and counts["high"] == 0 and counts["critical"] == 0
+        return not data.get("error") and all(
+            type(counts[key]) is int and counts[key] == 0 for key in ("high", "critical")
+        )
     except (OSError, ValueError, KeyError, TypeError):
         return False
 
@@ -151,15 +159,48 @@ def audit_python(output: Path) -> bool:
 
 def audit_npm(output: Path) -> bool:
     success = True
+    reviewed = None
+    effective = []
     for index, lock in enumerate(NPM_LOCKS):
         print(f"npm advisory scan: {lock} (all dependencies, HIGH/CRITICAL gate)", flush=True)
         report_path = output / f"npm-{index}.json"
         with report_path.open("w") as report:
-            passed = _run([
+            completed = subprocess.run([
                 "npm", "audit", "--package-lock-only", "--audit-level=high", "--json",
                 "--prefix", str(ROOT / Path(lock).parent),
-            ], stdout=report)
-        success = npm_report_passed(report_path) and passed and success
+            ], cwd=ROOT, stdout=report, check=False,
+               env={key: value for key, value in os.environ.items()
+                    if key not in {"KOVA_UPSTREAM_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"}})
+        passed = False
+        try:
+            inventory = json.loads((ROOT / lock).read_text())
+            raw = json.loads(report_path.read_text())
+            counts = raw["metadata"]["vulnerabilities"]
+            if any(type(counts[key]) is not int or counts[key] < 0 for key in ("high", "critical")):
+                raise BACKPORT.BackportError("Invalid npm advisory counts")
+            expected_exit = 1 if counts["high"] or counts["critical"] else 0
+            if raw.get("error") or completed.returncode != expected_exit:
+                raise BACKPORT.BackportError("npm tool status/report mismatch")
+            has_picomatch = any(re.search(r"(?:^|/)node_modules/picomatch$", path)
+                                for path in inventory["packages"])
+            if has_picomatch:
+                if reviewed is None:
+                    BACKPORT.verify_install_contracts()
+                    reviewed, _ = BACKPORT.verify_recipes(
+                        output, token=os.environ.get("KOVA_UPSTREAM_GITHUB_TOKEN"),
+                    )
+                copies = BACKPORT.reviewed_lock_copies(inventory, reviewed)
+                passed = BACKPORT.raw_findings_covered(raw, inventory, copies)
+            else:
+                passed = npm_report_passed(report_path) and completed.returncode == 0
+            effective.append({"lock": lock, "raw": report_path.name, "raw_counts": counts,
+                              "verified_local_backport": has_picomatch and passed,
+                              "passed": passed})
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
+            effective.append({"lock": lock, "passed": False, "reason": str(error)})
+        success = passed and success
+    # Preserve raw npm JSON and counts. This separate report explains coverage.
+    (output / "npm-security-decisions.json").write_text(json.dumps(effective, indent=2) + "\n")
     return success
 
 

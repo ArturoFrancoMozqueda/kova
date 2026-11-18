@@ -137,7 +137,7 @@ cohort checks. Bodies are bounded and validated; outages never return success.
 Build and validate locally with Node 24 and Docker:
 
 ```sh
-npm ci --prefix deploy/cloudflare-native
+node frontend/scripts/security/install.mjs --project deploy/cloudflare-native
 npm test --prefix deploy/cloudflare-native
 KOVA_BUILD_SHA="$(git rev-parse HEAD)" node deploy/cloudflare-native/build.mjs
 ```

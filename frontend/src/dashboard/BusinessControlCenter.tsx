@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 import {
-  ArrowUpRight, CalendarClock, CalendarDays, ChartNoAxesCombined, CircleDollarSign,
+  ArrowUpRight, CalendarClock, ChartNoAxesCombined, CircleDollarSign,
   ClipboardCheck, Handshake, LifeBuoy, ListTodo, MessageCircle, Package,
   PackageCheck, PackageMinus, PackageX, Settings2, ShoppingBag, Users, Wallet,
   Workflow, type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
+import { workspaceGroups, workspaceGroupLabels, type WorkspaceGroupId, type WorkspaceNavigationContext } from "@/layout/workspaceNavigation";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/orders/format";
 import { DashboardScopeLink } from "./DashboardSupervision";
@@ -18,44 +18,19 @@ type Snapshot = {
   lowStockCount: number;
 };
 
-const areas = [
-  {
-    id: "sales", title: "Ventas y caja", icon: ShoppingBag,
-    description: "De la cotización al cobro y al corte de caja.",
-    paths: ["/register", "/orders", "/pedidos", "/quotes", "/shifts"],
-    prompt: "Consulta tus ventas y turnos",
-  },
-  {
-    id: "products", title: "Productos e inventario", icon: Package,
-    description: "Qué puedes vender y qué necesitas reponer.",
-    paths: ["/inventory", "/catalog", "/replenishment", "/purchasing"],
-    prompt: "Consulta tus existencias",
-  },
-  {
-    id: "customers", title: "Clientes y oportunidades", icon: Users,
-    description: "Conoce a tus clientes y da seguimiento a cada oportunidad.",
-    paths: ["/customers", "/crm", "/commercial-requests", "/followups", "/loyalty", "/settings/public-catalog"],
-    prompt: "Historial, seguimiento y recompra",
-  },
-  {
-    id: "attention", title: "Atención y agenda", icon: CalendarDays,
-    description: "Revisa lo que hay por atender y organiza tu día.",
-    paths: ["/operations-queue", "/appointments", "/service-cases", "/inbox"],
-    prompt: "Consulta pendientes y citas",
-  },
-  {
-    id: "money", title: "Finanzas y análisis", icon: ChartNoAxesCombined,
-    description: "Entiende tus resultados, gastos y movimientos de dinero.",
-    paths: ["/reports", "/expenses", "/reconciliation", "/assistant"],
-    prompt: "Revisa cómo se mueve tu dinero",
-  },
-  {
-    id: "business", title: "Configuración del negocio", icon: Settings2,
-    description: "Administra tu equipo, reglas, conexiones y suscripción.",
-    paths: ["/settings", "/automations", "/settings/channels", "/settings/integrations", "/settings/billing"],
-    prompt: "Consulta configuración y disponibilidad",
-  },
-] as const;
+// Navigation and the panel share the same scopes. Server metric definitions
+// stay unchanged; a metric is shown beside its real destination.
+const areaDetails: Record<WorkspaceGroupId, { icon: LucideIcon; description: string; prompt: string; sourceKeys: string[] }> = {
+  sales: { icon: ShoppingBag, description: "De tu menú y las solicitudes al pedido, cobro y corte.", prompt: "Consulta tus ventas y turnos", sourceKeys: ["sales", "customers"] },
+  customers: { icon: Users, description: "Consulta clientes, oportunidades, citas y atención.", prompt: "Consulta clientes, pendientes y citas", sourceKeys: ["customers", "attention"] },
+  operation: { icon: Package, description: "Qué puedes vender, qué falta y qué necesita tu equipo.", prompt: "Consulta tus existencias", sourceKeys: ["products"] },
+  analysis: { icon: ChartNoAxesCombined, description: "Entiende tus resultados, gastos y depósitos.", prompt: "Revisa cómo se mueve tu dinero", sourceKeys: ["money"] },
+  settings: { icon: Settings2, description: "Administra tu equipo, reglas, conexiones y suscripción.", prompt: "Consulta configuración y disponibilidad", sourceKeys: ["business"] },
+};
+const areas = workspaceGroups.map(group => ({
+  ...group, ...areaDetails[group.id], title: workspaceGroupLabels[group.id],
+  paths: group.id === "sales" ? ["/register", "/pedidos", "/orders", ...group.paths] : group.paths,
+}));
 
 const metricIcons: Record<string, LucideIcon> = {
   orders_ready: PackageCheck, open_shifts: Wallet,
@@ -81,9 +56,9 @@ export function BusinessControlCenter({ destinations, snapshot, control = null, 
     {metric.detail && <dd className="mt-1 text-xs text-kova-muted">{metric.detail}</dd>}
   </div>;
   const primaryKeys: Record<string, string[]> = {
-    sales: ["orders_ready", "open_shifts"], products: ["low_stock", "out_of_stock"],
-    customers: ["opportunities", "followups"], attention: ["appointments_today", "cases_open"],
-    money: ["gross_profit", "unmatched_amount"], business: ["automation_pending", "whatsapp"],
+    sales: ["orders_ready", "open_shifts"], operation: ["low_stock", "out_of_stock"],
+    customers: ["opportunities", "cases_open", "followups", "appointments_today"],
+    analysis: ["gross_profit", "unmatched_amount"], settings: ["automation_pending", "whatsapp"],
   };
   const visibleAreas = areas.flatMap(area => {
     const links = area.paths.flatMap(path => destinations.filter(destination => destination.to === path));
@@ -105,15 +80,18 @@ export function BusinessControlCenter({ destinations, snapshot, control = null, 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visibleAreas.map(area => {
           const Icon = area.icon;
-          const live = control?.areas.find(item => item.key === area.id);
-          const liveMetrics = live?.metrics.filter(metric => allowed.has(controlRoutes[metric.route_key])) ?? [];
+          const sourceAreas = control?.areas.filter(item => area.sourceKeys.includes(item.key)) ?? [];
+          const live = control ? { status: sourceAreas.length === 0 || sourceAreas.every(item => item.status === "unavailable") ? "unavailable" : "ready" } : null;
+          const partialError = sourceAreas.some(item => item.status === "unavailable") && live?.status === "ready";
+          const liveMetrics = control?.areas.flatMap(item => item.status === "ready" ? item.metrics : [])
+            .filter(metric => allowed.has(controlRoutes[metric.route_key]) && area.paths.includes(controlRoutes[metric.route_key])) ?? [];
           const preferred = primaryKeys[area.id].flatMap(key => liveMetrics.filter(metric => metric.key === key));
           const primary = [...preferred, ...liveMetrics.filter(metric => !preferred.includes(metric))].slice(0, 2);
           const secondary = liveMetrics.filter(metric => !primary.includes(metric));
-          const needsStock = area.id === "products" && (control
+          const needsStock = area.id === "operation" && (control
             ? liveMetrics.some(metric => ["low_stock", "out_of_stock"].includes(metric.key) && Number(metric.value) > 0)
             : snapshot !== null && snapshot.lowStockCount > 0);
-          const hasMetric = snapshot !== null && (area.id === "sales" || area.id === "products");
+          const hasMetric = snapshot !== null && (area.id === "sales" || area.id === "operation");
           return (
             <article key={area.id} aria-labelledby={`control-${area.id}`} className="flex min-w-0 flex-col overflow-hidden rounded-kova-xl border border-kova-border bg-white shadow-kova-card">
               <div className={cn("h-1", needsStock ? "bg-warning" : "bg-kova-blue/30")} />
@@ -146,12 +124,13 @@ export function BusinessControlCenter({ destinations, snapshot, control = null, 
                 })}</dl> : <p className={cn("my-4 text-sm font-semibold", needsStock ? "text-warning-foreground" : "text-kova-ink")}>
                   {snapshot && area.id === "sales"
                     ? `${snapshot.orderCount} ${snapshot.orderCount === 1 ? "venta completada" : "ventas completadas"}`
-                    : snapshot && area.id === "products"
+                    : snapshot && area.id === "operation"
                       ? needsStock
                         ? `${snapshot.lowStockCount} ${snapshot.lowStockCount === 1 ? "producto por reponer" : "productos por reponer"}`
                         : `${snapshot.activeCatalogCount} ${snapshot.activeCatalogCount === 1 ? "producto activo" : "productos activos"}`
                       : area.prompt}
                 </p>}
+                {partialError && <p role="status" className="mb-3 text-sm text-warning-foreground">Parte de esta área no se pudo actualizar. Las cifras disponibles conservan su alcance.</p>}
                 {loading ? <div className="mt-auto border-t border-kova-border pt-2" aria-hidden="true"><Skeleton className="my-3 h-5 w-48 max-w-full" /></div> : control ? <details className="mt-auto border-t border-kova-border pt-2">
                   <summary className="min-h-11 cursor-pointer rounded-kova-md py-3 text-sm font-medium text-kova-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">Ver detalle y herramientas</summary>
                   {secondary.length > 0 && <dl className="mb-3">{secondary.map(metricRow)}</dl>}

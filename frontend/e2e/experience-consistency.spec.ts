@@ -55,8 +55,8 @@ const areas = [
   },
   {
     key: "seguimiento", path: "/followups", title: "Seguimiento después de la venta", action: "Registrar incidencia",
-    empty: "No hay tareas de postventa en esta página.", form: "followup-incident-form",
-    fields: ["Buscar cliente", "Cliente de la incidencia", "Asunto de la incidencia", "Nota interna", "Fecha de seguimiento"],
+    empty: "No hay tareas de postventa en esta página.", form: "service-case-create-form",
+    fields: ["Buscar cliente", "Cliente de la atención", "Asunto de la atención", "Nota inicial privada", "Responsable de la atención", "Vencimiento de la atención (opcional)"],
   },
   {
     key: "bandeja", path: "/inbox", title: "Conversaciones", action: "Nueva conversación interna",
@@ -90,15 +90,23 @@ for (const width of [390, 1440]) {
       const heading = page.getByRole("heading", { name: area.title, level: 1, exact: true });
       await expect(heading).toBeVisible();
       await expect(page.getByRole("heading", { name: area.empty, exact: true })).toBeVisible();
-      const header = heading.locator("..").locator("..");
-      const action = header.getByRole("button", { name: area.action, exact: true });
+      let header = heading.locator("..").locator("..");
+      const action = header.getByRole(area.key === "seguimiento" ? "link" : "button", { name: area.action, exact: true });
       await expect(action).toBeVisible();
       await expect(action).toBeEnabled();
-      await expect(action).toHaveAttribute("aria-expanded", "false");
-      await expect(action).toHaveAttribute("aria-controls", area.form);
+      if (area.key !== "seguimiento") {
+        await expect(action).toHaveAttribute("aria-expanded", "false");
+        await expect(action).toHaveAttribute("aria-controls", area.form);
+      } else {
+        await expect(action).toHaveAttribute("href", "/service-cases?new=1");
+      }
       await noHorizontalOverflow(page);
 
       await action.click();
+      if (area.key === "seguimiento") {
+        await expect(page).toHaveURL(/\/service-cases\?new=1$/);
+        header = page.getByRole("heading", { name: "Casos de atención", exact: true }).locator("..").locator("..");
+      }
       const formAction = header.locator(`button[aria-controls="${area.form}"]`);
       await expect(formAction).toHaveAttribute("aria-expanded", "true");
       const form = page.locator(`form#${area.form}`);
@@ -121,8 +129,8 @@ for (const width of [390, 1440]) {
         await form.getByLabel("Asunto de la atención", { exact: true }).fill("Revisar lo ocurrido con el pedido");
         await form.getByLabel("Nota inicial privada", { exact: true }).fill("Registrar contexto y acordar el siguiente paso.");
       } else if (area.key === "seguimiento") {
-        await form.getByLabel("Asunto de la incidencia", { exact: true }).fill("Revisar comentario del cliente");
-        await form.getByLabel("Nota interna", { exact: true }).fill("Pendiente interno sin contacto externo.");
+        await form.getByLabel("Asunto de la atención", { exact: true }).fill("Revisar comentario del cliente");
+        await form.getByLabel("Nota inicial privada", { exact: true }).fill("Pendiente interno sin contacto externo.");
       } else {
         await form.getByLabel("Asunto de la conversación", { exact: true }).fill("Consulta de productos para un pedido de aniversario");
       }
@@ -139,13 +147,14 @@ for (const width of [390, 1440]) {
 
       const draftLabel = area.key === "agenda" ? "Motivo de la cita"
         : area.key === "atencion" ? "Asunto de la atención"
-        : area.key === "seguimiento" ? "Asunto de la incidencia" : "Asunto de la conversación";
+        : area.key === "seguimiento" ? "Asunto de la atención" : "Asunto de la conversación";
       const draft = await form.getByLabel(draftLabel, { exact: true }).inputValue();
       // Folding is navigation within the task; it must not submit or discard the draft.
       await formAction.click();
-      await expect(header.getByRole("button", { name: area.action, exact: true })).toHaveAttribute("aria-expanded", "false");
+      const reopenName = area.key === "seguimiento" ? "Nueva atención postventa" : area.action;
+      await expect(header.getByRole("button", { name: reopenName, exact: true })).toHaveAttribute("aria-expanded", "false");
       await expect(form).toHaveCount(0);
-      await header.getByRole("button", { name: area.action, exact: true }).click();
+      await header.getByRole("button", { name: reopenName, exact: true }).click();
       await expect(form.getByLabel(draftLabel, { exact: true })).toHaveValue(draft);
       if (area.key === "agenda") {
         await expect(form.getByRole("combobox", { name: "Persona o espacio de la cita", exact: true })).toHaveValue("resource-1");

@@ -21,5 +21,8 @@ modifica costos del catálogo, envía comunicaciones ni crea gastos o pagos.
 presenta resumen para confirmar y enlaza a Compras para recepción posterior. Si falta costo,
 no selecciona el producto automáticamente ni inventa su importe.
 
+Un error al consultar sugerencias o proveedores muestra recuperación y no presenta «Sin productos
+debajo del mínimo» ni permite aprobar datos anteriores. El estado vacío requiere una carga exitosa.
+
 Pruebas: aprobación y replay, stock sin recibir, mercancía entrante, evidencia obsoleta por
 ajuste o compra, costo faltante, roles y aislamiento. QA UI cubre confirmación en dos pasos y 409.

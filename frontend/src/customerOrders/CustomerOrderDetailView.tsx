@@ -1,6 +1,6 @@
 import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { getActiveBranchId } from "@/branches/activeBranch";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Banknote, ChevronLeft, ChevronRight, MapPin, Pencil, Phone, Printer, Store, XCircle } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -28,6 +28,14 @@ import type { CustomerOrder } from "./types";
 
 export default function CustomerOrderDetailView() {
   const { orderId = "" } = useParams();
+  const { state } = useAuth();
+  const identity = state.status === "authenticated"
+    ? `${state.tenantId}:${state.user.id}:${state.user.role}:${getActiveBranchId(state.tenantId, state.user.id)}`
+    : state.status;
+  return <CustomerOrderDetailSession key={`${identity}:${orderId}`} orderId={orderId} />;
+}
+
+function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
   const navigate = useNavigate();
   const enabled = useFeature("customer_orders");
   const { state } = useAuth();
@@ -37,10 +45,13 @@ export default function CustomerOrderDetailView() {
   const isManager = role === "owner" || role === "manager";
   const isOnline = useIsOnline();
   const [order, setOrder] = useState<CustomerOrder | null>(null);
+  const [fromCache, setFromCache] = useState(false);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mutating, setMutating] = useState(false);
+  const loadGeneration = useRef(0);
+  const mutationPending = useRef(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<"customer_request" | "out_of_stock" | "duplicate" | "other">("customer_request");
   const [cancelNote, setCancelNote] = useState("");
@@ -49,60 +60,79 @@ export default function CustomerOrderDetailView() {
   useDocumentTitle(order?.folio ?? "Detalle de pedido");
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
     if (!tenantId || !orderId) return;
     setLoading(true);
     setError(null);
-    if (!isOnline) {
+    const loadCachedDetail = async () => {
       const cached = await readCustomerOrderCache(tenantId, branchId);
-      setOrder(cached?.details[orderId] ?? null);
-      setCachedAt(cached?.cached_at ?? null);
-      setError(cached?.details[orderId] ? null : "Este pedido no se había abierto en este dispositivo.");
-      setLoading(false);
-      return;
-    }
-    try {
-      const detail = await getCustomerOrder(orderId);
-      setOrder(detail);
-      setCachedAt(null);
-      await saveCustomerOrderDetail(tenantId, detail, branchId);
-    } catch {
-      const cached = await readCustomerOrderCache(tenantId, branchId);
+      if (!current()) return;
       const detail = cached?.details[orderId] ?? null;
       setOrder(detail);
-      setCachedAt(detail ? cached?.cached_at ?? null : null);
-      setError(detail ? null : "No se pudo cargar el pedido.");
+      setFromCache(true);
+      setCachedAt(cached?.detail_cached_at?.[orderId] ?? null);
+      setError(detail ? null : !isOnline
+        ? "Este pedido no se había abierto en este dispositivo."
+        : "No se pudo cargar el pedido.");
+    };
+    try {
+      if (!isOnline) {
+        await loadCachedDetail();
+      } else {
+        const detail = await getCustomerOrder(orderId);
+        if (!current()) return;
+        setOrder(detail);
+        setFromCache(false);
+        setCachedAt(null);
+        await saveCustomerOrderDetail(tenantId, detail, branchId);
+      }
+    } catch {
+      if (!current()) return;
+      try {
+        await loadCachedDetail();
+      } catch {
+        if (current()) setError("No se pudo cargar el pedido. Intenta de nuevo.");
+      }
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [branchId, isOnline, orderId, tenantId]);
 
   useEffect(() => {
     void load();
+    return () => { loadGeneration.current += 1; };
   }, [load]);
 
   if (!enabled) return <Navigate to="/register" replace />;
   if (loading) return <ViewLayout width="focused"><Skeleton className="h-96 w-full rounded-kova-lg" /></ViewLayout>;
   if (!order) return <ViewLayout width="focused"><ViewError message={error ?? "Pedido no encontrado"} onRetry={() => void load()} retryLabel="Reintentar" /></ViewLayout>;
 
-  const writable = isOnline && !cachedAt;
+  const writable = isOnline && !fromCache && order.id === orderId;
   const canCancel = !["fulfilled", "cancelled"].includes(order.status)
     && (order.payment_status === "unpaid"
       || (isManager && ["refunded", "voided"].includes(order.payment_status)));
 
   const applyMutation = async (mutation: () => Promise<CustomerOrder>) => {
-    if (!writable || mutating) return false;
+    if (!writable || mutationPending.current) return false;
+    mutationPending.current = true;
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
     setMutating(true);
     setError(null);
     try {
       const updated = await mutation();
+      if (!current()) return false;
       setOrder(updated);
       await saveCustomerOrderDetail(tenantId, updated, branchId);
       return true;
     } catch (caught) {
+      if (!current()) return false;
       const api = caught as { detail?: { detail?: { message?: string } } };
       setError(resolveApiErrorMessage(caught, safeUserMessage(api.detail?.detail?.message, "No se pudo actualizar el pedido.")));
       return false;
     } finally {
+      mutationPending.current = false;
       setMutating(false);
     }
   };
@@ -128,7 +158,7 @@ export default function CustomerOrderDetailView() {
         <h1 className="mt-1 text-2xl font-bold">{order.folio}</h1>
       </div>
 
-      {cachedAt ? <div className="my-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground print:hidden">Solo lectura · actualizado {formatDateTime(cachedAt)}.</div> : null}
+      {fromCache ? <div role="status" className="my-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground print:hidden">{cachedAt ? `Solo lectura · actualizado ${formatDateTime(cachedAt)}.` : "Solo lectura · no conocemos la fecha de actualización de esta copia. Conéctate para consultar el estado actual."}</div> : null}
       {error && !cancelOpen ? <div className="my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive print:hidden"><p role="alert">{error}</p><Button variant="outline" className="mt-2" onClick={() => void load()}>Actualizar pedido</Button></div> : null}
 
       <Card className="mt-5 print:border-0 print:shadow-none">

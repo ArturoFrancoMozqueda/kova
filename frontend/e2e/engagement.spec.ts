@@ -243,11 +243,14 @@ for (const width of [1440, 768, 390, 320]) {
       page.getByRole("button", { name: "Crear oportunidad con este cliente" }),
     ).toBeDisabled();
     await check();
+    await page.route("**/api/v1/service-cases?**", route => route.fulfill({ json: { items: [], has_more: false } }));
+    await page.route("**/api/v1/service-cases/assignees?**", route => route.fulfill({ json: { items: [], has_more: false } }));
     await page.goto("/followups");
     await page.getByText("Configurar tareas después de una venta", { exact: true }).click();
     await page.getByRole("button", { name: "Revisar regla" }).click();
-    await page.getByRole("button", { name: "Registrar incidencia" }).click();
-    await expect(page.getByLabel("Asunto de la incidencia")).toBeVisible();
+    await page.getByRole("link", { name: "Registrar incidencia" }).click();
+    await expect(page).toHaveURL(/\/service-cases\?new=1$/);
+    await expect(page.getByLabel("Asunto de la atención")).toBeVisible();
     await check();
     await page.route("**/api/v1/public/catalog/public-test", (route) =>
       route.fulfill({

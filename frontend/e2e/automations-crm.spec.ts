@@ -60,7 +60,7 @@ for (const width of [1440, 768, 390, 320]) {
         version: 0,
       },
     ];
-    await page.route("**/api/v1/automations", (route) =>
+    await page.route("**/api/v1/automations?limit=200", (route) =>
       route.fulfill({
         json: {
           rules,
@@ -75,8 +75,11 @@ for (const width of [1440, 768, 390, 320]) {
     );
     await page.goto("/automations");
     await expect(
-      page.getByRole("heading", { name: "Automatizaciones", exact: true }),
+      page.getByRole("heading", { name: "Reglas de tareas", exact: true }),
     ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Configurar reglas", exact: true })
+      .click();
     await page
       .getByRole("button", {
         name: "Activar Pedido listo para entregar",
@@ -295,7 +298,7 @@ for (const width of [1440, 768, 390, 320]) {
         exact: true,
       }),
     ).toBeVisible();
-    await page.getByText("Columnas y requisitos del archivo").click();
+    await page.getByText("Cómo llenar la plantilla").click();
     await page.route("**/api/v1/reconciliation/imports/preview", (route) =>
       route.fulfill({
         json: {

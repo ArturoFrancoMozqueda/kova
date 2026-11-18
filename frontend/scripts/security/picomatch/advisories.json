@@ -1,0 +1,98 @@
+[
+  {
+    "cve_id": "CVE-2026-112366",
+    "ghsa_id": "GHSA-fc5q-39xc-vjpf",
+    "html_url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+    "severity": "high",
+    "type": "reviewed",
+    "updated_at": "2026-11-17T15:56:44Z",
+    "vulnerabilities": [
+      {
+        "first_patched_version": null,
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": "<= 4.0.7"
+      }
+    ],
+    "withdrawn_at": null
+  },
+  {
+    "cve_id": "CVE-2026-33672",
+    "ghsa_id": "GHSA-3v7f-55p6-f55p",
+    "html_url": "https://github.com/advisories/GHSA-3v7f-55p6-f55p",
+    "severity": "medium",
+    "type": "reviewed",
+    "updated_at": "2026-03-27T21:36:25Z",
+    "vulnerabilities": [
+      {
+        "first_patched_version": "4.0.4",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": ">= 4.0.0, < 4.0.4"
+      },
+      {
+        "first_patched_version": "3.0.2",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": ">= 3.0.0, < 3.0.2"
+      },
+      {
+        "first_patched_version": "2.3.2",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": "< 2.3.2"
+      }
+    ],
+    "withdrawn_at": null
+  },
+  {
+    "cve_id": "CVE-2026-33671",
+    "ghsa_id": "GHSA-c2c7-rcm5-vvqj",
+    "html_url": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj",
+    "severity": "high",
+    "type": "reviewed",
+    "updated_at": "2026-03-27T21:36:14Z",
+    "vulnerabilities": [
+      {
+        "first_patched_version": "4.0.4",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": ">= 4.0.0, < 4.0.4"
+      },
+      {
+        "first_patched_version": "3.0.2",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": ">= 3.0.0, < 3.0.2"
+      },
+      {
+        "first_patched_version": "2.3.2",
+        "package": {
+          "ecosystem": "npm",
+          "name": "picomatch"
+        },
+        "vulnerable_functions": [],
+        "vulnerable_version_range": "< 2.3.2"
+      }
+    ],
+    "withdrawn_at": null
+  }
+]

@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import ReconciliationView from "./ReconciliationView";
 import type { ReconciliationPreview, SettlementEntry } from "./types";
+import template from "../../public/templates/conciliacion-depositos.csv?raw";
 
 vi.mock("@/auth/useAuth", () => ({
   useAuth: () => ({
@@ -92,6 +93,20 @@ beforeEach(() => {
       });
     return json({ entries: [], has_more: false });
   });
+});
+
+it("offers an empty CSV template and Spanish guidance before the first import", async () => {
+  mount();
+  await screen.findByText("Empieza con una liquidación real");
+  expect(screen.getByRole("link", { name: "Descargar plantilla CSV" }))
+    .toHaveAttribute("href", "/templates/conciliacion-depositos.csv");
+  expect(screen.getByRole("link", { name: "Descargar plantilla CSV" }))
+    .toHaveAttribute("download", "plantilla-conciliacion-depositos.csv");
+  fireEvent.click(screen.getByText("Cómo llenar la plantilla"));
+  expect(screen.getByText(/La plantilla está vacía/)).toBeVisible();
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  expect(template.trim()).toBe("settled_at,gross_amount,fee_amount,net_amount,currency,payment_method,reference");
+  expect(template.trim().split(/\r?\n/)).toHaveLength(1);
 });
 
 it("previews without importing and commits only explicitly selected rows", async () => {

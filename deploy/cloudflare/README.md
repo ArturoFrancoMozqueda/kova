@@ -11,8 +11,8 @@ Document ingestion remains disabled. Fly is permanently retired.
 Use Node 24 and the pinned package locks:
 
 ```sh
-npm ci --prefix frontend
-npm ci --prefix deploy/cloudflare
+node frontend/scripts/security/install.mjs --project frontend
+node frontend/scripts/security/install.mjs --project deploy/cloudflare
 VITE_HOSTING_PROVIDER=cloudflare COMMIT_SHA="$(git rev-parse HEAD)" npm run build --prefix frontend
 npm run check --prefix deploy/cloudflare
 ```

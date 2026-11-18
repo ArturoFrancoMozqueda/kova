@@ -29,11 +29,12 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    let detail: unknown;
+    const body = await response.text();
+    let detail: unknown = body;
     try {
-      detail = await response.json();
+      detail = JSON.parse(body);
     } catch {
-      detail = await response.text();
+      // A proxy's plain-text response must retain its HTTP status too.
     }
     throw new CustomerOrderApiError("No se pudo completar la operación", response.status, detail);
   }

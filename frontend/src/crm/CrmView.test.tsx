@@ -151,7 +151,8 @@ it("requires explicit customer permission and sends channel and purpose separate
     enabled: true,
     expected_version: 0,
   });
-  expect(await screen.findByText(/no se enviaron mensajes/)).toBeVisible();
+  expect(await screen.findByText(/Guardarlo no envía mensajes ni cambia la conexión del canal/)).toBeVisible();
+  expect(screen.queryByText(/El canal permanece sin conectar/)).not.toBeInTheDocument();
 });
 
 it("withdraws only the selected channel and purpose after confirmation", async () => {

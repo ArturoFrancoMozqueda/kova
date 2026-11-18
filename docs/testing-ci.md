@@ -53,14 +53,34 @@ y versiones alternativas del lock, sin instalar ni ejecutar los paquetes auditad
 paquetes Python directos del Dockerfile del parser deben usar `nombre==versión`; su grafo
 resuelto completo se verifica en la imagen construida.
 
-Npm bloquea HIGH/CRITICAL en **todas** las dependencias, incluidas herramientas de build y
-pruebas; los JSON también conservan avisos menores. Python bloquea cualquier aviso conocido,
+Npm bloquea HIGH/CRITICAL sin remediación acreditada en **todas** las dependencias,
+incluidas herramientas de build y pruebas; los JSON conservan los avisos y conteos originales. Python bloquea cualquier aviso conocido,
 incluidos paquetes sin versión corregida. Trivy bloquea HIGH/CRITICAL en OS y librerías de
 ambas imágenes, también sin corrección disponible. No se usan listas de exclusión ni
 `continue-on-error`; fallos de red, herramientas, inventario o reportes también bloquean.
-No hay excepciones vigentes. Cualquier excepción futura requiere revisión específica de
-CVE/paquete/versión, evidencia de no exposición, responsable y fecha de vencimiento; no
-se permiten exclusiones generales por sistema operativo o falta de parche.
+La única remediación local npm vigente corresponde a picomatch 2.3.2/4.0.4/4.0.7 y
+CVE-2026-112366, con fuentes, integridades, hashes por archivo y vigencia máxima de siete días.
+No es una versión oficial corregida ni una exclusión del aviso. El [expediente](audits/PICOMATCH-2026-11-17.md)
+y [ADR-038](adr/ADR-038-verificacion-local-picomatch.md) detallan alcance, evidencia, responsable,
+vencimiento y salida. Todos los HIGH deben quedar explicados por esa corrección; cualquier
+otro HIGH/CRITICAL bloquea. Los avisos menores siguen conservándose sin bloquear, incluso
+cuando son otra hoja de un paquete transitivo afectado también por picomatch.
+
+Instala desde `frontend/` con `node scripts/security/install.mjs`, o desde la raíz con
+`node frontend/scripts/security/install.mjs --project <directorio>`. El instalador deshabilita
+hooks hasta comprobar y aplicar la corrección, y verifica de nuevo después de reconstruir.
+Usar directamente `npm ci` vuelve a instalar las fuentes sin corregir; los guards de build/test
+lo rechazan. CI, release, Docker y el stack de pruebas usan el instalador protegido.
+El gate reconstruye las tres versiones desde npm y corre las regresiones aisladas, conserva
+el raw de npm y de los seis ámbitos del catálogo global de GitHub en `reports/security`, y
+escribe la decisión separada en `npm-security-decisions.json`. Incluso un raw de npm con cero
+exige verificar la receta si hay copias de picomatch. Un cambio de catálogo, inventario,
+bytes, resultado, herramienta o caducidad bloquea. El token de lectura de CI sólo se utiliza
+para consultar GitHub; no llega a npm ni a los procesos de regresión.
+
+Cualquier excepción futura requiere revisión específica de CVE/paquete/versión, evidencia,
+responsable y fecha de vencimiento; no se permiten exclusiones generales por sistema
+operativo o falta de parche.
 
 El parser incorpora fuentes revisadas de Tesseract y backports de libxml2 porque
 el feed de Alpine omite avisos conocidos de esas versiones. Su gate adicional
@@ -194,7 +214,7 @@ Módulos de negocio que optan explícitamente por la fixture:
 
 Desde `backend/`: `uv sync --frozen` y `uv run pytest --durations=40 --junitxml=reports/backend.xml`. Usar exclusivamente una base desechable y las variables del stack de pruebas, nunca una URL alojada.
 
-Desde `frontend/`: `npm ci`, `npm run lint`, `npm test -- --run`, `npm run test:release-contract`, `npm run build`, `npm run check:bundle-secrets`, `npm run test:e2e-preview:built`. `npm run test:e2e-preview` sigue construyendo primero para uso local.
+Desde `frontend/`: `node scripts/security/install.mjs`, `npm run lint`, `npm test -- --run`, `npm run test:release-contract`, `npm run build`, `npm run check:bundle-secrets`, `npm run test:e2e-preview:built`. `npm run test:e2e-preview` sigue construyendo primero para uso local.
 
 Stack real: `scripts/test-stack.sh`. CI incluye el mismo stack con teardown incondicional. Los artefactos de diagnóstico contienen únicamente datos sintéticos del stack o mocks; el job de producción no sube traces, cookies, `.vercel` ni configuración de autenticación.
 

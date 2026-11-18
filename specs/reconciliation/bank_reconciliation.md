@@ -101,6 +101,10 @@ se vuelven candidatas sólo después de sincronizarse al servidor.
 
 ## Aceptación
 
+- La pantalla ofrece una plantilla CSV descargable con los encabezados exactos del parser y sin
+  movimientos de ejemplo. La ayuda explica en español fecha con zona, bruto/comisión/neto,
+  moneda, medio de pago y referencia enmascarada. Descargarla no crea depósitos ni modifica caja.
+
 - Preview no persiste y reporta errores por fila; commit es atómico e idempotente.
 - Importar dos veces el mismo archivo no duplica entradas aun con nombre distinto.
 - Sugerencias deterministas nunca se confirman solas.

@@ -13,7 +13,7 @@ describe("tenant assistant review and privacy", () => {
     window.sessionStorage.clear();
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
       const path = input.split("/assistant")[1];
-      const data = path === "/capabilities" ? { enabled: true, inference_ready: false, configuration: true, documents: false, email: false, role: "owner" }
+      const data = path === "/capabilities" ? { enabled: true, inference_ready: false, local_answers_ready: true, configuration: true, documents: false, email: false, role: "owner" }
         : path === "/preferences" ? { chat_consent: false, document_consent: false, email_opt_in: false, frequency: "weekly" }
         : path === "/usage" ? { tenant_used: 0, tenant_limit: 8000, user_used: 0, user_limit: 6000, reset_at: "2026-10-07T00:00:00Z" }
         : path === "/proposals" && init?.method === "POST" ? proposal
@@ -25,9 +25,28 @@ describe("tenant assistant review and privacy", () => {
   it("does not transmit a query or grant consent on opening", async () => {
     mount();
     expect(document.title).toBe("Asistente · Kova");
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     expect(vi.mocked(fetch).mock.calls.every(([,init]) => init?.method === "GET")).toBe(true);
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Habilitar IA externa" })).toBeNull();
+  });
+  it("submits a local question without granting external consent even if the provider is ready", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const path = String(input).split("/assistant")[1];
+      if (path === "/capabilities") return new Response(JSON.stringify({ enabled: true, inference_ready: true, local_answers_ready: true }));
+      if (path === "/conversations" && init?.method === "POST") return new Response(JSON.stringify({ id: "local-chat", data: {} }));
+      if (path === "/conversations/local-chat/messages") return new Response(JSON.stringify({ id: "local-run", status: "completed", data: {} }));
+      if (path === "/conversations/local-chat") return new Response(JSON.stringify({ messages: [] }));
+      return original(input, init);
+    });
+    mount();
+    const field = await screen.findByRole("textbox", { name: "Tu pregunta" });
+    expect(screen.getByRole("button", { name: "Habilitar IA externa" })).toBeVisible();
+    fireEvent.change(field, { target: { value: "Cuánto vendí hoy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Consultar" }));
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/messages"))).toBe(true));
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/preferences") && init?.method === "PUT")).toBe(false);
   });
   it("recovers failed capability loading without a permanent loading state", async () => {
     const original = vi.mocked(fetch).getMockImplementation()!;
@@ -43,7 +62,7 @@ describe("tenant assistant review and privacy", () => {
     await screen.findByRole("alert");
     expect(screen.queryByText("Cargando el asistente…")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Volver a cargar" }));
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     expect(screen.queryByRole("alert")).toBeNull();
   });
   it("hides unavailable configuration and uploads while keeping follow-up usable", async () => {
@@ -63,7 +82,7 @@ describe("tenant assistant review and privacy", () => {
       ? new Response(JSON.stringify({ tenant_used: 0, tenant_limit: 0, user_used: 0, user_limit: 0, limit_kind: "provider_monthly", reset_at: "2026-12-01T00:00:00Z" }))
       : original(...args));
     mount();
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     expect(screen.queryByText(/capacidad mensual compartida/i)).toBeNull();
   });
   it("requires a separate explicit confirmation after preparing a configuration", async () => {

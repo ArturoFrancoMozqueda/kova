@@ -1,4 +1,11 @@
 export type WorkspaceGroupId = "sales" | "customers" | "operation" | "analysis" | "settings";
+export const workspaceGroupLabels: Record<WorkspaceGroupId, string> = {
+  sales: "Menú y ventas",
+  customers: "Clientes y atención",
+  operation: "Productos y operación",
+  analysis: "Análisis y finanzas",
+  settings: "Configuración",
+};
 export const primaryNavigationPaths = ["/register", "/pedidos", "/orders", "/dashboard"] as const;
 
 /** Already filtered by AppShell's role, feature, capability and session gates. */

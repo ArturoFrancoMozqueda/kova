@@ -15,6 +15,7 @@ import {
   MessageCircle,
   RotateCcw,
   Sparkles,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,9 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { isRecordId } from "./useLinkedRecord";
+import { useOperationsPanel } from "@/automations/useOperationsPanel";
+import type { AutomationsData } from "@/automations/types";
+import { SectionSkeleton } from "@/components/ui/section-skeleton";
 import type {
   OperationsQueueData,
   OperationsQueueSection,
@@ -92,8 +96,16 @@ const stateLabels: Record<OperationsQueueSource, Record<string, string>> = {
   appointment_reminders: { pending: "Pendiente de revisión" },
 };
 const stateIcons: Record<OperationsQueueSource, Record<string, LucideIcon>> = {
-  service_cases: { open: CircleDot, in_progress: Activity, reopened: RotateCcw },
-  opportunities: { new: Sparkles, contacted: MessageCircle, proposal: FileText },
+  service_cases: {
+    open: CircleDot,
+    in_progress: Activity,
+    reopened: RotateCcw,
+  },
+  opportunities: {
+    new: Sparkles,
+    contacted: MessageCircle,
+    proposal: FileText,
+  },
   followups: { pending: Clock },
   appointment_reminders: { pending: BellRing },
 };
@@ -127,6 +139,7 @@ function OperationsQueueWorkspace({
   const generation = useRef(0);
   const [timezone, setTimezone] = useState("UTC");
   const [timezoneAvailable, setTimezoneAvailable] = useState(false);
+  const [ruleRevision, setRuleRevision] = useState(0);
   const load = useCallback(async () => {
     const revision = ++generation.current;
     setLoading(true);
@@ -169,7 +182,10 @@ function OperationsQueueWorkspace({
         !(e instanceof DOMException && e.name === "AbortError")
       )
         setError(
-          resolveUserFacingError(e, "No pudimos consultar los pendientes del negocio."),
+          resolveUserFacingError(
+            e,
+            "No pudimos consultar los pendientes del negocio.",
+          ),
         );
     } finally {
       if (alive.current && revision === generation.current) setLoading(false);
@@ -196,7 +212,8 @@ function OperationsQueueWorkspace({
         meta="Revisa lo que necesita atención y abre cada pendiente para continuar."
       />
       <p className="max-w-3xl text-sm text-kova-muted">
-        Encuentra las atenciones, oportunidades y recordatorios de tu equipo.
+        Encuentra las atenciones, oportunidades, recordatorios y tareas creadas
+        por reglas para tu equipo.
       </p>
       {!online ? (
         <p
@@ -239,7 +256,10 @@ function OperationsQueueWorkspace({
                 <Button
                   className="h-auto min-h-11 whitespace-normal"
                   variant="outline"
-                  onClick={() => void load()}
+                  onClick={() => {
+                    void load();
+                    setRuleRevision((value) => value + 1);
+                  }}
                 >
                   Actualizar pendientes
                 </Button>
@@ -258,9 +278,86 @@ function OperationsQueueWorkspace({
               </div>
             </>
           )}
+          <RuleTasksSection key={ruleRevision} identity={identity} />
         </>
       )}
     </ViewLayout>
+  );
+}
+
+/** Independent scoped read: a failed source never hides the other areas. The
+ * server enforces settings.manage and commercial access on this endpoint. */
+function RuleTasksSection({ identity }: { identity: WorkspaceIdentity }) {
+  const panel = useOperationsPanel<AutomationsData>(
+    "/api/v1/automations",
+    identity,
+    "?limit=200",
+  );
+  const pending =
+    panel.data?.runs.filter((run) => run.status === "pending") ?? [];
+  return (
+    <section
+      aria-labelledby="queue-rule-tasks"
+      className="min-w-0 space-y-4 rounded-2xl border border-kova-border bg-white p-5 sm:p-6"
+    >
+      <div className="flex items-start gap-3">
+        <span className="rounded-xl bg-kova-mist p-3">
+          <Workflow className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 id="queue-rule-tasks" className="text-xl font-semibold">
+            Tareas de reglas
+          </h2>
+          <p className="mt-2 text-sm text-kova-muted">
+            Pendientes internos creados por las reglas de esta sucursal.
+          </p>
+        </div>
+      </div>
+      {panel.loading ? (
+        <SectionSkeleton label="Consultando tareas de reglas…" variant="list" />
+      ) : panel.error ? (
+        <ViewError
+          message={panel.error}
+          onRetry={() => void panel.load()}
+          retryLabel="Consultar tareas de reglas"
+        />
+      ) : panel.data ? (
+        <>
+          {pending.length === 0 ? (
+            <p className="rounded-xl bg-kova-mist p-4 text-sm text-kova-muted">
+              No hay tareas de reglas pendientes en esta consulta.
+            </p>
+          ) : (
+            <ol className="divide-y divide-kova-border">
+              {pending.slice(0, 20).map((run) => (
+                <li key={run.id} className="min-w-0 space-y-2 py-4">
+                  <h3 className="break-words font-semibold">{run.title}</h3>
+                  <Badge variant="secondary">Pendiente</Badge>
+                  {isRecordId(run.id) && (
+                    <Link
+                      className="flex min-h-11 items-center break-words text-sm font-medium underline underline-offset-4"
+                      to={`/automations?run_id=${encodeURIComponent(run.id)}`}
+                    >
+                      Revisar tarea: {run.title}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="text-xs text-kova-muted">
+            Hasta 20 pendientes de las últimas 200 revisiones. La consulta no es
+            un total de tareas del negocio.
+          </p>
+        </>
+      ) : null}
+      <Link
+        className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+        to="/automations"
+      >
+        Abrir reglas de tareas
+      </Link>
+    </section>
   );
 }
 
@@ -290,7 +387,8 @@ function QueueSection({
       </div>
       {!section ? (
         <p role="alert" className="text-sm text-destructive">
-          No pudimos consultar esta área. Actualiza los pendientes para volver a intentar.
+          No pudimos consultar esta área. Actualiza los pendientes para volver a
+          intentar.
         </p>
       ) : section.items.length === 0 ? (
         <p className="rounded-xl bg-kova-mist p-4 text-sm text-kova-muted">
@@ -311,7 +409,9 @@ function QueueSection({
               )}
               <p className="flex min-w-0 items-center gap-2 text-sm">
                 <InitialsAvatar name={item.customer_name} size="sm" />
-                <span className="min-w-0 break-words">{item.customer_name}</span>
+                <span className="min-w-0 break-words">
+                  {item.customer_name}
+                </span>
               </p>
               <QueueState source={config.source} state={item.state} />
               {item.due_at ? (
@@ -323,7 +423,10 @@ function QueueSection({
                   }
                 >
                   {item.overdue ? (
-                    <ClockAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <ClockAlert
+                      className="h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
                   )}
@@ -358,7 +461,13 @@ function QueueSection({
   );
 }
 
-function QueueState({ source, state }: { source: OperationsQueueSource; state: string }) {
+function QueueState({
+  source,
+  state,
+}: {
+  source: OperationsQueueSource;
+  state: string;
+}) {
   const label = stateLabels[source][state];
   const Icon = (label && stateIcons[source][state]) || CircleDashed;
   return (

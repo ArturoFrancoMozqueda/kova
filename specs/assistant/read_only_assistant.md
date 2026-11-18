@@ -15,7 +15,8 @@ Las lecturas locales en el contenedor nativo siguen [ADR-035](../../docs/adr/ADR
 - El servidor controla cohorte, permisos y capacidades comerciales. La navegación exige
   `advanced_reports`; las herramientas conservan los permisos comerciales de reportes.
 - Las preguntas locales reconocidas se resuelven sin inferencia ni reserva de presupuesto de
-  modelo. Conservan autorización, consentimiento, límites de turnos y sucursal activa.
+  modelo y no requieren permiso de procesamiento externo. Conservan autorización, límites de
+  turnos y sucursal activa. Una pregunta no reconocida no se envía a un proveedor sin permiso.
 - En el contenedor nativo, las lecturas locales intentan ejecutar su trabajo confirmado en la
   misma petición mediante el procesador existente y sus locks. Si no hay cupo, conservan la cola;
   los reenvíos idempotentes sólo recuperan el trabajo original. La inferencia externa, la ingesta
@@ -50,6 +51,9 @@ tenant existentes. No hay tablas, migraciones ni endpoints nuevos. Identidad/suc
 de sesión y scope del servidor; los headers esperados sólo detectan cambios de contexto.
 El permiso de procesamiento nombra al proveedor y destinatarios actuales. Cambiarlos exige
 una aceptación nueva; revocarlo detiene nuevos envíos. Retirar/eliminar datos conserva su flujo.
+La interfaz permite consultas locales sin esa aceptación y ofrece habilitar IA externa por
+separado cuando el proveedor está disponible. El servidor verifica el permiso al admitir una
+consulta externa, inmediatamente antes de llamar al proveedor y antes de entregar su respuesta.
 No se relajan roles, acceso comercial, cuotas, reservas inciertas o idempotencia.
 
 ## Requisitos no funcionales y recuperación
@@ -79,12 +83,19 @@ No se relajan roles, acceso comercial, cuotas, reservas inciertas o idempotencia
 ```gherkin
 Feature: Consultar el negocio sin inventar evidencia
   Scenario: Consulta local con ventas registradas
-    Given un administrador autorizado con consentimiento vigente y ventas reales
+    Given un administrador autorizado sin permiso de procesamiento externo y con ventas reales
     And el proveedor externo no está conectado
     When pregunta "¿Cuánto vendí hoy?"
     Then Kova responde con las métricas del backend de la sucursal activa
     And no llama al modelo ni consume su presupuesto
     And conserva las métricas y fuentes al recuperar la conversación
+
+  Scenario: Pregunta externa sin permiso
+    Given un administrador autorizado sin permiso de procesamiento externo
+    And el proveedor externo está disponible
+    When envía una pregunta no reconocida localmente
+    Then Kova solicita habilitar IA externa
+    And no llama al proveedor ni reserva presupuesto de modelo
 
   Scenario: Mes anterior al inicio del año
     Given la fecha local del negocio es el primero de enero

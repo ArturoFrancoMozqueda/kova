@@ -18,7 +18,7 @@ function Host({ enabled = true }: { enabled?: boolean }) {
 }
 describe("floating Kova companion", () => {
   beforeEach(() => {
-    consent = false; ready = false; localReady = false;
+    consent = false; ready = false; localReady = true;
     auth.state.tenantId = "tenant-a"; auth.state.user.id = "user-a"; auth.state.user.role = "owner"; auth.state.sessionMode = "online";
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
       const path = input.split("/assistant")[1];
@@ -48,7 +48,7 @@ describe("floating Kova companion", () => {
     await screen.findByRole("alert");
     expect(screen.queryByText("Cargando el asistente…")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Volver a cargar" }));
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
   });
@@ -58,11 +58,11 @@ describe("floating Kova companion", () => {
     expect(trigger.querySelector("svg")).not.toBeNull();
     expect(fetch).not.toHaveBeenCalled();
     fireEvent.click(trigger);
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     expect(screen.getByRole("dialog", { name: "Asistente Kova" })).toHaveAttribute("aria-modal", "false");
     expect(screen.getByLabelText("Ubicación")).toHaveTextContent("/catalog?search=private-name");
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
-    expect(screen.getByText(/La IA aún no está conectada/)).toBeVisible();
+    expect(screen.getByText(/sin compartir tu consulta con un proveedor de IA/)).toBeVisible();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(trigger).toHaveFocus();
@@ -81,10 +81,11 @@ describe("floating Kova companion", () => {
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
   });
   it("names the recipient and submits explicit consent for that provider", async () => {
+    ready = true;
     render(<Host />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
-    expect(await screen.findByText(/enviaremos a Groq tu pregunta/)).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Aceptar y habilitar consultas" }));
+    expect(await screen.findByText(/enviemos a Groq tu pregunta/)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Habilitar IA externa" }));
     await waitFor(() => {
       const request = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PUT");
       expect(JSON.parse(String(request?.[1]?.body))).toMatchObject({ chat_consent: true, chat_provider: "groq" });
@@ -105,8 +106,8 @@ describe("floating Kova companion", () => {
     expect(screen.getByLabelText("Ubicación")).toHaveTextContent("/catalog?search=private-name");
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();
   });
-  it("offers and submits a supported catalog question without inference", async () => {
-    consent = true; localReady = true;
+  it("offers and submits a supported catalog question without inference or external consent", async () => {
+    consent = false; localReady = true;
     render(<Host />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
     const question = await screen.findByRole("button", { name: "¿Cómo importar mi catálogo?" });
@@ -147,8 +148,8 @@ describe("floating Kova companion", () => {
     await screen.findByText("Respuesta conservada con sus fuentes.", {}, { timeout: 4000 });
     expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/messages"))).toHaveLength(1);
   });
-  it("allows direct questions when inference is unavailable", async () => {
-    consent = true; localReady = true;
+  it("allows direct questions when inference and consent are unavailable", async () => {
+    consent = false; localReady = true;
     render(<Host />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
     fireEvent.change(await screen.findByRole("textbox", { name: "Tu pregunta" }), { target: { value: "Cuánto vendí hoy" } });
@@ -171,7 +172,7 @@ describe("floating Kova companion", () => {
   it.each(["modal", "tour"])("yields to %s overlays", async kind => {
     render(<Host />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
-    await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
+    await screen.findByRole("textbox", { name: "Tu pregunta" });
     const modal = document.createElement("div");
     modal.setAttribute(kind === "modal" ? "aria-modal" : "aria-labelledby", kind === "modal" ? "true" : "first-use-tour-title");
     await act(async () => { document.body.appendChild(modal); });

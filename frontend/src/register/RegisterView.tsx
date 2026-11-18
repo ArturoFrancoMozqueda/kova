@@ -1,3 +1,4 @@
+import { useTaskMeasurement, type TaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { LotPicker } from "@/inventory/LotControls";
 import { allocationValid, proposeLots, type LotAllocation } from "@/inventory/lots";
 import { LotQueueError, availableLots, readLocalLots, refreshLocalLots, type CachedLotStock } from "@/offline/lotStock";
@@ -259,6 +260,8 @@ function RegularRegisterView() {
   const [taxRate, setTaxRate] = useState(() => cachedTaxRate(tenantId));
   const [customerId, setCustomerId] = useState("");
   const customerSelectionScope = `${tenantId}:${userId}`;
+  const saleMeasurement = useTaskMeasurement("cash_sale", customerSelectionScope, tenantId ? { tenantId, userId } : null);
+  const submittedSaleMeasurement = useRef<TaskMeasurement | null>(null);
   const [customerSelection, setCustomerSelection] = useState<{ scope: string; id: string; name: string } | null>(null);
   const online = useOnline();
   const sessionMode = state.status === "authenticated" ? state.sessionMode : null;
@@ -268,6 +271,8 @@ function RegularRegisterView() {
   const rewardOffer = rewardChoice?.scope === rewardIdentityKey ? rewardChoice.offer : null;
   const selectedReward = rewardOffer?.reward ?? null;
   const rewardCheckout = useRewardCheckout(rewardIdentity, (order) => {
+    submittedSaleMeasurement.current?.finish("completed");
+    submittedSaleMeasurement.current = null;
     cartGenerationRef.current += 1;
     setCart({}); setCashTendered(""); setReference(""); setDiscount("0.00");
     setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]);
@@ -276,7 +281,7 @@ function RegularRegisterView() {
     if (navigator.onLine && order.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount_amount) > 0)) void drawer.open("sale", "", order.id);
     void trackFunnelEventOnce("first_sale", "first_sale_completed");
     toast(copy.register.saleComplete, { variant: "success", srOnly: true });
-  }, () => setRewardChoice(null));
+  }, () => { submittedSaleMeasurement.current?.finish("failed"); submittedSaleMeasurement.current = null; setRewardChoice(null); });
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const selectedCustomerName = customerSelection?.scope === customerSelectionScope && customerSelection.id === customerId
@@ -480,6 +485,7 @@ function RegularRegisterView() {
 
   const resetSale = useCallback(() => {
     if (submittingRef.current) return;
+    saleMeasurement.finish("cancelled");
     cartGenerationRef.current += 1;
     setCart({});
     setLotSelections({});
@@ -506,7 +512,7 @@ function RegularRegisterView() {
     // search box. Runs after the success view restores its previous focus.
     // Phones skip it so the on-screen keyboard doesn't pop up uninvited.
     if (!isCartSheetModal) window.requestAnimationFrame(() => skuInputRef.current?.focus());
-  }, [isCartSheetModal, resetCashInteraction, tenantId, clearCustomerIntent]);
+  }, [isCartSheetModal, resetCashInteraction, tenantId, clearCustomerIntent, saleMeasurement]);
 
   useEffect(() => {
     setCustomers([]);
@@ -1079,6 +1085,7 @@ function RegularRegisterView() {
       reportStockBlocked(product);
       return;
     }
+    saleMeasurement.start();
     const deltaSum = selectedModifiers.reduce((s, m) => s + moneyToCents(m.priceDelta), 0);
     const effectiveUnitPrice = centsToMoney(moneyToCents(product.price_amount) + deltaSum);
     const cartKey = cartKeyFor(product.id, selectedModifiers);
@@ -1207,6 +1214,7 @@ function RegularRegisterView() {
   const submitSale = async (event: FormEvent) => {
     event.preventDefault();
     if (submittingRef.current) return;
+    saleMeasurement.start();
     if (!canSubmitSale) {
       if (submitting) return;
       if (!canCreateOrders) {
@@ -1222,6 +1230,7 @@ function RegularRegisterView() {
       } else if (!cashIsValid) {
         revealCashValidationAfterAttempt();
       }
+      saleMeasurement.finish("failed");
       return;
     }
 
@@ -1231,7 +1240,7 @@ function RegularRegisterView() {
       const quantity = quantityInCart(item.product.id);
       const rows = lotCache && lotCache.tenant_id === tenantId && lotCache.branch_id === lotBranchId ? availableLots(lotCache).filter(lot => lot.product_id === item.product.id) : [];
       const parts = lotSelections[item.product.id] ?? proposeLots(rows, quantity);
-      if (!allocationValid(parts, quantity)) { toast("Carga los lotes y asigna todas las unidades antes de cobrar.", "error"); return; }
+      if (!allocationValid(parts, quantity)) { saleMeasurement.finish("failed"); toast("Carga los lotes y asigna todas las unidades antes de cobrar.", "error"); return; }
       lotPools[item.product.id] = parts.map(part => ({ ...part }));
     }
     const takeLots = (productId: string, quantity: number) => {
@@ -1244,6 +1253,9 @@ function RegularRegisterView() {
       }
       return result;
     };
+    const submittedMeasurement = saleMeasurement.detach();
+    submittedMeasurement.pause();
+    submittedSaleMeasurement.current = submittedMeasurement;
     submittingRef.current = true;
     setSubmitting(true);
     clearSkuSearch();
@@ -1338,6 +1350,7 @@ function RegularRegisterView() {
       if (!tenantId) throw new Error("Authenticated tenant required");
       queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot, getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : ""));
     } catch (err) {
+      submittedMeasurement.finish("failed");
       toast(resolveApiErrorMessage(err, safeUserMessage(err instanceof LotQueueError ? err.message : undefined, copy.register.saleError)), "error");
       setLotRefresh(value => value + 1);
       submittingRef.current = false;
@@ -1363,6 +1376,7 @@ function RegularRegisterView() {
     // The sale and its printable receipt are already durable. A known offline
     // session must not claim a sync lease or spend retries before reconnecting.
     if (!navigator.onLine || (state.status === "authenticated" && state.sessionMode === "offline")) {
+      submittedMeasurement.finish("queued");
       setOfflineSaleAnnouncement(copy.register.offlineSaleSavedAnnouncement);
       return;
     }
@@ -1372,10 +1386,14 @@ function RegularRegisterView() {
       .then((claimed) => claimed ? syncOfflineSales(tenantId!, [claimed]) : [])
       .then((results) => {
         const result = results[0];
-        if (!result) return;
+        if (!result) {
+          submittedMeasurement.finish("queued");
+          return;
+        }
         if (result.status === "synced" && result.order) {
           trackFunnelEventOnce("first_sale", "first_sale_completed");
           invalidateOrderLists();
+          submittedMeasurement.finish("completed");
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           setPendingReceipt(null);
           setCompletedOrder(result.order as Order);
@@ -1387,7 +1405,9 @@ function RegularRegisterView() {
           // "Venta completada" on screen, and on phones the visual toast landed
           // right on top of the overlay's check mark.
           toast(copy.register.saleComplete, { variant: "success", srOnly: true });
-        } else if (result.status === "failed" && activeSaleClientUuidRef.current === queueItem.client_uuid) {
+        } else if (result.status === "failed") {
+          submittedMeasurement.finish("failed");
+          if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           // The payment already has a durable queue identity. Restoring this
           // cart would let checkout create another UUID while the original
           // failed row can still be retried, recording the same sale twice.
@@ -1399,6 +1419,7 @@ function RegularRegisterView() {
       })
       .catch((error: unknown) => {
         if (tenantId) scheduleOfflineSyncRetry(tenantId, error);
+        submittedMeasurement.finish("queued");
         if (activeSaleClientUuidRef.current === queueItem.client_uuid) {
           toast(copy.register.saleQueued, "warning");
         }

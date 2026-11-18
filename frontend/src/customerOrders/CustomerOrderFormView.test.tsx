@@ -9,10 +9,12 @@ const api = vi.hoisted(() => ({
   createCustomerOrder: vi.fn(), updateCustomerOrder: vi.fn(), confirmCustomerOrder: vi.fn(),
   navigate: vi.fn(), route: { orderId: undefined as string | undefined },
   listCustomers: vi.fn(), resolveActiveCustomer: vi.fn(),
+  measurement: { start: vi.fn(), pause: vi.fn(), resume: vi.fn(), finish: vi.fn(), discard: vi.fn() },
 }));
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant", user: { id: "user-1", role: "owner" } } }) }));
 vi.mock("@/customers/api", () => ({ listCustomers: (...args: unknown[]) => api.listCustomers(...args), resolveActiveCustomer: (...args: unknown[]) => api.resolveActiveCustomer(...args) }));
 vi.mock("react-router-dom", async original => ({ ...await original<object>(), useNavigate: () => api.navigate, useParams: () => api.route }));
+vi.mock("@/telemetry/useTaskMeasurement", () => ({ useTaskMeasurement: () => api.measurement }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => true }));
 vi.mock("@/catalog/api", () => ({ listProducts: (...args: unknown[]) => api.listProducts(...args) }));
 vi.mock("@/inventory/api", () => ({ listStock: (...args: unknown[]) => api.listStock(...args) }));
@@ -134,20 +136,109 @@ describe("customer order draft safety", () => {
     ));
   });
 
-  it("reuses the creation and confirmation identities after a lost confirmation response", async () => {
+  it("recovers a lost confirmation without saving again or accepting different data", async () => {
     api.confirmCustomerOrder.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
-    const confirm = screen.getByRole("button", { name: "Guardar y confirmar" });
-    fireEvent.click(confirm);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y confirmar" }));
     await screen.findByRole("alert");
-    await waitFor(() => expect(confirm).toBeEnabled());
-    fireEvent.click(confirm);
+    expect(api.measurement.pause).toHaveBeenCalled();
+    expect(api.measurement.finish).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Guardar y confirmar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Agregar una unidad" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Nota general" })).toBeDisabled();
+    // An ambiguous write is recovered with its original key and payload;
+    // replaying creation/update is unnecessary after creation was confirmed.
+    fireEvent.click(screen.getByRole("button", { name: "Recuperar resultado del pedido" }));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(`/pedidos/${saved.id}`));
+    expect(api.createCustomerOrder).toHaveBeenCalledTimes(1);
+    expect(api.updateCustomerOrder).not.toHaveBeenCalled();
+    expect(api.confirmCustomerOrder).toHaveBeenCalledTimes(2);
+    expect(api.confirmCustomerOrder.mock.calls[1]).toEqual(api.confirmCustomerOrder.mock.calls[0]);
+    expect(api.measurement.finish).toHaveBeenCalledExactlyOnceWith("completed");
+  });
+
+  it("retains the created order and its item identity when correcting a rejected confirmation", async () => {
+    api.confirmCustomerOrder.mockRejectedValueOnce({ status: 422 });
+    api.updateCustomerOrder.mockResolvedValue({ ...saved, version: 2, items: [{ ...saved.items[0], quantity: 2 }] });
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y confirmar" }));
+    await screen.findByRole("alert");
+    expect(api.measurement.finish).toHaveBeenCalledWith("failed");
+    fireEvent.click(screen.getByRole("button", { name: "Agregar una unidad" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y confirmar" }));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(`/pedidos/${saved.id}`));
+    expect(api.createCustomerOrder).toHaveBeenCalledTimes(1);
+    expect(api.updateCustomerOrder).toHaveBeenCalledWith(saved.id, expect.objectContaining({
+      version: 1, items: [expect.objectContaining({ id: saved.items[0].id, quantity: 2 })],
+    }), expect.any(String));
+    expect(api.updateCustomerOrder.mock.calls[0][1]).not.toHaveProperty("customer_id");
+    expect(api.confirmCustomerOrder.mock.calls[1].slice(0, 2)).toEqual([saved.id, 2]);
+  });
+
+  it("preserves an unknown creation identity until its exact replay succeeds", async () => {
+    api.createCustomerOrder.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await screen.findByRole("button", { name: "Recuperar resultado del pedido" });
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Recuperar resultado del pedido" }));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(`/pedidos/${saved.id}`));
+    expect(api.createCustomerOrder).toHaveBeenCalledTimes(2);
+    expect(api.createCustomerOrder.mock.calls[1]).toEqual(api.createCustomerOrder.mock.calls[0]);
+    expect(api.updateCustomerOrder).not.toHaveBeenCalled();
+  });
+
+  it("keeps the original confirmation recovery after a later authorization rejection", async () => {
+    api.confirmCustomerOrder.mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce({ status: 403 });
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Agregar Concha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y confirmar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Recuperar resultado del pedido" }));
     await waitFor(() => expect(api.confirmCustomerOrder).toHaveBeenCalledTimes(2));
-    expect(api.createCustomerOrder.mock.calls[0][1]).toEqual(expect.any(String));
-    expect(api.createCustomerOrder.mock.calls[1][1]).toBe(api.createCustomerOrder.mock.calls[0][1]);
-    expect(api.confirmCustomerOrder.mock.calls[0][2]).toEqual(expect.any(String));
-    expect(api.confirmCustomerOrder.mock.calls[1][2]).toBe(api.confirmCustomerOrder.mock.calls[0][2]);
+    expect(screen.getByRole("textbox", { name: "Nota general" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Recuperar resultado del pedido" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Recuperar resultado del pedido" }));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalled());
+    expect(api.createCustomerOrder).toHaveBeenCalledTimes(1);
+    expect(api.confirmCustomerOrder.mock.calls[2]).toEqual(api.confirmCustomerOrder.mock.calls[0]);
+  });
+
+  it("enforces available stock on the product card and every quantity control", async () => {
+    api.listProducts.mockResolvedValue([{ ...product, track_inventory: true }]);
+    api.listStock.mockResolvedValue([{ product_id: product.id, available_quantity: 1 }]);
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    const add = await screen.findByRole("button", { name: "Agregar Concha" });
+    fireEvent.click(add);
+    expect(add).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Agregar una unidad" })).toBeDisabled();
+    fireEvent.click(add);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(api.createCustomerOrder).toHaveBeenCalledWith(expect.objectContaining({
+      items: [expect.objectContaining({ quantity: 1 })],
+    }), expect.any(String)));
+  });
+
+  it("counts all lines of a tracked product when limiting another entry", async () => {
+    api.route.orderId = saved.id;
+    api.listProducts.mockResolvedValue([{ ...product, track_inventory: true }]);
+    api.listStock.mockResolvedValue([{ product_id: product.id, available_quantity: 3 }]);
+    api.getCustomerOrder.mockResolvedValue({ ...saved, items: [
+      { ...saved.items[0], id: "first", note: "Sin azúcar" },
+      { ...saved.items[0], id: "second", note: "Para llevar" },
+    ] });
+    render(<MemoryRouter><CustomerOrderFormView /></MemoryRouter>);
+    const add = await screen.findByRole("button", { name: "Agregar Concha" });
+    fireEvent.click(add);
+    expect(add).toHaveAttribute("aria-disabled", "true");
+    for (const plus of screen.getAllByRole("button", { name: "Agregar una unidad" })) expect(plus).toBeDisabled();
+    fireEvent.click(add);
+    expect(screen.getAllByRole("button", { name: "Eliminar artículo" })).toHaveLength(3);
+    fireEvent.click(screen.getAllByRole("button", { name: "Quitar una unidad" })[0]);
+    expect(add).not.toHaveAttribute("aria-disabled");
   });
 
   it("starts an empty draft when navigating from an edit form to a new order", async () => {

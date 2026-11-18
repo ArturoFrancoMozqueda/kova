@@ -8,7 +8,9 @@
   "scripts": {
     "postinstall": "node patch-cf.mjs",
     "build": "node build.mjs",
-    "test": "node --test test/packaging.test.mjs test/gateway.test.mjs test/public-images-runtime.test.mjs test/native-settings-runtime.test.mjs && node test/run.mjs"
+    "test": "node --test test/packaging.test.mjs test/gateway.test.mjs test/public-images-runtime.test.mjs test/native-settings-runtime.test.mjs && node test/run.mjs",
+    "prebuild": "node ../../frontend/scripts/security/picomatch.mjs --verify",
+    "pretest": "node ../../frontend/scripts/security/picomatch.mjs --verify"
   },
   "devDependencies": {
     "@cloudflare/build-output-utils": "0.9.3",

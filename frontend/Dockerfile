@@ -3,7 +3,8 @@ FROM node:24-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+COPY scripts/security ./scripts/security
+RUN node scripts/security/install.mjs
 
 COPY . .
 

@@ -104,12 +104,23 @@ const dataset = (): OperationsQueueData => ({
     },
   ],
 });
+const emptyRules = {
+  rules: [],
+  runs: [],
+  capabilities: {
+    internal_tasks: true,
+    external_messaging: false,
+    financial_actions: false,
+  },
+};
 const mockData = (data: OperationsQueueData) =>
   fetchMock.mockImplementation(async (url) =>
     json(
       String(url).includes("business-profile")
         ? { timezone: "America/Cancun" }
-        : data,
+        : String(url).includes("automations")
+          ? emptyRules
+          : data,
     ),
   );
 const queueCalls = () =>
@@ -150,8 +161,8 @@ it.each(["owner", "manager"])(
       "Recordatorios de agenda",
     ])
       expect(screen.getByRole("heading", { name: title })).toBeVisible();
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/operations/queue");
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+    expect(queueCalls()[0][0]).toBe("/api/v1/operations/queue");
+    expect(queueCalls()[0][1]).toMatchObject({
       method: "GET",
       credentials: "include",
       cache: "no-store",
@@ -203,7 +214,13 @@ it("builds only known source links and ignores untrusted route strings", async (
   expect(screen.queryByText("Saldo privado del dueño")).not.toBeInTheDocument();
   expect(
     screen.getAllByRole("link").map((link) => link.getAttribute("href")),
-  ).toEqual(["/service-cases", "/crm", "/followups", "/appointments"]);
+  ).toEqual([
+    "/service-cases",
+    "/crm",
+    "/followups",
+    "/appointments",
+    "/automations",
+  ]);
   expect(
     screen
       .getAllByRole("link")
@@ -238,7 +255,7 @@ it("shows individual source empty states without claiming the business has no wo
     ),
   ).toBeVisible();
   expect(
-    screen.queryByText(/0 pendientes|Todo al día/),
+    screen.queryByText(/^0 pendientes|Todo al día/),
   ).not.toBeInTheDocument();
 });
 it("shows a missing source as incomplete instead of inventing an empty result", async () => {
@@ -258,8 +275,15 @@ it("shows a missing source as incomplete instead of inventing an empty result", 
   ).not.toBeInTheDocument();
 });
 it("recovers a failed read through an explicit retry", async () => {
-  fetchMock.mockResolvedValueOnce(
-    json({ detail: "Consulta temporalmente no disponible" }, 503),
+  let queueReads = 0;
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("automations")
+      ? json(emptyRules)
+      : String(url).includes("business-profile")
+        ? json({ timezone: "America/Cancun" })
+        : ++queueReads === 1
+          ? json({ detail: "Consulta temporalmente no disponible" }, 503)
+          : json(dataset()),
   );
   mount();
   expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -272,8 +296,10 @@ it("recovers a failed read through an explicit retry", async () => {
 it("hides the previous sample after a failed refresh", async () => {
   mount();
   await screen.findByText("Revisar entrega");
-  fetchMock.mockResolvedValue(
-    json({ detail: "Acceso comercial bloqueado" }, 403),
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("automations")
+      ? json(emptyRules)
+      : json({ detail: "Acceso comercial bloqueado" }, 403),
   );
   fireEvent.click(
     screen.getByRole("button", { name: "Actualizar pendientes" }),
@@ -336,23 +362,25 @@ it("aborts the old branch read and rejects its late response", async () => {
   fetchMock.mockImplementation(async (url, init) =>
     String(url).includes("business-profile")
       ? json({ timezone: "America/Cancun" })
-      : (init?.headers as Record<string, string>)["X-Kova-Branch"] ===
-          "branch-1"
-        ? new Promise<Response>((resolve) => {
-            resolveOld = resolve;
-          })
-        : json({
-            ...dataset(),
-            sections: dataset().sections.map((section) => ({
-              ...section,
-              items: [],
-              has_more: false,
-            })),
-          }),
+      : String(url).includes("automations")
+        ? json(emptyRules)
+        : (init?.headers as Record<string, string>)["X-Kova-Branch"] ===
+            "branch-1"
+          ? new Promise<Response>((resolve) => {
+              resolveOld = resolve;
+            })
+          : json({
+              ...dataset(),
+              sections: dataset().sections.map((section) => ({
+                ...section,
+                items: [],
+                has_more: false,
+              })),
+            }),
   );
   const view = mount();
   await waitFor(() => expect(resolveOld).toBeDefined());
-  const previous = fetchMock.mock.calls[0][1]?.signal;
+  const previous = queueCalls()[0][1]?.signal;
   session.branch = "branch-2";
   view.rerender(
     <MemoryRouter>
@@ -373,18 +401,20 @@ it("formats dates in the configured business zone independently of the device", 
       ? "Asia/Tokyo"
       : "Pacific/Honolulu";
   fetchMock.mockImplementation(async (url) =>
-    json(String(url).includes("business-profile") ? { timezone } : dataset()),
+    json(
+      String(url).includes("business-profile")
+        ? { timezone }
+        : String(url).includes("automations")
+          ? emptyRules
+          : dataset(),
+    ),
   );
   mount();
   const expected = new Date(dataset().generated_at).toLocaleString("es-MX", {
     timeZone: timezone,
   });
   expect(await screen.findByText(`Consulta del ${expected}`)).toBeVisible();
-  expect(
-    screen.getByText(
-      /Fechas en el horario del negocio/,
-    ),
-  ).toBeVisible();
+  expect(screen.getByText(/Fechas en el horario del negocio/)).toBeVisible();
   expect(expected).not.toBe(
     new Date(dataset().generated_at).toLocaleString("es-MX"),
   );
@@ -408,7 +438,7 @@ it.each(["failure", "invalid"])(
         ? scenario === "failure"
           ? json({ detail: "No disponible" }, 503)
           : json({ timezone: "Invalid/Zone" })
-        : json(dataset()),
+        : json(String(url).includes("automations") ? emptyRules : dataset()),
     );
     mount();
     expect(await screen.findByText("Revisar entrega")).toBeVisible();
@@ -450,4 +480,138 @@ it("links exact UUID records to the allowlisted source parameter", async () => {
     `/followups?task_id=${ids[2]}`,
     `/appointments?reminder_id=${ids[3]}`,
   ]);
+});
+
+it("includes pending rule tasks with scoped reads and links the exact review without inferring totals", async () => {
+  const id = "55555555-5555-4555-8555-555555555555";
+  fetchMock.mockImplementation(async (url) =>
+    json(
+      String(url).includes("business-profile")
+        ? { timezone: "America/Cancun" }
+        : String(url).includes("automations")
+          ? {
+              ...emptyRules,
+              runs: [
+                { id, title: "Revisar reposición concreta", status: "pending" },
+                {
+                  id: "66666666-6666-4666-8666-666666666666",
+                  title: "Revisión completada",
+                  status: "completed",
+                },
+              ],
+            }
+          : dataset(),
+    ),
+  );
+  mount();
+  expect(
+    await screen.findByRole("link", {
+      name: "Revisar tarea: Revisar reposición concreta",
+    }),
+  ).toHaveAttribute("href", `/automations?run_id=${id}`);
+  expect(screen.queryByText("Revisión completada")).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/Hasta 20 pendientes de las últimas 200 revisiones/),
+  ).toBeVisible();
+  const call = fetchMock.mock.calls.find(([url]) =>
+    String(url).includes("automations"),
+  );
+  expect(call?.[0]).toBe("/api/v1/automations?limit=200");
+  expect(call?.[1]).toMatchObject({
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      "X-Kova-Expected-Tenant": "tenant-1",
+      "X-Kova-Branch": "branch-1",
+    },
+  });
+});
+
+it("keeps operational work visible when reading rule tasks is forbidden and offers a separate retry", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("automations")
+      ? json({ detail: "Sin permiso" }, 403)
+      : json(
+          String(url).includes("business-profile")
+            ? { timezone: "America/Cancun" }
+            : dataset(),
+        ),
+  );
+  mount();
+  expect(await screen.findByText("Revisar entrega")).toBeVisible();
+  expect(
+    await screen.findByRole("button", { name: "Consultar tareas de reglas" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByText("No hay tareas de reglas pendientes en esta consulta."),
+  ).not.toBeInTheDocument();
+});
+
+it("keeps rule tasks available when the operational queue fails", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("automations")
+      ? json({
+          ...emptyRules,
+          runs: [
+            {
+              id: "55555555-5555-4555-8555-555555555555",
+              title: "Regla disponible",
+              status: "pending",
+            },
+          ],
+        })
+      : json({ detail: "No disponible" }, 503),
+  );
+  mount();
+  expect(await screen.findByText("Regla disponible")).toBeVisible();
+  expect(
+    await screen.findByRole("button", { name: "Consultar de nuevo" }),
+  ).toBeVisible();
+});
+
+it("aborts rule reads from a previous branch and drops their late private tasks", async () => {
+  let finishOld: ((response: Response) => void) | undefined;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("business-profile"))
+      return json({ timezone: "America/Cancun" });
+    if (!String(url).includes("automations")) return json(dataset());
+    if (
+      (init?.headers as Record<string, string>)["X-Kova-Branch"] === "branch-1"
+    ) {
+      return new Promise<Response>((resolve) => {
+        finishOld = resolve;
+      });
+    }
+    return json(emptyRules);
+  });
+  const view = mount();
+  await waitFor(() => expect(finishOld).toBeDefined());
+  const previous = fetchMock.mock.calls.find(([url]) =>
+    String(url).includes("automations"),
+  )?.[1]?.signal;
+  session.branch = "branch-2";
+  view.rerender(
+    <MemoryRouter>
+      <OperationsQueueView />
+    </MemoryRouter>,
+  );
+  await screen.findByText(
+    "No hay tareas de reglas pendientes en esta consulta.",
+  );
+  await act(async () =>
+    finishOld!(
+      json({
+        ...emptyRules,
+        runs: [
+          {
+            id: "55555555-5555-4555-8555-555555555555",
+            title: "Tarea privada anterior",
+            status: "pending",
+          },
+        ],
+      }),
+    ),
+  );
+  expect(screen.queryByText("Tarea privada anterior")).not.toBeInTheDocument();
+  expect(previous?.aborted).toBe(true);
 });

@@ -11,7 +11,9 @@ type FunnelEvent = {
   event_name: string;
   client_event_id: string;
   properties: Record<string, unknown>;
+  deliveryGuard?: FunnelDeliveryGuard;
 };
+export type FunnelDeliveryGuard = { tenantId: string; userId: string };
 
 type FirstTouch = {
   source: string;
@@ -273,13 +275,23 @@ export function queueFunnelEvent(event_name: string, properties: Record<string, 
   writeQueue([...readQueue(), event]);
 }
 
-export async function trackFunnelEvent(event_name: string, properties: Record<string, unknown> = {}) {
+export async function trackFunnelEvent(event_name: string, properties: Record<string, unknown> = {}, deliveryGuard?: FunnelDeliveryGuard) {
   if (typeof window === "undefined") return;
   const event: FunnelEvent = {
     event_name,
     client_event_id: eventId(event_name),
     properties: commonProperties(properties),
+    ...(deliveryGuard ? { deliveryGuard } : {}),
   };
+  if (event_name === "task_started" || event_name === "task_finished") {
+    // Task telemetry never includes a record ID from a detail-route pathname.
+    const paths: Record<string, string> = {
+      cash_sale: "/register", customer_order: "/pedidos",
+      purchase_receipt: "/purchasing", replenishment_purchase: "/replenishment",
+      automation_task: "/automations",
+    };
+    event.properties.path = paths[String(properties.task)] ?? "/";
+  }
   const delivery = await sendEvent(event);
   if (delivery === "retry") writeQueue([...readQueue(), event]);
 }
@@ -294,7 +306,8 @@ export async function flushFunnelEvents() {
     const delivery = await sendEvent(sanitized);
     if (delivery === "retry") remaining.push(sanitized);
   }
-  writeQueue(remaining);
+  const flushedIds = new Set(queue.map(event => event.client_event_id));
+  writeQueue([...remaining, ...readQueue().filter(event => !flushedIds.has(event.client_event_id))]);
 }
 
 export function trackFunnelEventOnce(
@@ -524,13 +537,18 @@ export function trackExperimentExposed(
 type EventDelivery = "sent" | "retry" | "drop";
 
 async function sendEvent(event: FunnelEvent): Promise<EventDelivery> {
+  const { deliveryGuard, ...payload } = event;
+  if ((event.event_name === "task_started" || event.event_name === "task_finished") &&
+      (!deliveryGuard?.tenantId || !deliveryGuard.userId)) return "drop";
   try {
     const response = await fetch("/api/v1/telemetry/events", {
       method: "POST",
-      headers: { "content-type": "application/json", ...csrfHeaders("POST") },
+      headers: { "content-type": "application/json", ...csrfHeaders("POST"),
+        ...(deliveryGuard ? { "X-Kova-Expected-Tenant": deliveryGuard.tenantId, "X-Kova-Expected-User": deliveryGuard.userId } : {}),
+      },
       credentials: "same-origin",
       keepalive: true,
-      body: JSON.stringify(event),
+      body: JSON.stringify(payload),
     });
     await response.text();
     if (response.ok) return "sent";

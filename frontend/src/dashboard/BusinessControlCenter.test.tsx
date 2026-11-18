@@ -16,24 +16,24 @@ describe("BusinessControlCenter", () => {
     render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} loading /></MemoryRouter>);
     const control = screen.getByRole("region", { name: "Tu operación, de un vistazo" });
     expect(control).toHaveAttribute("aria-busy", "true");
-    expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(6);
+    expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(5);
     expect(within(control).getByRole("status")).toHaveTextContent("Cargando áreas del negocio");
     expect(within(control).queryByRole("link")).not.toBeInTheDocument();
     expect(within(control).queryByText(/Consulta tus existencias|Consultar|0 productos|0 ventas/)).not.toBeInTheDocument();
   });
 
-  it("groups the allowed destinations into six areas without fetching additional data", async () => {
+  it("groups the allowed destinations into the same five menu areas without fetching additional data", async () => {
     const { container } = render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} /></MemoryRouter>);
     const control = screen.getByRole("region", { name: "Cada área, a la vista" });
-    expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(6);
-    expect(within(control).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(destinations.map(link => link.to));
+    expect(within(control).getAllByRole("heading", { level: 3 })).toHaveLength(5);
+    expect(within(control).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(expect.arrayContaining(destinations.map(link => link.to)));
     expect((await axe(container, { runOnly: ["link-name", "landmark-unique", "region"] })).violations).toEqual([]);
   });
 
   it("does not invent zeroes, healthy states or connected channels without an overview", () => {
     render(<MemoryRouter><BusinessControlCenter destinations={destinations} snapshot={null} /></MemoryRouter>);
     expect(screen.getByText("Consulta tus existencias")).toBeVisible();
-    expect(screen.getByText("Consulta pendientes y citas")).toBeVisible();
+    expect(screen.getByText("Consulta clientes, pendientes y citas")).toBeVisible();
     expect(screen.queryByText(/0 productos|0 ventas|Sin pendientes|Conectado|Saludable/)).not.toBeInTheDocument();
   });
 
@@ -43,7 +43,7 @@ describe("BusinessControlCenter", () => {
     expect(screen.getByText("Periodo seleccionado")).toBeVisible();
     expect(screen.getByText("Inventario actual")).toBeVisible();
     expect(screen.getByText(lowStockCount === 0 ? "12 productos activos" : lowStockCount === 1 ? "1 producto por reponer" : "3 productos por reponer")).toBeVisible();
-    expect(screen.getByText("Consulta pendientes y citas")).toBeVisible();
+    expect(screen.getByText("Consulta clientes, pendientes y citas")).toBeVisible();
   });
 
   it("only exposes destinations passed by the shell and omits areas with no allowed links", () => {

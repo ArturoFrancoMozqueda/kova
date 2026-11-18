@@ -6,8 +6,9 @@ Dueño y gerente registran oportunidades de clientes existentes, asignan respons
 su próxima acción. El pipeline es comercial: marcar una oportunidad como ganada no crea una venta,
 un cobro, una reserva de inventario ni ingreso en reportes.
 
-La implementación conecta clientes, seguimiento y permisos de comunicación. WhatsApp y correo
-permanecen `not_connected`; registrar autorización no envía mensajes ni acredita entrega.
+La implementación conecta clientes, seguimiento y permisos de comunicación. Registrar una
+autorización no envía mensajes, cambia la conexión del canal ni acredita entrega. La disponibilidad
+de un canal se consulta en su integración y no se deduce del registro de consentimiento.
 
 ## Datos y autorización
 

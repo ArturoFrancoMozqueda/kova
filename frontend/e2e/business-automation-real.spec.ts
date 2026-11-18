@@ -93,6 +93,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
     }, signup.dev_verification_token);
 
     await page.goto("/automations");
+    await page.getByRole("button", { name: "Configurar reglas", exact: true }).click();
     await page
       .getByRole("button", {
         name: "Activar Revisión de reposición",
@@ -103,12 +104,20 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
       .getByRole("button", { name: "Confirmar activación", exact: true })
       .click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Automatización activada" }),
+      page.getByRole("status").filter({ hasText: "Regla activada" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Revisar eventos" }).click();
+    await page.getByRole("button", { name: "Buscar nuevos pendientes" }).click();
     await expect(page.getByRole("button", { name: /^Completar / })).toHaveCount(
       1,
     );
+    const taskLink = page.getByRole("link", { name: "Revisar producto en inventario", exact: true });
+    await expect(taskLink).toHaveAttribute("href", `/inventory?product=${prepared.product.id}`);
+    const queueRead = page.waitForResponse(response => response.url().includes("/api/v1/automations?limit=200"));
+    await page.goto("/operations-queue");
+    await queueRead;
+    await page.getByRole("link", { name: /^Revisar tarea:/ }).click();
+    await expect(page.getByRole("article", { name: /^Tarea seleccionada:/ })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Configurar reglas", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.getByRole("button", { name: /^Completar / }).click();
     await expect(
       page.getByText("Tarea marcada como completada."),

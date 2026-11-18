@@ -130,3 +130,28 @@ Esquema del escenario: Imprimir un pedido cobrado desde Caja
     | 80 mm       | 80    |
     | sin definir | 80    |
 ```
+
+## Recuperación y vigencia de la consulta
+
+- Al crear o guardar un pedido, el formulario conserva inmediatamente su identidad, versión e
+  identidad de artículos antes de intentar confirmarlo. Si la confirmación se rechaza, corregir
+  cantidades o contacto actualiza ese pedido; no crea otro compromiso operativo.
+- Durante la misma sesión del formulario, si la respuesta de creación, edición o confirmación
+  queda incierta por red, timeout o error de servidor, se conserva la operación y su clave. Se recupera con el mismo cuerpo y
+  clave antes de admitir cambios. Una autorización rechazada durante ese reintento no prueba que
+  el intento anterior haya fallado y no descarta la recuperación pendiente. No es una cola offline
+  ni permite cobro sin conexión.
+- Tarjetas de producto, botones de cantidad y confirmación de modificadores comparten el límite
+  de disponibilidad agregada por producto, incluidas sus distintas líneas. El backend conserva
+  la validación definitiva ante cambios concurrentes de stock.
+- Cada detalle de pedido se vincula al ID de la ruta e identidad de operación. Las respuestas y
+  resoluciones de otro detalle anterior no sustituyen el actual ni escriben su caché como vigente.
+- Listado y cada detalle conservan su propia fecha de consulta. Leer otro pedido o el listado no
+  renueva fechas de detalles conservados. Una copia anterior sin fecha específica sigue disponible
+  solo para lectura y declara que no se conoce su actualización; no infiere una fecha del reloj o
+  de una lectura diferente.
+
+Regresiones: componentes en `frontend/src/customerOrders/`, caché con IndexedDB y
+`frontend/e2e/customer-order-recovery-real.spec.ts` con API/PostgreSQL/RLS reales a 390 y 1440 px.
+El caso de respuesta perdida induce únicamente la pérdida de transporte después del commit real;
+no simula el resultado de la API ni la protección de inventario.
