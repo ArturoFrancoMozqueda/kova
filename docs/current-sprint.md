@@ -9,8 +9,9 @@ El [corte de preparación comercial](runbooks/sales-readiness.md) reúne la acep
 actual, las correcciones de copy y los pasos concretos que requieren al dueño. La corrección de
 los 17 hallazgos UX y el correo público ya están publicados; la configuración vigente de soporte
 recibe en `soporte@kovasuite.com` y responde desde el Gmail de operación por decisión del dueño.
-Las nuevas correcciones de preparación requieren su propio PR, CI y release antes de declararse
-publicadas. Una beta acompañada no equivale a cerrar los gates operativos de lanzamiento general.
+Las correcciones de preparación y el ciclo técnico de cuenta se integraron en el PR #384,
+con CI completo y release aprobados. Una beta acompañada no equivale a cerrar los gates
+operativos de lanzamiento general.
 
 ## En producción
 
@@ -23,8 +24,8 @@ La solicitud de permisos de WhatsApp ya fue enviada con los dos videos y las dec
 autorizadas; Meta confirmó **Revisión en curso**. Esto actualiza las referencias anteriores a un
 borrador pendiente, sin acreditar aprobación ni conexión del número real.
 
-La baseline publicada y verificada antes de este corte es `606b870076a4417f5347f73e0e2a0419e3082db8`,
-[release 44217617849](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44217617849).
+La versión de aplicación publicada y verificada de este corte es `5d19806840fd36543917ca47600a7a93464cdfc5`,
+[release 44231213980](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231213980).
 API, frontend, proxy y controlador sirven ese mismo SHA; sitio y base accesibles, comprobados
 independientemente tras la aceptación del workflow. La coexistencia de WhatsApp está publicada
 con alta limitada a dos negocios admitidos, pendiente de permisos de WhatsApp y aceptación real. Se conserva la
@@ -144,13 +145,13 @@ Ordenados por impacto en la venta. Ninguno se marca cerrado sin evidencia.
    no se certifica disponibilidad global, apagado automático en producción ni una recuperación
    de un proceso ya frío. La retención/recuperación de frontend de ADR-029 conserva pruebas
    automatizadas; este ensayo cambió backend. [Alcance y límites](despliegue.md#continuidad-observada-y-pendiente).
-2. **Recuperación regional del respaldo.** El respaldo diario corre. La
-   [restauración 42725832764](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/42725832764)
-   aprobó sobre fuente `1b41646cae8d`: revisión 0101, integridad, RLS, login, exportación, logout y
-   limpieza. Respaldo `2026-11-09T21:46:43Z`, posterior al cobro y cancelación, con antigüedad medida
-   de 8.467,908 s; restauración 0,657 s y drill lógico/ASGI 26,524 s. La imagen se reconstruye desde
-   fuente: no prueba el mismo digest desplegado, bindings productivos ni RTO/RPO regionales.
-   [Alcance y procedimiento](runbooks/restore-supabase-backup.md).
+2. **Recuperación regional del respaldo.** El respaldo diario corre. El dueño autorizó una
+   repetición aislada y la [restauración 44231962898](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898)
+   aprobó sobre fuente `5d19806840fd`: revisión actual 0108, integridad, RLS, login, exportación,
+   logout y limpieza. Respaldo `2026-11-17T18:11:31Z`, con antigüedad de 34,105.989 s;
+   restauración SQL 0.887 s y ejercicio lógico/ASGI 20.921 s, sin incluir la construcción de la imagen.
+   Cierra la repetición lógica actual. La imagen reconstruida no prueba el mismo digest
+   desplegado, bindings productivos ni RTO/RPO regionales. [Alcance](runbooks/restore-supabase-backup.md).
 3. **Correo transaccional.** Dominio habilitado y seis plantillas QA `delivered` a Gmail el 27 de
    octubre, incluido invitación; logo HTTP 200. El reset solicitado desde el proxy del backend
    publicado llegó a `delivered` el 29 de octubre CDMX y se repitió con el diseño nuevo sobre

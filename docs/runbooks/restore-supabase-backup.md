@@ -56,6 +56,34 @@ fresh-project drill must not be described as absence of any real backup restore.
 
 ---
 
+## Última aceptación lógica — 17 de noviembre de 2026 CDMX
+
+El dueño autorizó una única ejecución aislada del workflow existente. El
+[run 44231962898](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898)
+terminó en `success` sobre `main`, fuente `5d19806840fd36543917ca47600a7a93464cdfc5`.
+El artefacto contiene sólo evidencia agregada; se comprobó `cleanup_verified: true`.
+
+| Dato | Resultado |
+|---|---|
+| Respaldo seleccionado | 17 de noviembre, 18:11:31 UTC |
+| Inicio del ejercicio | 18 de noviembre, 03:39:56.989 UTC (17 de noviembre CDMX) |
+| Esquema restaurado | `0108_refund_payments`, igual al head de migraciones |
+| Antigüedad del respaldo al inicio | 34,105.989 s; 9 h 28 min 25.989 s |
+| Restauración SQL | 0.887 s |
+| Ejercicio lógico + ASGI | 20.921 s, sin incluir construir la imagen de API |
+| Integridad y aislamiento | Pagos/lotes, RLS de tenant y grants Data API: aprobados |
+| API reconstruida de la fuente actual | Health/DB, login por cookies, exportación del tenant, logout y rol runtime RLS: aprobados |
+| Limpieza | Contenedores y archivos privados eliminados antes de emitir evidencia |
+
+La evidencia registra 287 claves foráneas validadas y una restricción histórica sin validar;
+no declara que toda la historia relacional haya sido validada. Las migraciones conservan
+esos registros históricos sin inventar negocios ni descartar movimientos financieros.
+
+Esta ejecución cierra la repetición lógica y ASGI sobre el esquema actual. No acredita el
+mismo digest desplegado, bindings de producción, recuperación regional ni cambio de tráfico.
+La antigüedad del snapshot y los tiempos del runner no son RPO/RTO del servicio regional.
+La producción no fue destino de restauración ni de las escrituras sintéticas del probe.
+
 ## When to use this
 
 - Quarterly **backup restore drill** (hard gate before Stripe live, per [despliegue](../despliegue.md#backups-y-restore)).
@@ -292,6 +320,7 @@ Record every drill execution here (store detailed evidence in restricted storage
 | 2026-11-02 | Authorized workflow | R2 snapshot 2026-11-01 15:48:29 UTC, revision 0099 | Isolated logical + ASGI drill 20.766 s, excluding image build; restore 0.488 s; regional RTO not established | Snapshot age 24 h 18 min; regional RPO not established | Current-head schema, health/db, cookie login, tenant export, logout, RLS and payment/lot integrity passed | Both containers and private files removed | [Run 41478117936](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41478117936), source `79f73a326b14`; [aggregate evidence](../audits/KOVA-R2-RESTORE-2026-11-02.json); no production bindings or traffic cutover |
 | 2026-11-02 | Authorized repeat after native-runtime changes | Fresh R2 snapshot 2026-11-02 16:17:04 UTC, revision 0099 | Isolated logical + ASGI drill 22.447 s, excluding image build; restore 0.840 s; regional RTO not established | Snapshot age 23 min 37 s; regional RPO not established | Health/db, cookie login, export, logout, runtime RLS and payment/lot integrity passed with image `4e3a58060f81` | Containers and private files removed | [Run 41483756223](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223); aggregate evidence below; no production bindings or traffic cutover |
 | 2026-11-03 | Authorized workflow | Fresh R2 snapshot, revision 0101; object location omitted | Isolated logical + ASGI drill 20.962 s, excluding image build; restore 0.630 s; regional RTO not established | Snapshot age 5 min 7.659 s; regional RPO not established | Health/db, cookie login, tenant export, logout, runtime RLS and payment/lot integrity passed | Both containers and private files removed | [Backup run 41706779313](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41706779313), [restore run 41707510744](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41707510744); [redacted evidence](../audits/KOVA-R2-RESTORE-2026-11-03.md); rebuilt source `88bb94056a0f`, deployed digest not verified; no production bindings or traffic cutover |
+| 2026-11-18 (17 CDMX) | Single workflow explicitly authorized by owner | R2 snapshot 2026-11-17 18:11:31 UTC; revision 0108 | Logical + ASGI 20.921 s, excluding image build; SQL restore 0.887 s; regional RTO not established | Snapshot age 9 h 28 min 25.989 s; regional RPO not established | Health/DB, cookie login, tenant export, logout, runtime RLS and payment/lot checks passed | Both containers and private files removed | [Run 44231962898](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898), rebuilt source `5d19806840fd`; one legacy FK remains unvalidated; no production bindings or traffic cutover |
 | _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |
 
 La repetición del [3 de noviembre](../audits/KOVA-R2-RESTORE-2026-11-03.md) aprobó la revisión

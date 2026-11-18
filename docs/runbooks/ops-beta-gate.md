@@ -141,6 +141,9 @@ prueba real posterior. Esta revisión no sustituye Inbox, modo oscuro ni render 
 - [x] Compatibilidad del snapshot 0099 con la imagen `4e3a58060f81`: igualdad con el head de
       migraciones, arranque ASGI y lectura autenticada aprobados. Este corte no requirió migrar;
       recuperar un snapshot anterior exige validar las migraciones posteriores por separado.
+- [x] Repetición actual autorizada del 17 de noviembre CDMX: snapshot 0108, imagen reconstruida
+      desde `5d19806840fd`, integridad, RLS, login, exportación, logout y limpieza aprobados en
+      el [run 44231962898](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898).
 - [ ] Recuperación completa del servicio: nuevo Postgres si corresponde, roles/grants/RLS,
       configuración y binarios de Cloudflare, smoke y cambio de tráfico controlado. La auth propia
       ya se probó sobre el clon restaurado; Supabase Auth/Storage/Vault no son servicios usados
@@ -150,8 +153,9 @@ prueba real posterior. Esta revisión no sustituye Inbox, modo oscuro ni render 
 No sigue vigente describir OPS-3 como ausencia de restore real o bloqueo exclusivo por slots/costo.
 El [drill lógico en runner](restore-supabase-backup.md#logical-restore-without-creating-a-supabase-project)
 usa infraestructura existente y no exige crear un proyecto Supabase. El último ejercicio lógico y
-ASGI duró 22.447 segundos desde la descarga, sin incluir la construcción de la imagen, con una edad
-del snapshot de 23 min 37 s. [Run de la imagen actual](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/41483756223).
+ASGI del 17 de noviembre CDMX duró 20.921 segundos desde la descarga, sin incluir la construcción
+de la imagen, con una edad del snapshot de 9 h 28 min 25.989 s.
+[Run actual](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898).
 Estas mediciones no equivalen a un RTO/RPO regional completo.
 Crear o eliminar un proyecto, restaurar o cambiar tráfico requiere su propia autorización; este
 checklist no la concede.
@@ -193,6 +197,7 @@ acuerdo preparado; debe ser aceptada y revisada profesionalmente.
 | OPS-1 | 2026-10-30 | Backend Cloudflare/proxy y Resend | `aa9c856e8f11` | Recuperación con diseño nuevo solicitada por API, HTTP 200 y `delivered` a las 14:48 UTC; seis plantillas del 27 de octubre conservan su alcance histórico | [Alcance de la entrega](../email-deliverability.md) | Aceptación de la nueva presentación, Inbox, Outlook/Hotmail, móvil/oscuro y disparadores actuales de las otras plantillas |
 | OPS-2 | 2026-10-26 | Decisión de soporte beta y fuente del producto | SELL-06 / `support.ts` | Gmail aceptado como canal; buzón de dominio diferido | Evidencia de respuesta operativa todavía requerida | Responsable, recepción/respuesta y tiempos; dominio sólo si se decide migrarlo |
 | OPS-3 | 2026-10-30 | GitHub runner / R2 / PostgreSQL 17 y ASGI aislados (29 CDMX) | `57fe4cf7004f`; snapshot 0098 | Restore, runtime RLS, integridad, login/CSRF, exportación de 2,217 pedidos existentes y logout aprobados; dos contenedores y dump eliminados | [Run 40996995394](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/40996995394) | Recuperación regional, esquemas del proveedor, bindings/tráfico y RTO/RPO completos |
+| OPS-3 | 2026-11-18 (17 CDMX) | Única repetición aislada autorizada; R2, PostgreSQL 17 y ASGI | `5d19806840fd`; snapshot 0108 | Restore actual, RLS, integridad, login, exportación, logout y limpieza aprobados; ejercicio 20.921 s sin incluir construcción de imagen | [Run 44231962898](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/44231962898) y alcance en el runbook de restore | Recuperación regional, bindings/tráfico y RTO/RPO completos |
 | OPS-4 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | No aplica | Tenant, responsable, autorización y conteo humano |
 | OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
 | OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |
