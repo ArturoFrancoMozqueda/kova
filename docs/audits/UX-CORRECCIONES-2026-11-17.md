@@ -78,3 +78,12 @@ Consultar agregados no devuelve identidades. Sin evidencia, tasas y medianas son
 La satisfacción, comprensión y dificultad percibida siguen requiriendo participantes reales.
 No se asigna una puntuación UX ni se retira un módulo suponiendo falta de uso. La política y el
 significado de la medición están en `specs/reports/task_experience.md`.
+
+
+## Dependencia de publicación
+
+El bloqueo npm se resuelve mediante una corrección local de fuentes verificada, conservando
+los avisos originales y los umbrales de seguridad. Su alcance, pruebas, límites y vigencia
+están en [PICOMATCH-2026-11-17.md](PICOMATCH-2026-11-17.md). La validación de ese candidato
+repitió los 254 archivos/1,962 tests del frontend y añadió 22 escenarios aprobados sobre el
+build de reglas, pendientes y caja. El merge y release requieren CI required aprobado.

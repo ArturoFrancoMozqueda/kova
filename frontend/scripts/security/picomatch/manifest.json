@@ -1,0 +1,139 @@
+{
+  "advisory": "GHSA-fc5q-39xc-vjpf",
+  "sourceProposals": {
+    "v4": "3222059ac27492d9c0147fee5c65f751bbd851ab",
+    "v2": "9ca61909ab0ec680953e21bac80a6e825e1ede81",
+    "boundedProof": "b911986d9fb69c39ac203a1d08b7436057508058"
+  },
+  "releases": {
+    "2.3.2": {
+      "integrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==",
+      "tarball": "https://registry.npmjs.org/picomatch/-/picomatch-2.3.2.tgz",
+      "files": {
+        "index.js": {
+          "before": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+          "after": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480"
+        },
+        "lib/constants.js": {
+          "before": "980225ab847a88a784f6d315557b8434f7742b2551ce20e354455c61b938c0a5",
+          "after": "980225ab847a88a784f6d315557b8434f7742b2551ce20e354455c61b938c0a5"
+        },
+        "lib/parse.js": {
+          "before": "3a91656f440069aa8f8e15c9d695b9f6b2209df1eab2be8127c72cbcca45ff5f",
+          "after": "725a0361f36536dfc68d4ea7f16fdfbe839275d2b90f19f5e59865d0558a207f"
+        },
+        "lib/picomatch.js": {
+          "before": "2cb169cbe17d356036c5f62a377318b85e30817877e59797842aec9d8b15f54b",
+          "after": "2cb169cbe17d356036c5f62a377318b85e30817877e59797842aec9d8b15f54b"
+        },
+        "lib/scan.js": {
+          "before": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535",
+          "after": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535"
+        },
+        "lib/utils.js": {
+          "before": "809fc29cf35ab0aa76b99cad29182f62c0ae598902481d10f9868eaef71981ee",
+          "after": "809fc29cf35ab0aa76b99cad29182f62c0ae598902481d10f9868eaef71981ee"
+        },
+        "package.json": {
+          "before": "63264d817e856a4bff57d4304f2b38d2964a4f6df520eb169e7bcdb619f13e9a",
+          "after": "63264d817e856a4bff57d4304f2b38d2964a4f6df520eb169e7bcdb619f13e9a"
+        }
+      },
+      "replacement": "v2.3.2-parse.js.txt"
+    },
+    "4.0.4": {
+      "integrity": "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==",
+      "tarball": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.4.tgz",
+      "files": {
+        "index.js": {
+          "before": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a",
+          "after": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a"
+        },
+        "lib/constants.js": {
+          "before": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222",
+          "after": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222"
+        },
+        "lib/parse.js": {
+          "before": "ce57c04e04994b83e2ca566170fa192e6fe19d710bea6da00ce2f76d01c0dea4",
+          "after": "b5630a73da593f08b73b71e1f7740fd55287ed705579aa98f69bb2804c9166fb"
+        },
+        "lib/picomatch.js": {
+          "before": "bbe9824eae8210954eac016e1fa1ac6174093557f30a72e91621d74a6c25e170",
+          "after": "bbe9824eae8210954eac016e1fa1ac6174093557f30a72e91621d74a6c25e170"
+        },
+        "lib/scan.js": {
+          "before": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535",
+          "after": "227fcc994a477ea95c5a0435d32783566334c6bd0dcc4a103029735ad8c9c535"
+        },
+        "lib/utils.js": {
+          "before": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935",
+          "after": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935"
+        },
+        "package.json": {
+          "before": "b8deb10b4e1f7cc2fe8236a70995f4c6b5ec3ecf93f02f2b6427a8600d2c1d20",
+          "after": "b8deb10b4e1f7cc2fe8236a70995f4c6b5ec3ecf93f02f2b6427a8600d2c1d20"
+        },
+        "posix.js": {
+          "before": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+          "after": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480"
+        }
+      },
+      "replacement": "v4.0.4-parse.js.txt"
+    },
+    "4.0.7": {
+      "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+      "tarball": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz",
+      "files": {
+        "index.js": {
+          "before": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a",
+          "after": "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a"
+        },
+        "lib/constants.js": {
+          "before": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222",
+          "after": "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222"
+        },
+        "lib/parse.js": {
+          "before": "4e1e05447668aa1e94366c5516a2bcd8f5fff800cc92b1d0cd7d77703b8618c4",
+          "after": "bf395b0edbfda479084632474ec66baff63ae4b7188d17495e1aaf7fe5d09bc7"
+        },
+        "lib/picomatch.js": {
+          "before": "fdd249d7ffff853f3bb1c77eafc8baa1a437bea85a94c35877b83c6a40d9ca94",
+          "after": "fdd249d7ffff853f3bb1c77eafc8baa1a437bea85a94c35877b83c6a40d9ca94"
+        },
+        "lib/scan.js": {
+          "before": "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae",
+          "after": "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae"
+        },
+        "lib/utils.js": {
+          "before": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935",
+          "after": "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935"
+        },
+        "package.json": {
+          "before": "479b70b87aa7b44344d62c8a459ae7e53dd2bca6c61f1396bd55e63e9de73fc6",
+          "after": "479b70b87aa7b44344d62c8a459ae7e53dd2bca6c61f1396bd55e63e9de73fc6"
+        },
+        "posix.js": {
+          "before": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+          "after": "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480"
+        }
+      },
+      "replacement": "v4.0.7-parse.js.txt"
+    }
+  },
+  "regressions": {
+    "sha256": "43a8cddb10a8d0adad1285deae446a2951d9de9eba86d77b1065adbd5b20d70a",
+    "cases": {
+      "2.3.2": 81,
+      "4.0.4": 82,
+      "4.0.7": 82
+    }
+  },
+  "review": {
+    "status": "verified",
+    "owner": "Kova repository maintainers",
+    "reviewer": "Codex automated source review and isolated tests; no external certification",
+    "reviewedAt": "2026-11-18T00:41:40Z",
+    "expiresAt": "2026-11-25T00:41:40Z",
+    "evidence": "docs/audits/PICOMATCH-2026-11-17.md"
+  }
+}

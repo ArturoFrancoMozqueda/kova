@@ -95,7 +95,7 @@ uv python install cpython-3.14.2-emscripten-wasm32-musl
 uv venv /tmp/kova-pyodide --python cpython-3.14.2-emscripten-wasm32-musl
 uv pip install --python /tmp/kova-pyodide/bin/python --only-binary :all: --preview-features pylock -r deploy/cloudflare-backend/pylock.toml
 cd deploy/cloudflare-backend
-npm ci
+node ../../frontend/scripts/security/install.mjs
 KOVA_WORKERS_PACKAGES=/tmp/kova-pyodide/lib/python3.14/site-packages npm run build
 PYTHONPATH=../../backend ../../backend/.venv/bin/python test/generate_fixtures.py .cloudflare/test-fixtures.json
 KOVA_WORKERS_TEST_DATABASE_URL=postgresql://pos:pos@127.0.0.1:5432/pos npm test
@@ -111,7 +111,7 @@ Local timings are not measurements of deployed Cloudflare CPU or memory limits.
 
 ## Deployment inputs and acceptance
 
-Use the local `node_modules/.bin/cf` with the pinned CLI/config. `npm ci` applies
+Use the local `node_modules/.bin/cf` with the pinned CLI/config. The verified installer applies
 narrowly checked beta.18 fixes: Python module paths must not start with `./`
 inside the metadata filesystem, and the remote Durable Object descriptor must
 omit an unset `environment` rather than synthesize an own `undefined` property.

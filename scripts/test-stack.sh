@@ -26,7 +26,7 @@ case "$SUITE" in
   integration|all)
     docker compose -f "$COMPOSE_FILE" up -d --build --wait
     cd "$REPO_DIR/frontend"
-    npm ci
+    node scripts/security/install.mjs
     npx playwright install chromium
     KOVA_INTEGRATION=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5174 npm run test:integration
     ;;

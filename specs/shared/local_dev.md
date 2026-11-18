@@ -92,7 +92,7 @@ uv run uvicorn app.main:app --reload
 
 ```sh
 cd frontend
-npm ci
+node scripts/security/install.mjs
 npm run dev
 ```
 

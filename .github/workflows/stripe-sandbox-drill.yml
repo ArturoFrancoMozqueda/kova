@@ -123,7 +123,7 @@ jobs:
       - name: Install locked application dependencies
         run: |
           uv sync --project backend --frozen
-          npm ci --prefix frontend
+          node frontend/scripts/security/install.mjs --project frontend
           npx --prefix frontend playwright install --with-deps chromium
 
       - name: Verify hosted Portal helper safety
