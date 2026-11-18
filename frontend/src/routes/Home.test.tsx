@@ -166,11 +166,11 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       "Toda tu operación, más fácil.",
     );
     expect(sectionIds).toEqual([
+      "reportes",
       "clientes",
       "problema",
       "producto",
       "incluye",
-      "reportes",
       "precio",
       "faq",
       "cta-final",
@@ -264,15 +264,16 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(landingText).not.toMatch(/terminal integrada/i);
   });
 
-  it("frames reports around grounded owner questions", () => {
+  it("presents the owner panel as an at-a-glance overview", () => {
     renderHome();
 
-    expect(screen.getAllByText("¿Cuánto vendí?")).toHaveLength(1);
-    expect(screen.getByText("¿Qué producto se mueve?")).toBeInTheDocument();
-    expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tu negocio, de un vistazo." })).toBeVisible();
+    expect(screen.getAllByText("¿Cómo van mis ventas?")).toHaveLength(1);
+    expect(screen.getByText("¿Cómo está mi caja?")).toBeInTheDocument();
+    expect(screen.getByText("¿Qué necesito reponer?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
-    const analysisImage = screen.getByAltText(/Análisis de Kova con ventas netas/i);
-    expect(analysisImage).toHaveAttribute("src", "/showcase/current/reports.jpg");
+    const analysisImage = screen.getByAltText(/Panel de Kova con el resumen del día/i);
+    expect(analysisImage).toHaveAttribute("src", "/showcase/current/dashboard.jpg");
     expect(analysisImage).toHaveAttribute("width", "2160");
     expect(analysisImage).toHaveAttribute("height", "1350");
     expect(analysisImage).toHaveAttribute("loading", "lazy");
@@ -283,6 +284,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-live-dot")).toBeNull();
     expect(container.textContent).not.toContain("● ● ●");
     expect(container.querySelector(".lp-hero-frame-bar")).toBeNull();
+    expect(container.textContent).not.toMatch(/Vista con datos de ejemplo|Recorrido del producto con datos de ejemplo|Pausar recorrido/i);
     expect(container.textContent).not.toMatch(
       /Captura real(?: del producto| de Reportes| sanitizada)/i,
     );

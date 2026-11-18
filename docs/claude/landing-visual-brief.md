@@ -3,18 +3,28 @@
 > **Actualización 18 de noviembre de 2026:** el hero abre con “Toda tu operación,
 > más fácil.”. El mensaje conecta ventas, inventario, pedidos, compras, clientes
 > y equipo con menos trabajo manual y más claridad para dirigir el negocio. Esa
-> promesa recorre los pilares, Reportes, planes, CTA final, footer y metadatos. Caja y
-> Análisis se presentan en marcos CSS de escritorio y teléfono con capturas del
+> promesa recorre los pilares, Panel, planes, CTA final, footer y metadatos. El Panel
+> aparece inmediatamente después del hero con “Tu negocio, de un vistazo.” y explica
+> ventas, caja, existencias y pendientes. Conserva el ancla `#reportes` por compatibilidad.
+> Caja y Panel se presentan en marcos CSS de escritorio y teléfono con capturas del
 > frontend vigente; ya no se usa la imagen compuesta de la interfaz anterior.
-> El recorrido conserva sus cuatro pasos, teclado, pausa y movimiento reducido,
+> El recorrido conserva sus cuatro pasos y teclado, con selección manual, sin
+> autoavance ni botón de pausa. Respeta el movimiento reducido
 > y muestra las pantallas actuales de Caja, Inventario, Turnos y Análisis en
-> lugar de mini-interfaces recreadas. En móvil, recorrido y Reportes sirven
-> capturas de teléfono. Los datos de ejemplo se identifican como tales; se
+> lugar de mini-interfaces recreadas. En móvil, recorrido y Panel sirven
+> capturas de teléfono. Se retiran los textos visibles de datos de ejemplo por
+> decisión del dueño; son ilustraciones del producto y no métricas de tracción. Se
 > retiran las referencias a beta en landing, registro y soporte. Kova calcula
 > el efectivo esperado: el texto no promete que el corte cuadre automáticamente.
 > Capturas reproducibles sin credenciales ni escrituras externas:
 > `frontend/scripts/capture-landing.mjs`. Esta actualización sustituye las
 > decisiones de imágenes y demo interactiva descritas abajo.
+
+> La comparación conecta visualmente las herramientas con Kova mediante SVG; los
+> pilares usan mini-interfaces sobre fondos claros y los planes entran por etapas.
+> Son animaciones CSS originales, de una sola ejecución, menores a cinco segundos,
+> sin dependencias nuevas ni reproducción continua. Con movimiento reducido, quedan
+> estáticas. Los importes de planes siempre vienen del catálogo público sin animarse.
 
 > **Actualización 11 de noviembre de 2026 (pulido):** el video narrado se
 > retira porque mostraba una versión anterior del producto. `#producto` es

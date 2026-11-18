@@ -19,7 +19,7 @@ export default function HeroProductFrame() {
       </div>
       <div className="lp-hero-phone">
         <img
-          src="/showcase/current/mobile/reports.jpg"
+          src="/showcase/current/mobile/dashboard.jpg"
           alt={copy.landing.hero.mobileAlt}
           width={585}
           height={1266}

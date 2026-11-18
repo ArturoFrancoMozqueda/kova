@@ -528,6 +528,9 @@ export const LANDING_STYLES = `
     align-items: stretch;
   }
   .lp-plan {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     min-width: 0;
     padding: clamp(24px, 3vw, 32px);
     display: flex;
@@ -535,7 +538,38 @@ export const LANDING_STYLES = `
     border: 1px solid var(--hairline-strong);
     border-radius: 18px;
     background: var(--surface);
+    transition: border-color 220ms var(--kova-ease-entrance), box-shadow 220ms var(--kova-ease-entrance);
   }
+  .lp-plan[data-featured]::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, #4f7ef7, #b1cbff, #4f7ef7);
+    transform-origin: left;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    #precio[data-lp-pricing-visible="true"] .lp-plan {
+      animation: lp-plan-build 800ms var(--kova-ease-entrance) both;
+    }
+    #precio[data-lp-pricing-visible="true"] .lp-plan:nth-child(2) { animation-delay: 160ms; }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-features li {
+      animation: lp-plan-feature 500ms var(--kova-ease-entrance) 300ms both;
+    }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-features li:nth-child(2) { animation-delay: 400ms; }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-features li:nth-child(3) { animation-delay: 500ms; }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-features li:nth-child(4) { animation-delay: 600ms; }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-features li:nth-child(5) { animation-delay: 700ms; }
+    #precio[data-lp-pricing-visible="true"] .lp-plan[data-featured]::before {
+      animation: lp-plan-line 1200ms var(--kova-ease-entrance) 200ms both;
+    }
+    #precio[data-lp-pricing-visible="true"] .lp-plan-badge {
+      animation: lp-plan-feature 500ms var(--kova-ease-spring, var(--kova-ease-entrance)) 650ms both;
+    }
+  }
+  @keyframes lp-plan-build { from { opacity: 0; transform: translate3d(0, 22px, 0) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes lp-plan-feature { from { opacity: 0; transform: translate3d(-8px, 0, 0); } to { opacity: 1; transform: none; } }
+  @keyframes lp-plan-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .lp-plan[data-featured] {
     border-color: color-mix(in srgb, var(--accent) 60%, var(--hairline-strong));
     box-shadow: 0 30px 70px -50px rgba(79, 126, 247, 0.8);

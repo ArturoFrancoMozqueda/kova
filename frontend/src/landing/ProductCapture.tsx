@@ -4,7 +4,7 @@ export default function ProductCapture({
   alt,
   className,
 }: {
-  screen: "register" | "inventory" | "shifts" | "reports";
+  screen: "register" | "inventory" | "shifts" | "reports" | "dashboard";
   alt: string;
   className?: string;
 }) {

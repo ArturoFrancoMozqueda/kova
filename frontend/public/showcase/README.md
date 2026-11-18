@@ -2,11 +2,11 @@
 
 ## Landing vigente (18 de noviembre de 2026)
 
-La landing usa `current/{register,inventory,shifts,reports}.jpg` y sus equivalentes
+La landing usa `current/{register,inventory,shifts,reports,dashboard}.jpg` y sus equivalentes
 en `current/mobile/`. Son capturas del frontend actual con los componentes y la
 navegación de la app, alimentados por respuestas locales de ejemplo. No son
 métricas de producción ni capturas de un negocio real. El hero combina Caja de
-escritorio y Análisis móvil con marcos CSS; el recorrido y Reportes usan
+escritorio y Panel móvil con marcos CSS; el recorrido y la sección del Panel usan
 `ProductCapture` para elegir la imagen apropiada al ancho de pantalla.
 
 Para regenerar, levantar el frontend local y ejecutar desde `frontend/`:
@@ -21,12 +21,15 @@ Requiere Node 24 y Chromium de Playwright. El script admite únicamente localhos
 o 127.0.0.1, intercepta todas las rutas API, rechaza peticiones desconocidas y
 escrituras, oculta la cuenta de ejemplo y espera fuentes e imágenes. Conserva
 la venta de $186 en Caja y el efectivo esperado de $2,040 en Turnos. Revisar las
-ocho imágenes antes de integrar un cambio de interfaz. No necesita secretos.
+diez imágenes antes de integrar un cambio de interfaz. `KOVA_CAPTURE_SCREENS=dashboard`
+limita la captura a las dos vistas del Panel. No necesita secretos.
 
 Las imágenes siguientes se conservan para otras superficies de marketing;
 la landing ya no usa `kova-laptop-mobile.webp` ni `analysis-story.jpeg`.
 
-## Capturas anteriores y captura autenticada
+## Archivo histórico: capturas anteriores y captura autenticada
+
+Lo siguiente documenta el flujo anterior; sus imágenes y demo ya no se usan en la landing vigente.
 
 `register.png`, `sale-register.jpeg`, `inventory.png`, `inventory-story.jpeg`, `shifts.png`, `reports.png` y `analysis-story.jpeg` son capturas sanitizadas del producto real. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
 
