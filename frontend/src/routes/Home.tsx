@@ -22,7 +22,7 @@ import {
   CapabilitiesSection,
   offeredPlans,
   ProblemSection,
-  ReportsSpotlight,
+  OwnerPanelSpotlight,
   TestimonialsSection,
 } from "@/landing/LandingSections";
 import HeroProductFrame from "@/landing/HeroProductFrame";
@@ -447,8 +447,25 @@ function Pricing({
 }) {
   const tp = t.pricing.tiered;
   const plans = offeredPlans(offer);
+  const pricingRef = useRef<HTMLElement>(null);
+  const [pricingVisible, setPricingVisible] = useState(false);
+  useEffect(() => {
+    const section = pricingRef.current;
+    if (!section) return;
+    if (!("IntersectionObserver" in window)) {
+      setPricingVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setPricingVisible(true);
+      observer.disconnect();
+    }, { threshold: 0.15 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
   if (!plans) return (
-    <section id="precio" className="lp-section">
+    <section id="precio" className="lp-section" ref={pricingRef}>
       <div className="lp-section-inner">
         <h2 className="lp-section-title" style={{ textAlign: "center" }}>{tp.errorTitle}</h2>
         {offer.status === "loading"
@@ -458,7 +475,7 @@ function Pricing({
     </section>
   );
   return (
-    <section id="precio" className="lp-section lp-reveal-block">
+    <section id="precio" className="lp-section lp-reveal-block" ref={pricingRef} data-lp-pricing-visible={pricingVisible ? "true" : undefined}>
       <div className="lp-section-inner">
         <h2 className="lp-section-title" style={{ textAlign: "center" }}>{tp.title}</h2>
         <p className="lp-section-copy" style={{ maxWidth: 640, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>{tp.lead}</p>
@@ -704,6 +721,7 @@ export default function Home(): ReactNode {
           onCtaClick={onCtaClick}
           offer={offer}
         />
+        <OwnerPanelSpotlight />
         <TestimonialsSection />
         <ProblemSection />
         <ProductTour
@@ -712,7 +730,6 @@ export default function Home(): ReactNode {
           onStepView={onStoryStepView}
         />
         <CapabilitiesSection offer={offer} />
-        <ReportsSpotlight />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} offer={offer} onRetry={offer.retry} />
         <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} offer={offer} />
         <FinalCta

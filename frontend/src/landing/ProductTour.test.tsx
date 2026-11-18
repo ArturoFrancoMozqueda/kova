@@ -63,14 +63,16 @@ describe("ProductTour", () => {
     expect(screen.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel").querySelector("img")).toHaveAttribute("src", "/showcase/current/register.jpg");
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
-    expect(screen.getByText("Recorrido del producto con datos de ejemplo.")).toBeInTheDocument();
+    expect(screen.queryByText(/datos de ejemplo/i)).toBeNull();
   });
 
-  it("advances on its own while visible and stops once the visitor picks a step", () => {
+  it("keeps the current screen until the visitor chooses a step", () => {
     renderTour();
     act(() => { vi.advanceTimersByTime(7000); });
-    expect(screen.getByRole("tab", { name: /Baja el inventario/ })).toHaveAttribute("aria-selected", "true");
-    expect(onStepView).toHaveBeenCalledWith("inventory", "scroll");
+    expect(screen.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
+    expect(onStepView).not.toHaveBeenCalledWith("inventory", "scroll");
+    fireEvent.click(screen.getByRole("tab", { name: /Baja el inventario/ }));
+    expect(onStepView).toHaveBeenCalledWith("inventory", "control");
 
     fireEvent.click(screen.getByRole("tab", { name: /Revisas tu turno/ }));
     expect(onStepView).toHaveBeenCalledWith("cash", "control");
@@ -81,12 +83,11 @@ describe("ProductTour", () => {
     expect(screen.getByRole("tab", { name: /Revisas tu turno/ })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("lets the visitor pause the tour", () => {
+  it("has no autoplay controls or unsolicited screen changes", () => {
     renderTour();
-    fireEvent.click(screen.getByRole("button", { name: "Pausar recorrido" }));
-    act(() => { vi.advanceTimersByTime(20000); });
+    expect(screen.queryByRole("button", { name: /Pausar recorrido|Reproducir recorrido/ })).toBeNull();
+    act(() => { vi.advanceTimersByTime(30000); });
     expect(screen.getByRole("tab", { name: /Cobras/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Reproducir recorrido" })).toBeInTheDocument();
   });
 
   it("moves between steps with the arrow keys", () => {

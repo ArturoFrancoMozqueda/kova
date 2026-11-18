@@ -5,11 +5,15 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { makeStory } from "../src/reports/__fixtures__/story.ts";
+import { makeControl } from "../src/dashboard/__fixtures__/control.ts";
+import { summaryFromStory } from "../src/dashboard/storyAdapters.ts";
 import { REGISTER_DEMO_PRODUCTS, REGISTER_DEMO_CART, TOUR_INVENTORY } from "../src/landing/demo/registerDemoCatalog.ts";
 
 const base = new URL(process.env.KOVA_CAPTURE_BASE_URL ?? "http://127.0.0.1:5174");
 if (!["127.0.0.1", "localhost"].includes(base.hostname)) throw new Error("Landing captures require a local frontend.");
 const output = fileURLToPath(new URL("../public/showcase/current/", import.meta.url));
+const requestedScreens = (process.env.KOVA_CAPTURE_SCREENS ?? "register,inventory,shifts,reports,dashboard").split(",");
+if (requestedScreens.some(name => !["register", "inventory", "shifts", "reports", "dashboard"].includes(name))) throw new Error("Unknown capture screen.");
 const date = "2026-11-18";
 const features = ["pos", "inventory", "sales_reports", "public_catalog", "purchasing", "advanced_reports", "loyalty", "customer_orders", "quotes"];
 const shift = {
@@ -50,6 +54,28 @@ const story = makeStory({
     { method: "manual_card", amount: "3080.00", refunded_amount: "0.00", net_amount: "3080.00", payment_count: 23, sales_share_pct: 64 },
   ],
 });
+const hourly = [240, 380, 560, 460, 620, 480, 540, 560, 980].map((amount, index) => ({
+  hour: 9 + index, net_sales: amount.toFixed(2), order_count: [2, 3, 4, 3, 5, 4, 4, 5, 7][index],
+}));
+const control = makeControl({
+  generated_at: `${date}T23:42:00Z`,
+  scope: { kind: "all", branch_id: null, label: "Todo el negocio", can_view_all: true },
+  branches: [{ id: "example-branch", name: "Sucursal principal" }],
+  branch_sales: [{ branch_id: "example-branch", branch_name: "Sucursal principal", completed_orders: 37, net_sales: "4820.00", average_ticket: "130.27", share_pct: "100.00", low_stock_count: 1, open_shift_count: 1, attention_signals: 1 }],
+  priority_counts: { now: 0, today: 1, followup: 0 },
+  alert_groups_total: 1, alerts_has_more: false,
+  alerts: [{ key: "low_stock", title: "Productos con existencias bajas", branch_id: "example-branch", branch_name: "Sucursal principal", count: 1, priority: "today", route_key: "inventory", scope: "current" }],
+});
+const salesArea = control.areas.find(area => area.key === "sales");
+salesArea.metrics.find(metric => metric.key === "open_shifts").value = "1";
+salesArea.metrics.find(metric => metric.key === "expected_cash").value = "2040.00";
+control.areas = control.areas.map(area => {
+  if (area.key === "business") return { ...area, metrics: area.metrics.filter(metric => metric.key === "subscription") };
+  if (area.key === "attention") return { ...area, metrics: area.metrics.filter(metric => metric.key === "cases_open").map(metric => ({ ...metric, value: "0" })) };
+  if (area.key === "money") return { ...area, metrics: area.metrics.filter(metric => metric.key === "unmatched").map(metric => ({ ...metric, value: "0" })) };
+  if (area.key === "products") return { ...area, metrics: area.metrics.map(metric => ({ ...metric, value: metric.key === "low_stock" ? "1" : "0" })) };
+  return area;
+});
 // Routes are exact or explicitly parameterized; unknown requests fail capture.
 function payload(url) {
   const path = url.pathname.replace("/api/v1/", "");
@@ -80,6 +106,14 @@ function payload(url) {
     };
     return end !== date ? { ...story, summary: { ...story.summary, start_date: start, end_date: end, net_sales: "4080.00", gross_sales: "4080.00", completed_orders: 32, average_ticket: "127.50" } } : story;
   }
+  if (path === "reports/dashboard") return {
+    story, hourly, previous_summary: { ...summaryFromStory(story), net_sales: "4080.00", gross_sales: "4080.00", order_count: 32 },
+    timezone: "America/Mexico_City", active_catalog_count: products.length,
+    tracked_inventory_count: stock.length, low_stock_items: stock.filter(item => item.is_low_stock),
+    active_employee_count: 2, closed_shift_count: 0, billing: null,
+    onboarding: { tenant_id: "example-business", completed_count: 0, total_count: 0, steps: [] },
+    control_center: control,
+  };
   if (path === "reports/branches") return { start_date: date, end_date: date, timezone: "America/Mexico_City", total_net_sales: "4820.00", leader_branch_ids: ["example-branch"], branches: [{ branch_id: "example-branch", branch_name: "Sucursal principal", completed_orders: 37, gross_sales: "4820.00", refunded_amount: "0.00", net_sales: "4820.00", average_ticket: "130.27", share_pct: "100", products: [{ product_id: "cold-brew", product_name: "Cold brew", net_quantity: 24, net_sales: "1488.00" }] }] };
   if (path === "reports/sales-by-hour") return [{ hour: 17, net_sales: "980.00", order_count: 7 }];
   throw new Error(`Unconfigured capture API: ${path}`);
@@ -113,7 +147,8 @@ try {
     });
     const dir = resolve(output, mobile ? "mobile" : ".");
     await mkdir(dir, { recursive: true });
-    for (const [name, path, heading] of [["register", "/register", "Caja"], ["inventory", "/inventory", "Inventario"], ["shifts", "/shifts", "Turnos"], ["reports", "/reports", "Análisis"]]) {
+    for (const [name, path, heading] of [["register", "/register", "Caja"], ["inventory", "/inventory", "Inventario"], ["shifts", "/shifts", "Turnos"], ["reports", "/reports", "Análisis"], ["dashboard", "/dashboard", "Centro de control"]]) {
+      if (!requestedScreens.includes(name)) continue;
       await page.goto(new URL(path, base).href, { waitUntil: "networkidle" });
       await page.getByRole("heading", { name: heading, exact: true }).waitFor({ timeout: 15000 }).catch(async error => { console.error(await page.locator("body").innerText(), failures); throw error; });
       if (name === "register") {
@@ -135,6 +170,7 @@ try {
       // Focus the actual analysis overview, after the branch summary. Nothing
       // is removed or restyled; this is the app at its natural scroll position.
       if (name === "reports") await page.locator(".kv-report-stagger").evaluate(element => element.scrollIntoView({ block: "start" }));
+      if (name === "dashboard") await page.locator('section[aria-label="Tu día"]').evaluate(element => element.scrollIntoView({ block: "start" }));
       if (failures.length) throw new Error([...new Set(failures)].join("\n"));
       const text = await page.locator("body").innerText();
       if (/example@example|Capture fixture|No pudimos|Error al cargar/i.test(text)) throw new Error(`Unready or unsanitized capture: ${name}\n${text}`);

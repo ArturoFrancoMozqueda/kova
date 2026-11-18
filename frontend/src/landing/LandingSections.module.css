@@ -60,78 +60,57 @@
   white-space: nowrap;
 }
 
-/* Espejo "Hoy / Con Kova": cada fila es una herramienta suelta frente a la
-   parte de Kova que la reemplaza. */
+/* A short flow connects the loose tools to one shared operation. */
 .mirror {
+  position: relative;
+  isolation: isolate;
   margin-top: 48px;
-  border: 1px solid var(--hairline-color);
-  border-radius: 16px;
+  padding: 24px 32px 32px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid #cad8f4;
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 50%, #dce8ff 0, transparent 40%), #eef3fb;
 }
-
-.mirrorHead,
-.mirrorRow {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+.flowLines { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; overflow: visible; }
+.flowLines path { fill: none; stroke: #9db8ef; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.flowHub {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 136px; height: 92px;
+  display: grid; place-items: center;
+  border: 1px solid #6587ed;
+  border-radius: 24px;
+  background: var(--kova-blue);
+  box-shadow: 0 12px 36px -10px #315ac96b, 0 0 0 12px #e7efff;
 }
-
-.mirrorHead span {
-  padding: 14px 24px;
-  color: var(--text-tertiary);
-  font-size: 13px;
-  font-weight: 600;
+.mirrorHead, .mirrorRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, .65fr) minmax(0, 1fr); gap: 12px; }
+.mirrorHead { padding: 0 0 18px; }
+.mirrorHead span { color: #536580; font-size: 12px; font-weight: 650; }
+.mirrorHead span + span { grid-column: 3; color: #315bc2; }
+.mirrorRows { margin: 0; padding: 0; display: grid; gap: 12px; list-style: none; }
+.mirrorBefore, .mirrorAfter {
+  min-height: 58px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid #d4def0; border-radius: 12px;
+  background: #fff;
+  font-size: 13px; line-height: 1.4;
+  box-shadow: 0 4px 12px -8px #283d5c42;
 }
-
-.mirrorHead span + span,
-.mirrorAfter {
-  border-left: 1px solid var(--hairline-color);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-}
-
-.mirrorHead span + span {
-  color: var(--accent);
-}
-
-.mirrorRows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mirrorRow {
-  border-top: 1px solid var(--hairline-color);
-}
-
-.mirrorBefore,
-.mirrorAfter {
-  padding: 18px 24px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.mirrorBefore {
-  color: var(--text-muted);
-}
-
-.mirrorBefore svg {
-  margin-top: 3px;
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-.mirrorAfter {
-  color: var(--page-fg);
-  font-weight: 550;
-}
-
-.mirrorAfter svg {
-  margin-top: 3px;
-  flex-shrink: 0;
-  color: var(--accent);
+.mirrorBefore { color: #536580; background: #f8faff; }
+.mirrorBefore svg { color: #8491a5; flex-shrink: 0; }
+.mirrorAfter { grid-column: 3; color: #182a48; font-weight: 550; }
+.mirrorAfter svg { color: #315bc2; flex-shrink: 0; }
+@media (max-width: 700px) {
+  .mirror { padding: 24px 18px; }
+  .flowLines { display: none; }
+  .flowHub { position: relative; left: auto; top: auto; transform: none; width: 124px; height: 72px; margin: 0 auto 28px; }
+  .mirrorHead { display: none; }
+  .mirrorRows { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mirrorRow { display: flex; flex-direction: column; gap: 0; border: 1px solid #d4def0; border-radius: 12px; overflow: hidden; background: #fff; }
+  .mirrorBefore, .mirrorAfter { padding: 12px; border: 0; border-radius: 0; box-shadow: none; width: 100%; font-size: 12px; }
+  .mirrorBefore { min-height: 54px; }
+  .mirrorAfter { flex: 1; align-items: flex-start; border-top: 1px solid #e5eaf3; }
 }
 
 .problemClosing {
@@ -252,68 +231,35 @@
 }
 
 /* Mini-interfaces: siluetas del producto, no capturas. */
+.previewStage {
+  margin-top: 12px;
+  padding: 20px;
+  border: 1px solid #d6e2f6;
+  border-radius: 18px;
+  background: radial-gradient(ellipse at top right, #c4d8ff99, transparent 65%), #eaf0fb;
+  color: #18243b;
+  overflow: hidden;
+}
+.previewStage[data-pillar="controla"] { background: #eff4ef; border-color: #dae6dc; }
+.previewStage[data-pillar="vende"] { background: #f4f0fa; border-color: #e5ddf0; }
+.previewStage[data-pillar="regresan"] { background: #f7efe6; border-color: #eadfce; }
+.previewStage[data-pillar="entiende"] { background: #eaf1f7; }
 .preview {
-  margin-top: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 12px;
-  background: var(--surface-2);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  position: relative; padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid #dbe2ed; border-radius: 12px;
+  background: #fff; color: #18243b;
+  box-shadow: 0 14px 30px -20px #243c6955;
+  font-size: 13px; font-variant-numeric: tabular-nums;
 }
-
-.previewLabel {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.previewRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--text-muted);
-}
-
-.previewRow strong {
-  color: var(--page-fg);
-  font-weight: 650;
-}
-
-.previewRow[data-warn] strong {
-  color: var(--kova-danger);
-}
-
-.previewChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.previewChips span {
-  padding: 4px 8px;
-  border: 1px solid var(--hairline-color);
-  border-radius: 999px;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.previewChips span[data-active] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.previewAction {
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: var(--cta-blue, var(--kova-blue));
-  color: #fff;
-  font-weight: 650;
-  text-align: center;
-}
+.previewLabel { color: #59677c; font-size: 12px; font-weight: 600; }
+.previewRow { display: flex; justify-content: space-between; gap: 12px; color: #526075; }
+.previewRow strong { color: #18243b; font-weight: 650; }
+.previewRow[data-warn] strong { color: #a33727; }
+.previewChips { display: flex; flex-wrap: wrap; gap: 6px; }
+.previewChips span { padding: 4px 8px; border: 1px solid #dbe2ed; border-radius: 999px; color: #59677c; font-size: 11px; }
+.previewChips span[data-active] { border-color: #496ed2; background: #edf2ff; color: #3159b8; }
+.previewAction { margin-top: 6px; padding: 10px 12px; border-radius: 8px; background: var(--kova-blue); color: #fff; font-weight: 650; text-align: center; }
 
 .previewMenu {
   flex-direction: row;
@@ -340,18 +286,18 @@
 
 .previewCard {
   position: relative;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--surface-2)), var(--surface-2));
+  background: linear-gradient(135deg, #fff9ef, #fff);
 }
 
 .previewCardQr {
   position: absolute;
   top: 14px;
   right: 14px;
-  color: var(--page-fg);
+  color: #18243b;
 }
 
 .previewBig {
-  color: var(--page-fg);
+  color: #18243b;
   font-family: var(--lp-font-display);
   font-size: 26px;
   font-weight: 600;
@@ -361,7 +307,7 @@
 .previewMeter {
   height: 6px;
   border-radius: 999px;
-  background: var(--hairline-strong);
+  background: #e5eaf3;
   overflow: hidden;
 }
 
@@ -381,7 +327,7 @@
 .previewBars span {
   flex: 1;
   border-radius: 3px 3px 0 0;
-  background: var(--hairline-strong);
+  background: #d7e2f3;
 }
 
 .previewBars span[data-best] {
@@ -559,6 +505,19 @@
 /* ── Movimiento: one-shot al entrar en pantalla (data-lp-visible lo pone
    useLandingRevealMotion). Sin loops; reduce-motion lo omite. ── */
 @media (prefers-reduced-motion: no-preference) {
+  .mirror[data-lp-visible="true"] .flowLines path {
+    stroke-dasharray: 900;
+    animation: lp-flow-connect 1800ms var(--kova-ease-entrance) var(--flow-delay, 0ms) both;
+  }
+  .mirror[data-lp-visible="true"] .flowHub {
+    animation: lp-hub-arrive 850ms var(--kova-ease-spring, var(--kova-ease-entrance)) 350ms both;
+  }
+  .mirrorRow[data-lp-visible="true"] .mirrorBefore {
+    animation: lp-tool-settle 700ms var(--kova-ease-entrance) var(--lp-reveal-delay, 0ms) both;
+  }
+  .mirrorRow[data-lp-visible="true"] .mirrorAfter {
+    animation: lp-output-arrive 700ms var(--kova-ease-entrance) calc(var(--lp-reveal-delay, 0ms) + 650ms) both;
+  }
   .mirrorRow[data-lp-visible="true"] .mirrorBefore > span {
     background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0 1px;
     animation: lp-strike 520ms var(--kova-ease-entrance) calc(var(--lp-reveal-delay, 0ms) + 260ms) forwards;
@@ -571,11 +530,17 @@
   .pillar[data-lp-visible="true"] .previewAction {
     animation: lp-preview-row 420ms var(--kova-ease-entrance) both;
   }
+  .pillar[data-lp-visible="true"] .preview {
+    animation: lp-ticket-arrive 900ms var(--kova-ease-entrance) both;
+  }
   .pillar[data-lp-visible="true"] .previewRow:nth-of-type(2) { animation-delay: 120ms; }
   .pillar[data-lp-visible="true"] .previewRow:nth-of-type(3) { animation-delay: 200ms; }
   .pillar[data-lp-visible="true"] .previewRow:nth-of-type(4) { animation-delay: 280ms; }
   .pillar[data-lp-visible="true"] .previewChips { animation-delay: 360ms; }
-  .pillar[data-lp-visible="true"] .previewAction { animation-delay: 440ms; }
+  .pillar[data-lp-visible="true"] .previewAction {
+    animation: lp-preview-row 420ms var(--kova-ease-entrance) 440ms both,
+      lp-charge-feedback 700ms var(--kova-ease-entrance) 1050ms both;
+  }
   .pillar[data-lp-visible="true"] .previewBars span {
     transform-origin: bottom;
     animation: lp-bar 640ms var(--kova-ease-entrance) both;
@@ -600,6 +565,13 @@
     transition: border-color 220ms var(--kova-ease-entrance), transform 220ms var(--kova-ease-entrance);
   }
 }
+
+@keyframes lp-flow-connect { from { stroke-dashoffset: 900; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes lp-hub-arrive { from { opacity: 0; scale: .8; } to { opacity: 1; scale: 1; } }
+@keyframes lp-tool-settle { from { opacity: 0; transform: translate3d(-20px, 0, 0) rotate(-3deg); } to { opacity: 1; transform: none; } }
+@keyframes lp-output-arrive { from { opacity: 0; transform: translate3d(-16px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes lp-ticket-arrive { from { opacity: .4; transform: translate3d(0, 24px, 0) rotate(-2deg) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes lp-charge-feedback { 0%, 100% { transform: none; } 45% { transform: scale(.97); box-shadow: 0 0 0 5px #4f7ef733; } }
 
 @keyframes lp-strike {
   to { background-size: 100% 1px; }
@@ -680,25 +652,6 @@
   .quotes,
   .pillarItems {
     grid-template-columns: 1fr;
-  }
-
-  .mirrorHead {
-    display: none;
-  }
-  .mirrorRow {
-    grid-template-columns: 1fr;
-  }
-  .mirrorBefore,
-  .mirrorAfter {
-    padding: 14px 18px;
-  }
-  .mirrorBefore {
-    padding-bottom: 6px;
-    font-size: 14px;
-  }
-  .mirrorAfter {
-    padding-top: 6px;
-    border-left: 0;
   }
 
   .reportQuestions {

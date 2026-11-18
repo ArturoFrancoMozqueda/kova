@@ -23,6 +23,7 @@ import {
 import { TESTIMONIALS } from "./testimonials.data";
 import styles from "./LandingSections.module.css";
 import ProductCapture from "./ProductCapture";
+import Logo from "@/components/brand/Logo";
 
 const t = copy.landing;
 
@@ -84,6 +85,16 @@ export function ProblemSection() {
         </div>
 
         <div className={styles.mirror} data-lp-reveal-opt>
+          <svg className={styles.flowLines} viewBox="0 0 1000 510" preserveAspectRatio="none" aria-hidden="true">
+            {[78, 150, 222, 294, 366, 438].map((y, index) => (
+              <g key={y} style={{ ["--flow-delay" as string]: `${index * 100}ms` }}>
+                <path d={`M 280 ${y} C 420 ${y}, 400 255, 500 255 S 580 ${y}, 720 ${y}`} />
+              </g>
+            ))}
+          </svg>
+          <div className={styles.flowHub} aria-hidden="true">
+            <Logo variant="horizontal" size={28} circuitColor="#fff" wordmarkColor="#fff" coreColor="#fff" title="Kova" />
+          </div>
           <div className={styles.mirrorHead} aria-hidden="true">
             <span>{p.beforeLabel}</span>
             <span>{p.afterLabel}</span>
@@ -233,7 +244,7 @@ export function CapabilitiesSection({ offer }: { offer: PublicPlansState }) {
                   </span>
                   <h3 id={`pillar-${pillar.id}`}>{pillar.title}</h3>
                   <p>{pillar.line}</p>
-                  <div aria-hidden="true">
+                  <div className={styles.previewStage} data-pillar={pillar.id} aria-hidden="true">
                     <PillarPreview id={pillar.id} />
                   </div>
                 </div>
@@ -264,26 +275,26 @@ export function CapabilitiesSection({ offer }: { offer: PublicPlansState }) {
   );
 }
 
-export function ReportsSpotlight() {
+export function OwnerPanelSpotlight() {
   return (
     <section
       id="reportes"
       className={`${styles.section} ${styles.reports}`}
-      aria-labelledby="reports-title"
+      aria-labelledby="owner-panel-title"
     >
       <div className={styles.inner}>
         <div className={styles.reportsHeading} data-lp-stagger-group>
           <div>
             <h2
-              id="reports-title"
+              id="owner-panel-title"
               className={styles.title}
               data-lp-stagger-item
             >
-              {t.reportsSpotlight.title}
+              {t.ownerPanel.title}
             </h2>
           </div>
           <p className={styles.lead} data-lp-stagger-item>
-            {t.reportsSpotlight.body}
+            {t.ownerPanel.body}
           </p>
         </div>
 
@@ -295,17 +306,18 @@ export function ReportsSpotlight() {
           <figure className={styles.reportFrame}>
             <div className={styles.reportViewport}>
               <ProductCapture
-                screen="reports"
-                alt={t.reportsSpotlight.alt}
+                screen="dashboard"
+                alt={t.ownerPanel.alt}
               />
             </div>
           </figure>
           <ol
             className={styles.reportQuestions}
-            aria-label={t.reportsSpotlight.questionsLabel}
+            aria-label={t.ownerPanel.questionsLabel}
+            data-lp-stagger-group
           >
-            {t.reportsSpotlight.questions.map((question, index) => (
-              <li key={question}>
+            {t.ownerPanel.questions.map((question, index) => (
+              <li key={question} data-lp-stagger-item>
                 <span aria-hidden="true">
                   {String(index + 1).padStart(2, "0")}
                 </span>

@@ -1,6 +1,5 @@
 // A guided tour of the current app, with isolated example data.
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Pause, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { prefersReducedMotion } from "@/lib/usePrefersReducedMotion";
@@ -11,7 +10,6 @@ export type LandingStoryStepId = "sale" | "inventory" | "cash" | "reports";
 export type LandingStoryTrigger = "scroll" | "control";
 
 const t = copy.landing.tour;
-const STEP_MS = 7000;
 const STEP_IDS = t.steps.map((step) => step.id as LandingStoryStepId);
 
 export default function ProductTour({
@@ -27,11 +25,7 @@ export default function ProductTour({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const tablistRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const [inView, setInView] = useState(false);
-  const [autoplay, setAutoplay] = useState(true);
-  const [held, setHeld] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const running = autoplay && inView && !held && !reduceMotion;
 
   useEffect(() => {
     setReduceMotion(prefersReducedMotion());
@@ -48,7 +42,6 @@ export default function ProductTour({
     const observer = new IntersectionObserver(
       ([entry]) => {
         const visible = entry.isIntersecting && (entry.intersectionRatio ?? 1) >= 0.3;
-        setInView(visible);
         if (visible && !tracked) {
           tracked = true;
           onStepView("sale", "scroll");
@@ -59,16 +52,6 @@ export default function ProductTour({
     observer.observe(section);
     return () => observer.disconnect();
   }, [onStepView]);
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setTimeout(() => {
-      const next = (active + 1) % STEP_IDS.length;
-      setActive(next);
-      onStepView(STEP_IDS[next], "scroll");
-    }, STEP_MS);
-    return () => window.clearTimeout(timer);
-  }, [active, running, onStepView]);
 
   // En móvil las pestañas son un carrusel horizontal: lleva la activa a la
   // vista desplazando solo el carrusel, nunca la página.
@@ -82,7 +65,6 @@ export default function ProductTour({
 
   const select = useCallback(
     (index: number, focus = false) => {
-      setAutoplay(false);
       setActive(index);
       onStepView(STEP_IDS[index], "control");
       if (focus) tabRefs.current[index]?.focus();
@@ -109,7 +91,6 @@ export default function ProductTour({
       ref={sectionRef}
       className={styles.section}
       aria-labelledby="tour-title"
-      data-running={running ? "true" : undefined}
     >
       <div className={styles.inner}>
         <div className={styles.heading} data-lp-stagger-group>
@@ -117,15 +98,7 @@ export default function ProductTour({
           <p className={styles.lead} data-lp-stagger-item>{t.body}</p>
         </div>
 
-        <div
-          className={styles.layout}
-          onPointerEnter={() => setHeld(true)}
-          onPointerLeave={() => setHeld(false)}
-          onFocus={() => setHeld(true)}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false);
-          }}
-        >
+        <div className={styles.layout}>
           <div className={styles.rail}>
             <div ref={tablistRef} role="tablist" aria-label={t.tablistLabel} className={styles.tabs}>
               {t.steps.map((step, index) => {
@@ -149,23 +122,10 @@ export default function ProductTour({
                       <strong>{step.title}</strong>
                       <span>{step.line}</span>
                     </span>
-                    {selected && running ? (
-                      <span key={`progress-${active}`} className={styles.progress} style={{ animationDuration: `${STEP_MS}ms` }} aria-hidden="true" />
-                    ) : null}
                   </button>
                 );
               })}
             </div>
-            {!reduceMotion ? (
-              <button
-                type="button"
-                className={styles.toggle}
-                onClick={() => setAutoplay((value) => !value)}
-              >
-                {autoplay ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-                <span>{autoplay ? t.pause : t.play}</span>
-              </button>
-            ) : null}
           </div>
 
           <div className={styles.stage} data-lp-reveal-opt data-lp-reveal-variant="frame">
@@ -196,7 +156,6 @@ export default function ProductTour({
         </div>
 
         <div className={styles.footer}>
-          <p className={styles.note}>{t.demoNote}</p>
           <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
             {t.cta}
           </Link>
