@@ -46,7 +46,7 @@ The Beta Tenant agrees to provide practical product feedback during the beta per
 
 ## 6. Support Expectations
 
-The official beta support channel is `posprojectsupport@gmail.com`.
+The official beta support channel is `soporte@kovasuite.com`.
 
 For critical or high-priority issues, the Provider aims to respond during the same business day,
 but no formal service-level agreement applies during beta.

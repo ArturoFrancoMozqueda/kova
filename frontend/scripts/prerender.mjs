@@ -36,7 +36,7 @@ function buildLandingStructuredData() {
         name: "Kova",
         url: `${CANONICAL_ORIGIN}/`,
         logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
-        email: "posprojectsupport@gmail.com",
+        email: "soporte@kovasuite.com",
         areaServed: "MX",
       },
       {

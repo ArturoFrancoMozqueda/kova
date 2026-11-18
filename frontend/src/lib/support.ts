@@ -1,10 +1,10 @@
 /**
  * Canal de soporte oficial durante la beta controlada de Kova.
  *
- * Fuente única de verdad: cuando exista un buzón del dominio (p. ej. soporte@kova.mx),
- * cambiar solo este valor y toda la app (landing, legales, footer) queda actualizada.
+ * Dirección pública del dominio: Cloudflare reenvía al buzón de soporte existente.
+ * Landing, legales y ayuda comparten este contacto.
  */
-export const SUPPORT_EMAIL = "posprojectsupport@gmail.com";
+export const SUPPORT_EMAIL = "soporte@kovasuite.com";
 
 /** Enlace `mailto:` listo para usar en `href`. */
 export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
