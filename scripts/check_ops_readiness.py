@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
-CANONICAL_SUPPORT_EMAIL = "posprojectsupport@gmail.com"
+CANONICAL_SUPPORT_EMAIL = "soporte@kovasuite.com"
 REQUIRED_EMAIL_SENDERS = (
     "send_verification_email",
     "send_welcome_email",

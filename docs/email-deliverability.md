@@ -3,6 +3,30 @@
 Evidencia acumulada al 14 de noviembre de 2026. Las comprobaciones históricas conservan su fecha y
 alcance; no certifican automáticamente las seis plantillas de la versión actual.
 
+## Dirección pública de soporte — 17 de noviembre de 2026
+
+La dirección pública cambia a `soporte@kovasuite.com`. Cloudflare Email Routing confirmó la
+regla exacta activa hacia el Gmail de soporte existente, ya verificado. Se conservan las
+reglas de verificación y DMARC, sus DNS y el catch-all deshabilitado. No se creó un buzón de
+pago ni se cambiaron las credenciales o los remitentes transaccionales de Resend.
+
+Frontend, páginas legales, ayuda, JSON-LD prerenderizado y `Reply-To` de las seis plantillas
+comparten la nueva dirección. El Gmail sigue siendo destino privado y cuenta de operación;
+las referencias históricas a esa cuenta no deben reemplazarse como si se hubiera migrado.
+
+Esto habilita recepción y respuestas a los avisos transaccionales de Kova. No configura por
+sí solo el `From` de respuestas manuales de Gmail. La revisión de Gmail mostró únicamente
+su identidad original. [Google anuncia](https://support.google.com/mail/answer/17101213?hl=es)
+que retirará Enviar como para identidades externas en enero de 2027 y puede restringir nuevas
+configuraciones antes. No se añadió una identidad SMTP, no se guardaron credenciales ni se
+contrató una cuenta de pago. La configuración de respuestas manuales con remitente del
+dominio queda pendiente de escoger una vía compatible y completar su autenticación.
+
+Evidencia local: regla activa observada en Cloudflare; 37 pruebas de ayuda/facturación,
+14 contratos OPS, build de producción y 12 escenarios Playwright de facturación aprobados.
+La observación de una regla activa no acredita entrega extremo a extremo: no se envió
+un mensaje nuevo de prueba ni se confirmó su llegada al buzón.
+
 ## Revisión funcional del 14 de noviembre
 
 La consulta de Resend confirmó el dominio verificado, envío habilitado y seguimiento de aperturas

@@ -28,7 +28,7 @@ FONT_STACK = (
 # canonical production origin so Gmail can proxy and cache it reliably.
 KOVA_LOGO_URL = "https://kovasuite.com/email/kova-mark.png"
 # Same controlled-beta support address as frontend/src/lib/support.ts.
-SUPPORT_EMAIL = "posprojectsupport@gmail.com"
+SUPPORT_EMAIL = "soporte@kovasuite.com"
 
 
 class _PlainTextEmail(HTMLParser):

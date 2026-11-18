@@ -6,7 +6,9 @@
 
 ## Support Channel
 
-**Canal oficial durante la beta:** `posprojectsupport@gmail.com`.
+**Canal oficial durante la beta:** `soporte@kovasuite.com`. Cloudflare reenvía al buzón
+de soporte existente en Gmail; la dirección pública y el `Reply-To` de los avisos usan el dominio.
+El remitente de respuestas manuales requiere una identidad de envío configurada por separado.
 
 - La ayuda autenticada muestra siempre el correo oficial.
 - WhatsApp aparece como canal secundario solo mientras exista un número verificado configurado en la fuente de verdad del frontend.

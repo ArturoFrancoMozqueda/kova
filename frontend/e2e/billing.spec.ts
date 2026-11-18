@@ -222,10 +222,10 @@ test("billing page shows past due recovery and return states", async ({ page }) 
   const delayedConfirmation = page.getByText(/no repitas el pago/i);
   const paymentRecovery = page.getByText(/tu suscripción tiene un pago pendiente/i).locator("..");
   await expect(delayedConfirmation.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
-    "href", "mailto:posprojectsupport@gmail.com",
+    "href", "mailto:soporte@kovasuite.com",
   );
   await expect(paymentRecovery.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
-    "href", "mailto:posprojectsupport@gmail.com",
+    "href", "mailto:soporte@kovasuite.com",
   );
   await expect(page.getByRole("link", { name: /contactar soporte/i })).toHaveCount(2);
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
@@ -293,7 +293,7 @@ for (const status of ["past_due", "unpaid"] as const) {
     const paymentRecovery = page.getByText(/tu suscripción tiene un pago pendiente/i).locator("..");
     await expect(paymentRecovery).toBeVisible();
     await expect(paymentRecovery.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
-      "href", "mailto:posprojectsupport@gmail.com",
+      "href", "mailto:soporte@kovasuite.com",
     );
     await expect(page.getByText(status === "past_due" ? "Vencido" : "Sin pagar", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);

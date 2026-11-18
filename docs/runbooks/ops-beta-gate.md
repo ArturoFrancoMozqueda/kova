@@ -50,7 +50,7 @@ y limpieza aprobados. Los gates sin aceptación física, comercial o de proveedo
 - [x] Gmail es el canal oficial aceptado para la beta controlada: decisión SELL-06 en
       [sprint-planning.md](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/sprint-planning.md) y fuente vigente
       [`frontend/src/lib/support.ts`](../../frontend/src/lib/support.ts).
-- [ ] `posprojectsupport@gmail.com` recibe y responde durante la beta controlada.
+- [ ] `soporte@kovasuite.com` recibe y responde durante la beta controlada.
 - [ ] No cambiar a `soporte@kovasuite.com` hasta probar recepción **y respuesta**; mantener Gmail en
       paralelo durante la transición y definir rollback.
 

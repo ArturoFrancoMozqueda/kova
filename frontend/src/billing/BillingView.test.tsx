@@ -189,7 +189,7 @@ describe("BillingView success-page reconciliation", () => {
     expect(await screen.findByText(/No repitas el pago/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contactar soporte" })).toHaveAttribute(
       "href",
-      "mailto:posprojectsupport@gmail.com",
+      "mailto:soporte@kovasuite.com",
     );
   });
 
