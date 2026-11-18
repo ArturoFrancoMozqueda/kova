@@ -31,6 +31,43 @@ y Resend lo confirmó como `delivered`. La búsqueda del asunto exacto en el Gma
 único mensaje en Inbox a las 19:31 CDMX. Esto acredita la recepción y el reenvío extremo
 a extremo para esa prueba; no acredita envío manual desde el alias ni todos los proveedores.
 
+## Preparación de respuestas manuales con el dominio
+
+Tras aprobar el dueño también las respuestas con dominio, se habilitó Email Sending para
+`kovasuite.com` en la cuenta Cloudflare existente. El Dashboard confirmó Sending Enabled y
+DNS Configured. Una consulta pública independiente confirmó MX y SPF en `cf-bounce.kovasuite.com`
+y la clave pública DKIM en `cf-bounce._domainkey.kovasuite.com`. Los tres MX de recepción del
+dominio raíz y su DMARC existente permanecen sin cambios:
+
+`v=DMARC1; p=quarantine; rua=mailto:dmarc@kovasuite.com; pct=100; adkim=s; aspf=s`
+
+Se preparó en Gmail el alias `Soporte Kova <soporte@kovasuite.com>` con:
+
+| Parámetro | Valor |
+|---|---|
+| Servidor | `smtp.mx.cloudflare.net` |
+| Puerto | `465` |
+| Cifrado | SSL / TLS implícito |
+| Usuario | `api_token` (literal, no una clave) |
+| Contraseña | Token Cloudflare con permiso `Email Sending: Edit`; sólo lo introduce el dueño |
+
+La preparación del formulario no acredita una identidad confirmada. El dueño debe crear la
+credencial y copiarla directamente al campo de contraseña de Gmail; el agente no la lee,
+registra ni recibe por chat. Después debe completar la verificación de dirección de Google.
+No se debe marcar el envío manual como terminado sin comprobar el alias confirmado y el
+remitente de un correo nuevo expresamente autorizado.
+
+El [SMTP oficial](https://developers.cloudflare.com/email-service/api/send-emails/smtp/)
+acepta sólo el puerto 465 con TLS implícito. No se debe utilizar un MX de recepción como
+servidor de salida. El [plan Workers Paid existente](https://developers.cloudflare.com/email-service/platform/pricing/)
+incluye 3,000 envíos mensuales por cuenta y cobra USD 0.35 por cada 1,000 adicionales;
+no se contrató otra suscripción. La recepción conserva su reenvío al Gmail original.
+
+Esta integración con Enviar como de Gmail es transitoria: Google anuncia su retirada para
+identidades externas en enero de 2027. El dominio y su autenticación SMTP se pueden conservar
+con un cliente compatible; antes de esa fecha se debe elegir una vía de respuesta admitida.
+No se modificaron el remitente ni las claves de Resend que usa la aplicación.
+
 ## Revisión funcional del 14 de noviembre
 
 La consulta de Resend confirmó el dominio verificado, envío habilitado y seguimiento de aperturas
