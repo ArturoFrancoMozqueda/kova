@@ -22,6 +22,7 @@ import {
 } from "./demo/registerDemoCatalog";
 import { TESTIMONIALS } from "./testimonials.data";
 import styles from "./LandingSections.module.css";
+import ProductCapture from "./ProductCapture";
 
 const t = copy.landing;
 
@@ -293,13 +294,9 @@ export function ReportsSpotlight() {
         >
           <figure className={styles.reportFrame}>
             <div className={styles.reportViewport}>
-              <img
-                src="/showcase/analysis-story.jpeg"
+              <ProductCapture
+                screen="reports"
                 alt={t.reportsSpotlight.alt}
-                width={3196}
-                height={1811}
-                loading="lazy"
-                decoding="async"
               />
             </div>
           </figure>

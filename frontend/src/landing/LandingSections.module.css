@@ -422,9 +422,14 @@
 }
 
 .reportViewport {
-  aspect-ratio: 3196 / 1811;
+  aspect-ratio: 8 / 5;
   overflow: hidden;
   background: #f8fafb;
+}
+
+@media (max-width: 600px) {
+  .reportFrame { width: min(100%, 390px); margin-inline: auto; }
+  .reportViewport { aspect-ratio: 390 / 844; }
 }
 
 .reportViewport img {

@@ -489,7 +489,7 @@ describe("AuthView signup recovery flows", () => {
     expect(
       screen.getByText("7 días gratis. Sin tarjeta para empezar."),
     ).toBeTruthy();
-    expect(screen.getByText(/Acceso en beta privada controlada/i)).toBeTruthy();
+    expect(screen.getByText(/Prueba Kova 7 días sin tarjeta/i)).toBeTruthy();
   });
 
   it("blocks a weak password in the browser and reports only its category", async () => {

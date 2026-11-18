@@ -30,15 +30,18 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      title: "Cobra una vez. Kova cuadra el resto.",
-      subtitle: "Cada venta descuenta tu inventario, entra a tu corte de caja y aparece en tus reportes. Sin capturar nada dos veces.",
+      title: "Toda tu operación, más fácil.",
+      subtitle: "Kova reúne ventas, inventario, pedidos, compras y clientes en una sola app. Tu equipo trabaja con orden y tú sabes qué pasa, qué falta y qué necesita atención.",
       bullets: [
-        "Sigue cobrando aunque se caiga el internet",
-        "Sin comprar equipo: usa tu computadora, tablet o celular",
-        "Precio fijo al mes, sin comisiones por venta",
+        "Menos capturas y cuentas a mano en el trabajo diario",
+        "Tu equipo coordinado, del mostrador a la entrega",
+        "Más claridad para reponer, dar seguimiento y decidir",
       ],
       ctaPrimary: "Probar Kova gratis",
-      ctaSecondary: "Ver Kova en 45 segundos",
+      ctaSecondary: "Ver cómo funciona",
+      desktopAlt: "Caja de Kova en computadora con catálogo de productos y una venta de $186 preparada",
+      mobileAlt: "Análisis de Kova en celular con el resumen de ventas del negocio",
+      caption: "En tu computadora, tablet o celular. Vista con datos de ejemplo.",
       pricingFrom: "Desde",
       trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
     },
@@ -73,81 +76,81 @@ export const copy = {
     // de plan que la habilita (o null si viene en todos); la etiqueta de plan
     // visible se deriva del catálogo público del servidor, nunca de este copy.
     capabilities: {
-      title: "Más que una caja: todo lo que pasa alrededor de cada venta.",
-      body: "Empieza por cobrar y crece cuando lo necesites. Todo vive en la misma app, con los mismos productos, clientes y números.",
+      title: "Cada parte de tu negocio, trabajando en conjunto.",
+      body: "Atiende en caja, prepara pedidos, repón productos y da seguimiento a tus clientes. Kova conecta esas tareas para que tu equipo trabaje con la misma información y tú mantengas el control.",
       planBadgePrefix: "Plan",
       pillars: [
         {
           id: "cobra",
-          title: "Cobra sin filas",
-          line: "Un mostrador rápido que no se detiene.",
+          title: "Atiende y cobra con más agilidad",
+          line: "Menos pasos en caja, más atención para tus clientes.",
           items: [
             { title: "Caja rápida", body: "Busca o escanea, aplica descuentos y registra efectivo, transferencia, tarjeta manual o pagos divididos.", feature: "pos" },
             { title: "Ventas sin internet", body: "Si la señal falla, la caja preparada sigue cobrando y sincroniza al volver la conexión.", feature: "pos" },
-            { title: "Turnos y corte", body: "Abre turno, registra entradas y salidas y compara lo contado contra el efectivo esperado.", feature: "pos" },
+            { title: "Turnos y corte", body: "Cada entrada, salida y cobro queda en su turno. Compara lo contado con el efectivo esperado sin sumar tickets.", feature: "pos" },
             { title: "Recibos con tu logo", body: "Imprime en 58 u 80 mm desde el navegador o reimprime cualquier venta.", feature: "pos" },
           ],
         },
         {
           id: "controla",
-          title: "Controla tu inventario",
-          line: "Sabes qué tienes, qué se acaba y qué comprar.",
+          title: "Repón a tiempo y compra con orden",
+          line: "Existencias, alertas y proveedores conectados para planear tu siguiente compra.",
           items: [
             { title: "Catálogo completo", body: "Productos con foto, SKU, código de barras y extras como tamaño o tipo de leche. Súbelo desde Excel.", feature: "inventory" },
             { title: "Existencias y alertas", body: "Cada venta descuenta stock y Kova te avisa qué está por agotarse.", feature: "inventory" },
-            { title: "Compras y proveedores", body: "Ordena a tus proveedores y recibe mercancía directo a tu inventario.", feature: "purchasing" },
+            { title: "Compras y proveedores", body: "Prepara compras a tus proveedores y recibe la mercancía directo a tu inventario, sin volver a capturar las existencias.", feature: "purchasing" },
             { title: "Reposición sugerida", body: "Kova propone qué reponer según tu stock real; tú apruebas antes de comprar.", feature: "advanced_reports" },
           ],
         },
         {
           id: "vende",
-          title: "Vende más allá del mostrador",
-          line: "Tus clientes te encuentran, te piden y te esperan.",
+          title: "Lleva cada pedido hasta la entrega",
+          line: "Del menú digital al pedido: tu equipo sabe qué preparar, qué entregar y qué falta cobrar.",
           items: [
-            { title: "Menú digital con QR", body: "Publica tu catálogo con precios y disponibilidad al día. Imprime el QR una vez y se actualiza solo.", feature: "public_catalog" },
+            { title: "Menú digital con QR", body: "Comparte tus productos, precios y disponibilidad al día. Actualiza el catálogo sin volver a imprimir tu menú.", feature: "public_catalog" },
             { title: "Solicitudes desde el menú", body: "Tus clientes eligen productos en el menú y tu equipo revisa la solicitud antes de convertirla en pedido.", feature: "customer_orders" },
             { title: "Pedidos con seguimiento", body: "Aparta producto, separa entregar de cobrar y comparte un enlace para que tu cliente vea el estado.", feature: "customer_orders" },
-            { title: "Cotizaciones", body: "Arma cotizaciones con precios vigentes y vigencia; al aceptarse se vuelven pedido.", feature: "quotes" },
+            { title: "Cotizaciones", body: "Cotiza con los precios de tu catálogo y convierte la cotización aceptada en pedido, sin capturar todo de nuevo.", feature: "quotes" },
           ],
         },
         {
           id: "regresan",
-          title: "Recompensa a quienes vuelven",
-          line: "Conoce a tus clientes y dales una razón para regresar.",
+          title: "Cuida a tus clientes y dales motivos para volver",
+          line: "Historial, seguimientos y recompensas para dar continuidad a cada relación.",
           items: [
-            { title: "Clientes con historial", body: "Liga cada venta a un cliente y consulta qué compra y cada cuánto.", feature: null },
+            { title: "Clientes con historial", body: "Consulta qué compra cada cliente y cada cuánto regresa para atenderlo con contexto.", feature: null },
             { title: "Puntos y recompensas", body: "Tus clientes acumulan puntos y los canjean en caja con su tarjeta digital por QR.", feature: "loyalty" },
-            { title: "Oportunidades", body: "Oportunidades, próxima acción y seguimientos de postventa para que nadie se quede sin respuesta.", feature: "customer_orders" },
+            { title: "Oportunidades", body: "Conserva la próxima acción y los seguimientos de cada oportunidad o atención para que tu equipo sepa a quién responder.", feature: "customer_orders" },
           ],
         },
         {
           id: "entiende",
-          title: "Entiende tu negocio",
-          line: "Descubre qué está moviendo tus ventas y decide dónde enfocarte.",
+          title: "Dirige tu negocio con claridad",
+          line: "Tu equipo tiene el acceso que necesita. Tú ves los resultados y dónde conviene actuar.",
           items: [
             { title: "Resumen de ventas", body: "Cuánto vendiste hoy, esta semana o este mes, y cómo te pagaron.", feature: "sales_reports" },
             { title: "Análisis del negocio", body: "Tus mejores horas, productos que mueven el negocio, ventas por empleado y devoluciones.", feature: "advanced_reports" },
-            { title: "Equipo con roles", body: "Dueño, gerente, cajero y colaborador, cada quien con el acceso que necesita.", feature: null },
+            { title: "Equipo con roles", body: "Reparte el trabajo con accesos por rol y cuida quién puede ver o cambiar la información de tu negocio.", feature: null },
           ],
         },
       ],
     },
-    // Recorrido del producto (#producto): una venta de $186 en la demo local de
-    // Caja y su efecto en inventario, turno y análisis. Los ids coinciden con
+    // Recorrido del producto (#producto): capturas actuales de Caja y el efecto
+    // de una venta de $186 en inventario, turno y análisis. Los ids coinciden con
     // LANDING_STORY_STEPS del backend (telemetría).
     tour: {
-      title: "Mira lo que pasa con una sola venta.",
-      body: "Cobra en la caja de prueba y sigue cómo la misma venta actualiza tu inventario, tu turno y tu análisis del día.",
+      title: "El trabajo avanza sin capturar todo de nuevo.",
+      body: "Así se conecta una parte de tu operación: cobras $186, se descuentan las existencias, se actualiza el turno y la venta llega a tus reportes. Una misma información para seguir trabajando.",
       tablistLabel: "Recorrido de una venta en Kova",
-      demoNote: "Demostración con datos de ejemplo: no registra ventas.",
+      demoNote: "Recorrido del producto con datos de ejemplo.",
       pause: "Pausar recorrido",
       play: "Reproducir recorrido",
       cta: "Probar Kova gratis",
       steps: [
-        { id: "sale", title: "Cobras", line: "Arma el ticket, elige cómo te pagan y cobra en segundos." },
-        { id: "inventory", title: "Baja el inventario", line: "Cada producto vendido se descuenta y Kova avisa qué se acaba." },
-        { id: "cash", title: "Cuadra el turno", line: "El cobro entra al turno y el efectivo esperado se actualiza." },
-        { id: "reports", title: "Entiendes el día", line: "La venta aparece en tus totales, tus horas fuertes y cómo te pagaron." },
+        { id: "sale", title: "Cobras", line: "Eliges los productos y registras cómo te pagan.", alt: "Caja de Kova con productos y un ticket preparado por $186", result: "Un cobro registrado. Sin anotarlo aparte." },
+        { id: "inventory", title: "Baja el inventario", line: "Cada producto vendido se descuenta de tus existencias.", alt: "Inventario de Kova con existencias disponibles y alerta de yogurt con granola en mínimo", result: "Sabes qué reponer antes de quedarte sin producto." },
+        { id: "cash", title: "Revisas tu turno", line: "El cobro se suma al efectivo esperado de tu caja.", alt: "Turnos de Kova con $2,040 de efectivo esperado y movimientos del turno", result: "Al cerrar, comparas lo contado con lo que debe haber." },
+        { id: "reports", title: "Entiendes el día", line: "Ves cuánto vendiste, qué se mueve y en qué horario.", alt: "Análisis de Kova con ventas netas, productos más vendidos y horarios de venta", result: "Decides con tus ventas a la vista, sin sumar tickets." },
       ],
       inventory: {
         title: "Inventario",
@@ -183,8 +186,8 @@ export const copy = {
     // hace ese trabajo y la parte de Kova que la sustituye. Sin precios de
     // terceros: el contraste es de trabajo manual, no de costo inventado.
     problem: {
-      title: "Lo que vive disperso, en un solo lugar.",
-      body: "Si tu operación se reparte entre libreta, hojas de cálculo, calculadora y menú impreso, Kova la reúne. Cada venta se registra una vez y lo demás se acomoda.",
+      title: "Menos pendientes sueltos. Más operación bajo control.",
+      body: "Cuando ventas, inventario, pedidos y clientes viven por separado, tu equipo termina haciendo trabajo de más. Kova reúne la información para atender, entregar, reponer y cerrar el día con orden.",
       beforeLabel: "Herramientas sueltas",
       afterLabel: "En Kova",
       rows: [
@@ -195,7 +198,7 @@ export const copy = {
         { before: "Pedidos anotados a mano", after: "Pedidos con estado, apartado y seguimiento" },
         { before: "Tarjeta de sellos de cartón", after: "Puntos y recompensas en una tarjeta digital" },
       ],
-      closing: "Un solo lugar para cobrar, controlar y entender tu negocio.",
+      closing: "Menos trabajo disperso. Más tiempo para atender y dirigir tu negocio.",
       // Contrato compartido por Ticket.tsx; el componente toma sus montos del
       // demo documentado de Sweet Home, no de este bloque de copy.
       ticketTitle: "Corte del día",
@@ -203,8 +206,8 @@ export const copy = {
       ticketTotalLabel: "Descuadre",
     },
     reportsSpotlight: {
-      title: "Tus ventas se convierten en respuestas para el negocio.",
-      body: "Kova reúne lo que pasó en caja para que puedas revisar el día sin perseguir tickets ni volver a hacer cuentas.",
+      title: "Saber qué pasa te ayuda a decidir qué sigue.",
+      body: "Revisa cuánto vendiste, qué productos se mueven y tus mejores horarios. Identifica qué necesita atención para planear compras, organizar al equipo y enfocar el trabajo del día.",
       alt: "Análisis de Kova con ventas netas, comparación con el periodo anterior, productos más vendidos y mejores horarios.",
       questionsLabel: "Preguntas que responde Reportes",
       questions: ["¿Cuánto vendí?", "¿Qué producto se mueve?", "¿Cuándo vendo más?", "¿Qué necesita atención?"],
@@ -372,8 +375,8 @@ export const copy = {
       disclaimer: "Comparativo con base en información pública disponible; sujeto a validación.",
     },
     finalCta: {
-      title: "Tu primera venta en Kova puede ser hoy.",
-      body: "Crea tu cuenta, carga tus productos, abre tu turno y empieza a cobrar. Durante la prueba tienes todas las funciones del plan más completo.",
+      title: "Haz más fácil el día a día de tu negocio.",
+      body: "Prueba cómo se conectan tus ventas, inventario, pedidos y clientes. Empieza con tu operación diaria y explora todas las funciones del plan más completo durante la prueba.",
       steps: ["Crea tu cuenta", "Carga tus productos", "Abre tu turno", "Cobra"],
       button: "Probar Kova gratis",
       fineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
@@ -426,7 +429,7 @@ export const copy = {
         { q: "¿Kova emite facturas o CFDI?", a: "No actualmente. El recibo de Kova puede mostrar los datos fiscales que configures, pero no es una factura ni un CFDI. Si emitir CFDI desde el POS es indispensable para ti, escríbenos antes de registrarte para confirmar si Kova encaja." },
         { q: "¿Kova calcula IVA u otros impuestos?", a: "Puedes agregar una tasa de impuesto adicional a la venta, con un valor predeterminado para tu negocio. Kova no determina IVA o IEPS por producto, no desglosa impuestos fiscales y no sustituye tu proceso fiscal o contable." },
         { q: "¿Puedo exportar mis datos si cancelo?", a: "Cancelar la suscripción no elimina tu cuenta. La persona propietaria puede descargar una copia desde Configuración antes de solicitar la eliminación de la cuenta." },
-        { q: "¿Cómo funciona el soporte durante la beta?", a: "Atendemos por correo en horario hábil de México, de lunes a viernes de 9:00 a 19:00, hora de CDMX. Los incidentes que impiden operar se atienden con prioridad, sin un SLA formal durante la beta." },
+        { q: "¿Cómo puedo contactar a soporte?", a: "Atendemos por correo en horario hábil de México, de lunes a viernes de 9:00 a 19:00, hora de CDMX. Los incidentes que impiden operar se atienden con prioridad." },
       ],
       // Mientras el servidor no confirma la oferta, esta respuesta no detalla planes.
       plansQuestion: "¿Qué incluyen los planes?",
@@ -440,10 +443,10 @@ export const copy = {
       // catálogo público del servidor; aquí solo vive el texto que los explica.
       tiered: {
         title: "Elige cómo quieres operar tu negocio.",
-        lead: "Empieza con lo esencial o lleva tu negocio más allá del mostrador. Precio fijo al mes, IVA incluido y sin comisiones por venta de Kova.",
+        lead: "Elige el alcance que necesita tu operación: del cobro y las existencias al seguimiento de pedidos, compras y clientes. Precio fijo al mes, IVA incluido y sin comisiones por venta de Kova.",
         audience: {
-          esencial: "Para cobrar rápido, controlar existencias, cuadrar caja y publicar tu menú.",
-          gestion: "Para negocios que toman pedidos, cotizan, compran a proveedores y quieren clientes que regresen.",
+          esencial: "Para facilitar el trabajo de mostrador: cobros, existencias, turnos y menú digital conectados.",
+          gestion: "Para coordinar también pedidos, cotizaciones, compras, clientes y decisiones con análisis del negocio.",
         } as Record<string, string>,
         trialBadge: "Incluido en tu prueba",
         includesAll: (plan: string) => `Todo lo de ${plan}, más:`,
@@ -462,7 +465,7 @@ export const copy = {
       },
     },
     footer: {
-      tagline: "El punto de venta para negocios mexicanos que quieren cobrar con orden, controlar su inventario y entender qué se vende.",
+      tagline: "Ventas, inventario, pedidos y clientes conectados para hacer más fácil la operación de tu negocio. Hecho para negocios mexicanos.",
       humansBadge: "Atendido por humanos, no por bots",
       contactHeading: "Contacto",
       contactBody: "¿Tienes dudas o quieres confirmar si Kova encaja con tu negocio? Te contestamos por correo o WhatsApp.",
@@ -509,7 +512,7 @@ export const copy = {
     more: "Más",
     support: "Ayuda y soporte",
     supportTitle: "¿Necesitas ayuda?",
-    supportDescription: "Cuéntanos qué pasó y qué estabas intentando hacer. Durante la beta te atendemos por nuestros canales oficiales.",
+    supportDescription: "Cuéntanos qué pasó y qué estabas intentando hacer. Te atendemos por nuestros canales oficiales.",
     supportEmail: "Enviar correo a soporte",
     supportWhatsApp: "Escribir por WhatsApp",
     supportWhatsAppMessage: "Hola, necesito ayuda con Kova. Esto es lo que estaba intentando hacer:",
@@ -1047,7 +1050,7 @@ export const copy = {
     resetTokenMissingHint: "Es posible que el correo se haya recortado al abrirlo. Pide un nuevo enlace e intenta otra vez.",
     resetTokenRequestAgain: "Pedir un enlace nuevo",
     loginSubtitle: "Inicia sesión y mantén tu negocio en flujo.",
-    signupSubtitle: `Acceso en beta privada controlada: prueba ${BILLING_TRIAL_LABEL} sin tarjeta. Después, ${STANDARD_PLAN_PRICE_LABEL}.`,
+    signupSubtitle: `Prueba Kova ${BILLING_TRIAL_LABEL} sin tarjeta. Después, ${STANDARD_PLAN_PRICE_LABEL}.`,
     tenantNamePlaceholder: "Nombre de tu negocio",
     emailPlaceholder: "tu@negocio.com",
     passwordPlaceholderLogin: "Escribe tu contraseña",
@@ -2556,7 +2559,7 @@ export const copy = {
       "Caja para vender en efectivo, transferencia y tarjeta manual",
       "Modo offline con sincronización automática",
       "Inventario, turnos, recibos, devoluciones y análisis",
-      "Acceso de empleados y soporte para la beta",
+      "Acceso de empleados y soporte",
     ],
     noSubscriptionBanner: `Tu prueba dura ${BILLING_TRIAL_LABEL}. Activa el ${STANDARD_PLAN.name} para conservar caja, inventario, análisis y ventas offline.`,
     expiredTrialBanner: `La prueba ya terminó. Activa el ${STANDARD_PLAN.name} para recuperar caja, inventario, análisis y ventas offline.`,

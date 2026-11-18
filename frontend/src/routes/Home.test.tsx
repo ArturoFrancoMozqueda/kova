@@ -146,7 +146,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   it("restores the public page title after returning from another screen", () => {
     document.title = "Iniciar sesión · Kova";
     renderHome();
-    expect(document.title).toBe("Kova | Punto de venta e inventario para negocios en México");
+    expect(document.title).toBe("Kova | Punto de venta y gestión para negocios en México");
   });
 
   it("makes the skip link destination focusable without adding a tab stop", () => {
@@ -163,7 +163,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Cobra una vez. Kova cuadra el resto.",
+      "Toda tu operación, más fácil.",
     );
     expect(sectionIds).toEqual([
       "clientes",
@@ -179,7 +179,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     // Sin kickers en versalitas sobre los titulares.
     expect(container.querySelector(".lp-hero-eyebrow, .lp-section-label")).toBeNull();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
-      /Cada venta descuenta tu inventario, entra a tu corte de caja/i,
+      /ventas, inventario, pedidos, compras y clientes en una sola app/i,
     );
     expect(container.querySelectorAll(".lp-hero-bullets li")).toHaveLength(3);
   });
@@ -227,7 +227,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     const { container } = renderHome();
     const landingText = container.textContent ?? "";
 
-    expect(landingText).not.toContain("Beta privada controlada");
+    expect(landingText).not.toMatch(/beta|piloto|en desarrollo|próximamente|demo completada/i);
     expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent(
       /Desde \$399 MXN\/mes\s*·\s*7 días gratis · Sin tarjeta/,
     );
@@ -258,7 +258,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "¿Cómo funciona el soporte durante la beta?",
+        name: "¿Cómo puedo contactar a soporte?",
       }),
     ).toBeVisible();
     expect(landingText).not.toMatch(/terminal integrada/i);
@@ -272,9 +272,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
     const analysisImage = screen.getByAltText(/Análisis de Kova con ventas netas/i);
-    expect(analysisImage).toHaveAttribute("src", "/showcase/analysis-story.jpeg");
-    expect(analysisImage).toHaveAttribute("width", "3196");
-    expect(analysisImage).toHaveAttribute("height", "1811");
+    expect(analysisImage).toHaveAttribute("src", "/showcase/current/reports.jpg");
+    expect(analysisImage).toHaveAttribute("width", "2160");
+    expect(analysisImage).toHaveAttribute("height", "1350");
     expect(analysisImage).toHaveAttribute("loading", "lazy");
   });
 
@@ -288,12 +288,12 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
   });
 
-  it("shows the Kova laptop and mobile product image in the hero", () => {
+  it("shows current desktop and mobile screens in the hero", () => {
     renderHome();
 
     expect(
-      screen.getByAltText(/Kova funcionando en una laptop y un teléfono/i),
-    ).toHaveAttribute("src", "/showcase/kova-laptop-mobile.webp");
+      screen.getByAltText(/Caja de Kova en computadora/i),
+    ).toHaveAttribute("src", "/showcase/current/register.jpg");
   });
 
   it("tracks the story CTA at the same signup destination", () => {

@@ -174,68 +174,37 @@
   box-shadow: 0 40px 90px -50px rgba(0, 0, 0, 0.9), 0 0 0 6px color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
-.windowBar {
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.5);
-}
-
-.windowLogo {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-}
-
-.windowName {
-  font-size: 13px;
-  font-weight: 650;
-}
-
 .panel:not([hidden]) {
-  min-height: 480px;
   display: grid;
 }
 
 .sceneWrap {
-  display: grid;
-  padding: 14px;
+  min-width: 0;
 }
 
-/* La demo de Caja trae su propio padding y fondo. */
-.panel:first-of-type .sceneWrap {
-  padding: 0;
+.capture {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  object-fit: contain;
+  background: #f5f6fa;
 }
 
-.scene {
-  height: 100%;
+.result {
+  margin: 0;
+  padding: 18px 22px;
+  border-top: 1px solid var(--hairline-color);
+  background: var(--surface);
+  color: var(--page-fg);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.5;
 }
 
-/* Demo de Caja compacta: catálogo en mosaico y ticket al lado, como Caja en
-   escritorio. Solo dentro del recorrido. */
-.window :global(.lp-pos-container[data-dense] .lp-pos-grid) {
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-}
-
-@container (min-width: 640px) {
-  .window :global(.lp-pos-container[data-dense] .lp-pos-preview) {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 36%);
-    align-items: start;
-  }
-}
-
-.okBadge {
-  border: 0;
-  background: color-mix(in srgb, var(--kova-growth) 16%, transparent);
-  color: var(--kova-growth);
-}
-
-.okPill {
-  background: color-mix(in srgb, var(--kova-growth) 16%, transparent);
-  color: var(--kova-growth);
+@media (max-width: 600px) {
+  .window { max-width: 390px; margin-inline: auto; }
+  .capture { aspect-ratio: 390 / 844; }
 }
 
 .footer {
@@ -273,36 +242,6 @@
   .sceneWrap {
     animation: tour-scene 420ms var(--kova-ease-entrance) both;
   }
-  .row {
-    animation: tour-row 460ms var(--kova-ease-entrance) both;
-    animation-delay: calc(140ms + var(--i, 0) * 90ms);
-  }
-  .newRow {
-    animation:
-      tour-row 460ms var(--kova-ease-entrance) 520ms both,
-      tour-flash 1600ms ease-out 900ms both;
-  }
-  .tick[data-changed] {
-    animation: tour-tick 520ms var(--kova-ease-spring, var(--kova-ease-entrance)) 700ms both;
-  }
-  .pop {
-    animation: tour-pop 420ms var(--kova-ease-spring, var(--kova-ease-entrance)) 900ms both;
-  }
-  .glow {
-    animation:
-      tour-row 460ms var(--kova-ease-entrance) calc(140ms + 3 * 90ms) both,
-      tour-glow 1400ms ease-out 1000ms both;
-  }
-  .bar {
-    transform-origin: bottom;
-    animation: tour-bar 700ms var(--kova-ease-entrance) both;
-    animation-delay: calc(360ms + var(--i, 0) * 70ms);
-  }
-  .grow {
-    transform-origin: left;
-    animation: tour-grow 800ms var(--kova-ease-entrance) both;
-    animation-delay: calc(600ms + var(--i, 0) * 200ms);
-  }
   .cta:hover {
     transform: translate3d(0, -2px, 0);
     box-shadow: 0 16px 34px -22px rgba(79, 126, 247, 0.9);
@@ -317,42 +256,6 @@
 @keyframes tour-scene {
   from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.99); }
   to { opacity: 1; transform: none; }
-}
-
-@keyframes tour-row {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes tour-tick {
-  0% { opacity: 0; transform: translate3d(0, 60%, 0); }
-  100% { opacity: 1; transform: none; }
-}
-
-@keyframes tour-pop {
-  0% { opacity: 0; transform: scale(0.6); }
-  70% { opacity: 1; transform: scale(1.08); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-@keyframes tour-flash {
-  0% { background-color: color-mix(in srgb, var(--kova-growth) 18%, transparent); }
-  100% { background-color: transparent; }
-}
-
-@keyframes tour-glow {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--kova-blue) 45%, transparent); }
-  100% { box-shadow: 0 0 0 10px transparent; }
-}
-
-@keyframes tour-bar {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
-
-@keyframes tour-grow {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
 }
 
 @media (max-width: 900px) {

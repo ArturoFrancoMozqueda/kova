@@ -192,7 +192,7 @@ test("public landing presents the Esencial and Gestión plans", async ({ page })
 
   await expect(
     page.getByRole("heading", {
-      name: /cobra una vez\. kova cuadra el resto\./i,
+      name: /toda tu operación, más fácil\./i,
     }),
   ).toBeVisible();
   await expect(page.locator(".lp-hero-pricing")).toContainText("Desde $399 MXN/mes");

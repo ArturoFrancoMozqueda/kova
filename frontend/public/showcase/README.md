@@ -1,5 +1,33 @@
 # Capturas reales para marketing
 
+## Landing vigente (18 de noviembre de 2026)
+
+La landing usa `current/{register,inventory,shifts,reports}.jpg` y sus equivalentes
+en `current/mobile/`. Son capturas del frontend actual con los componentes y la
+navegación de la app, alimentados por respuestas locales de ejemplo. No son
+métricas de producción ni capturas de un negocio real. El hero combina Caja de
+escritorio y Análisis móvil con marcos CSS; el recorrido y Reportes usan
+`ProductCapture` para elegir la imagen apropiada al ancho de pantalla.
+
+Para regenerar, levantar el frontend local y ejecutar desde `frontend/`:
+
+```sh
+npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+# En otra terminal:
+node scripts/capture-landing.mjs
+```
+
+Requiere Node 24 y Chromium de Playwright. El script admite únicamente localhost
+o 127.0.0.1, intercepta todas las rutas API, rechaza peticiones desconocidas y
+escrituras, oculta la cuenta de ejemplo y espera fuentes e imágenes. Conserva
+la venta de $186 en Caja y el efectivo esperado de $2,040 en Turnos. Revisar las
+ocho imágenes antes de integrar un cambio de interfaz. No necesita secretos.
+
+Las imágenes siguientes se conservan para otras superficies de marketing;
+la landing ya no usa `kova-laptop-mobile.webp` ni `analysis-story.jpeg`.
+
+## Capturas anteriores y captura autenticada
+
 `register.png`, `sale-register.jpeg`, `inventory.png`, `inventory-story.jpeg`, `shifts.png`, `reports.png` y `analysis-story.jpeg` son capturas sanitizadas del producto real. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
 
 `sale-register.jpeg`, `inventory-story.jpeg` y `analysis-story.jpeg` se usan en los pasos “Venta”, “Inventario” y “Análisis” del recorrido de la landing. La sección “Respuestas, no ruido” también usa `analysis-story.jpeg`, que muestra la vista actual de Análisis. Los assets PNG permanecen como las capturas de las demás secciones.
