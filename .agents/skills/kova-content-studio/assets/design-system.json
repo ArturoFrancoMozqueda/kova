@@ -1,0 +1,135 @@
+{
+  "package_schema_version": 1,
+  "package_name": "kova-design-system",
+  "generated_at_utc": "2026-09-11T23:20:42+00:00",
+  "source_revision": "34ca8fa7db9f966001b576795188fe31bbec2f74",
+  "source_fingerprint": "sha256:47c2749e9359f63c4908cf8b37b2fa04623d5ecbc37ea918843ff280b83a16e2",
+  "source_files": [
+    "frontend/src/styles.css",
+    "frontend/src/landing/landingTheme.tsx",
+    "frontend/src/components/brand/Logo.tsx",
+    "frontend/public/favicon.svg",
+    ".design-sync/config.json",
+    ".design-sync/conventions.md",
+    ".claude/rules/brand-ux-copy.md",
+    "docs/claude/motion-system.md"
+  ],
+  "tokens": {
+    "brand": {
+      "--kova-blue": "#3563D0",
+      "--kova-blue-light": "#7BA7FF",
+      "--kova-ink": "#0F1117",
+      "--kova-mist": "#F5F6FA",
+      "--kova-growth": "#1EBF8A",
+      "--kova-muted": "#61728C",
+      "--kova-tertiary": "#667185",
+      "--kova-border": "#E2E6EF",
+      "--kova-danger": "#DC2626",
+      "--kova-danger-foreground": "#FFFFFF",
+      "--kova-on-ink": "#F0F4FF",
+      "--kova-ink-border": "#1E2330"
+    },
+    "radii": {
+      "--radius-kova-sm": "7px",
+      "--radius-kova-md": "8px",
+      "--radius-kova-lg": "10px",
+      "--radius-kova-xl": "12px"
+    },
+    "shadows": {
+      "--kova-shadow-card": "0 1px 2px -1px rgba(15, 17, 23, 0.04), 0 1px 1px rgba(15, 17, 23, 0.03)",
+      "--kova-shadow-card-hover": "0 4px 14px -8px rgba(15, 17, 23, 0.16), 0 1px 2px rgba(15, 17, 23, 0.05)",
+      "--kova-shadow-hero": "0 24px 60px -20px rgba(15, 17, 23, 0.25)"
+    },
+    "gradients": {
+      "--kova-grad-blue": "linear-gradient(135deg, #eef3ff 0%, #e2ebff 55%, #ddf0ff 100%)",
+      "--kova-grad-mint": "linear-gradient(135deg, #e9fbf4 0%, #ddf6ec 55%, #e2f3ff 100%)",
+      "--kova-grad-sky": "linear-gradient(135deg, #f2f6ff 0%, #e9f1ff 55%, #eef9ff 100%)"
+    },
+    "motion": {
+      "--kova-dur-press": "80ms",
+      "--kova-dur-quick": "120ms",
+      "--kova-dur-hover": "180ms",
+      "--kova-dur-panel": "240ms",
+      "--kova-dur-modal": "280ms",
+      "--kova-dur-celebrate": "600ms",
+      "--kova-dur-panel-exit": "160ms",
+      "--kova-dur-modal-exit": "180ms",
+      "--kova-ease-standard": "cubic-bezier(0, 0, 0.2, 1)",
+      "--kova-ease-entrance": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "--kova-ease-exit": "cubic-bezier(0.4, 0, 1, 1)",
+      "--kova-ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)"
+    }
+  },
+  "typography": {
+    "body": "'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
+    "display": "'Bricolage Grotesque Variable', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif"
+  },
+  "component_sources": {
+    "ArcKicker": "frontend/src/components/ui/arc-kicker.tsx",
+    "Badge": "frontend/src/components/ui/badge.tsx",
+    "Button": "frontend/src/components/ui/button.tsx",
+    "Card": "frontend/src/components/ui/card.tsx",
+    "ConfirmDialog": "frontend/src/components/ui/confirm-dialog.tsx",
+    "Dialog": "frontend/src/components/ui/dialog.tsx",
+    "Input": "frontend/src/components/ui/input.tsx",
+    "Label": "frontend/src/components/ui/label.tsx",
+    "RouteFallback": "frontend/src/components/ui/route-fallback.tsx",
+    "Select": "frontend/src/components/ui/select.tsx",
+    "Skeleton": "frontend/src/components/ui/skeleton.tsx",
+    "StatTile": "frontend/src/components/ui/stat-tile.tsx",
+    "DeltaChip": "frontend/src/components/ui/stat-tile.tsx",
+    "TicketPaper": "frontend/src/components/ui/ticket.tsx",
+    "TicketLeaderRow": "frontend/src/components/ui/ticket.tsx",
+    "ToastProvider": "frontend/src/components/ui/toast.tsx",
+    "ViewHeader": "frontend/src/components/ui/view-header.tsx",
+    "ViewLayout": "frontend/src/components/ui/view-layout.tsx",
+    "ViewError": "frontend/src/components/ui/view-states.tsx",
+    "ViewEmpty": "frontend/src/components/ui/view-states.tsx",
+    "ViewPermissionDenied": "frontend/src/components/ui/view-states.tsx",
+    "Logo": "frontend/src/components/brand/Logo.tsx",
+    "LogoMark": "frontend/src/components/brand/Logo.tsx",
+    "CountUp": "frontend/src/components/brand/RealTime.tsx",
+    "LivePulse": "frontend/src/components/brand/RealTime.tsx"
+  },
+  "component_roles": {
+    "brand": [
+      "Logo",
+      "LogoMark"
+    ],
+    "editorial_label": [
+      "ArcKicker",
+      "Badge"
+    ],
+    "data_story": [
+      "Card",
+      "StatTile",
+      "DeltaChip"
+    ],
+    "receipt_story": [
+      "TicketPaper",
+      "TicketLeaderRow"
+    ],
+    "live_state": [
+      "CountUp",
+      "LivePulse"
+    ]
+  },
+  "bundled_assets": {
+    "mark_on_light": "assets/kova-mark-dark.svg",
+    "mark_on_dark": "assets/kova-mark-light.svg"
+  },
+  "source_modified_at_utc": {
+    "frontend/src/styles.css": "2026-08-17T04:38:56+00:00",
+    ".design-sync/config.json": "2026-07-23T05:35:17+00:00",
+    ".design-sync/conventions.md": "2026-08-02T23:28:19+00:00",
+    ".claude/rules/brand-ux-copy.md": "2026-05-29T06:38:41+00:00",
+    "docs/claude/motion-system.md": "2026-08-04T18:49:22+00:00",
+    "frontend/src/components/brand/Logo.tsx": "2026-05-18T19:34:29+00:00",
+    "frontend/public/favicon.svg": "2026-05-18T19:34:29+00:00",
+    "frontend/src/landing/landingTheme.tsx": "2026-08-14T18:39:38+00:00"
+  },
+  "warnings_at_refresh": [
+    ".design-sync/conventions.md mentions a different kova-blue value; frontend/src/styles.css is authoritative.",
+    ".design-sync/conventions.md lists different Kova radii; frontend/src/styles.css is authoritative."
+  ]
+}

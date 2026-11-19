@@ -1,0 +1,7 @@
+interface:
+  display_name: "Kova Content Studio"
+  short_description: "Contenido verificable y edición de video para Kova"
+  icon_small: "./assets/kova-mark-dark.svg"
+  icon_large: "./assets/kova-mark-dark.svg"
+  brand_color: "#3563D0"
+  default_prompt: "Usa $kova-content-studio para crear o editar contenido de Kova con identidad, narrativa clara y afirmaciones verificables."

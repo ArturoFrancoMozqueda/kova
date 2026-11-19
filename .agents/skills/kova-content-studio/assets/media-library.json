@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "library_name": "kova-approved-media",
+  "selection_policy": {
+    "allow_user_supplied_media": true,
+    "allow_unlisted_repository_media": false,
+    "allow_automatic_showcase_fallback": false,
+    "reject_wrong_orientation_in_named_pool": true,
+    "when_orientation_pool_is_empty": "generate_at_target_ratio_or_request_source"
+  },
+  "pools": {
+    "portrait": {
+      "purpose": "user_managed_reference_library",
+      "role": "creative_reference",
+      "usage": "reference_for_vertical_style_subject_or_composition",
+      "fit": "cover_after_visual_review",
+      "directories": [
+        "assets/marketing/references/vertical"
+      ],
+      "assets": []
+    },
+    "landscape": {
+      "purpose": "user_managed_reference_library",
+      "role": "creative_reference",
+      "usage": "reference_for_horizontal_style_subject_or_composition",
+      "fit": "cover_after_visual_review",
+      "directories": [
+        "assets/marketing/references/horizontal"
+      ],
+      "assets": []
+    },
+    "square": {
+      "purpose": "user_managed_reference_library",
+      "role": "creative_reference",
+      "usage": "reference_for_square_style_subject_or_composition",
+      "fit": "cover_after_visual_review",
+      "directories": [
+        "assets/marketing/references/square"
+      ],
+      "assets": []
+    },
+    "product_ui": {
+      "purpose": "product_evidence",
+      "requires_explicit_story_need": true,
+      "role": "product_evidence",
+      "usage": "use_only_for_matching_visible_feature",
+      "fit": "contain",
+      "directory_priority": 0,
+      "asset_priority": 100,
+      "directories": [
+        "assets/marketing/references/product-ui/vertical",
+        "assets/marketing/references/product-ui/horizontal"
+      ],
+      "assets": [
+        {
+          "path": "frontend/public/showcase/sale-register.jpeg",
+          "role": "product_evidence",
+          "usage": "sale_and_checkout_only",
+          "fit": "contain",
+          "priority": 100,
+          "approved": true
+        },
+        {
+          "path": "frontend/public/showcase/inventory-story.jpeg",
+          "role": "product_evidence",
+          "usage": "inventory_only",
+          "fit": "contain",
+          "priority": 100,
+          "approved": true
+        },
+        {
+          "path": "frontend/public/showcase/shifts.png",
+          "role": "product_evidence",
+          "usage": "cash_and_shifts_only",
+          "fit": "contain",
+          "priority": 100,
+          "approved": true
+        },
+        {
+          "path": "frontend/public/showcase/analysis-story.jpeg",
+          "role": "product_evidence",
+          "usage": "reports_and_analysis_only",
+          "fit": "contain",
+          "priority": 100,
+          "approved": true
+        }
+      ]
+    }
+  },
+  "excluded_repository_roots": [
+    "output/",
+    "videos/",
+    "tmp/",
+    "docs/audits/",
+    "frontend/public/film/desktop/",
+    "frontend/public/film/mobile/",
+    "frontend/public/film/kova-demo-vertical.webp",
+    "frontend/public/film/kova-demo-horizontal.webp"
+  ]
+}

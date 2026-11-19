@@ -1,0 +1,6 @@
+interface:
+  display_name: "Kova · Vertical trending en Clipo"
+  short_description: "Videos trending de Kova con emoción e historia humana"
+  default_prompt: "Usa $kova-content-vertical para editar mis videos en Clipo con un formato social trending, fiel a mi intención y emoción, con identidad Kova y un proyecto editable revisado."
+policy:
+  allow_implicit_invocation: true
