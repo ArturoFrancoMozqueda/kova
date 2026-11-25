@@ -82,6 +82,12 @@ Cualquier excepción futura requiere revisión específica de CVE/paquete/versi�
 responsable y fecha de vencimiento; no se permiten exclusiones generales por sistema
 operativo o falta de parche.
 
+La imagen nativa compila libssl sin QUIC y conserva el informe crudo de Trivy.
+La decisión de CI para los dos avisos de QUIC comprueba la biblioteca cargada
+en la misma imagen escaneada y vence el 1 de diciembre de 2026 a las 21:50 de
+Ciudad de México. Los demás hallazgos y los errores del escáner bloquean CI.
+[ADR-039](adr/ADR-039-openssl-nativo-sin-quic.md)
+
 El parser incorpora fuentes revisadas de Tesseract y backports de libxml2 porque
 el feed de Alpine omite avisos conocidos de esas versiones. Su gate adicional
 `backend/scripts/check_parser_runtime.py` verifica el ID inmutable de la imagen,

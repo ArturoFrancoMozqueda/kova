@@ -3,6 +3,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -11,6 +12,7 @@ SPEC = importlib.util.spec_from_file_location(
 )
 AUDIT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(AUDIT)
+IMAGE_ID = "sha256:" + "a" * 64
 
 
 class DependencyAuditTests(unittest.TestCase):
@@ -113,11 +115,13 @@ class DependencyAuditTests(unittest.TestCase):
 
     def test_successful_scanner_without_report_still_fails(self):
         def successful_tool(command, **kwargs):
+            if command[:3] == ["docker", "image", "inspect"]:
+                return subprocess.CompletedProcess(command, 0, stdout=IMAGE_ID + "\n")
             if command[:2] == ["docker", "save"]:
                 Path(command[command.index("--output") + 1]).write_bytes(b"synthetic tar")
-            return True
+            return subprocess.CompletedProcess(command, 0)
 
-        with tempfile.TemporaryDirectory() as directory, mock.patch.object(AUDIT, "_run", successful_tool):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(AUDIT.subprocess, "run", successful_tool):
             self.assertFalse(AUDIT.audit_image("native", "synthetic:test", Path(directory)))
 
     def test_image_scanner_uses_saved_archive_and_blocks_unfixed_without_ignores(self):
@@ -125,25 +129,70 @@ class DependencyAuditTests(unittest.TestCase):
 
         def scanner(command, **kwargs):
             calls.append(command)
+            if command[:3] == ["docker", "image", "inspect"]:
+                return subprocess.CompletedProcess(command, 0, stdout=IMAGE_ID + "\n")
             if command[:2] == ["docker", "save"]:
                 Path(command[command.index("--output") + 1]).write_bytes(b"synthetic image tar")
-                return True
+                return subprocess.CompletedProcess(command, 0)
             self.assertEqual(kwargs["stdin"].read(), b"synthetic image tar")
             kwargs["stdout"].write('{"error":"scanner failure"}')
-            return False
+            return subprocess.CompletedProcess(command, 1)
 
-        with tempfile.TemporaryDirectory() as directory, mock.patch.object(AUDIT, "_run", scanner):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(AUDIT.subprocess, "run", scanner):
             self.assertFalse(AUDIT.audit_image("native", "synthetic:test", Path(directory)))
-            save, scan = calls
+        _, save, scan = calls
         self.assertEqual(save[:2], ["docker", "save"])
+        self.assertEqual(save[-1], IMAGE_ID)
         self.assertIn(AUDIT.TRIVY, scan)
         self.assertIn("--ignore-unfixed=false", scan[-1])
         self.assertIn("HIGH,CRITICAL", scan[-1])
         self.assertIn("--ignorefile /dev/null", scan[-1])
-        self.assertIn("--exit-code 1", scan[-1])
+        self.assertIn(f"--exit-code {AUDIT.TRIVY_FINDINGS_EXIT}", scan[-1])
         self.assertFalse(any("docker.sock" in arg or arg == "--env" for arg in scan))
         self.assertEqual(scan[scan.index("--volume") + 1], "kova-trivy-cache:/root/.cache/trivy")
         self.assertIn("--interactive", scan)
+
+    def test_native_openssl_review_matches_only_the_exact_unfixed_package_and_cves(self):
+        policy = AUDIT.native_openssl
+        reviewed = policy.REVIEW_EXPIRES - timedelta(seconds=1)
+        finding = {"Severity": "HIGH", "PkgName": policy.PACKAGE, "InstalledVersion": policy.VERSION,
+                   "VulnerabilityID": "CVE-2026-107494"}
+        raw = {"Metadata": {"OS": {"Family": "debian", "Name": "13.7"}}, "Results": [
+            {"Class": "os-pkgs", "Type": "debian", "Vulnerabilities": [finding]},
+        ]}
+        self.assertEqual(policy.reviewed_advisories(raw, reviewed), [finding["VulnerabilityID"]])
+        self.assertEqual(policy.reviewed_advisories(raw, policy.REVIEW_EXPIRES), [])
+        for changes in ({"FixedVersion": "3.5.10"}, {"PkgName": "openssl"}, {"Severity": "CRITICAL"},
+                        {"VulnerabilityID": "CVE-2026-84786"}, {"InstalledVersion": "3.5.7"}):
+            with self.subTest(changes=changes):
+                raw["Results"][0]["Vulnerabilities"] = [finding, finding | changes]
+                self.assertEqual(policy.reviewed_advisories(raw, reviewed), [])
+
+    def test_native_openssl_findings_require_the_scanned_image_to_pass_the_probe(self):
+        policy = AUDIT.native_openssl
+        raw = {"SchemaVersion": 2, "ArtifactType": "container_image", "Results": [
+            {"Class": "os-pkgs"}, {"Class": "lang-pkgs"},
+        ]}
+        report_text = json.dumps(raw)
+        evidence = {"package_version": policy.VERSION, "quic": False, "libssl_sha256": "b" * 64}
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+            policy, "reviewed_advisories", return_value=["CVE-2026-107494"]
+        ), mock.patch.object(AUDIT.subprocess, "run") as run:
+            output = Path(directory)
+            report = output / "image-native.json"
+            report.write_text(report_text)
+            run.side_effect = subprocess.CalledProcessError(1, "docker")
+            self.assertFalse(AUDIT.verify_native_openssl(IMAGE_ID, report, output))
+            self.assertFalse((output / "native-openssl-decision.json").exists())
+            run.side_effect = None
+            run.return_value = subprocess.CompletedProcess([], 0, stdout=json.dumps(evidence))
+            self.assertTrue(AUDIT.verify_native_openssl(IMAGE_ID, report, output))
+            self.assertIn(IMAGE_ID, run.call_args.args[0])
+            self.assertIn("--network=none", run.call_args.args[0])
+            self.assertEqual(report.read_text(), report_text)
+            decision = json.loads((output / "native-openssl-decision.json").read_text())
+            self.assertEqual(decision["covered"], ["CVE-2026-107494"])
+            self.assertEqual(decision["image"], IMAGE_ID)
 
 
 if __name__ == "__main__":

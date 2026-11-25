@@ -10,7 +10,9 @@ import subprocess
 PROBE = r'''
 import ctypes, hashlib, importlib, io, json, os, pathlib, platform, pwd
 import importlib.util
-import pyexpat, ssl, sys, uuid, zlib
+import pyexpat, socket, ssl, sys, tempfile, uuid, zlib
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 assert os.getuid() == 10001 and os.getgid() == 10001
 assert pwd.getpwuid(os.getuid()).pw_name == "kova"
@@ -33,6 +35,9 @@ for optional in ("readline", "_curses", "_curses_panel", "_uuid", "_tkinter",
     assert importlib.util.find_spec(optional) is None, optional
 
 import bcrypt, jwt, psycopg, psycopg.pq, uvloop
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from PIL import Image
 assert psycopg.pq.__impl__ == "binary"
@@ -41,6 +46,46 @@ assert bcrypt.checkpw(b"runtime-probe", password)
 key, nonce = AESGCM.generate_key(bit_length=256), os.urandom(12)
 encrypted = AESGCM(key).encrypt(nonce, b"private", b"scope")
 assert AESGCM(key).decrypt(nonce, encrypted, b"scope") == b"private"
+
+
+def check_loopback_tls():
+    # Exercise the OpenSSL library actually loaded by Python without network access.
+    host = "native-runtime.test"
+    now = datetime.now(UTC)
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, host)])
+    certificate = (x509.CertificateBuilder().subject_name(name).issuer_name(name)
+                   .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                   .not_valid_before(now - timedelta(minutes=1)).not_valid_after(now + timedelta(minutes=1))
+                   .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+                   .add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
+                   .sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM))
+    with tempfile.TemporaryDirectory() as directory:
+        pem = pathlib.Path(directory) / "tls.pem"
+        pem.write_bytes(certificate + key.private_bytes(serialization.Encoding.PEM,
+                         serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server.load_cert_chain(pem)
+    client = ssl.create_default_context(cadata=certificate.decode())
+    for version in (ssl.TLSVersion.TLSv1_2, ssl.TLSVersion.TLSv1_3):
+        client.maximum_version = version
+        client.minimum_version = version
+        left, right = socket.socketpair()
+        with left, right, ThreadPoolExecutor(max_workers=1) as pool:
+            left.settimeout(5)
+            right.settimeout(5)
+
+            def send():
+                with server.wrap_socket(right, server_side=True) as tls:
+                    tls.sendall(b"Kova TLS")
+
+            future = pool.submit(send)
+            with client.wrap_socket(left, server_hostname=host) as tls:
+                assert tls.recv(32) == b"Kova TLS"
+            future.result()
+
+
+check_loopback_tls()
 jwt_key = "synthetic-runtime-test-key-32-bytes-minimum"
 token = jwt.encode({"sub": "synthetic"}, jwt_key, algorithm="HS256")
 assert jwt.decode(token, jwt_key, algorithms=["HS256"])["sub"] == "synthetic"
