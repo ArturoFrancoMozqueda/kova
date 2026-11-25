@@ -2,7 +2,17 @@
 
 This is a locally reviewed, private backport for GHSA-fc5q-39xc-vjpf / CVE-2026-112366. It is **not an upstream release, an upstream-approved fix, or advisory-database clearance**. Package names and versions are unchanged. The raw advisory continues to apply to those published versions; any remediation report must separately describe the verified backport rather than rewriting that result.
 
-## Upstream catalog review — 2026-11-18
+## Upstream catalog review — 2026-11-24
+
+GitHub updated the withdrawn advisory record again at `2026-11-19T16:07:41Z`.
+The [scheduled audit artifact](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45260553867)
+and the [official advisory API](https://api.github.com/advisories/GHSA-fc5q-39xc-vjpf)
+agree on the new timestamp. The catalog comparison found only this `updated_at`
+change. The withdrawal, affected versions and patch availability remain as
+previously reviewed. The renewed seven-day review and validation are recorded in
+[the Kova audit](../../../../docs/audits/PICOMATCH-2026-11-17.md#revisión-del-24-de-noviembre-de-2026).
+
+### Withdrawal recorded on 2026-11-18
 
 GitHub withdrew [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
 at `2026-11-18T15:38:56Z` and updated its record at `2026-11-18T15:38:58Z`.

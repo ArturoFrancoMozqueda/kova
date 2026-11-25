@@ -86,6 +86,10 @@ El parser incorpora fuentes revisadas de Tesseract y backports de libxml2 porque
 el feed de Alpine omite avisos conocidos de esas versiones. Su gate adicional
 `backend/scripts/check_parser_runtime.py` verifica el ID inmutable de la imagen,
 hashes reales de binarios/modelo/parches, seis regresiones C y los reportes upstream.
+La revisión local de libxml2 2.13.9-r3 incorpora los cambios de seguridad de
+[la receta de Alpine](https://github.com/alpinelinux/aports/blob/c7ab030c13f6ad20df0913a5f24c00734f214de8/main/libxml2/APKBUILD).
+Conserva las correcciones y regresiones de Kova, y verifica los hashes de los dos
+parches de Alpine usados como referencia para la revisión.
 Consulta los avisos públicos oficiales de Tesseract. CI usa su token de lectura sólo para esa
 consulta del host y lo retira del entorno antes de invocar Docker; el parser sigue sin red ni
 credenciales. La ejecución local admite la consulta pública sin token. Un GHSA nuevo,
