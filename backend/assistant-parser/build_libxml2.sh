@@ -17,6 +17,19 @@ if len(records) != len(expected) or {record['cve'] for record in records} != exp
     raise ValueError('The complete six-CVE patch manifest is required')
 if {path.stem for path in Path('/xml-tests').glob('CVE-*.c')} != expected:
     raise ValueError('Every patched CVE requires its corresponding executable regression')
+# CVE-2026-6732: the Alpine patch uses a different context in
+# xmlParseReference. Apply the same callback argument fix to the pinned tarball.
+parser = Path('/xml-source/parser.c')
+source = parser.read_text()
+start = source.index('\nxmlParseReference(xmlParserCtxtPtr ctxt) {')
+end = source.index('\n}', start)
+reference = source[start:end]
+for callback in ('characters', 'cdataBlock'):
+    old = f'ctxt->sax->{callback}(ctxt, cur->content, len);'
+    if reference.count(old) != 2:
+        raise ValueError(f'Unexpected xmlParseReference call sites for {callback}')
+    reference = reference.replace(old, f'ctxt->sax->{callback}(ctxt->userData, cur->content, len);')
+parser.write_text(source[:start] + reference + source[end:])
 for record in records:
     original = patches / (record['cve'] + '.patch')
     assert hashlib.sha256(original.read_bytes()).hexdigest() == record['sha256']
@@ -69,6 +82,9 @@ DESTDIR=/xml-package cmake --install /xml-shared
 mkdir -p /xml-package/usr/share/licenses/libxml2
 cp /xml-source/Copyright /xml-package/usr/share/licenses/libxml2/Copyright
 cp -R /xml-patches /xml-package/usr/share/kova-parser/libxml2/patches
+alpine_evidence=/xml-package/usr/share/kova-parser/libxml2/alpine-patches
+install -d -m 0755 "$alpine_evidence"
+install -m 0644 /xml-alpine-patches/*.patch "$alpine_evidence"
 cp /xml-tests/CVE-*.c /xml-package/usr/share/kova-parser/libxml2/tests/
 python - <<'PY'
 import hashlib
@@ -78,20 +94,20 @@ from pathlib import Path
 base = Path('/xml-package/usr/share/kova-parser/libxml2')
 library = Path('/xml-package/usr/lib/libxml2.so.2.13.9')
 metadata = {
-    'name': 'libxml2', 'version': '2.13.9-r2',
-    'build': 'Kova source build with six security backports; not an Alpine release',
+    'name': 'libxml2', 'version': '2.13.9-r3',
+    'build': 'Kova source build with the Alpine 2.13.9-r3 security fixes and five additional backports',
     'source_url': 'https://download.gnome.org/sources/libxml2/2.13/libxml2-2.13.9.tar.xz',
     'source_sha256': 'a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a',
     'library_sha256': hashlib.sha256(library.read_bytes()).hexdigest(),
     'patches': json.loads((base / 'patches/provenance.json').read_text()),
     'python_bindings': False,
-    'scanner_note': 'The upstream/package version is deliberately unchanged. See explicit patch provenance and test reports rather than inferring fixes from a higher version or an empty OS advisory feed.',
+    'scanner_note': 'The package revision corresponds to the Alpine security fixes applied to the pinned source. The upstream source remains 2.13.9; see patch hashes and regression reports.',
 }
 (base / 'provenance.json').write_text(json.dumps(metadata, indent=2) + '\n')
 PY
-# Preserve truthful package inventory. No invented fixed upstream/Alpine version.
+# Record the Alpine revision whose security fixes are present in the source.
 apk mkpkg --files /xml-package --output /libxml2-patched.apk \
-    --info name:libxml2 --info version:2.13.9-r2 --info "arch:$(apk --print-arch)" \
+    --info name:libxml2 --info version:2.13.9-r3 --info "arch:$(apk --print-arch)" \
     --info origin:libxml2 --info license:MIT --info maintainer:Kova \
     --info 'description:XML library 2.13.9 with Kova security backports (see packaged provenance)' \
     --info url:https://gitlab.gnome.org/GNOME/libxml2 \

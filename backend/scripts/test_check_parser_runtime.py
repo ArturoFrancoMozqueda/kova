@@ -26,7 +26,7 @@ def valid_report(expected):
         "libxml2": {
             "provenance": {
                 "name": "libxml2",
-                "version": "2.13.9-r2",
+                "version": "2.13.9-r3",
                 "source_sha256": "a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a",
                 "library_sha256": library_hash,
                 "patches": copy.deepcopy(expected["patches"]),
@@ -34,6 +34,7 @@ def valid_report(expected):
             "library": {"path": "/usr/lib/libxml2.so.2.13.9", "sha256": library_hash},
             "runtime_version": "21309",
             "patch_files": copy.deepcopy(expected["patch_files"]),
+            "alpine_patches": copy.deepcopy(GATE.XML_ALPINE_PATCHES),
             "test_files": copy.deepcopy(expected["test_files"]),
             "backports": {
                 "regressions": 6,
@@ -115,6 +116,11 @@ class RuntimeGateTests(unittest.TestCase):
             GATE.validate_report(report, self.expected)
 
     def test_missing_patch_hash_or_unexecuted_case_blocks_image(self):
+        report = valid_report(self.expected)
+        report["libxml2"]["alpine_patches"].pop("CVE-2026-6732.patch")
+        with self.assertRaisesRegex(GATE.GateError, "verified Alpine revision patches"):
+            GATE.validate_report(report, self.expected)
+
         for key in ("patch_files", "test_files"):
             report = valid_report(self.expected)
             report["libxml2"][key].pop(next(iter(report["libxml2"][key])))

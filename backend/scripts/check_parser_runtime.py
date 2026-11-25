@@ -43,6 +43,10 @@ EXPECTED_SUITES = {
 }
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "assistant-parser"
 XML_SOURCE_SHA = "a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a"
+XML_ALPINE_PATCHES = {
+    "CVE-2026-6732.patch": "42d45b35f36bf29229e39a9e5349d7347e51d92099573b5a509f448dbf0e34d7",
+    "CVE-2026-86144.patch": "0d82d4514d0fffe3dd2ea5dac4ce0811d3322e9460c1ea7610f59ee0e3857001",
+}
 
 
 class GateError(RuntimeError):
@@ -244,6 +248,7 @@ library = pathlib.Path("/usr/lib/libxml2.so.2").resolve(strict=True)
 loaded = ctypes.CDLL("/usr/lib/libxml2.so.2")
 runtime_version = ctypes.c_char_p.in_dll(loaded, "xmlParserVersion").value.decode()
 patches = {path.name: digest(path) for path in (xml / "patches").glob("*.patch")}
+alpine_patches = {path.name: digest(path) for path in (xml / "alpine-patches").glob("*.patch")}
 test_files = {path.stem: digest(path) for path in (xml / "tests").glob("CVE-*.c")}
 ocr = pathlib.Path("/usr/local/share/kova-parser")
 manifest = read(ocr / "upstream-security.json")
@@ -260,6 +265,7 @@ print(json.dumps({"uid": os.getuid(), "architecture": platform.machine(),
     "libxml2": {"provenance": provenance,
         "library": {"path": str(library), "sha256": digest(library)},
         "runtime_version": runtime_version, "patch_files": patches, "test_files": test_files,
+        "alpine_patches": alpine_patches,
         "backports": read(xml / "tests/backports.json"),
         "upstream": junit(xml / "tests/upstream.xml")},
     "ocr": {"manifest": manifest, "build": build, "version": version,
@@ -279,7 +285,7 @@ def validate_report(report: dict, expected: dict) -> None:
     provenance = xml["provenance"]
     if (
         provenance.get("name") != "libxml2"
-        or provenance.get("version") != "2.13.9-r2"
+        or provenance.get("version") != "2.13.9-r3"
         or provenance.get("source_sha256") != XML_SOURCE_SHA
         or xml.get("runtime_version") != "21309"
         or xml["library"].get("path") != "/usr/lib/libxml2.so.2.13.9"
@@ -287,6 +293,8 @@ def validate_report(report: dict, expected: dict) -> None:
         or provenance.get("library_sha256") != xml["library"]["sha256"]
     ):
         raise GateError("Actual libxml2 binary/version does not match truthful provenance")
+    if xml.get("alpine_patches") != XML_ALPINE_PATCHES:
+        raise GateError("Runtime libxml2 is missing verified Alpine revision patches")
     if (
         provenance.get("patches") != expected["patches"]
         or xml.get("patch_files") != expected["patch_files"]

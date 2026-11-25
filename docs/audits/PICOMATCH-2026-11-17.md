@@ -99,3 +99,17 @@ un temporizador a las ventas ni al resto de la aplicación ya desplegada.
 
 CI required, aceptación completa de backend/Workers, imágenes y release siguen siendo
 obligatorios para fusionar y publicar. Este registro local no declara el merge completado.
+
+## Revisión del 24 de noviembre de 2026
+
+La [auditoría semanal del 23 de noviembre](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45260553867)
+detectó un cambio en el catálogo de picomatch. Se contrastó el artefacto de CI con
+la [API oficial de GitHub](https://api.github.com/advisories/GHSA-fc5q-39xc-vjpf).
+El único cambio en los tres registros fue la fecha `updated_at` del aviso retirado.
+El registro npm seguía ofreciendo 4.0.7 como versión más reciente.
+
+La auditoría local aprobó los cuatro lockfiles, consultó los seis ámbitos del
+catálogo y reconstruyó desde npm las versiones 2.3.2, 4.0.4 y 4.0.7.
+La verificación incluyó integridades, hashes y 81, 82 y 82 comprobaciones aisladas,
+respectivamente. Se conservaron las recetas de los parches y los umbrales de CI.
+La revisión registrada abarca de `2026-11-25T01:49:43Z` a `2026-12-02T01:49:43Z`.

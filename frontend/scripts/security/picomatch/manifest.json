@@ -132,8 +132,8 @@
     "status": "verified",
     "owner": "Kova repository maintainers",
     "reviewer": "Codex automated source review and isolated tests; no external certification",
-    "reviewedAt": "2026-11-18T00:41:40Z",
-    "expiresAt": "2026-11-25T00:41:40Z",
+    "reviewedAt": "2026-11-25T01:49:43Z",
+    "expiresAt": "2026-12-02T01:49:43Z",
     "evidence": "docs/audits/PICOMATCH-2026-11-17.md"
   }
 }

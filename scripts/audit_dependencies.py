@@ -3,8 +3,8 @@
 
 Python advisories of any severity and unremediated npm HIGH/CRITICAL findings block CI.
 Image scans include unfixed HIGH/CRITICAL OS and language vulnerabilities.
-Raw advisories are retained; the exact, expiring picomatch source remediation
-is verified separately. Network/tool/report errors also fail closed.
+Raw advisories are retained. The exact, expiring picomatch and native OpenSSL
+remediations are verified separately. Network/tool/report errors fail closed.
 """
 
 from __future__ import annotations
@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 _BACKPORT_SPEC = importlib.util.spec_from_file_location("kova_npm_backport", ROOT / "scripts/npm_backport.py")
 BACKPORT = importlib.util.module_from_spec(_BACKPORT_SPEC)
 _BACKPORT_SPEC.loader.exec_module(BACKPORT)
+_OPENSSL_SPEC = importlib.util.spec_from_file_location("kova_native_openssl", ROOT / "scripts/native_openssl.py")
+native_openssl = importlib.util.module_from_spec(_OPENSSL_SPEC)
+_OPENSSL_SPEC.loader.exec_module(native_openssl)
 NPM_LOCKS = (
     "frontend/package-lock.json",
     "deploy/cloudflare/package-lock.json",
@@ -37,6 +40,7 @@ TRIVY = (
     "aquasec/trivy:0.76.1@sha256:"
     "790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c"
 )
+TRIVY_FINDINGS_EXIT = 42
 IMAGE_BUILDS = {
     "native": ("backend/Dockerfile.api", "backend"),
     "parser": (PARSER, "backend/assistant-parser"),
@@ -139,6 +143,33 @@ def image_report_passed(report: Path) -> bool:
         return False
 
 
+def verify_native_openssl(image: str, report: Path, output: Path) -> bool:
+    try:
+        raw = json.loads(report.read_text())
+        if (raw["SchemaVersion"] != 2 or raw["ArtifactType"] != "container_image"
+                or not {"os-pkgs", "lang-pkgs"} <= {item["Class"] for item in raw["Results"]}):
+            return False
+        advisories = native_openssl.reviewed_advisories(raw)
+        if not advisories:
+            return False
+        probe = subprocess.run([
+            "docker", "run", "--rm", "--pull=never", "--network=none", "--read-only",
+            "--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=64",
+            "--memory=256m", "--entrypoint", "/usr/local/bin/python3", image, "-I", "-c",
+            native_openssl.PROBE, native_openssl.PACKAGE, native_openssl.VERSION, native_openssl.SOURCE_SHA256,
+        ], cwd=ROOT, check=True, capture_output=True, text=True, timeout=30)
+        evidence = json.loads(probe.stdout)
+        if (evidence["package_version"] != native_openssl.VERSION or evidence["quic"] is not False
+                or not re.fullmatch(r"[a-f0-9]{64}", evidence["libssl_sha256"])):
+            return False
+        evidence.update(image=image, covered=advisories, expires_at=native_openssl.REVIEW_EXPIRES.isoformat())
+        (output / "native-openssl-decision.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        print(f"Verified QUIC is absent from the scanned native image for {', '.join(advisories)}")
+        return True
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError):
+        return False
+
+
 def audit_python(output: Path) -> bool:
     success = True
     for index, (source, pins) in enumerate(python_pins().items()):
@@ -206,9 +237,14 @@ def audit_npm(output: Path) -> bool:
 
 def audit_image(name: str, image: str, output: Path) -> bool:
     """Save image locally; scanner gets no Docker socket or deployment credentials."""
+    identity = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                              cwd=ROOT, capture_output=True, text=True, check=False)
+    image_id = identity.stdout.strip()
+    if identity.returncode or not re.fullmatch(r"sha256:[a-f0-9]{64}", image_id):
+        return False
     with tempfile.TemporaryDirectory(prefix="kova-image-audit-") as directory:
         archive = Path(directory) / "image.tar"
-        if not _run(["docker", "save", "--output", str(archive), image]):
+        if not _run(["docker", "save", "--output", str(archive), image_id]):
             return False
         report = output / f"image-{name}.json"
         # Stream through the Docker API so local VM daemons never need host
@@ -216,16 +252,19 @@ def audit_image(name: str, image: str, output: Path) -> bool:
         program = (
             "cat > /tmp/image.tar && exec trivy image --input /tmp/image.tar "
             "--scanners vuln --pkg-types os,library --severity HIGH,CRITICAL "
-            "--ignore-unfixed=false --ignorefile /dev/null --exit-code 1 --format json"
+            f"--ignore-unfixed=false --ignorefile /dev/null --exit-code {TRIVY_FINDINGS_EXIT} --format json"
         )
         with archive.open("rb") as stream, report.open("w") as result:
-            passed = _run([
+            scan = subprocess.run([
                 "docker", "run", "--rm", "--interactive", "--read-only", "--cap-drop=ALL",
                 "--security-opt=no-new-privileges", "--tmpfs", "/tmp:rw,noexec,nosuid,size=2g",
                 "--volume", "kova-trivy-cache:/root/.cache/trivy",
                 "--entrypoint", "/bin/sh", TRIVY, "-c", program,
-            ], stdin=stream, stdout=result)
-        return image_report_passed(report) and passed
+            ], cwd=ROOT, stdin=stream, stdout=result, check=False)
+        if scan.returncode == 0:
+            return image_report_passed(report)
+        return (scan.returncode == TRIVY_FINDINGS_EXIT and name == "native"
+                and verify_native_openssl(image_id, report, output))
 
 
 def main() -> None:
