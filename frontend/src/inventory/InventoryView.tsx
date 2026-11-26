@@ -1,4 +1,5 @@
 import { commercialPlanIdentity, hasPlanFeature } from "@/billing/entitlements";
+import { formatStockQuantity, stockUnitOf } from "@/catalog/units";
 import { LotAllocationEditor, LotsPanel } from "./LotControls";
 import { allocationValid, listLots, type Lot, type LotAllocation } from "./lots";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -620,7 +621,7 @@ function StockCard({
               isOut ? "text-destructive" : isLow ? "text-warning-foreground" : "text-kova-ink",
             )}
           >
-            {item.stock_on_hand}
+            {stockUnitOf(item) === "pza" ? item.stock_on_hand : formatStockQuantity(item.stock_on_hand, stockUnitOf(item))}
           </span>
           <span className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.onHand}</span>
         </div>
@@ -836,7 +837,10 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="inv-amount">{amountLabel}</Label>
+          <Label htmlFor="inv-amount">
+            {amountLabel}
+            {stockUnitOf(modal.item) !== "pza" && <span className="font-normal text-muted-foreground"> ({stockUnitOf(modal.item)})</span>}
+          </Label>
           <Input
             id="inv-amount"
             type="number"

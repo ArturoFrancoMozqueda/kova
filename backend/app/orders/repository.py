@@ -26,6 +26,18 @@ from app.shared.timezone import tenant_timezone
 _SALE_TIME = func.coalesce(Order.occurred_at, Order.created_at)
 
 
+def _sale_unit_cost(product: Product) -> Decimal | None:
+    """Cost of one sold unit, frozen on the line (ADR-010).
+
+    A product bought by the box (``$120`` per 12 pieces) snapshots ``$10``.
+    """
+    from app.catalog.units import stock_unit_cost
+    from app.pricing import calculator
+
+    cost = stock_unit_cost(product)
+    return calculator.money(cost) if cost is not None else None
+
+
 def get_active_products_for_update(
     db: Session, *, tenant_id: UUID, product_ids: list[UUID]
 ) -> dict[UUID, Product]:
@@ -152,7 +164,7 @@ def create_order_item(
         unit_price_amount=(
             unit_price_amount if unit_price_amount is not None else product.price_amount
         ),
-        unit_cost=product.cost_price,
+        unit_cost=_sale_unit_cost(product),
         lot_tracked=product.track_lots,
         discount_amount=discount_amount,
         tax_amount=tax_amount,

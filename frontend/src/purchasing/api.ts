@@ -3,7 +3,8 @@ import { invalidateReportsCache } from "@/reports/api";
 import { safeUserMessage } from "@/lib/apiError";
 
 export type Supplier = { id: string; name: string; contact: string | null; is_active: boolean };
-export type PurchaseItem = { id: string; product_id: string; product_name: string; quantity: number; received_quantity: number; unit_cost: string };
+/** quantity, received_quantity and unit_cost refer to the purchase unit frozen on the line. */
+export type PurchaseItem = { id: string; product_id: string; product_name: string; quantity: number; received_quantity: number; unit_cost: string; units_per_purchase?: number; purchase_unit_label?: string | null };
 export type Purchase = { id: string; branch_id: string; supplier_id: string; supplier_name: string; notes: string | null; status: "pending" | "partial" | "received" | "cancelled"; created_at: string; items: PurchaseItem[] };
 class PurchasingError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }

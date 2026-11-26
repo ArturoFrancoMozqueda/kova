@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app.catalog.units import stock_unit_cost
 from app.inventory.repository import stock_on_hand_for_products
 from app.orders.models import Order, Refund
 from app.pricing import calculator
@@ -1110,7 +1111,7 @@ def _inventory_valuation(
             products_without_cost += 1
             units_without_cost += units
             continue
-        known_value = calculator.money(known_value + product.cost_price * units)
+        known_value = calculator.money(known_value + stock_unit_cost(product) * units)
     complete = products_without_cost == 0
     return {
         "value": known_value if complete else None,
@@ -1149,7 +1150,7 @@ def _waste_report(
             missing_product_ids.add(product.id)
             reason["missing_product_ids"].add(product.id)
             continue
-        movement_value = calculator.money(product.cost_price * movement_units)
+        movement_value = calculator.money(stock_unit_cost(product) * movement_units)
         known_value = calculator.money(known_value + movement_value)
         reason["known_value"] = calculator.money(reason["known_value"] + movement_value)
 

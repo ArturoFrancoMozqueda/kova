@@ -252,7 +252,7 @@ _EXPORT_TABLES = (
         "purchase_order_items",
         _columns(
             "id tenant_id purchase_order_id product_id product_name quantity "
-            "received_quantity unit_cost"
+            "received_quantity unit_cost units_per_purchase purchase_unit_label"
         ),
     ),
     ExportTable(
@@ -282,7 +282,8 @@ _EXPORT_TABLES = (
         "products",
         _columns(
             "id tenant_id category_id name description sku barcode price_amount cost_price "
-            "track_inventory track_lots rotation_label rotation_days expiry_days "
+            "track_inventory is_sellable stock_unit purchase_unit_label purchase_unit_quantity "
+            "track_lots rotation_label rotation_days expiry_days "
             "low_stock_threshold is_active image_url image_position_x "
             "image_position_y image_zoom created_at updated_at"
         ),

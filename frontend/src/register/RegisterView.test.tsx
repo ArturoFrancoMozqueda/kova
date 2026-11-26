@@ -501,6 +501,19 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
   });
 
+  it("never offers ingredients for sale but keeps them in the offline catalog cache", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const milk: Product = { ...product, id: "milk-1", name: "Leche entera", sku: "INS-LECHE", is_sellable: false, stock_unit: "ml" };
+    catalogApi.listProducts.mockResolvedValue([product, milk]);
+    renderRegister();
+
+    expect(await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` })).toBeVisible();
+    expect(screen.queryByText(milk.name)).not.toBeInTheDocument();
+    await waitFor(() => expect(catalogCache.saveCatalogCache).toHaveBeenCalledWith(
+      expect.anything(), [product, milk], expect.anything(),
+    ));
+  });
+
   it("restores an undone cart line at its original position", async () => {
     // Object spread appends, so the previous undo moved a middle line to the
     // bottom of the cart. Invisible before; obvious now that the row collapses

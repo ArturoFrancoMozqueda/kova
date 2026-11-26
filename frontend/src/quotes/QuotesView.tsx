@@ -1,4 +1,5 @@
 import { useAuth } from "@/auth/useAuth";
+import { isSellable } from "@/catalog/units";
 import { hasPlanFeature } from "@/billing/entitlements";
 import { PlanFeatureNotice } from "@/billing/PlanFeatureNotice";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
@@ -148,7 +149,7 @@ function QuotesWorkspace({ identity, businessName, canCreate }: { identity: Work
         setPage(result);
         setProducts(
           catalog.filter(
-            (row) => row.is_active && row.modifier_groups.length === 0,
+            (row) => row.is_active && isSellable(row) && row.modifier_groups.length === 0,
           ),
         );
         setError("");

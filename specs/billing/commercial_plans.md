@@ -63,7 +63,7 @@ PASS y verificación externa.
 | Capacidad | Esencial | Gestión | Contrato |
 |---|---|---|---|
 | `pos` | Sí | Sí | Venta inmediata, pagos registrados, turnos, devoluciones, tickets y cola offline |
-| `inventory` | Sí | Sí | Catálogo, existencias y ajustes básicos, con sus permisos y sucursal |
+| `inventory` | Sí | Sí | Catálogo, existencias y ajustes básicos, con sus permisos y sucursal; incluye insumos, unidades y (cuando existan) recetas y producción ([ADR-040](../../docs/adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md)) |
 | `sales_reports` | Sí | Sí | Resumen de ventas y cifras básicas del negocio |
 | `public_catalog` | Sí | Sí | Publicación del catálogo, enlace y QR |
 | `purchasing` | No para nuevas operaciones | Sí | Proveedores y compras |

@@ -96,6 +96,7 @@ def capture_request(db, catalog, body):
             PublicCatalogItem.catalog_id == current.id,
             PublicCatalogItem.product_id.in_(body.product_ids),
             Product.is_active.is_(True),
+            Product.is_sellable.is_(True),
         )
         .all()
     )

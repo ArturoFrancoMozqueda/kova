@@ -15,7 +15,7 @@ import { MenuPreview, type MenuDraft } from "./MenuPreview";
 import type { PublicCatalog } from "./StorefrontView";
 
 type Settings = { enabled: boolean; title: string; description: string | null; whatsapp_phone: string | null; product_ids: string[]; version: number; share_path: string | null };
-type Product = ProductPhotoData & { id: string; name: string; price_amount: string; is_active: boolean };
+type Product = ProductPhotoData & { id: string; name: string; price_amount: string; is_active: boolean; is_sellable?: boolean };
 const money = (amount: string) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(amount));
 
 export default function CatalogPublishView() {
@@ -39,7 +39,10 @@ function PublishWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const load = useCallback(async () => {
     try {
       const [data, rows] = await Promise.all([request<Settings>("/storefront/settings"), request<Product[]>("/catalog/products")]);
-      if (alive.current) { setSettings(data); setProducts(rows.filter(p => p.is_active)); setError(""); }
+      // Only active products on sale can be published; ingredients never reach the menu.
+      const listed = rows.filter(p => p.is_active && p.is_sellable !== false);
+      const listedIds = new Set(listed.map(p => p.id));
+      if (alive.current) { setSettings({ ...data, product_ids: data.product_ids.filter(id => listedIds.has(id)) }); setProducts(listed); setError(""); }
     } catch (e) { if (alive.current) setError(resolveUserFacingError(e, "No pudimos cargar el catálogo.")); }
   }, [request]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [load]);

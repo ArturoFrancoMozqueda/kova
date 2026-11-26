@@ -2,8 +2,9 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.catalog.units import StockUnit
 from app.shared.validation import (
     INTEGER_MAX,
     INTEGER_MIN,
@@ -75,6 +76,10 @@ class ProductCreate(StrictModel):
     rotation_days: int | None = Field(default=None, ge=1, le=36500)
     expiry_days: int | None = Field(default=None, ge=1, le=36500)
     track_inventory: bool = False
+    is_sellable: bool = True
+    stock_unit: StockUnit = "pza"
+    purchase_unit_label: str | None = Field(default=None, min_length=1, max_length=40)
+    purchase_unit_quantity: int | None = Field(default=None, ge=1, le=1_000_000)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int = Field(default=50, ge=0, le=100)
     image_position_y: int = Field(default=50, ge=0, le=100)
@@ -84,6 +89,17 @@ class ProductCreate(StrictModel):
     @classmethod
     def _name_no_html(cls, value: str) -> str:
         return reject_html(value) or value
+
+    @field_validator("purchase_unit_label")
+    @classmethod
+    def _purchase_unit_no_html(cls, value: str | None) -> str | None:
+        return reject_html(value.strip() if value else value) or None
+
+    @model_validator(mode="after")
+    def _purchase_unit_pair(self):
+        if (self.purchase_unit_label is None) != (self.purchase_unit_quantity is None):
+            raise ValueError("Indica el nombre y el contenido de la unidad de compra")
+        return self
 
 
 class ProductUpdate(StrictModel):
@@ -115,6 +131,12 @@ class ProductUpdate(StrictModel):
     rotation_days: int | None = Field(default=None, ge=1, le=36500)
     expiry_days: int | None = Field(default=None, ge=1, le=36500)
     track_inventory: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+    is_sellable: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+    stock_unit: StockUnit | None = Field(
+        default=None, json_schema_extra=non_nullable_patch_schema
+    )
+    purchase_unit_label: str | None = Field(default=None, min_length=1, max_length=40)
+    purchase_unit_quantity: int | None = Field(default=None, ge=1, le=1_000_000)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int | None = Field(
         default=None, ge=0, le=100, json_schema_extra=non_nullable_patch_schema
@@ -137,6 +159,8 @@ class ProductUpdate(StrictModel):
         "image_position_y",
         "image_zoom",
         "is_active",
+        "is_sellable",
+        "stock_unit",
         mode="before",
     )(reject_null)
 
@@ -144,6 +168,11 @@ class ProductUpdate(StrictModel):
     @classmethod
     def _name_no_html(cls, value: str | None) -> str | None:
         return reject_html(value)
+
+    @field_validator("purchase_unit_label")
+    @classmethod
+    def _purchase_unit_no_html(cls, value: str | None) -> str | None:
+        return reject_html(value.strip() if value else value) or None
 
 
 class ProductResponse(BaseModel):
@@ -163,6 +192,10 @@ class ProductResponse(BaseModel):
     rotation_days: int | None = None
     expiry_days: int | None = None
     track_inventory: bool
+    is_sellable: bool = True
+    stock_unit: StockUnit = "pza"
+    purchase_unit_label: str | None = None
+    purchase_unit_quantity: int | None = None
     low_stock_threshold: int | None
     image_url: str | None = None
     image_position_x: int = 50

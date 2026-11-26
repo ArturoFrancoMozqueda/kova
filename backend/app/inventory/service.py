@@ -87,6 +87,8 @@ def _stock_body(
         "sku": product.sku,
         "track_inventory": product.track_inventory,
         "track_lots": product.track_lots,
+        "is_sellable": product.is_sellable,
+        "stock_unit": product.stock_unit,
         "stock_on_hand": stock,
         "reserved_quantity": reserved,
         "available_quantity": available,

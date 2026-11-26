@@ -72,6 +72,9 @@ class PurchaseItemResponse(BaseModel):
     quantity: int
     received_quantity: int
     unit_cost: Decimal
+    # quantity, received_quantity and unit_cost refer to this purchase unit.
+    units_per_purchase: int = 1
+    purchase_unit_label: str | None = None
 
 
 class PurchaseResponse(BaseModel):

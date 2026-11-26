@@ -85,6 +85,7 @@ class PurchaseOrderItem(Base):
             name="ck_purchase_items_quantity",
         ),
         CheckConstraint("unit_cost >= 0", name="ck_purchase_items_cost"),
+        CheckConstraint("units_per_purchase > 0", name="ck_purchase_items_units_per_purchase"),
         UniqueConstraint("purchase_order_id", "product_id", name="uq_purchase_items_product"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -95,3 +96,8 @@ class PurchaseOrderItem(Base):
     quantity: Mapped[int] = mapped_column(Integer)
     received_quantity: Mapped[int] = mapped_column(Integer, default=0)
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    # Snapshot of the product's purchase unit when ordered; 1 = stock units.
+    units_per_purchase: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    purchase_unit_label: Mapped[str | None] = mapped_column(String(40), nullable=True)

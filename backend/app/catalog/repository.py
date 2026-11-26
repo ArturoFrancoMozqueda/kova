@@ -73,3 +73,19 @@ def create_product(db: Session, *, tenant_id: UUID, **values: object) -> Product
     db.add(product)
     db.flush()
     return product
+
+
+def product_has_inventory_movements(db: Session, *, tenant_id: UUID, product_id: UUID) -> bool:
+    """Any branch counts: the unit is a catalog-wide property."""
+    from app.branches.scope import tenant_wide_branches
+    from app.orders.models import InventoryMovement
+
+    with tenant_wide_branches(db):
+        return db.query(
+            db.query(InventoryMovement.id)
+            .filter(
+                InventoryMovement.tenant_id == tenant_id,
+                InventoryMovement.product_id == product_id,
+            )
+            .exists()
+        ).scalar()

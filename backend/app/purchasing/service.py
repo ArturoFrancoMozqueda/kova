@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit
 from app.catalog.models import Product
+from app.catalog.units import units_per_purchase
 from app.inventory import lots
 from app.inventory import repository as inventory
 from app.inventory.service import _store_response, _stored_response, _validate_movement_range
+from app.pricing import calculator
 from app.purchasing.models import PurchaseOrder, PurchaseOrderItem, Supplier
 from app.purchasing.schemas import (
     PurchaseCreate,
@@ -193,11 +195,15 @@ def create_order(
     db.add(order)
     db.flush()
     for item in body.items:
+        product = products[item.product_id]
         db.add(
             PurchaseOrderItem(
                 tenant_id=tenant_id,
                 purchase_order_id=order.id,
-                product_name=products[item.product_id].name,
+                product_name=product.name,
+                # Frozen so a later catalog change never rewrites what is in transit.
+                units_per_purchase=units_per_purchase(product),
+                purchase_unit_label=product.purchase_unit_label,
                 **item.model_dump(),
             )
         )
@@ -276,11 +282,13 @@ def receive(
     for incoming in body.items:
         item = by_id[incoming.item_id]
         product = products[item.product_id]
+        # Received in purchase units (2 Litros); stock moves in base units (2000 ml).
+        stock_quantity = incoming.quantity * item.units_per_purchase
         stock = inventory.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
         _validate_movement_range(
-            quantity_delta=incoming.quantity, stock_on_hand=stock + incoming.quantity
+            quantity_delta=stock_quantity, stock_on_hand=stock + stock_quantity
         )
-        parts = lots.choose(db, product, incoming.quantity, incoming.lot_allocations, incoming=True)
+        parts = lots.choose(db, product, stock_quantity, incoming.lot_allocations, incoming=True)
         movement = inventory.create_movement(
             db,
             tenant_id=tenant_id,
@@ -288,19 +296,27 @@ def receive(
             user_id=user_id,
             movement_type="purchase",
             lot_tracked=product.track_lots,
-            quantity_delta=incoming.quantity,
+            quantity_delta=stock_quantity,
             reason=f"Compra {order.id}; partida {item.id}",
         )
         lots.attach(db, movement, parts, required=product.track_lots)
         old_cost = product.cost_price
         if body.update_catalog_cost:
-            product.cost_price = item.unit_cost
+            # unit_cost is per ordered unit; the catalog cost uses the product's
+            # current purchase unit. Convert only when they differ.
+            current_units = units_per_purchase(product)
+            product.cost_price = (
+                item.unit_cost
+                if current_units == item.units_per_purchase
+                else calculator.money(item.unit_cost * current_units / item.units_per_purchase)
+            )
         item.received_quantity += incoming.quantity
         changes.append(
             {
                 "item_id": str(item.id),
                 "movement_id": str(movement.id),
                 "quantity": incoming.quantity,
+                "stock_quantity": stock_quantity,
                 "unit_cost": str(item.unit_cost),
                 "previous_catalog_cost": str(old_cost) if old_cost is not None else None,
                 "catalog_cost_updated": body.update_catalog_cost,

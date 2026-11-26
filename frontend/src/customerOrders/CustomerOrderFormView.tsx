@@ -11,6 +11,7 @@ import { useFeature } from "@/auth/useFeature";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { listCustomers, resolveActiveCustomer, type Customer } from "@/customers/api";
 import { listProducts } from "@/catalog/api";
+import { isSellable } from "@/catalog/units";
 import type { Product } from "@/catalog/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -222,8 +223,10 @@ function CustomerOrderFormSession({ orderId, incomingCustomerId, measurementScop
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("es-MX");
-    if (!query) return products;
-    return products.filter((product) =>
+    // Ingredients stay available to existing lines but are never offered.
+    const offered = products.filter(isSellable);
+    if (!query) return offered;
+    return offered.filter((product) =>
       `${product.name} ${product.sku ?? ""}`.toLocaleLowerCase("es-MX").includes(query),
     );
   }, [products, search]);

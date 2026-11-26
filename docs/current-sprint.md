@@ -22,6 +22,10 @@ orden de entregas y continuación en [backlog-competitivo.md](backlog-competitiv
 Primera entrega (P0): una devolución puede regresar el dinero sin reponer el producto, y esa
 pérdida aparece en Merma ([contrato](../specs/orders/refunds.md)). Implementada y probada
 localmente; su publicación se acredita con su PR y release.
+Segunda entrega (P1, apilada sobre la primera): insumos que no se venden, unidad de inventario
+(pza, g, ml) y unidad de compra con conversión al recibir ([contrato](../specs/inventory/ingredients_units.md),
+[ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md)). Implementada y probada
+localmente; sin publicar.
 
 ## En producción
 

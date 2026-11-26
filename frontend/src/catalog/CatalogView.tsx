@@ -41,6 +41,8 @@ import {
   ApiError,
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
+import { STOCK_UNITS, formatStockQuantity, isSellable, stockUnitLabels, stockUnitOf, type StockUnit } from "./units";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
@@ -84,6 +86,7 @@ import {
   Image as ImageIcon,
   ScanBarcode,
   type LucideIcon,
+  Scale,
 } from "lucide-react";
 import { SectionHeadingIcon } from "@/components/ui/section-heading-icon";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
@@ -675,14 +678,18 @@ export default function CatalogView() {
                       {categories.find((category) => category.id === product.category_id)?.name ?? "—"}
                     </p>
                     <span className="text-right text-base font-bold text-kova-blue tabular-nums lg:text-sm lg:text-kova-ink">
-                      {formatMoney(product.price_amount)}
+                      {isSellable(product) ? formatMoney(product.price_amount) : <Badge variant="secondary">{copy.catalog.ingredientBadge}</Badge>}
                     </span>
                     <div className="col-span-2 flex items-center gap-2 pl-[60px] lg:col-span-1 lg:justify-end lg:pl-0">
                       {canUpdate && (
                         <Badge variant={product.cost_price == null ? "warning" : "secondary"}>
                           {product.cost_price == null
                             ? copy.catalog.productCostMissing
-                            : copy.catalog.productCostKnown(formatMoney(product.cost_price))}
+                            : copy.catalog.productCostKnown(
+                              product.purchase_unit_label
+                                ? `${formatMoney(product.cost_price)} / ${product.purchase_unit_label}`
+                                : formatMoney(product.cost_price),
+                            )}
                         </Badge>
                       )}
                     </div>
@@ -1372,6 +1379,10 @@ type ProductFormValues = {
   rotation_days: number | null;
   expiry_days: number | null;
   track_inventory: boolean;
+  is_sellable: boolean;
+  stock_unit: StockUnit;
+  purchase_unit_label: string | null;
+  purchase_unit_quantity: number | null;
   low_stock_threshold: number | null;
   modifier_group_ids: string[];
   image_file: File | null;
@@ -1444,6 +1455,12 @@ export function ProductForm({
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
     initial?.modifier_groups?.map((g) => g.id) ?? [],
   );
+  const [sellable, setSellable] = useState(initial ? isSellable(initial) : true);
+  const [stockUnit, setStockUnit] = useState<StockUnit>(stockUnitOf(initial));
+  const [purchaseLabel, setPurchaseLabel] = useState(initial?.purchase_unit_label ?? "");
+  const [purchaseQuantity, setPurchaseQuantity] = useState(
+    initial?.purchase_unit_quantity != null ? String(initial.purchase_unit_quantity) : "",
+  );
   const { toast } = useToast();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initial?.image_url ?? null);
@@ -1503,15 +1520,31 @@ export function ProductForm({
           ? copy.catalog.productCostNegative
           : null;
 
+  const purchaseUnitsValue = Number(purchaseQuantity);
+  const purchaseIncomplete =
+    Boolean(purchaseLabel.trim()) !== Boolean(purchaseQuantity.trim()) ||
+    (purchaseQuantity.trim() !== "" && (!Number.isInteger(purchaseUnitsValue) || purchaseUnitsValue < 1));
+  const purchaseUnit = !purchaseIncomplete && purchaseLabel.trim() ? purchaseLabel.trim() : null;
+  const changeStockUnit = (unit: StockUnit) => {
+    setStockUnit(unit);
+    // A litre or a kilo is the usual way to buy what is counted in ml or g.
+    if (unit !== "pza" && !purchaseLabel.trim() && !purchaseQuantity.trim()) {
+      setPurchaseLabel(unit === "ml" ? "Litro" : "Kilo");
+      setPurchaseQuantity("1000");
+    }
+  };
+
   // Say why "Guardar" is disabled instead of only greying it out.
   const missingRequired = [
     ...(!name.trim() ? [copy.catalog.productName.toLowerCase()] : []),
-    ...(!price ? [copy.catalog.productPrice.toLowerCase()] : []),
+    ...(sellable && !price ? [copy.catalog.productPrice.toLowerCase()] : []),
   ];
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0 || costError) {
+    const effectivePrice = sellable ? price : price.trim() || "0.00";
+    const effectivePriceNum = Number(effectivePrice);
+    if (effectivePrice.trim() === "" || Number.isNaN(effectivePriceNum) || effectivePriceNum < 0 || costError || purchaseIncomplete) {
       return;
     }
     if (/<[^>]+>/.test(name)) {
@@ -1522,16 +1555,20 @@ export function ProductForm({
       description: description.trim() || null,
       sku: sku.trim() || null,
       barcode: barcode.trim() || null,
-      price_amount: price,
+      price_amount: effectivePrice,
       cost_price: cost.trim() || null,
       category_id: categoryId || null,
       track_inventory: trackInventory,
+      is_sellable: sellable,
+      stock_unit: stockUnit,
+      purchase_unit_label: purchaseUnit,
+      purchase_unit_quantity: purchaseUnit ? purchaseUnitsValue : null,
       track_lots: trackLots && trackInventory,
       rotation_label: rotationLabel,
       rotation_days: rotationDays ? Number(rotationDays) : null,
       expiry_days: expiryDays ? Number(expiryDays) : null,
       low_stock_threshold: trackInventory && threshold ? Number(threshold) : null,
-      modifier_group_ids: selectedGroupIds,
+      modifier_group_ids: sellable ? selectedGroupIds : [],
       image_file: imageFile,
       image_remove: imageRemoved && !imageFile,
       image_position_x: persistedImagePosition(imagePositionX),
@@ -1541,8 +1578,9 @@ export function ProductForm({
   };
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
-    <ProductPreview
+    <div className={cn("grid items-start gap-5", sellable && "lg:grid-cols-[minmax(0,1fr)_17rem]")}>
+    {/* Ingredients never reach Caja or the menu, so there is nothing to preview. */}
+    {sellable && <ProductPreview
       className="lg:order-last"
       name={name}
       description={description}
@@ -1554,9 +1592,24 @@ export function ProductForm({
       trackInventory={trackInventory}
       lowStockThreshold={threshold}
       modifierGroupNames={availableModifierGroups.filter((group) => selectedGroupIds.includes(group.id)).map((group) => group.name)}
-    />
+    />}
     <form onSubmit={handleSubmit} aria-label="Formulario de producto" className="min-w-0 space-y-4">
       <FormSection title={copy.catalog.productSectionEssentials} icon={Tag}>
+        <div className="space-y-2">
+          <SegmentedControl
+            ariaLabel={copy.catalog.productKindLabel}
+            options={[
+              { value: "sellable", label: copy.catalog.productKindSellable },
+              { value: "ingredient", label: copy.catalog.productKindIngredient },
+            ]}
+            value={sellable ? "sellable" : "ingredient"}
+            onValueChange={(kind) => {
+              setSellable(kind === "sellable");
+              if (kind === "ingredient") setTrackInventory(true);
+            }}
+          />
+          {!sellable && <p className="text-xs text-muted-foreground">{copy.catalog.productKindIngredientHint}</p>}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="prod-name">{copy.catalog.productName}</Label>
@@ -1576,7 +1629,7 @@ export function ProductForm({
             </p>
           )}
         </div>
-        <div className="space-y-2">
+        {sellable && <div className="space-y-2">
           <Label htmlFor="prod-price">{copy.catalog.productPrice}</Label>
           <Input
             id="prod-price"
@@ -1595,7 +1648,7 @@ export function ProductForm({
               {priceError}
             </p>
           )}
-        </div>
+        </div>}
         <div className="space-y-2">
           <Label htmlFor="prod-cat">{copy.catalog.productCategory}</Label>
           <Select
@@ -1612,6 +1665,51 @@ export function ProductForm({
           </Select>
         </div>
         </div>
+      </FormSection>
+      <FormSection title={copy.catalog.productSectionUnits} hint={copy.catalog.productSectionUnitsHint} icon={Scale}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="prod-stock-unit">{copy.catalog.stockUnit}</Label>
+            <Select
+              id="prod-stock-unit"
+              value={stockUnit}
+              onChange={(e) => changeStockUnit(e.target.value as StockUnit)}
+            >
+              {STOCK_UNITS.map((unit) => <option key={unit} value={unit}>{stockUnitLabels[unit]}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-purchase-label">{copy.catalog.purchaseUnitLabel}</Label>
+            <Input
+              id="prod-purchase-label"
+              value={purchaseLabel}
+              maxLength={40}
+              placeholder={copy.catalog.purchaseUnitLabelPlaceholder}
+              onChange={(e) => setPurchaseLabel(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-purchase-quantity">{copy.catalog.purchaseUnitQuantity(stockUnit)}</Label>
+            <Input
+              id="prod-purchase-quantity"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={purchaseQuantity}
+              onChange={(e) => setPurchaseQuantity(e.target.value.replace(/^-/, ""))}
+              aria-invalid={purchaseIncomplete ? "true" : undefined}
+              aria-describedby="prod-purchase-help"
+            />
+          </div>
+        </div>
+        <p id="prod-purchase-help" className={cn("text-xs", purchaseIncomplete ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
+          {purchaseIncomplete
+            ? copy.catalog.purchaseUnitIncomplete
+            : purchaseUnit
+              ? copy.catalog.purchaseUnitHint(purchaseUnit, formatStockQuantity(purchaseUnitsValue, stockUnit))
+              : null}
+        </p>
       </FormSection>
       <FormSection title={copy.catalog.productSectionPhoto} icon={ImageIcon}>
       <div className="space-y-2">
@@ -1664,7 +1762,7 @@ export function ProductForm({
       <FormSection title={copy.catalog.productSectionDetails} hint={copy.catalog.productSectionDetailsHint} icon={ScanBarcode}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="prod-cost">{copy.catalog.productCost}</Label>
+          <Label htmlFor="prod-cost">{purchaseUnit ? copy.catalog.productCostPer(purchaseUnit) : copy.catalog.productCost}</Label>
           <Input
             id="prod-cost"
             type="number"
@@ -1762,7 +1860,7 @@ export function ProductForm({
       </fieldset>}
 
       {/* Modifier groups */}
-      {availableModifierGroups.length > 0 && (
+      {sellable && availableModifierGroups.length > 0 && (
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{copy.catalog.assignedModifierGroups}</legend>
           <div className="space-y-1.5 rounded-md border p-3">

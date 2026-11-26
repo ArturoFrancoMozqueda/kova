@@ -127,6 +127,7 @@ def save_settings(
             Product.tenant_id == tenant_id,
             Product.id.in_(body.product_ids),
             Product.is_active.is_(True),
+            Product.is_sellable.is_(True),
         )
         .all()
     )
@@ -199,6 +200,7 @@ def read_public_catalog(token: str, db: Session = Depends(get_db)):
             PublicCatalogItem.catalog_id == row.id,
             Product.tenant_id == tenant_id,
             Product.is_active.is_(True),
+            Product.is_sellable.is_(True),
         )
         .order_by(Product.name, Product.id)
         .limit(200)
@@ -279,6 +281,7 @@ def preview_catalog(
             Product.tenant_id == tenant_id,
             Product.id.in_(body.product_ids),
             Product.is_active.is_(True),
+            Product.is_sellable.is_(True),
         )
         .order_by(Product.name, Product.id)
         .limit(200)

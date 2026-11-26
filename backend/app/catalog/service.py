@@ -116,6 +116,10 @@ def _product_body(product: Product) -> dict[str, Any]:
         "price_amount": str(product.price_amount),
         "cost_price": str(product.cost_price) if product.cost_price is not None else None,
         "track_inventory": product.track_inventory,
+        "is_sellable": product.is_sellable,
+        "stock_unit": product.stock_unit,
+        "purchase_unit_label": product.purchase_unit_label,
+        "purchase_unit_quantity": product.purchase_unit_quantity,
         "track_lots": product.track_lots,
         "rotation_label": product.rotation_label,
         "rotation_days": product.rotation_days,
@@ -127,6 +131,34 @@ def _product_body(product: Product) -> dict[str, Any]:
         "image_zoom": product.image_zoom,
         "is_active": product.is_active,
     }
+
+
+def _apply_units(db: Session, *, tenant_id: UUID, product: Product, body: ProductUpdate) -> None:
+    fields = body.model_fields_set
+    if "stock_unit" in fields and body.stock_unit != product.stock_unit:
+        # Stock is a count of the base unit; switching pieces to grams would
+        # silently reinterpret every recorded movement.
+        if repo.product_has_inventory_movements(db, tenant_id=tenant_id, product_id=product.id):
+            raise bad_request(
+                "No puedes cambiar la unidad de un producto que ya tiene movimientos de inventario"
+            )
+        product.stock_unit = body.stock_unit
+    if "is_sellable" in fields:
+        product.is_sellable = bool(body.is_sellable)
+    label = (
+        body.purchase_unit_label
+        if "purchase_unit_label" in fields
+        else product.purchase_unit_label
+    )
+    quantity = (
+        body.purchase_unit_quantity
+        if "purchase_unit_quantity" in fields
+        else product.purchase_unit_quantity
+    )
+    if (label is None) != (quantity is None):
+        raise bad_request("Indica el nombre y el contenido de la unidad de compra")
+    product.purchase_unit_label = label
+    product.purchase_unit_quantity = quantity
 
 
 def list_categories(db: Session, *, tenant_id: UUID) -> list[Category]:
@@ -355,6 +387,10 @@ def create_product(
     product.rotation_label = body.rotation_label
     product.rotation_days = body.rotation_days
     product.expiry_days = body.expiry_days
+    product.is_sellable = body.is_sellable
+    product.stock_unit = body.stock_unit
+    product.purchase_unit_label = body.purchase_unit_label
+    product.purchase_unit_quantity = body.purchase_unit_quantity
     if body.track_lots:
         lot_service.configure(db, product, True)
     db.flush()
@@ -430,6 +466,7 @@ def update_product(
     )
     if desired_lots and not desired_inventory:
         raise bad_request("Desactiva lotes antes de desactivar el inventario")
+    _apply_units(db, tenant_id=tenant_id, product=product, body=body)
     # Configuration is atomic with activation/backfill across every branch.
     for field in ("rotation_label", "rotation_days", "expiry_days"):
         if field in body.model_fields_set:

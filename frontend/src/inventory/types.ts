@@ -4,6 +4,9 @@ export type StockItem = {
   sku: string | null;
   track_inventory: boolean;
   track_lots?: boolean;
+  is_sellable?: boolean;
+  /** Quantities on this row count whole units of it; older rows mean pieces. */
+  stock_unit?: import("@/catalog/units").StockUnit;
   stock_on_hand: number;
   reserved_quantity: number;
   available_quantity: number;

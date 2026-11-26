@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.catalog.units import StockUnit
 from app.inventory.lot_schemas import LotAllocation, LotCount, LotHistoryAllocation
 from app.shared.validation import INTEGER_MAX, INTEGER_MIN, StrictModel
 
@@ -17,6 +18,9 @@ class InventoryStockItem(BaseModel):
     sku: str | None
     track_inventory: bool
     track_lots: bool = False
+    is_sellable: bool = True
+    # Every quantity on this row counts whole units of stock_unit.
+    stock_unit: StockUnit = "pza"
     stock_on_hand: int
     reserved_quantity: int
     available_quantity: int

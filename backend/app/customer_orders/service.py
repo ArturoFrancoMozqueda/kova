@@ -336,6 +336,9 @@ def _replace_items(
             existing_options = {modifier.modifier_option_id for modifier in existing_row[1]}
             can_preserve = existing_options == requested_options
 
+        if not can_preserve and not product.is_sellable:
+            raise bad_request(f"{product.name} es un insumo y no se puede pedir")
+
         if can_preserve and existing_row:
             old_item, old_modifiers = existing_row
             unit_price = old_item.unit_price_amount
