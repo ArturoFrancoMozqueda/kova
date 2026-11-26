@@ -102,5 +102,21 @@ class RuntimeAssemblyTests(unittest.TestCase):
             self.assertEqual(RUNTIME.required_packages(Path(directory)), ["zlib1g"])
 
 
+    def test_zstd_is_copied_from_patched_builder_instead_of_reusing_vulnerable_base(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+            RUNTIME.subprocess, "run"
+        ) as run:
+            run.side_effect = [
+                subprocess.CompletedProcess([], 0, stdout=(
+                    "libzstd.so.1 => /lib/x86_64-linux-gnu/libzstd.so.1 (0x1)\n"
+                )),
+                subprocess.CompletedProcess([], 0, stdout=(
+                    "libzstd1:amd64: /usr/lib/x86_64-linux-gnu/libzstd.so.1\n"
+                )),
+            ]
+            self.assertEqual(RUNTIME.required_packages(Path(directory)), ["libzstd1"])
+            self.assertIn("libzstd1", RUNTIME.BASE_PACKAGE_OVERRIDES)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,15 +16,17 @@ import subprocess
 import zlib
 from pathlib import Path
 
-# glibc and zstd come from the matching Debian release in the Distroless base.
-# Copy OpenSSL and zlib from the security-updated builder with their metadata.
+# glibc comes from the matching Debian release in the Distroless base.
+# Copy OpenSSL, zlib and zstd from the security-updated builder with their
+# metadata: the pinned base can lag behind Debian security updates
+# (CVE-2026-124851 was fixed in libzstd1 1.5.7+dfsg-1+deb13u1).
 BASE_SONAMES = {
     "libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1",
-    "libresolv.so.2", "libutil.so.1", "libzstd.so.1",
+    "libresolv.so.2", "libutil.so.1",
 }
 # Replace the files and package records for libraries the base can already ship
 # so that the image uses the security-updated builder's actual libraries.
-BASE_PACKAGE_OVERRIDES = {"libssl3t64", "zlib1g"}
+BASE_PACKAGE_OVERRIDES = {"libssl3t64", "libzstd1", "zlib1g"}
 # These extensions support terminal/GUI interaction or libuuid's platform helpers.
 # Kova uses uuid4() from Python's os.urandom-backed implementation. Omitting the
 # optional _uuid extension retains Python's documented pure-Python fallback.
