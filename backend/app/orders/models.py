@@ -268,6 +268,11 @@ class RefundItem(Base):
             ["order_items.tenant_id", "order_items.id"],
             name="fk_refund_items_tenant_order_item",
         ),
+        CheckConstraint(
+            "restocked_quantity IS NULL OR "
+            "(restocked_quantity >= 0 AND restocked_quantity <= quantity)",
+            name="ck_refund_items_restocked_quantity",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -277,6 +282,8 @@ class RefundItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # NULL: written before 0109 (restored by the previous automatic rule).
+    restocked_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Void(BranchScoped, Base):

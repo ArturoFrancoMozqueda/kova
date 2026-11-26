@@ -152,6 +152,34 @@ def manager_with_order(client):
 
 
 @given(
+    "an authenticated manager with a completed order of a stocked product",
+    target_fixture="refund_context",
+)
+def manager_with_stocked_order(client):
+    suffix = uuid4().hex
+    _signup_verify_login(client, f"refund-stock-{suffix}@example.com", "Refund Stock Tenant")
+    _open_shift(client)
+    product = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": f"refund-bdd-stocked-{suffix}"},
+        json={
+            "name": "Refund Test Pastel",
+            "price_amount": "25.00",
+            "cost_price": "9.00",
+            "track_inventory": True,
+        },
+    ).json()
+    stocked = client.post(
+        f"/api/v1/inventory/products/{product['id']}/adjustments",
+        headers={"Idempotency-Key": f"refund-bdd-stock-{suffix}"},
+        json={"quantity_delta": 3, "reason": "BDD stock"},
+    )
+    assert stocked.status_code == 201, stocked.text
+    order = _create_order(client, [product])
+    return {"client": client, "order": order, "products": [product]}
+
+
+@given(
     "an authenticated manager with an open shift and a completed cash order",
     target_fixture="refund_context",
 )
@@ -225,6 +253,16 @@ def refund_one_item(refund_context, reason):
         refund_context,
         [{"order_item_id": refund_context["order"]["items"][0]["id"], "quantity": 1}],
         reason,
+    )
+
+
+@when("the manager refunds one stocked unit without restocking it")
+def refund_without_restock(refund_context):
+    item = refund_context["order"]["items"][0]
+    _post_refund(
+        refund_context,
+        [{"order_item_id": item["id"], "quantity": 1, "restock": False}],
+        "defective",
     )
 
 
@@ -349,6 +387,23 @@ def refund_created(refund_context):
 def inventory_restored(refund_context):
     receipt = _receipt(refund_context)
     assert len(receipt["refunds"]) > 0
+
+
+@then("the stocked unit stays out of inventory")
+def stocked_unit_not_restored(refund_context):
+    client = refund_context["client"]
+    product_id = refund_context["products"][0]["id"]
+    rows = client.get("/api/v1/inventory/stock").json()
+    rows = rows["items"] if isinstance(rows, dict) else rows
+    assert next(r["stock_on_hand"] for r in rows if r["product_id"] == product_id) == 2
+    assert refund_context["refund"]["items"][0]["restocked_quantity"] == 0
+
+
+@then("the loss appears as a refund not restocked")
+def loss_reported(refund_context):
+    waste = refund_context["client"].get("/api/v1/reports/business-story").json()["waste"]
+    assert waste["refunds_not_restocked"]["units"] == 1
+    assert waste["refunds_not_restocked"]["value"] == "9.00"
 
 
 @then("the refunded inventory is restored for all items")

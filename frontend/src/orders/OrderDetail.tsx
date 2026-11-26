@@ -265,12 +265,20 @@ export default function OrderDetail() {
   // and decide whether to surface a partial/full-refund badge alongside the
   // primary status pill.
   const refundedQtyByItem = new Map<string, number>();
+  // Units refunded without going back to stock; older refunds (null) restocked automatically.
+  const unrestockedQtyByItem = new Map<string, number>();
   for (const refund of receipt.refunds) {
     for (const refundItem of refund.items) {
       refundedQtyByItem.set(
         refundItem.order_item_id,
         (refundedQtyByItem.get(refundItem.order_item_id) ?? 0) + refundItem.quantity,
       );
+      if (refundItem.restocked_quantity != null && refundItem.restocked_quantity < refundItem.quantity) {
+        unrestockedQtyByItem.set(
+          refundItem.order_item_id,
+          (unrestockedQtyByItem.get(refundItem.order_item_id) ?? 0) + refundItem.quantity - refundItem.restocked_quantity,
+        );
+      }
     }
   }
   const totalOrderedQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -333,6 +341,7 @@ export default function OrderDetail() {
           <CardContent className="space-y-3">
             {order.items.map((item) => {
               const refundedQty = refundedQtyByItem.get(item.id) ?? 0;
+              const unrestockedQty = item.stock_consumed && !item.lot_tracked ? unrestockedQtyByItem.get(item.id) ?? 0 : 0;
               return (
                 <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
                   <div className="flex-1 min-w-0">
@@ -352,6 +361,11 @@ export default function OrderDetail() {
                         </span>
                       )}
                     </p>
+                    {unrestockedQty > 0 && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {copy.refundModal.notRestocked}: {unrestockedQty}
+                      </p>
+                    )}
                   </div>
                   <span className="text-sm font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span>
                 </div>

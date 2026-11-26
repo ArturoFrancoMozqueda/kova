@@ -213,6 +213,16 @@ class WasteByReasonRow(BaseModel):
     products_without_cost: int
 
 
+class UnrestockedRefunds(BaseModel):
+    """Refunded units kept out of stock, valued at their sale-time cost."""
+
+    units: int
+    value: Decimal | None
+    known_value: Decimal
+    units_without_cost: int
+    complete: bool
+
+
 class WasteReport(BaseModel):
     units: int
     movement_count: int
@@ -221,6 +231,8 @@ class WasteReport(BaseModel):
     products_without_cost: int
     complete: bool
     by_reason: list[WasteByReasonRow]
+    # Separate from the movement totals above, whose definition is unchanged.
+    refunds_not_restocked: UnrestockedRefunds | None = None
 
 
 class OperatingExpenseCategoryRow(BaseModel):

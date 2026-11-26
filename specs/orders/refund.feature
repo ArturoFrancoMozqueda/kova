@@ -20,6 +20,13 @@ Feature: Refund items from a completed order
     Then the refund amount is calculated correctly
     And the refunded inventory is restored for all items
 
+  Scenario: Manager returns the money but keeps a damaged unit out of stock
+    Given an authenticated manager with a completed order of a stocked product
+    When the manager refunds one stocked unit without restocking it
+    Then the refund is created successfully
+    And the stocked unit stays out of inventory
+    And the loss appears as a refund not restocked
+
   Scenario: Cannot refund more than available quantity
     Given an authenticated manager with a completed order
     When the manager attempts to refund more items than ordered

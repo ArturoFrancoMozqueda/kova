@@ -23,6 +23,32 @@ existencias y el efectivo esperado deben seguir conciliando.
 - Artículos, inventario, distribución, movimiento de caja y clave idempotente se
   confirman en una transacción. Los productos con lotes conservan sus reglas de reposición.
 
+## Devolver dinero no es reponer el producto
+
+Devolver el dinero y regresar la unidad a las existencias son decisiones distintas.
+Cada línea acepta `restock` opcional:
+
+- Omitido (clientes e intenciones anteriores) o `true`: se repone lo que la venta
+  descontó, como antes. Omitirlo conserva el hash idempotente previo.
+- `false`: se devuelve el dinero y la unidad no regresa al inventario (maltratada,
+  caducada o ya consumida). No se crea movimiento; la salida de la venta se conserva.
+- Una misma línea repetida con decisiones distintas devuelve 400 sin escrituras.
+- Los productos con lote siguen sin reposición automática; se reponen con un ajuste
+  del lote. Servicios y productos sin inventario no tienen nada que reponer.
+
+`refund_items.restocked_quantity` guarda las unidades realmente repuestas (`NULL` en
+devoluciones anteriores a la migración 0109). Las lecturas de una venta agregan
+`stock_consumed` por línea para ofrecer la casilla «Regresar al inventario» solo
+donde la venta descontó existencias. La casilla inicia desmarcada para «Defectuoso»
+y marcada para los demás motivos; la decisión explícita se conserva en la intención
+persistida para reintentos. El detalle de la venta muestra «Devuelto sin regresar al
+inventario», nunca el ticket del cliente.
+
+Análisis reporta estas unidades en Merma como «Devoluciones que no regresaron al
+inventario», valuadas con el costo de la partida al vender; sin costo histórico el
+valor queda incompleto, nunca $0. Definición en
+[`report-metric-definitions.md`](../../docs/report-metric-definitions.md).
+
 ## Recuperación y offline
 
 Antes de enviar, el navegador persiste clave y payload en IndexedDB por
@@ -95,6 +121,9 @@ su distribución y `shifts.cash_movement` documenta solo el tramo de efectivo.
 | Cerrar/reabrir/navegar, payload y clave conservados | `OrderDetail.test.tsx`, fetch simulado |
 | IndexedDB persistente, concurrencia y separación de identidad | `refundIntents.test.ts` |
 | Distribución visible y envío $30+$20 | `RefundModal.test.tsx` |
+| Reponer / no reponer, payload anterior, reintento, conflicto, costo faltante, aislamiento | `test_refund_restock.py`, `bdd/test_refunds.py` sobre API/PostgreSQL |
+| Columna aditiva, registros anteriores en `NULL`, grants y downgrade | `migration_tests/test_0109_refund_item_restock.py` |
+| Casilla por motivo, intención bloqueada y teclado a 390/1440 px | `RefundModal.test.tsx`, `e2e/refund-void.spec.ts` (mock) |
 
 La aceptación requiere que los escenarios anteriores aprueben sin duplicar
 unidades ni dinero registrado. La validación local no acredita despliegue ni devolución bancaria.

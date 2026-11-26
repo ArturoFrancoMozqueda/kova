@@ -60,6 +60,8 @@ class OrderItemResponse(BaseModel):
     unit_price_amount: Decimal
     line_total_amount: Decimal
     modifiers: list[OrderItemModifierResponse] = Field(default_factory=list)
+    # Present on reads of a saved sale; None in the checkout response.
+    stock_consumed: bool | None = None
 
 
 class PaymentResponse(BaseModel):
@@ -117,6 +119,7 @@ class ReceiptRefundItemLine(BaseModel):
     quantity: int
     unit_price_amount: Decimal
     line_total_amount: Decimal
+    restocked_quantity: int | None = None
 
 
 class RefundPaymentEntry(BaseModel):
@@ -180,6 +183,9 @@ class OrderListResponse(BaseModel):
 class RefundItemCreate(BaseModel):
     order_item_id: UUID
     quantity: int = Field(gt=0)
+    # Omitted by older clients and stored intents: keep restoring what the sale
+    # consumed. False returns money without putting the units back in stock.
+    restock: bool | None = None
 
 
 class RefundCreate(BaseModel):
@@ -212,6 +218,7 @@ class RefundItemResponse(BaseModel):
     quantity: int
     unit_price_amount: Decimal
     line_total_amount: Decimal
+    restocked_quantity: int | None = None
 
 
 class RefundResponse(BaseModel):

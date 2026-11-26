@@ -138,3 +138,61 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   await page.getByRole("button", { name: /cancelar orden/i }).click();
   await expect(page.getByText(/venta cancelada/i)).toBeVisible();
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+  test(`refund can return money without putting the unit back in stock at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await mockAuthAs(page, "owner");
+    let refundBody: unknown = null;
+    const stocked = { ...order, items: order.items.map((item) => ({ ...item, stock_consumed: item.id === "item-1" })) };
+
+    await page.route("**/api/v1/orders/demo", async (route) => {
+      await route.fulfill({ json: stocked });
+    });
+    await page.route("**/api/v1/orders/demo/receipt", async (route) => {
+      await route.fulfill({
+        json: refundBody
+          ? {
+              ...receipt,
+              refunds: [
+                {
+                  id: "refund-1",
+                  reason: "defective",
+                  refunded_amount: "25.00",
+                  created_at: "2026-05-08T01:00:00Z",
+                  items: [
+                    { order_item_id: "item-1", quantity: 1, unit_price_amount: "25.00", line_total_amount: "25.00", restocked_quantity: 0 },
+                  ],
+                },
+              ],
+            }
+          : receipt,
+      });
+    });
+    await page.route("**/api/v1/orders/demo/refunds", async (route) => {
+      refundBody = route.request().postDataJSON();
+      await route.fulfill({
+        status: 201,
+        json: { id: "refund-1", order_id: "demo", reason: "defective", refunded_amount: "25.00", items: [], created_at: "2026-05-08T01:00:00Z" },
+      });
+    });
+
+    await page.goto("/orders/demo");
+    await page.getByRole("button", { name: /^devolver$/i }).click();
+    await page.getByLabel("Motivo").selectOption("defective");
+    await page.getByLabel("Concha Cantidad").fill("1");
+    const restock = page.getByRole("checkbox", { name: /regresar al inventario/i });
+    await expect(restock).not.toBeChecked();
+    await restock.focus();
+    await page.keyboard.press("Space");
+    await expect(restock).toBeChecked();
+    await page.keyboard.press("Space");
+    await expect(restock).not.toBeChecked();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole("button", { name: /registrar devoluci[óo]n/i }).click();
+
+    await expect(page.getByText(/devoluci[óo]n registrada/i)).toBeVisible();
+    expect(refundBody).toMatchObject({ reason: "defective", items: [{ order_item_id: "item-1", quantity: 1, restock: false }] });
+    await expect(page.getByText(/devuelto sin regresar al inventario: 1/i)).toBeVisible();
+  });
+}

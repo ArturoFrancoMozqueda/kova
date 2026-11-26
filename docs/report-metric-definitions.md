@@ -34,3 +34,19 @@ señal operativa del momento en que ocurrió esa acción.
 
 Esta distinción se muestra dentro de la sección de devoluciones y cancelaciones
 para evitar interpretar ambos contadores como si compartieran la misma base.
+
+## Merma: fecha del movimiento
+
+La merma valúa las salidas tipificadas (merma, caducidad, robo, daño, autoconsumo,
+otro) registradas dentro del rango con el costo actual del producto; si un producto
+no tiene costo, el total queda incompleto.
+
+**Devoluciones que no regresaron al inventario** se muestran aparte y no cambian
+ese total ni sus unidades. Son las unidades devueltas al cliente cuya venta descontó
+existencias y que no se repusieron (`refund_items.quantity - restocked_quantity`),
+ubicadas por la fecha de la devolución y valuadas con `order_items.unit_cost`, el
+costo de la partida al vender. Se excluyen productos con lote (se reponen con
+ajuste), servicios y devoluciones anteriores a que se guardara la reposición. El
+margen sigue descontando la unidad devuelta de ventas y costo; esta línea hace
+visible la pérdida física que antes no aparecía en ningún reporte.
+

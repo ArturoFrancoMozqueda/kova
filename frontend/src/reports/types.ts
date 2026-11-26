@@ -168,6 +168,14 @@ export type BusinessStoryReport = {
       value: string | null;
       products_without_cost: number;
     }>;
+    /** Refunded units kept out of stock, valued at the sale-time cost. */
+    refunds_not_restocked?: {
+      units: number;
+      value: string | null;
+      known_value: string;
+      units_without_cost: number;
+      complete: boolean;
+    } | null;
   };
   operating_expenses?: {
     total: string;

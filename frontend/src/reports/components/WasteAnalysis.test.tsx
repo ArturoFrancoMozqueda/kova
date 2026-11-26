@@ -62,3 +62,26 @@ it("ranks waste reasons by valued loss with their units", () => {
   expect(items[0]).toHaveTextContent("Caducidad$24.002 unidades");
   expect(items[1]).toHaveTextContent("Daño$12.001 unidad");
 });
+
+it("shows refunds kept out of stock even without typed waste", () => {
+  render(
+    <WasteAnalysis
+      story={makeStory({
+        waste: {
+          units: 0,
+          movement_count: 0,
+          value: "0.00",
+          known_value: "0.00",
+          products_without_cost: 0,
+          complete: true,
+          by_reason: [],
+          refunds_not_restocked: { units: 2, value: null, known_value: "8.00", units_without_cost: 1, complete: false },
+        },
+      })}
+    />,
+  );
+  const block = screen.getByTestId("waste-unrestocked-refunds");
+  expect(block).toHaveTextContent("Devoluciones que no regresaron al inventario");
+  expect(block).toHaveTextContent("$8.00 con costo conocido");
+  expect(block).not.toHaveTextContent("$0.00");
+});

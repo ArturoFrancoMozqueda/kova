@@ -9,7 +9,8 @@ import type { BusinessStoryReport } from "../types";
 
 export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
   const waste = story.waste;
-  if (!waste || waste.movement_count === 0) return null;
+  const unrestocked = waste?.refunds_not_restocked?.units ? waste.refunds_not_restocked : null;
+  if (!waste || (waste.movement_count === 0 && !unrestocked)) return null;
   return (
     <Card data-testid="waste-analysis">
       <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
@@ -59,6 +60,22 @@ export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
               }))}
           />
         </div>
+        {unrestocked ? (
+          <div className="rounded-kova-md border border-kova-border p-4 sm:col-span-2" data-testid="waste-unrestocked-refunds">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm font-medium text-kova-ink">{copy.reportsView.unrestockedRefundsTitle}</p>
+              <p className="text-base font-semibold tabular-nums text-kova-ink">
+                {unrestocked.value === null ? copy.reportsView.notAvailable : formatMoney(unrestocked.value)}
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-kova-muted">{copy.reportsView.unrestockedRefundsUnits(unrestocked.units)}</p>
+            {unrestocked.value === null ? (
+              <p className="mt-1 text-xs text-kova-muted">
+                {copy.reportsView.unrestockedRefundsMissing(formatMoney(unrestocked.known_value), unrestocked.units_without_cost)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

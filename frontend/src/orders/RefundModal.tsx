@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { OrderItem, RefundPaymentAllocation, RefundPayload } from "./types";
 import { centsToMoney, moneyToCents } from "@/lib/money";
@@ -31,19 +31,20 @@ export function RefundModal({ items, disabled, fieldsLocked = false, initialPayl
     initialPayload?.refund_payments ? "original" : initialPayload?.refund_payment_method ?? ((availablePayments?.length ?? 0) > 1 ? "original" : availablePayments?.[0]?.method ?? "cash"),
   );
   const [quantities, setQuantities] = useState<Record<string, number>>(() => Object.fromEntries(initialPayload?.items.map(item => [item.order_item_id, item.quantity]) ?? []));
+  // Only explicit choices are stored; untouched lines follow the reason.
+  const [restockChoices, setRestockChoices] = useState<Record<string, boolean>>(() => Object.fromEntries(initialPayload?.items.flatMap(item => item.restock === undefined ? [] : [[item.order_item_id, item.restock]]) ?? []));
+  const restockable = (item: OrderItem) => item.stock_consumed === true && !item.lot_tracked;
+  const restockFor = (item: OrderItem) => restockChoices[item.id] ?? reason !== "defective";
   const reasonId = useId();
   const paymentMethodId = useId();
 
-  const selectedItems = useMemo(
-    () =>
-      items
-        .map((item) => ({
-          order_item_id: item.id,
-          quantity: quantities[item.id] ?? 0,
-        }))
-        .filter((item) => item.quantity > 0),
-    [items, quantities],
-  );
+  const selectedItems = items
+    .map((item) => ({
+      order_item_id: item.id,
+      quantity: quantities[item.id] ?? 0,
+      ...(restockable(item) ? { restock: restockFor(item) } : {}),
+    }))
+    .filter((item) => item.quantity > 0);
 
   const refundCents = selectedItems.reduce((sum, selected) => {
     const item = items.find(line => line.id === selected.order_item_id)!;
@@ -114,9 +115,9 @@ export function RefundModal({ items, disabled, fieldsLocked = false, initialPayl
 
         <div className="space-y-3">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+            <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{item.product_name}</p>
+                <p className="text-sm font-medium break-words">{item.product_name}</p>
                 <p className="text-xs text-muted-foreground">Máximo: {item.quantity}</p>
               </div>
               <div className="w-20">
@@ -139,6 +140,27 @@ export function RefundModal({ items, disabled, fieldsLocked = false, initialPayl
                   className="text-center"
                 />
               </div>
+              {(quantities[item.id] ?? 0) > 0 && restockable(item) && (
+                <Label className="flex w-full min-h-11 cursor-pointer items-start gap-2 text-sm font-normal">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                    checked={restockFor(item)}
+                    disabled={disabled || fieldsLocked}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setRestockChoices((current) => ({ ...current, [item.id]: checked }));
+                    }}
+                  />
+                  <span>
+                    <span className="font-medium">{copy.refundModal.restock}</span>
+                    <span className="block text-xs text-muted-foreground">{copy.refundModal.restockHint}</span>
+                  </span>
+                </Label>
+              )}
+              {(quantities[item.id] ?? 0) > 0 && item.stock_consumed === true && item.lot_tracked && (
+                <p className="w-full text-xs text-muted-foreground">{copy.refundModal.lotRestockHint}</p>
+              )}
             </div>
           ))}
         </div>

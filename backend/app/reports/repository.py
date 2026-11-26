@@ -317,6 +317,50 @@ def waste_movements_between(
     )
 
 
+def unrestocked_refund_items_between(
+    db: Session, *, tenant_id: UUID, start: datetime, end: datetime
+) -> list:
+    """Refunded units whose money went back while the goods did not.
+
+    Only lines whose sale consumed stock count: services and untracked
+    products never had inventory to restore. Lot-tracked lines are excluded
+    because their restoration is an explicit lot adjustment. Rows written
+    before restock was recorded (NULL) followed the automatic rule.
+    The refund date places the loss, like any other waste movement.
+    """
+    consumed = (
+        db.query(InventoryMovement.order_item_id)
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.movement_type == "sale",
+            InventoryMovement.quantity_delta < 0,
+            InventoryMovement.order_item_id == OrderItem.id,
+        )
+        .exists()
+    )
+    return (
+        db.query(
+            RefundItem.quantity - RefundItem.restocked_quantity,
+            OrderItem.product_id,
+            OrderItem.unit_cost,
+        )
+        .join(Refund, Refund.id == RefundItem.refund_id)
+        .join(OrderItem, OrderItem.id == RefundItem.order_item_id)
+        .filter(
+            RefundItem.tenant_id == tenant_id,
+            Refund.tenant_id == tenant_id,
+            OrderItem.tenant_id == tenant_id,
+            RefundItem.restocked_quantity.isnot(None),
+            RefundItem.restocked_quantity < RefundItem.quantity,
+            OrderItem.lot_tracked.is_(False),
+            consumed,
+            Refund.created_at >= start,
+            Refund.created_at <= end,
+        )
+        .all()
+    )
+
+
 def operating_expenses_between(
     db: Session, *, tenant_id: UUID, start_date: date, end_date: date
 ) -> list[Expense]:

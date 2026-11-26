@@ -13,6 +13,16 @@ Las correcciones de preparación y el ciclo técnico de cuenta se integraron en 
 con CI completo y release aprobados. Una beta acompañada no equivale a cerrar los gates
 operativos de lanzamiento general.
 
+## Backlog competitivo (26 de noviembre)
+
+El dueño priorizó cafeterías, panaderías y pastelerías: insumos, recetas, producción y costo real,
+sin cambiar precios ni planes. Decidió que insumos, unidades, recetas y producción formen parte del
+núcleo de inventario en **todos los planes**; compras sigue en Gestión. Estado por capacidad,
+orden de entregas y continuación en [backlog-competitivo.md](backlog-competitivo.md).
+Primera entrega (P0): una devolución puede regresar el dinero sin reponer el producto, y esa
+pérdida aparece en Merma ([contrato](../specs/orders/refunds.md)). Implementada y probada
+localmente; su publicación se acredita con su PR y release.
+
 ## En producción
 
 Confirmaciones y recordatorios de reservas integrados con plantillas y el programador privado,
