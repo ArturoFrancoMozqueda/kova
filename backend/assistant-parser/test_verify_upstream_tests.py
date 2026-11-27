@@ -17,7 +17,9 @@ class UpstreamRegressionGateTest(unittest.TestCase):
         skip = f'<skipped message="{reason}"/>' if skipped else ""
         cases = (["ReplaceCurrentWordCopiesSharedInputWord",
                   "ReplaceCurrentWordCopiesSharedCombinationWord"]
-                 if name == "pageres_test" else ["security-regression"])
+                 if name == "pageres_test"
+                 else ["RejectsUnbackedVectorCount", "RejectsUnbackedStringVectorCount"]
+                 if name == "tfile_test" else ["security-regression"])
         body = "".join(f'<testcase name="{case}">{skip}</testcase>' for case in cases)
         (self.directory / f"{name}.xml").write_text(
             f'<testsuites tests="{len(cases)}" failures="{failures}" '
@@ -28,8 +30,8 @@ class UpstreamRegressionGateTest(unittest.TestCase):
 
     def test_accepts_complete_passing_security_reports(self):
         summary = verify(self.directory)
-        self.assertEqual(summary["suites"], 18)
-        self.assertEqual(summary["tests"], 19)
+        self.assertEqual(summary["suites"], 19)
+        self.assertEqual(summary["tests"], 21)
         self.assertEqual(summary["skipped"], 0)
 
     def test_fails_closed_on_missing_suite(self):

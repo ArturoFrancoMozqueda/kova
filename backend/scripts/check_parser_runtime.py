@@ -38,6 +38,7 @@ EXPECTED_SUITES = {
     "fullyconnected_test",
     "lstm_layer_test",
     "genericvector_test",
+    "tfile_test",
     "plumbing_test",
     "pageres_test",
 }
@@ -340,8 +341,8 @@ def validate_report(report: dict, expected: dict) -> None:
         raise GateError("OCR runtime binary or fixed Spanish model hash mismatch")
     suites = ocr["suites"]
     summary = ocr["summary"]
-    if set(suites) != EXPECTED_SUITES or summary.get("suites") != 18:
-        raise GateError("All 18 OCR regression suites must be present")
+    if set(suites) != EXPECTED_SUITES or summary.get("suites") != len(EXPECTED_SUITES):
+        raise GateError(f"All {len(EXPECTED_SUITES)} OCR regression suites must be present")
     totals = {
         key: sum(row[key] for row in suites.values())
         for key in ("tests", "failures", "errors", "skipped")
@@ -489,7 +490,7 @@ def main() -> int:
                     "native_execution": report.get("native_execution"),
                     "reviewed_advisories": len(advisory_ids),
                     "libxml2_regressions": 6,
-                    "ocr_suites": 18,
+                    "ocr_suites": len(EXPECTED_SUITES),
                     "ocr_skipped": report["ocr"]["summary"]["skipped"],
                 }
             )
