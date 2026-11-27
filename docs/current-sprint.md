@@ -73,9 +73,12 @@ día ([ADR-045](adr/ADR-045-cola-de-preparacion.md), [contrato](../specs/prep_qu
 Publicada el 27 de noviembre con el [PR #405](https://github.com/ArturoFrancoMozqueda/kova/pull/405)
 y el [release 46073577075](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46073577075): API y
 frontend sirven `6338bbd1`. Falta su uso en un negocio real.
-Dividir la cuenta por persona, en revisión: pedido del dueño (27 de noviembre), cada quien paga lo
-suyo en una sola venta con un ticket por persona, en Caja y al cobrar pedidos
-([contrato](../specs/orders/split_bill.md)). Migración `0116_split_bill`. No está publicada.
+Dividir la cuenta por persona: pedido del dueño (27 de noviembre), cada quien paga lo suyo en una
+sola venta con un ticket por persona, en Caja y al cobrar pedidos
+([contrato](../specs/orders/split_bill.md)). Publicada el 27 de noviembre con el
+[PR #406](https://github.com/ArturoFrancoMozqueda/kova/pull/406) y el
+[release 46083690966](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46083690966): API y
+frontend sirven `b07dcbfd`. Falta su uso en un negocio real.
 
 ## En producción
 

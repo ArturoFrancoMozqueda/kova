@@ -142,10 +142,8 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E7 y E8b están publicadas; producción sirve `6338bbd1`. Falta probar la cola de
-   preparación en una cafetería real con dos dispositivos.
-2. Las decisiones de E6 y E7 están en ADR-044 y ADR-045.
-3. Falta probar con un negocio real el caso integral 3 (anticipo de un pastel).
-4. **Dividir la cuenta por persona** (pedido del dueño) en rama `feat/split-bill`, sin publicar
-   ([contrato](../specs/orders/split_bill.md)). Migración `0116`.
-5. Siguiente: E8 (cupones).
+1. E1 a E7, E8b y la división de cuenta por persona están publicadas; producción sirve
+   `b07dcbfd` ([contrato de división](../specs/orders/split_bill.md)).
+2. Falta probar con negocios reales: la cola de preparación con dos dispositivos, el anticipo de un
+   pastel (caso integral 3) y una cuenta dividida entre amigos. Decisiones en ADR-044 y ADR-045.
+3. Siguiente: E8 (cupones).
