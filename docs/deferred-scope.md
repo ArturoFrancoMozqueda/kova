@@ -30,7 +30,9 @@ publica precios ni migra suscripciones. Siguen fuera:
 
 - KDS, mesas/plano del local, comandas y estaciones de cocina. Pedidos sirve a comida, retail y
   encargos sin convertirse en sistema de restaurante ([ADR-014](adr/ADR-014-customer-orders-domain.md)).
-- Recetas por ingrediente, producción, repartidores, mapas y tarifas de entrega.
+- Repartidores, mapas y tarifas de entrega. Insumos, recetas y producción salieron de esta
+  lista por decisión del dueño (26-nov-2026, [ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md));
+  su avance está en [backlog-competitivo.md](backlog-competitivo.md).
 - Preset de restaurante. Existen `cafe`, `bakery`, `retail` y `abarrotes`.
 - Precios distintos por sucursal.
 - Crédito a clientes: plazos, abonos, vencimientos y antigüedad de saldos.

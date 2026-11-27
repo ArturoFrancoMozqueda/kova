@@ -223,6 +223,10 @@ def _products(db, tenant_id, ids, *, stale=False):
         if stale:
             raise conflict("El catálogo cambió. Revisa y crea una cotización nueva.")
         raise not_found("Selecciona productos activos de este negocio")
+    if any(not row.is_sellable for row in rows):
+        if stale:
+            raise conflict("El catálogo cambió. Revisa y crea una cotización nueva.")
+        raise bad_request("Los insumos no se cotizan; selecciona productos a la venta")
     has_modifiers = (
         db.query(ProductModifierGroup.id)
         .filter(

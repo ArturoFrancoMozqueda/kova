@@ -320,3 +320,58 @@ describe("ProductForm required fields", () => {
     expect(screen.queryByText(/Para guardar falta/)).not.toBeInTheDocument();
   });
 });
+
+describe("ProductForm ingredients and units", () => {
+  it("saves an ingredient counted in ml and bought by the litre without a sale price", async () => {
+    const onSubmit = vi.fn(async () => undefined);
+    render(
+      <ToastProvider>
+        <ProductForm categories={[]} availableModifierGroups={[]} defaultCategoryId={null} pending={false} onCancel={vi.fn()} onSubmit={onSubmit} />
+      </ToastProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Nombre del producto"), { target: { value: "Leche entera" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Insumo" }));
+    expect(screen.queryByLabelText("Precio")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Se cuenta en"), { target: { value: "ml" } });
+    expect(screen.getByLabelText("Se compra por (opcional)")).toHaveValue("Litro");
+    expect(screen.getByText("Al recibir 1 Litro entran 1 L al inventario.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Costo por Litro"), { target: { value: "25.00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      is_sellable: false,
+      price_amount: "0.00",
+      cost_price: "25.00",
+      track_inventory: true,
+      stock_unit: "ml",
+      purchase_unit_label: "Litro",
+      purchase_unit_quantity: 1000,
+      modifier_group_ids: [],
+    }));
+  });
+
+  it("does not save half a purchase unit", async () => {
+    const onSubmit = vi.fn(async () => undefined);
+    render(
+      <ToastProvider>
+        <ProductForm initial={product} categories={[]} availableModifierGroups={[]} defaultCategoryId={null} pending={false} onCancel={vi.fn()} onSubmit={onSubmit} />
+      </ToastProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Se compra por (opcional)"), { target: { value: "Caja" } });
+    expect(screen.getByText("Indica el nombre y el contenido de la unidad de compra.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Contenido en pza"), { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      is_sellable: true,
+      stock_unit: "pza",
+      purchase_unit_label: "Caja",
+      purchase_unit_quantity: 12,
+    })));
+  });
+});

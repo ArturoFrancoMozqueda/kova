@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.catalog import repository as catalog_repo
+from app.catalog.units import STOCK_UNITS
 from app.idempotency import service as idempotency_service
 from app.inventory import repository as inventory_repo
 from app.shared.exceptions import bad_request
@@ -33,7 +34,10 @@ TEMPLATE_COLUMNS = (
     "stock_inicial",
     "umbral_stock",
     "codigo_barras",
+    "tipo",
+    "unidad",
 )
+IMPORT_KINDS = {"producto": True, "insumo": False}
 # Excel recognizes the UTF-8 BOM and preserves Spanish accents when the owner
 # opens the downloaded template. `_decode` already accepts the same BOM on
 # upload through `utf-8-sig`.
@@ -306,6 +310,12 @@ def _validate_catalog_rows(
             errors.append("codigo_barras ya existe o está repetido")
         if barcode:
             seen_barcodes.add(barcode)
+        kind = values.get("tipo", "").strip().casefold() or "producto"
+        if kind not in IMPORT_KINDS:
+            errors.append("tipo admite producto o insumo")
+        unit = values.get("unidad", "").strip().casefold() or "pza"
+        if unit not in STOCK_UNITS:
+            errors.append("unidad admite pza, g o ml")
         normalized = {
             "name": name,
             "sku": sku,
@@ -318,6 +328,11 @@ def _validate_catalog_rows(
         }
         if barcode is not None:
             normalized["barcode"] = barcode
+        # Only non-default values enter the row, keeping earlier files' hashes.
+        if IMPORT_KINDS.get(kind, True) is False:
+            normalized["is_sellable"] = False
+        if unit != "pza" and unit in STOCK_UNITS:
+            normalized["stock_unit"] = unit
         rows.append(
             {
                 "row_number": row_number,
@@ -439,6 +454,8 @@ def commit_catalog_import(
             image_position_y=50,
             image_zoom=1.0,
         )
+        product.is_sellable = values.get("is_sellable", True)
+        product.stock_unit = values.get("stock_unit", "pza")
         if values["initial_stock"] > 0:
             inventory_repo.create_movement(
                 db,

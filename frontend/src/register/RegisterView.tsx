@@ -27,6 +27,7 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { listProducts, listCategories } from "../catalog/api";
 import type { Category, Product } from "../catalog/types";
+import { isSellable } from "../catalog/units";
 import { listStock } from "../inventory/api";
 import type { StockItem } from "../inventory/types";
 import { copy } from "../i18n/messages";
@@ -566,7 +567,7 @@ function RegularRegisterView() {
         cachedCategories = cached.categories;
         setLoadState({
           status: "ready",
-          products: cached.products.filter((product) => product.is_active),
+          products: cached.products.filter((product) => product.is_active && isSellable(product)),
           categories: cached.categories,
         });
       }
@@ -577,7 +578,8 @@ function RegularRegisterView() {
         () => ({ categories: cachedCategories, failed: true }));
       const allProducts = await productsRead;
       if (generation !== catalogRequestRef.current) return;
-      const products = allProducts.filter((product) => product.is_active);
+      // Ingredients are stocked and costed but never rung up.
+      const products = allProducts.filter((product) => product.is_active && isSellable(product));
       setLoadState({ status: "ready", products, categories: cachedCategories, categoriesPending: true });
       const { categories, failed } = await categoriesRead;
       if (generation !== catalogRequestRef.current) return;
@@ -605,7 +607,7 @@ function RegularRegisterView() {
         if (cached) {
           setLoadState({
             status: "ready",
-            products: cached.products.filter((product) => product.is_active),
+            products: cached.products.filter((product) => product.is_active && isSellable(product)),
             categories: cached.categories,
             fromCache: true,
           });

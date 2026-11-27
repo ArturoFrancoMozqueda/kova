@@ -1,3 +1,4 @@
+import type { StockUnit } from "./units";
 export type Category = {
   id: string;
   tenant_id: string;
@@ -45,6 +46,11 @@ export type Product = {
   rotation_days?: number | null;
   expiry_days?: number | null;
   track_inventory: boolean;
+  /** Optional: rows cached by older bundles predate ingredients. */
+  is_sellable?: boolean;
+  stock_unit?: StockUnit;
+  purchase_unit_label?: string | null;
+  purchase_unit_quantity?: number | null;
   low_stock_threshold: number | null;
   image_url: string | null;
   image_position_x: number;
@@ -80,6 +86,10 @@ export type ProductCreate = {
   rotation_days?: number | null;
   expiry_days?: number | null;
   track_inventory?: boolean;
+  is_sellable?: boolean;
+  stock_unit?: StockUnit;
+  purchase_unit_label?: string | null;
+  purchase_unit_quantity?: number | null;
   low_stock_threshold?: number | null;
   image_position_x?: number;
   image_position_y?: number;
@@ -99,6 +109,10 @@ export type ProductUpdate = {
   rotation_days?: number | null;
   expiry_days?: number | null;
   track_inventory?: boolean;
+  is_sellable?: boolean;
+  stock_unit?: StockUnit;
+  purchase_unit_label?: string | null;
+  purchase_unit_quantity?: number | null;
   low_stock_threshold?: number | null;
   image_position_x?: number;
   image_position_y?: number;
@@ -119,6 +133,9 @@ export type CatalogImportRow = {
     track_inventory: boolean;
     initial_stock: number;
     low_stock_threshold: number | null;
+    /** Present only when the row is an ingredient or uses g/ml. */
+    is_sellable?: boolean;
+    stock_unit?: StockUnit;
   };
   errors: string[];
 };

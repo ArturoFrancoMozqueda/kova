@@ -191,3 +191,26 @@ it.each(["/replenishment", "/purchasing/suppliers"])("never presents a failed %s
   expect(await screen.findByText("Harina")).toBeVisible();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
+
+it("proposes whole purchase units for ingredients counted in ml", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).endsWith("/purchasing/suppliers")
+      ? json([supplier])
+      : json([{
+          ...suggestion,
+          product_name: "Leche entera",
+          available_quantity: 200,
+          low_stock_threshold: 500,
+          suggested_quantity: 301,
+          unit_cost: "25.00",
+          stock_unit: "ml",
+          purchase_unit_label: "Litro",
+          units_per_purchase: 1000,
+          suggested_purchase_quantity: 1,
+        }]),
+  );
+  mount();
+  expect(await screen.findByText("Mínimo: 500 ml. Faltan 301 ml: sugerimos 1 × Litro (1 L).")).toBeInTheDocument();
+  expect(screen.getByLabelText("Cantidad (Litro)")).toHaveValue("1");
+  expect(screen.getByLabelText("Costo por Litro MXN")).toHaveValue("25.00");
+});

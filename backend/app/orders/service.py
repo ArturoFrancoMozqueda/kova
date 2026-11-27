@@ -469,6 +469,20 @@ def create_order(
     )
     if len(locked_products) != len(product_ids):
         raise not_found("Product not found")
+    not_sellable = [p for p in locked_products.values() if not p.is_sellable]
+    if not_sellable:
+        # An offline sale already happened at the counter: keep it and flag it
+        # for review instead of losing it because the catalog changed later.
+        if client_uuid is None:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "PRODUCT_NOT_SELLABLE",
+                    "product_id": str(not_sellable[0].id),
+                    "message": f"{not_sellable[0].name} es un insumo y no se vende en caja.",
+                },
+            )
+        review_reasons.append("product_not_sellable")
 
     priced_modifiers = modifier_service.validate_and_price_modifiers_batch(
         db,

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.billing.access import require_commercial_access
 from app.branches.scope import active_branch_id
 from app.catalog.models import Product
+from app.catalog.units import units_per_purchase
 from app.db import get_db
 from app.idempotency import service as idempotency
 from app.inventory.service import list_low_stock
@@ -35,6 +36,11 @@ class Suggestion(BaseModel):
     suggested_quantity: int
     unit_cost: Decimal | None
     evidence_version: str
+    # Stock fields above are base units; a purchase is ordered in purchase units.
+    stock_unit: str = "pza"
+    purchase_unit_label: str | None = None
+    units_per_purchase: int = 1
+    suggested_purchase_quantity: int = 0
 
 
 class ApprovedItem(PurchaseItemCreate):
@@ -58,7 +64,10 @@ def suggestions(db: Session, tenant_id: UUID) -> list[Suggestion]:
     incoming = dict(
         db.query(
             PurchaseOrderItem.product_id,
-            func.sum(PurchaseOrderItem.quantity - PurchaseOrderItem.received_quantity),
+            func.sum(
+                (PurchaseOrderItem.quantity - PurchaseOrderItem.received_quantity)
+                * PurchaseOrderItem.units_per_purchase
+            ),
         )
         .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.purchase_order_id)
         .filter(
@@ -84,10 +93,15 @@ def suggestions(db: Session, tenant_id: UUID) -> list[Suggestion]:
             "cost": str(product.cost_price) if product.cost_price is not None else None,
             "updated_at": str(product.updated_at),
         }
+        if product.purchase_unit_quantity:
+            # Keep evidence of earlier products byte-identical; only a purchase
+            # unit adds the factor that the suggested order depends on.
+            payload["units_per_purchase"] = product.purchase_unit_quantity
         fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
         quantity = max(
             0, row["low_stock_threshold"] + 1 - row["available_quantity"] - payload["incoming"]
         )
+        factor = units_per_purchase(product)
         result.append(
             Suggestion(
                 product_id=pid,
@@ -99,6 +113,10 @@ def suggestions(db: Session, tenant_id: UUID) -> list[Suggestion]:
                 suggested_quantity=quantity,
                 unit_cost=product.cost_price,
                 evidence_version=fingerprint,
+                stock_unit=product.stock_unit,
+                purchase_unit_label=product.purchase_unit_label,
+                units_per_purchase=factor,
+                suggested_purchase_quantity=-(-quantity // factor),
             )
         )
     return result

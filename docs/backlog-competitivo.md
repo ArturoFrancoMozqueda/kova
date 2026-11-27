@@ -32,21 +32,21 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | A | Efectivo, transferencia, tarjeta manual, pago dividido | 1 | `orders/schemas.py`, `test_split_payment.py` | — |
 | A | Descuentos con permiso | 1 | `orders.discount`, `test_order_pricing_controls.py` | Cupones (E8) |
 | A | Devoluciones por medio original, anulaciones | 1 | ADR-037, `test_refund_*` | — |
-| A | Devolver dinero sin reponer producto | 1 (E1, sin publicar) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Publicación y aceptación |
+| A | Devolver dinero sin reponer producto | 1 (publicada 26-nov, #391) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Aceptación en un negocio |
 | A | Historial, recibo y reimpresión | 2 | `GET /orders/{id}/receipt`; la lista no busca por folio/cliente | E8b |
 | A | Offline: recarga, reconexión, sin duplicados | 1 | [offline_sync](../specs/orders/offline_sync.md), e2e `offline-sale-real` | — |
 | A | Tickets 58/80 mm, cajón, lector | 3 | Impresión del navegador, cajón ESC/POS por red; [matriz](runbooks/pos-hardware-acceptance.md) | Prueba física por modelo |
 | B | Productos, SKU, código de barras, modificadores con precio | 1 | `catalog/`, `modifiers/` | — |
 | B | Importación CSV/XLSX con vista previa | 1 | ADR-013, `test_catalog_import.py` | Exportación de catálogo |
 | B | Costo desconocido distinto de cero | 1 | `products.cost_price` nullable, `order_items.unit_cost` | — |
-| B | Insumos no vendibles, unidades y conversiones | 5 | Existencias enteras sin unidad | E2 |
+| B | Insumos no vendibles, unidades y conversiones | 1 (E2, sin publicar) | [ingredients_units](../specs/inventory/ingredients_units.md), `test_ingredients_units.py` | Publicación; recetas (E3) |
 | B | Modificador con costo/consumo | 5 | `modifier_options` solo tiene `price_delta` | E3 |
 | B | Variantes con precio, SKU y existencias propias | 4 | [variants.md](../specs/catalog/variants.md) | Decidir tras pilotos |
 | C | Recetas al vender | 5 | — | E3 |
 | C | Producción por lote, rendimiento y merma | 5 | — | E4 |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
 | D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión | Recepción con diferencias (E8b) |
-| D | Unidad de compra distinta a la de consumo | 5 | `purchase_order_items.quantity` entero | E2 |
+| D | Unidad de compra distinta a la de consumo | 1 (E2, sin publicar) | Factor congelado por partida, recepción convertida | Publicación |
 | D | Traspasos entre sucursales | 1 | `branches/transfers.py` | — |
 | D | Sugerencias de reposición → compra aprobada | 1 | `replenishment/` | Incluir insumos (E5) |
 | D | Cobertura estimada (`days_until_out`) | 2 | `inventory/service.py`, sin prueba propia | E5 |
@@ -79,9 +79,9 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 
 | # | Entrega | Prioridad | Depende de | Estado |
 |---|---|---|---|---|
-| E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Implementada en `feat/refund-restock`; PR abierto, sin publicar |
-| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Siguiente |
-| E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Pendiente |
+| E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Publicada (#391, release 45920243100) |
+| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | PR #392 abierto, sin publicar |
+| E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Siguiente |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Pendiente |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Pendiente |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Pendiente |
@@ -136,12 +136,17 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 está en la rama `feat/refund-restock` (migración `0109_refund_item_restock`). Revisar su PR,
-   CI y decidir merge/publicación.
-2. Siguiente: **E2** en una rama nueva sobre `main` con E1 fusionado (o apilada sobre E1, porque la
-   migración siguiente baja de `0109`). Arranque concreto: migración `0110` con
-   `products.is_sellable`, `stock_unit`, `purchase_unit_label`, `purchase_unit_quantity`; filtrar
-   insumos en `orders/service.py` (venta), `storefront/`, `customer_orders/` y el caché offline
-   (`frontend/src/offline/db.ts`); conversión en la recepción de `purchasing/service.py`.
-3. Después E3: spec en `specs/recipes/`, ADR nuevo (recetas y decisión de plan), retirar recetas y
-   producción de [`deferred-scope.md`](deferred-scope.md).
+1. E1 (migración `0109`) está publicada. E2 (`feat/ingredients-units`, migración `0110`) está en el
+   PR #392; fusionarlo con su CI y esperar su release.
+2. Siguiente: **E3, recetas al vender**, en una rama apilada sobre E2 (su migración baja de `0110`).
+   Arranque concreto:
+   - Spec `specs/recipes/recipes_on_sale.md` y ADR nuevo de recetas versionadas.
+   - Migración `0111`: `recipes` (producto, `version`, `effective_from`, `mode` `on_sale|batch`),
+     `recipe_lines` (insumo, cantidad entera en unidad base) y `modifier_option_consumptions`
+     (insumo, cantidad con signo), con tenant_id, FKs compuestas y RLS forzado.
+   - En `orders/service.py`, al crear la venta (en línea y offline), resolver la versión vigente en
+     `occurred_at`, crear movimientos `consumption` por insumo ligados a `order_item_id` sin bloquear
+     por existencias, y fijar `unit_cost` con `catalog/units.stock_unit_cost`.
+   - La devolución nunca repone insumos de un producto con receta; la anulación revierte el consumo.
+   - UI: pestaña «Receta» en el editor de producto y consumo por opción de modificador.
+3. Después E4 (producción por lote) y E5 (panel de insumos bajos → compra).

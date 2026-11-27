@@ -59,6 +59,17 @@ class Product(Base):
     price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Ingredients and supplies are stocked and costed but never rung up.
+    is_sellable: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    # Whole numbers of this base unit back every Integer stock column.
+    stock_unit: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="pza", server_default="pza"
+    )
+    # When set, cost_price is the cost of one purchase unit (e.g. "Litro" = 1000 ml).
+    purchase_unit_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    purchase_unit_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     track_lots: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
@@ -93,6 +104,13 @@ class Product(Base):
         CheckConstraint(
             "cost_price IS NULL OR cost_price >= 0",
             name="ck_products_cost_price_nonnegative",
+        ),
+        CheckConstraint("stock_unit IN ('pza', 'g', 'ml')", name="ck_products_stock_unit"),
+        CheckConstraint(
+            "(purchase_unit_label IS NULL AND purchase_unit_quantity IS NULL) OR "
+            "(purchase_unit_label IS NOT NULL AND purchase_unit_quantity IS NOT NULL "
+            "AND purchase_unit_quantity > 0)",
+            name="ck_products_purchase_unit",
         ),
         CheckConstraint(
             "image_position_x >= 0 AND image_position_x <= 100",

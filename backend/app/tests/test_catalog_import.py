@@ -420,7 +420,7 @@ def test_xlsx_rejects_macros_multiple_sheets_and_excess_columns(client):
                 [*import_service.TEMPLATE_COLUMNS, "columna_extra"],
                 ["Concha", "C-1", 18, None, None, None, None, None, "extra"],
             ]),
-            "máximo 9 columnas",
+            f"máximo {len(import_service.TEMPLATE_COLUMNS)} columnas",
         ),
     ]
     for content, expected_error in cases:
