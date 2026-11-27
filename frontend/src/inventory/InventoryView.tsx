@@ -532,6 +532,7 @@ function movementTypeLabel(type: string): string {
     purchase: copy.inventoryView.movementTypePurchase,
     transfer_in: copy.inventoryView.movementTypeTransferIn,
     transfer_out: copy.inventoryView.movementTypeTransferOut,
+    consumption: copy.inventoryView.movementTypeConsumption,
   };
   return map[type] ?? copy.inventoryView.movementTypeUnknown;
 }

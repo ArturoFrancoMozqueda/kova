@@ -172,7 +172,8 @@ def inventory_velocity(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
         )
         .filter(
             InventoryMovement.tenant_id == tenant_id,
-            InventoryMovement.movement_type == "sale",
+            # Ingredients leave through recipes; both are real consumption.
+            InventoryMovement.movement_type.in_(("sale", "consumption")),
             InventoryMovement.created_at >= since,
         )
         .group_by(InventoryMovement.product_id)

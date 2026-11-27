@@ -1,18 +1,3 @@
-FROM python:3.12-alpine3.24@sha256:34e2f26b1dad8311d572d4074ae315778964554ca6a975518c5fd48dd2ddbda1 AS xml-build
-RUN apk upgrade --no-cache \
-    && apk add --no-cache build-base cmake ninja patch zlib-dev xz-dev
-ADD --checksum=sha256:a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a \
-    https://download.gnome.org/sources/libxml2/2.13/libxml2-2.13.9.tar.xz /xml-source.tar.xz
-# Pin the security patches used to review the Alpine 2.13.9-r3 backports.
-ADD --chmod=0644 --checksum=sha256:42d45b35f36bf29229e39a9e5349d7347e51d92099573b5a509f448dbf0e34d7 \
-    https://raw.githubusercontent.com/alpinelinux/aports/c7ab030c13f6ad20df0913a5f24c00734f214de8/main/libxml2/CVE-2026-6732.patch /xml-alpine-patches/CVE-2026-6732.patch
-ADD --chmod=0644 --checksum=sha256:0d82d4514d0fffe3dd2ea5dac4ce0811d3322e9460c1ea7610f59ee0e3857001 \
-    https://raw.githubusercontent.com/alpinelinux/aports/c7ab030c13f6ad20df0913a5f24c00734f214de8/main/libxml2/CVE-2026-86144.patch /xml-alpine-patches/CVE-2026-86144.patch
-COPY libxml2-patches/ /xml-patches/
-COPY libxml2-tests/ /xml-tests/
-COPY build_libxml2.sh /build_libxml2.sh
-RUN sh /build_libxml2.sh
-
 FROM python:3.12-alpine3.24@sha256:34e2f26b1dad8311d572d4074ae315778964554ca6a975518c5fd48dd2ddbda1 AS ocr-build
 # Build the exact official 5.5.5 source (fixes the 2026-11-26 advisories) and
 # run its security regressions instead of trusting a distribution package.
@@ -58,12 +43,10 @@ FROM python:3.12-alpine3.24@sha256:34e2f26b1dad8311d572d4074ae315778964554ca6a97
 # command-line scanner, not its daemon/service-management dependency tree.
 RUN apk upgrade --no-cache \
     && apk add --no-cache zlib 'so:liblzma.so.5'
-COPY --from=xml-build /libxml2-patched.apk /tmp/libxml2-patched.apk
-# Only the locally compiled, checksum-verified build artifact is unsigned.
-# Install it without network access; official repository trust stays unchanged.
-RUN apk add --no-network --allow-untrusted /tmp/libxml2-patched.apk \
-    && rm /tmp/libxml2-patched.apk \
-    && apk add --no-cache clamav-scanner=1.4.7-r0 freshclam=1.4.7-r0 \
+# Alpine's signed libxml2 2.13.9-r5 carries every fix of the earlier local
+# backport build plus seven more (ADR-042). The runtime gate checks the loaded
+# library against Alpine's own package database checksum.
+RUN apk add --no-cache libxml2=2.13.9-r5 clamav-scanner=1.4.7-r0 freshclam=1.4.7-r0 \
         leptonica=1.87.0-r0 poppler-utils=25.12.0-r1
 COPY --from=ocr-build /install/usr/local/ /usr/local/
 ENV TESSDATA_PREFIX=/usr/local/share/tessdata

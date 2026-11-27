@@ -6,7 +6,6 @@ OS/SCA scans remain separate: custom source builds need explicit provenance.
 """
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -20,7 +19,6 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ADVISORY_URL = "https://api.github.com/repos/tesseract-ocr/tesseract/security-advisories"
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
-EXPECTED_CVES = {f"CVE-2026-{number}" for number in (86138, 86139, 86140, 86142, 86143, 86144)}
 EXPECTED_SUITES = {
     "intproto_test",
     "intproto_addclass_test",
@@ -43,11 +41,9 @@ EXPECTED_SUITES = {
     "pageres_test",
 }
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "assistant-parser"
-XML_SOURCE_SHA = "a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a"
-XML_ALPINE_PATCHES = {
-    "CVE-2026-6732.patch": "42d45b35f36bf29229e39a9e5349d7347e51d92099573b5a509f448dbf0e34d7",
-    "CVE-2026-86144.patch": "0d82d4514d0fffe3dd2ea5dac4ce0811d3322e9460c1ea7610f59ee0e3857001",
-}
+# Alpine's signed package replaces the earlier local backport build (ADR-042).
+XML_PACKAGE_VERSION = "2.13.9-r5"
+XML_LIBRARY_PATH = "/usr/lib/libxml2.so.2.13.9"
 
 
 class GateError(RuntimeError):
@@ -65,9 +61,6 @@ def _sha(value) -> bool:
 
 def load_expected(source_root: Path = SOURCE_ROOT) -> dict:
     manifest = json.loads((source_root / "upstream-security.json").read_text())
-    patches = json.loads((source_root / "libxml2-patches/provenance.json").read_text())
-    if len(patches) != 6 or {row["cve"] for row in patches} != EXPECTED_CVES:
-        raise GateError("Incomplete six-CVE libxml2 patch set")
     advisories = manifest.get("advisories", [])
     identifiers = [row.get("ghsa_id") for row in advisories]
     if (
@@ -101,33 +94,7 @@ def load_expected(source_root: Path = SOURCE_ROOT) -> dict:
         ):
             raise GateError("Invalid OCR source-file provenance")
         source_files[name] = digest
-    files = {}
-    for row in patches:
-        names = [(row["cve"] + ".patch", row["sha256"])]
-        if row.get("backport_file"):
-            names.append((row["backport_file"], row["backport_sha256"]))
-        for name, digest in names:
-            if Path(name).name != name or not _sha(digest):
-                raise GateError("Invalid libxml2 patch provenance")
-            if (
-                hashlib.sha256((source_root / "libxml2-patches" / name).read_bytes()).hexdigest()
-                != digest
-            ):
-                raise GateError("Repository libxml2 patch hash mismatch")
-            files[name] = digest
-    tests = {
-        name: hashlib.sha256(
-            (source_root / "libxml2-tests" / (name + ".c")).read_bytes()
-        ).hexdigest()
-        for name in sorted(EXPECTED_CVES)
-    }
-    return {
-        "manifest": manifest,
-        "patches": patches,
-        "patch_files": files,
-        "test_files": tests,
-        "source_files": source_files,
-    }
+    return {"manifest": manifest, "source_files": source_files}
 
 
 def _next_page(link: str | None) -> str | None:
@@ -243,14 +210,29 @@ def junit(path):
         raise ValueError("Missing or failed regression cases")
     return {"tests": len(cases), "failures": 0, "errors": 0,
             "skipped": sum(case.find("skipped") is not None for case in cases)}
-xml = pathlib.Path("/usr/share/kova-parser/libxml2")
-provenance = read(xml / "provenance.json")
+import base64
 library = pathlib.Path("/usr/lib/libxml2.so.2").resolve(strict=True)
 loaded = ctypes.CDLL("/usr/lib/libxml2.so.2")
 runtime_version = ctypes.c_char_p.in_dll(loaded, "xmlParserVersion").value.decode()
-patches = {path.name: digest(path) for path in (xml / "patches").glob("*.patch")}
-alpine_patches = {path.name: digest(path) for path in (xml / "alpine-patches").glob("*.patch")}
-test_files = {path.stem: digest(path) for path in (xml / "tests").glob("CVE-*.c")}
+package, current_dir, apk_checksum, pending = {}, "", None, None
+for line in pathlib.Path("/lib/apk/db/installed").read_text().splitlines() + [""]:
+    if not line:
+        if package.get("P") == "libxml2":
+            break
+        package, current_dir = {}, ""
+        continue
+    key, _, value = line.partition(":")
+    if key in {"P", "V"}:
+        package[key] = value
+    elif key == "F":
+        current_dir = value
+    elif key == "R":
+        pending = "/" + current_dir + "/" + value
+    elif key == "Z" and pending == str(library) and package.get("P") == "libxml2":
+        apk_checksum = value
+if package.get("P") != "libxml2":
+    package = {}
+library_sha1 = "Q1" + base64.b64encode(hashlib.sha1(library.read_bytes()).digest()).decode()
 ocr = pathlib.Path("/usr/local/share/kova-parser")
 manifest = read(ocr / "upstream-security.json")
 build = read(ocr / "tesseract-build.json")
@@ -263,12 +245,10 @@ suites = {}
 for path in sorted((ocr / "upstream-tests").glob("*_test.xml")):
     suites[path.stem] = junit(path)
 print(json.dumps({"uid": os.getuid(), "architecture": platform.machine(),
-    "libxml2": {"provenance": provenance,
-        "library": {"path": str(library), "sha256": digest(library)},
-        "runtime_version": runtime_version, "patch_files": patches, "test_files": test_files,
-        "alpine_patches": alpine_patches,
-        "backports": read(xml / "tests/backports.json"),
-        "upstream": junit(xml / "tests/upstream.xml")},
+    "libxml2": {"package": {"name": package.get("P"), "version": package.get("V"),
+                            "apk_checksum": apk_checksum},
+        "library": {"path": str(library), "sha256": digest(library), "apk_sha1": library_sha1},
+        "runtime_version": runtime_version},
     "ocr": {"manifest": manifest, "build": build, "version": version,
         "binary_sha256": digest(binary), "model_sha256": digest(model),
         "summary": summary, "suites": suites}}))
@@ -283,39 +263,23 @@ def validate_report(report: dict, expected: dict) -> None:
             "Parser must run as configured unprivileged user on a supported architecture"
         )
     xml = report["libxml2"]
-    provenance = xml["provenance"]
+    package = xml.get("package") or {}
+    library = xml.get("library") or {}
     if (
-        provenance.get("name") != "libxml2"
-        or provenance.get("version") != "2.13.9-r3"
-        or provenance.get("source_sha256") != XML_SOURCE_SHA
+        package.get("name") != "libxml2"
+        or package.get("version") != XML_PACKAGE_VERSION
         or xml.get("runtime_version") != "21309"
-        or xml["library"].get("path") != "/usr/lib/libxml2.so.2.13.9"
-        or not _sha(xml["library"].get("sha256"))
-        or provenance.get("library_sha256") != xml["library"]["sha256"]
+        or library.get("path") != XML_LIBRARY_PATH
+        or not _sha(library.get("sha256"))
     ):
-        raise GateError("Actual libxml2 binary/version does not match truthful provenance")
-    if xml.get("alpine_patches") != XML_ALPINE_PATCHES:
-        raise GateError("Runtime libxml2 is missing verified Alpine revision patches")
+        raise GateError("Actual libxml2 package/version does not match the reviewed release")
+    # The loaded bytes must be the ones Alpine's signed package installed.
     if (
-        provenance.get("patches") != expected["patches"]
-        or xml.get("patch_files") != expected["patch_files"]
-        or xml.get("test_files") != expected["test_files"]
+        not isinstance(package.get("apk_checksum"), str)
+        or not package["apk_checksum"].startswith("Q1")
+        or package["apk_checksum"] != library.get("apk_sha1")
     ):
-        raise GateError("Runtime six-CVE patch/test hashes do not match reviewed source")
-    backports = xml["backports"]
-    if (
-        backports.get("regressions") != 6
-        or backports.get("failures") != 0
-        or backports.get("skipped") != 0
-        or len(backports.get("passed", [])) != 6
-        or set(backports["passed"]) != EXPECTED_CVES
-    ):
-        raise GateError("The complete six-CVE PASS regression report is required")
-    upstream = xml["upstream"]
-    if upstream.get("tests", 0) < 1 or any(
-        upstream.get(key) != 0 for key in ("failures", "errors", "skipped")
-    ):
-        raise GateError("libxml2 upstream regressions must all pass")
+        raise GateError("Runtime libxml2 differs from the signed Alpine package")
     ocr = report["ocr"]
     manifest = expected["manifest"]
     build = ocr["build"]
@@ -489,7 +453,7 @@ def main() -> int:
                     "architecture": report["architecture"],
                     "native_execution": report.get("native_execution"),
                     "reviewed_advisories": len(advisory_ids),
-                    "libxml2_regressions": 6,
+                    "libxml2_package": XML_PACKAGE_VERSION,
                     "ocr_suites": len(EXPECTED_SUITES),
                     "ocr_skipped": report["ocr"]["summary"]["skipped"],
                 }

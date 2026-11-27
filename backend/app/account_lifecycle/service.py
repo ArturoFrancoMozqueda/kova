@@ -353,6 +353,20 @@ _EXPORT_TABLES = (
         _columns("id tenant_id branch_id refund_id method amount"),
     ),
     ExportTable(
+        "recipes",
+        _columns(
+            "id tenant_id product_id version mode effective_from created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "recipe_lines",
+        _columns("id tenant_id recipe_id ingredient_product_id quantity"),
+    ),
+    ExportTable(
+        "modifier_option_consumptions",
+        _columns("id tenant_id modifier_option_id ingredient_product_id quantity"),
+    ),
+    ExportTable(
         "refunds",
         _columns(
             "id tenant_id branch_id order_id created_by_user_id reason refunded_amount "
@@ -691,6 +705,9 @@ _TENANT_DELETE_ORDER = (
     "customer_orders",
     "orders",
     "customers",
+    "recipe_lines",
+    "recipes",
+    "modifier_option_consumptions",
     "product_modifier_groups",
     "product_image_files",
     "modifier_options",

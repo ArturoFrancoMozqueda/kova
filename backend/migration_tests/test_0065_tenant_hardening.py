@@ -35,6 +35,10 @@ USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
     "refund_payments": {"SELECT", "INSERT"},
+    # Recipe versions are append-only; option adjustments are replaced as a set.
+    "recipes": {"SELECT", "INSERT"},
+    "recipe_lines": {"SELECT", "INSERT"},
+    "modifier_option_consumptions": {"SELECT", "INSERT", "DELETE"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},
     "service_case_events": {"SELECT", "INSERT"},

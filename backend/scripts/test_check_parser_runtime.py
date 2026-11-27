@@ -24,25 +24,17 @@ def valid_report(expected):
         "uid": 65534,
         "architecture": "x86_64",
         "libxml2": {
-            "provenance": {
+            "package": {
                 "name": "libxml2",
-                "version": "2.13.9-r3",
-                "source_sha256": "a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a",
-                "library_sha256": library_hash,
-                "patches": copy.deepcopy(expected["patches"]),
+                "version": "2.13.9-r5",
+                "apk_checksum": "Q1synthetic-sha1-of-installed-library=",
             },
-            "library": {"path": "/usr/lib/libxml2.so.2.13.9", "sha256": library_hash},
+            "library": {
+                "path": "/usr/lib/libxml2.so.2.13.9",
+                "sha256": library_hash,
+                "apk_sha1": "Q1synthetic-sha1-of-installed-library=",
+            },
             "runtime_version": "21309",
-            "patch_files": copy.deepcopy(expected["patch_files"]),
-            "alpine_patches": copy.deepcopy(GATE.XML_ALPINE_PATCHES),
-            "test_files": copy.deepcopy(expected["test_files"]),
-            "backports": {
-                "regressions": 6,
-                "passed": sorted(GATE.EXPECTED_CVES),
-                "failures": 0,
-                "skipped": 0,
-            },
-            "upstream": {"tests": 6, "failures": 0, "errors": 0, "skipped": 0},
         },
         "ocr": {
             "manifest": manifest,
@@ -89,8 +81,7 @@ class RuntimeGateTests(unittest.TestCase):
     def setUp(self):
         self.expected = GATE.load_expected()
 
-    def test_real_manifest_has_complete_reviewed_patch_and_source_inventory(self):
-        self.assertEqual(len(self.expected["patches"]), 6)
+    def test_real_manifest_has_complete_reviewed_source_inventory(self):
         self.assertGreaterEqual(len(self.expected["manifest"]["advisories"]), 20)
         self.assertTrue(self.expected["source_files"])
         GATE.validate_report(valid_report(self.expected), self.expected)
@@ -104,32 +95,33 @@ class RuntimeGateTests(unittest.TestCase):
         with self.assertRaisesRegex(GATE.GateError, "summary"):
             GATE.validate_report(report, self.expected)
 
-    def test_actual_library_hash_and_real_version_are_required_not_relabeling(self):
-        for field, value in [("runtime_version", "21400"), ("runtime_version", "21309-fixed")]:
+    def test_only_the_reviewed_signed_libxml2_release_is_accepted(self):
+        for path, value in [
+            (("package", "version"), "2.13.9-r3"),
+            (("package", "version"), "2.13.9-r5-fixed"),
+            (("package", "name"), "libxml2-patched"),
+            (("runtime_version",), "21400"),
+            (("library", "path"), "/usr/local/lib/libxml2.so.2.13.9"),
+        ]:
             report = valid_report(self.expected)
-            report["libxml2"][field] = value
-            with self.assertRaisesRegex(GATE.GateError, "Actual libxml2"):
+            target = report["libxml2"]
+            for key in path[:-1]:
+                target = target[key]
+            target[path[-1]] = value
+            with self.assertRaisesRegex(GATE.GateError, "reviewed release"):
                 GATE.validate_report(report, self.expected)
-        report = valid_report(self.expected)
-        report["libxml2"]["library"]["sha256"] = "a" * 64
-        with self.assertRaisesRegex(GATE.GateError, "Actual libxml2"):
-            GATE.validate_report(report, self.expected)
 
-    def test_missing_patch_hash_or_unexecuted_case_blocks_image(self):
-        report = valid_report(self.expected)
-        report["libxml2"]["alpine_patches"].pop("CVE-2026-6732.patch")
-        with self.assertRaisesRegex(GATE.GateError, "verified Alpine revision patches"):
-            GATE.validate_report(report, self.expected)
-
-        for key in ("patch_files", "test_files"):
+    def test_loaded_library_must_be_the_bytes_installed_by_the_signed_package(self):
+        for package_checksum, library_checksum in [
+            ("Q1synthetic-sha1-of-installed-library=", "Q1replaced-library="),
+            (None, None),
+            ("not-an-apk-checksum", "not-an-apk-checksum"),
+        ]:
             report = valid_report(self.expected)
-            report["libxml2"][key].pop(next(iter(report["libxml2"][key])))
-            with self.assertRaisesRegex(GATE.GateError, "patch/test hashes"):
+            report["libxml2"]["package"]["apk_checksum"] = package_checksum
+            report["libxml2"]["library"]["apk_sha1"] = library_checksum
+            with self.assertRaisesRegex(GATE.GateError, "signed Alpine package"):
                 GATE.validate_report(report, self.expected)
-        report = valid_report(self.expected)
-        report["libxml2"]["backports"]["passed"].pop()
-        with self.assertRaisesRegex(GATE.GateError, "PASS regression"):
-            GATE.validate_report(report, self.expected)
 
     def test_ocr_commit_source_binary_and_model_must_match_actual_bytes(self):
         for problem in ("commit", "source_file", "binary", "model", "fake_version"):

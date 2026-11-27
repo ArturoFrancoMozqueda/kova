@@ -25,6 +25,7 @@ from app.orders.models import Order, OrderItem, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
 from app.rbac.permissions import Permission, has_permission
+from app.recipes import service as recipes_service
 from app.shared.exceptions import bad_request, conflict, forbidden, not_found
 from app.shifts import repository as shifts_repo
 from app.tenants import repository as tenant_repo
@@ -276,6 +277,7 @@ def persist_completed_order(
         occurred_at=_clamp_occurred_at(occurred_at),
         customer_id=customer_id,
     )
+    consumed: list[tuple[OrderItem, Product, list[UUID]]] = []
     for line in priced_items:
         order_item = repo.create_order_item(
             db,
@@ -312,6 +314,9 @@ def persist_completed_order(
                 lot_tracked=line.product.track_lots,
             )
             lots.attach(db, movement, parts, required=line.product.track_lots)
+        options = [snap["modifier_option_id"] for snap in line.modifier_snapshots]
+        consumed.append((order_item, line.product, options))
+    recipes_service.consume_for_sale(db, tenant_id=tenant_id, order=order, lines=consumed)
 
     for payment_entry, (amount, tendered, change_due) in zip(
         payments, validated_payments, strict=True
@@ -661,6 +666,17 @@ def create_order(
             )
             if lot_tracked:
                 lots.attach(db, movement, parts, required=True)
+    # Prepared-at-sale products move their ingredients and freeze the recipe cost.
+    recipes_service.consume_for_sale(
+        db,
+        tenant_id=tenant_id,
+        order=order,
+        lines=[
+            (order_item, line.product,
+             [snap["modifier_option_id"] for snap in line.modifier_snapshots])
+            for line, order_item in zip(priced_items, order_items, strict=True)
+        ],
+    )
 
     payments = [
         repo.create_payment(
@@ -1322,6 +1338,10 @@ def create_void(
                 lot_tracked=product.track_lots,
             )
             lots.attach(db, movement, parts, required=product.track_lots)
+
+    recipes_service.reverse_consumption(
+        db, tenant_id=tenant_id, order_id=order_id, user_id=user_id
+    )
 
     response_body = {
         "id": str(void.id),
