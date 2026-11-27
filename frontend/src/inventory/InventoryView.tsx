@@ -60,7 +60,7 @@ type ModalState =
   | { type: "threshold"; item: StockItem }
   | null;
 
-type StockFilter = "all" | "low" | "healthy";
+type StockFilter = "all" | "low" | "healthy" | "negative";
 
 function thumbnailProduct(name: string, product?: Product) {
   return product ?? { name, image_url: null, image_position_x: 50, image_position_y: 50, image_zoom: 1 };
@@ -109,7 +109,7 @@ export default function InventoryView() {
   const [stockSearch, setStockSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>(() => {
     const initial = searchParams.get("filter");
-    return initial === "low" || initial === "healthy" ? initial : "all";
+    return initial === "low" || initial === "healthy" || initial === "negative" ? initial : "all";
   });
   const [stockSort, setStockSort] = useState<StockSort>("name_asc");
   const { toast } = useToast();
@@ -183,7 +183,9 @@ export default function InventoryView() {
           ? item.is_low_stock || item.stock_on_hand <= 0
           : stockFilter === "healthy"
             ? !item.is_low_stock && item.stock_on_hand > 0
-            : true;
+            : stockFilter === "negative"
+              ? item.stock_on_hand < 0
+              : true;
       return matchesSearch && matchesFilter;
     });
 
@@ -465,6 +467,7 @@ export default function InventoryView() {
                 <option value="all">{copy.inventoryView.filterAll}</option>
                 <option value="low">{copy.inventoryView.filterLow}</option>
                 <option value="healthy">{copy.inventoryView.filterHealthy}</option>
+                <option value="negative">{copy.inventoryView.filterNegative}</option>
               </Select>
             </div>
             <div>

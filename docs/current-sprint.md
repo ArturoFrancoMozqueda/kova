@@ -47,6 +47,9 @@ doble descuento de insumos ([contrato](../specs/recipes/batch_production.md),
 [PR #397](https://github.com/ArturoFrancoMozqueda/kova/pull/397) y el
 [release 45941970426](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45941970426): API y
 frontend sirven `cc43ae22`. Falta su uso en un negocio real.
+Quinta entrega (P1): el Panel muestra existencias negativas por contar e insumos sin costo en
+recetas vigentes, cada uno con su acción directa ([contrato](../specs/reports/dashboard_control_center.md)).
+Implementada y probada localmente; sin publicar.
 
 ## En producción
 

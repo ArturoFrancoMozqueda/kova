@@ -99,3 +99,13 @@ export type ProductionBatch = {
 /** The key is kept by the caller so a retry after a lost response records one batch. */
 export const recordProduction = (body: ProductionInput, key: string) =>
   request<ProductionBatch>("/api/v1/inventory/production", "POST", body, key);
+
+export type MissingRecipeCost = {
+  ingredient_product_id: string;
+  ingredient_name: string;
+  /** Products whose recipe in force uses this ingredient. */
+  used_in: string[];
+};
+
+export const listMissingRecipeCosts = () =>
+  request<MissingRecipeCost[]>("/api/v1/catalog/recipes/missing-costs");

@@ -11,6 +11,7 @@ from app.recipes import production, service
 from app.recipes.schemas import (
     BatchRecipeResponse,
     BatchRecipeWrite,
+    MissingRecipeCost,
     OptionConsumptionResponse,
     OptionConsumptionWrite,
     ProductionCreate,
@@ -163,3 +164,12 @@ def create_production(
     )
     response.status_code = status_code
     return body_out
+
+
+@router.get("/api/v1/catalog/recipes/missing-costs", response_model=list[MissingRecipeCost])
+def get_missing_recipe_costs(
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+):
+    _require_cost_view(ctx[1])
+    return service.missing_recipe_costs(db, tenant_id=ctx[1].tenant_id)

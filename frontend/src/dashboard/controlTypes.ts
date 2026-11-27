@@ -9,8 +9,18 @@ export const controlRoutes = {
   service_cases: "/service-cases", inbox: "/inbox", reports: "/reports", expenses: "/expenses",
   reconciliation: "/reconciliation", automations: "/automations", channels: "/settings/channels",
   integrations: "/settings/integrations", billing: "/settings/billing", settings: "/settings",
-  public_catalog: "/settings/public-catalog",
+  public_catalog: "/settings/public-catalog", catalog: "/catalog",
 } as const;
+
+/** Some signals open their destination already filtered; access is still checked on the route. */
+const controlQueries: Record<string, string> = {
+  negative_stock: "?filter=negative",
+  recipe_costs_missing: "?review=recipe-costs",
+};
+
+export function controlHref(route: ControlRoute, key: string): string {
+  return controlRoutes[route] + (controlQueries[key] ?? "");
+}
 
 export type ControlMetric = {
   key: string; label: string; value: string | null; format: "count" | "money" | "text";

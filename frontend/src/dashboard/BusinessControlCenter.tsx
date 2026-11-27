@@ -10,7 +10,7 @@ import { workspaceGroups, workspaceGroupLabels, type WorkspaceGroupId, type Work
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/orders/format";
 import { DashboardScopeLink } from "./DashboardSupervision";
-import { controlRoutes, metricScopeLabel, type DashboardControl, type ControlMetric } from "./controlTypes";
+import { controlHref, controlRoutes, metricScopeLabel, type DashboardControl, type ControlMetric } from "./controlTypes";
 
 type Snapshot = {
   orderCount: number;
@@ -48,7 +48,11 @@ export function BusinessControlCenter({ destinations, snapshot, control = null, 
 }) {
   const allowed = new Set(destinations.map(destination => destination.to));
   const metricRow = (metric: ControlMetric) => <div key={metric.key} className="border-b border-kova-border/60 py-2 last:border-0">
-    <dt className="text-sm text-kova-muted">{metric.label}</dt>
+    <dt className="text-sm text-kova-muted">
+      {controlHref(metric.route_key, metric.key) !== controlRoutes[metric.route_key]
+        ? <Link className="underline-offset-2 hover:underline focus-visible:underline" to={controlHref(metric.route_key, metric.key)}>{metric.label}</Link>
+        : metric.label}
+    </dt>
     <dd className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <span className="break-words text-base font-semibold tabular-nums">{metric.value === null ? "Sin datos suficientes" : metric.format === "money" ? formatMoney(metric.value) : metric.format === "count" ? Number(metric.value).toLocaleString("es-MX") : metric.value}</span>
       <span className="text-[11px] text-kova-muted">{metricScopeLabel[metric.scope]}</span>

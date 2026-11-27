@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { formatMoney } from "@/orders/format";
 import { useIsOnline, useSyncQueue } from "@/offline/useSyncQueue";
 import { cn } from "@/lib/utils";
-import { controlRoutes, metricScopeLabel, type ControlBranch, type DashboardControl } from "./controlTypes";
+import { controlHref, controlRoutes, metricScopeLabel, type ControlBranch, type DashboardControl } from "./controlTypes";
 
 /** A source that failed to load is unavailable, not empty ("Sin datos"). */
 const SOURCE_UNAVAILABLE = "No disponible";
@@ -101,7 +101,7 @@ export function DashboardAttention({ control, allowedDestinations }: { control: 
   const allowed = new Set(allowedDestinations.map(destination => destination.to));
   const alerts = control.alerts.filter(alert => allowed.has(controlRoutes[alert.route_key]));
   const incomplete = control.areas.some(area => area.status === "unavailable");
-  const alertRow = (alert: DashboardControl["alerts"][number]) => <DashboardScopeLink key={`${alert.branch_id}:${alert.key}`} to={controlRoutes[alert.route_key]} branchId={alert.branch_id} branches={control.branches}
+  const alertRow = (alert: DashboardControl["alerts"][number]) => <DashboardScopeLink key={`${alert.branch_id}:${alert.key}`} to={controlHref(alert.route_key, alert.key)} branchId={alert.branch_id} branches={control.branches}
     className="group flex min-h-16 items-center gap-3 rounded-kova-md py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
     <span className={cn("flex h-9 min-w-9 shrink-0 items-center justify-center rounded-kova-md px-1 text-sm font-semibold tabular-nums", alert.priority === "now" ? "bg-destructive/10 text-destructive-strong" : "bg-warning/10 text-warning-foreground")}>{alert.count}</span>
     <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-snug">{alert.title}</span><span className="mt-1 block text-xs text-kova-muted">{alert.branch_name} · {metricScopeLabel[alert.scope]}</span></span>

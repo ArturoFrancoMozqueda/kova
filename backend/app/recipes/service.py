@@ -440,3 +440,39 @@ def reverse_consumption(db: Session, *, tenant_id: UUID, order_id: UUID, user_id
                 )
             )
     db.flush()
+
+
+def missing_recipe_costs(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
+    """Active ingredients without cost used by the current recipe of any product.
+
+    Computed on read from the versions in force, so it never goes stale and an
+    ingredient appears once however many recipes use it.
+    """
+    now = _now()
+    current = (
+        db.query(Recipe)
+        .filter(Recipe.tenant_id == tenant_id, Recipe.effective_from <= now)
+        .order_by(Recipe.product_id, Recipe.mode, Recipe.effective_from.desc(),
+                  Recipe.version.desc())
+        .distinct(Recipe.product_id, Recipe.mode)
+        .all()
+    )
+    lines = _lines(db, tenant_id=tenant_id, recipe_ids=[recipe.id for recipe in current])
+    used: dict[UUID, set[UUID]] = defaultdict(set)
+    for recipe in current:
+        for line in lines.get(recipe.id, []):
+            used[line.ingredient_product_id].add(recipe.product_id)
+    if not used:
+        return []
+    products = _products(
+        db, tenant_id=tenant_id, ids=set(used) | {pid for ids in used.values() for pid in ids}
+    )
+    rows = []
+    for ingredient_id, product_ids in used.items():
+        ingredient = products.get(ingredient_id)
+        if ingredient is None or not ingredient.is_active or ingredient.cost_price is not None:
+            continue
+        names = sorted(products[pid].name for pid in product_ids if pid in products)
+        rows.append({"ingredient_product_id": str(ingredient_id),
+                     "ingredient_name": ingredient.name, "used_in": names})
+    return sorted(rows, key=lambda row: row["ingredient_name"].casefold())
