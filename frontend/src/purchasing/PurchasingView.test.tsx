@@ -31,10 +31,43 @@ it("receives only entered pending units and leaves cost unchanged by default", a
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Recibir mercancía" }));
   const quantity = screen.getByLabelText("Harina · pendientes 7");
-  expect(quantity).toHaveAttribute("max", "7");
   fireEvent.change(quantity, { target: { value: "2" } });
+  // Receiving less without closing keeps the rest pending: no reason requested.
+  expect(screen.queryByLabelText("Motivo del faltante")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
   await waitFor(() => expect(receivePurchase).toHaveBeenCalledWith("purchase-1", [{ item_id: "item-1", quantity: 2 }], false, expect.any(String)));
+});
+
+it("asks for a reason when more arrived than ordered", async () => {
+  vi.mocked(receivePurchase).mockResolvedValue({} as Awaited<ReturnType<typeof receivePurchase>>);
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Recibir mercancía" }));
+  fireEvent.change(screen.getByLabelText("Harina · pendientes 7"), { target: { value: "9" } });
+  const reason = screen.getByLabelText("Motivo de las 2 de más");
+  expect(reason).toBeRequired();
+  fireEvent.change(reason, { target: { value: "Bonificación del proveedor" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+  await waitFor(() => expect(receivePurchase).toHaveBeenCalledWith("purchase-1", [{ item_id: "item-1", quantity: 9, difference_reason: "Bonificación del proveedor" }], false, expect.any(String)));
+});
+
+it("closes a line short with its reason", async () => {
+  vi.mocked(receivePurchase).mockResolvedValue({} as Awaited<ReturnType<typeof receivePurchase>>);
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Recibir mercancía" }));
+  fireEvent.change(screen.getByLabelText("Harina · pendientes 7"), { target: { value: "5" } });
+  fireEvent.click(screen.getByLabelText("Ya no llegará el resto: cerrar la partida con 2 sin llegar"));
+  fireEvent.change(screen.getByLabelText("Motivo del faltante"), { target: { value: "Sin existencias" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+  await waitFor(() => expect(receivePurchase).toHaveBeenCalledWith("purchase-1", [{ item_id: "item-1", quantity: 5, close_remaining: true, difference_reason: "Sin existencias" }], false, expect.any(String)));
+});
+
+it("shows the evidence of a line closed short", async () => {
+  vi.mocked(listPurchases).mockResolvedValue([{ id: "purchase-1", branch_id: "branch-1", supplier_id: "supplier-1", supplier_name: "Molino", notes: null, status: "received", created_at: "2026-10-05T12:00:00Z", items: [{ id: "item-1", product_id: "product-1", product_name: "Harina", quantity: 10, received_quantity: 6, unit_cost: "4.50", closed_at: "2026-10-06T12:00:00Z", difference_reason: "Sin existencias" }] }]);
+  mount();
+  expect(await screen.findByText("Cerrada con 4 sin llegar · Sin existencias")).toBeVisible();
+  // The closed line counts as settled: 6 of 6 expected, not 6 of 10.
+  expect(screen.getByText("6 de 6 unidades")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Recibir mercancía" })).not.toBeInTheDocument();
 });
 
 it("blocks purchasing while offline", async () => {

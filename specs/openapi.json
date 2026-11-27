@@ -12960,9 +12960,25 @@
             "title": "Created At",
             "type": "string"
           },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "receipt_number": {
+            "default": "",
+            "title": "Receipt Number",
             "type": "string"
           },
           "status": {
@@ -16047,6 +16063,29 @@
       },
       "PurchaseItemResponse": {
         "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "difference_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference Reason"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -17188,6 +17227,29 @@
       "ReceiveItem": {
         "additionalProperties": false,
         "properties": {
+          "close_remaining": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Close Remaining"
+          },
+          "difference_reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference Reason"
+          },
           "item_id": {
             "format": "uuid",
             "title": "Item Id",
@@ -17209,8 +17271,8 @@
             "title": "Lot Allocations"
           },
           "quantity": {
-            "exclusiveMinimum": 0.0,
             "maximum": 2147483647.0,
+            "minimum": 0.0,
             "title": "Quantity",
             "type": "integer"
           }
@@ -35736,6 +35798,24 @@
               ],
               "title": "Sort",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           }
         ],

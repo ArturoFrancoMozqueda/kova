@@ -31,3 +31,14 @@ Feature: Recepción de compras auditable
     Given el dispositivo está offline
     When el manager abre una recepción
     Then la confirmación está deshabilitada con una explicación
+
+  Scenario: Llegó menos de lo pedido
+    When un manager recibe 6 unidades y cierra la partida con el motivo "El proveedor no tenía más"
+    Then se crea un movimiento de inventario por 6 unidades
+    And la partida queda cerrada con su motivo y deja de contarse como mercancía por llegar
+
+  Scenario: Llegó más de lo pedido
+    When un manager recibe 12 unidades sin escribir motivo
+    Then la recepción se rechaza sin mover inventario
+    When repite la recepción con el motivo "Bonificación del proveedor"
+    Then entran 12 unidades al inventario y la partida queda saldada

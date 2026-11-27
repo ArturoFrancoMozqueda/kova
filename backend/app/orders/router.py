@@ -11,6 +11,7 @@ from app.db import get_db
 from app.orders import repository, service
 from app.orders.schemas import (
     OrderCreate,
+    OrderListItem,
     OrderListResponse,
     OrderResponse,
     ReceiptResponse,
@@ -43,17 +44,44 @@ def list_orders(
     sort: Literal["created_desc", "created_asc", "amount_desc", "amount_asc"] = Query(
         default="created_desc"
     ),
+    q: str | None = Query(default=None, min_length=2, max_length=80),
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_commercial_access(Permission.ORDERS_CREATE)
     ),
 ):
     _, membership, _ = ctx
-    filters = dict(status=status, start_date=start_date, end_date=end_date)
-    items = repository.list_orders_by_tenant(
+    # Customer names are searched and shown only to roles that may see customers.
+    sees_customers = has_permission(membership.role, Permission.CUSTOMERS_VIEW)
+    filters = dict(
+        status=status,
+        start_date=start_date,
+        end_date=end_date,
+        q=q.strip() if q and q.strip() else None,
+        search_customers=sees_customers,
+    )
+    orders = repository.list_orders_by_tenant(
         db, tenant_id=membership.tenant_id, limit=limit, offset=offset, sort=sort, **filters
     )
     total = repository.count_orders_by_tenant(db, tenant_id=membership.tenant_id, **filters)
+    names = (
+        repository.customer_names(
+            db,
+            tenant_id=membership.tenant_id,
+            customer_ids={order.customer_id for order in orders if order.customer_id},
+        )
+        if sees_customers
+        else {}
+    )
+    items = [
+        OrderListItem.model_validate(order).model_copy(
+            update={
+                "receipt_number": order.id.hex[-8:].upper(),
+                "customer_name": names.get(order.customer_id),
+            }
+        )
+        for order in orders
+    ]
     return OrderListResponse(items=items, total=total, limit=limit, offset=offset)
 
 

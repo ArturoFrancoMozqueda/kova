@@ -333,7 +333,7 @@ DO $$ BEGIN
     END IF;
     IF to_regclass('public.purchase_orders') IS NOT NULL THEN
         GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
-        GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;
+        GRANT UPDATE (received_quantity, closed_at, difference_reason) ON TABLE purchase_order_items TO kova_app;
     END IF;
     IF to_regclass('public.fiscal_issuer_profiles') IS NOT NULL THEN
         GRANT UPDATE (fiscal_data) ON TABLE fiscal_issuer_profiles TO kova_app;

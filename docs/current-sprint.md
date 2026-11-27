@@ -54,6 +54,11 @@ Publicada el 27 de noviembre con el [PR #399](https://github.com/ArturoFrancoMoz
 frontend sirven `1369693a`. Antes se publicó el [PR #400](https://github.com/ArturoFrancoMozqueda/kova/pull/400):
 el servidor nativo configura los modelos ORM al arrancar, y la primera foto tras arrancar bajó en CI
 de 2,3–2,5 s (y más de 3 s) a 1,1 s, y tras reiniciar de ~1,4 s a 0,22 s.
+Entrega E8b (P1), en revisión: una compra puede recibir más de lo pedido o cerrar una partida con
+faltante, siempre con motivo que queda en la partida y en la auditoría; lo que ya no llegará deja de
+contar como mercancía por llegar ([contrato](../specs/purchasing/purchasing.md)). Ventas busca por
+folio del ticket o por cliente ([contrato](../specs/orders/history.md)). Migración
+`0113_receiving_differences`. No está publicada.
 
 ## En producción
 

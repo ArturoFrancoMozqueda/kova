@@ -81,8 +81,13 @@ class PurchaseOrderItem(Base):
             name="fk_purchase_items_product",
         ),
         CheckConstraint(
-            "quantity > 0 AND received_quantity >= 0 AND received_quantity <= quantity",
-            name="ck_purchase_items_quantity",
+            "quantity > 0 AND received_quantity >= 0", name="ck_purchase_items_quantity"
+        ),
+        # Receiving more than ordered, or closing a line short, needs a reason.
+        CheckConstraint(
+            "(received_quantity <= quantity AND closed_at IS NULL) "
+            "OR coalesce(length(btrim(difference_reason)), 0) > 0",
+            name="ck_purchase_items_difference",
         ),
         CheckConstraint("unit_cost >= 0", name="ck_purchase_items_cost"),
         CheckConstraint("units_per_purchase > 0", name="ck_purchase_items_units_per_purchase"),
@@ -101,3 +106,7 @@ class PurchaseOrderItem(Base):
         Integer, nullable=False, default=1, server_default="1"
     )
     purchase_unit_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Set when the line stops expecting the missing units (closed short).
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Evidence for receiving more than ordered or closing the line short.
+    difference_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)

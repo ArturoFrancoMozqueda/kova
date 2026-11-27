@@ -41,15 +41,18 @@ export type OrderFilters = {
   limit?: number;
   offset?: number;
   sort?: "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
+  /** Receipt folio or customer name, phone or email (2+ characters). */
+  search?: string;
 };
 
 export function listOrders(filters: OrderFilters = {}): Promise<OrderListResponse> {
-  const { limit = 50, offset = 0, status, startDate, endDate, sort } = filters;
+  const { limit = 50, offset = 0, status, startDate, endDate, sort, search } = filters;
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (status) params.set("status", status);
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
   if (sort) params.set("sort", sort);
+  if (search && search.trim().length >= 2) params.set("q", search.trim());
   return requestJson<OrderListResponse>(`/api/v1/orders?${params.toString()}`);
 }
 

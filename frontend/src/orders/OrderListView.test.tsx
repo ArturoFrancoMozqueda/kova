@@ -110,4 +110,42 @@ describe("OrderListView", () => {
     await screen.findByText("1–50 de 60 ventas");
     expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]).toMatchObject({ offset: 0, status: "voided" });
   });
+  it("searches by folio across all dates and shows who the sale was for", async () => {
+    vi.mocked(listOrders).mockResolvedValue({
+      items: [{ id: "order-1", status: "completed", subtotal_amount: "55.00", total_amount: "55.00",
+        created_at: "2026-08-13T18:00:00Z", receipt_number: "A1B2C3D4", customer_name: "María López" }],
+      total: 1, limit: 50, offset: 0,
+    });
+    renderView();
+    await screen.findByText(copy.orderList.total(1));
+    const box = screen.getByRole("searchbox", { name: copy.orderList.searchLabel });
+
+    fireEvent.change(box, { target: { value: "a" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.orderList.searchSubmit }));
+    expect(await screen.findByText(copy.orderList.searchTooShort)).toBeVisible();
+    expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]?.search).toBeUndefined();
+
+    fireEvent.change(box, { target: { value: " #a1b2c3d4 " } });
+    fireEvent.submit(box.closest("form")!);
+    await waitFor(() => {
+      const filters = vi.mocked(listOrders).mock.calls.at(-1)?.[0];
+      expect(filters).toMatchObject({ search: "#a1b2c3d4", offset: 0, startDate: undefined, endDate: undefined });
+    });
+    expect(await screen.findByText(copy.orderList.searchAllDates)).toBeVisible();
+    expect(screen.getAllByText("María López").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/A1B2C3D4/).length).toBeGreaterThan(0);
+
+    fireEvent.click(await screen.findByRole("button", { name: copy.orderList.searchClear }));
+    await waitFor(() => expect(vi.mocked(listOrders).mock.calls.at(-1)?.[0]?.search).toBeUndefined());
+    expect(await screen.findByRole("searchbox", { name: copy.orderList.searchLabel })).toHaveValue("");
+  });
+
+  it("explains an empty search instead of the generic empty state", async () => {
+    vi.mocked(listOrders).mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 });
+    renderView();
+    await screen.findByText(copy.orderList.total(0));
+    fireEvent.change(screen.getByRole("searchbox", { name: copy.orderList.searchLabel }), { target: { value: "Rosa" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.orderList.searchSubmit }));
+    expect(await screen.findByText(copy.orderList.emptySearch("Rosa"))).toBeVisible();
+  });
 });

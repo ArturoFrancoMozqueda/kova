@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { copy } from "../i18n/messages";
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewEmpty } from "@/components/ui/view-states";
-import { ExternalLink, AlertCircle, Inbox, X, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, AlertCircle, Inbox, X, ChevronDown, SlidersHorizontal, Search } from "lucide-react";
 import { ORDERS_QUERY_KEY } from "./queryKeys";
 
 type StatusFilter = "completed" | "voided" | undefined;
@@ -48,13 +48,17 @@ export default function OrderListView() {
   const [endDate, setEndDate] = useState(initialPeriod.end);
   const [sortOrder, setSortOrder] = useState<OrderSort>("created_desc");
   const [offset, setOffset] = useState(0);
+  // The typed text and the search actually applied (on submit, not per keystroke).
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchHint, setSearchHint] = useState("");
   const focusPagination = useRef(false);
   const paginationRef = useRef<HTMLElement>(null);
   // Phones only: the custom range and sort fold behind one toggle so the
   // first sale isn't pushed below the fold by five rows of controls.
   const [showMoreFilters, setShowMoreFilters] = useState(false);
 
-  const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "";
+  const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "" || search !== "";
 
   // Cached + deduped via react-query: navigating away and back within the
   // stale window reuses the result instead of re-hitting the backend.
@@ -63,11 +67,12 @@ export default function OrderListView() {
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     sort: sortOrder,
+    search: search || undefined,
     limit: PAGE_SIZE,
     offset,
   };
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: [...ORDERS_QUERY_KEY, statusFilter, startDate, endDate, sortOrder, offset],
+    queryKey: [...ORDERS_QUERY_KEY, statusFilter, startDate, endDate, sortOrder, search, offset],
     queryFn: () => listOrders(filters),
   });
 
@@ -78,8 +83,27 @@ export default function OrderListView() {
     }
   }, [data, isPending, isError]);
 
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
+    const term = searchDraft.trim();
+    if (term.length === 1) { setSearchHint(copy.orderList.searchTooShort); return; }
+    setSearchHint("");
+    setOffset(0);
+    // A ticket can be from any day: a new search looks across all dates.
+    if (term && !search) { setPeriodPreset(null); setStartDate(""); setEndDate(""); }
+    setSearch(term);
+  };
+
+  const clearSearch = () => {
+    setOffset(0);
+    setSearch("");
+    setSearchDraft("");
+    setSearchHint("");
+  };
+
   const clearFilters = () => {
     setOffset(0);
+    clearSearch();
     setStatusFilter(undefined);
     setPeriodPreset(null);
     setStartDate("");
@@ -149,6 +173,35 @@ export default function OrderListView() {
           meta={copy.orderList.total(data?.total ?? 0)}
         />
       </div>
+
+      <form role="search" onSubmit={submitSearch} className="mb-3 flex flex-col gap-1.5">
+        <Label htmlFor="orders-search" className="text-xs">{copy.orderList.searchLabel}</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              id="orders-search"
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              maxLength={80}
+              value={searchDraft}
+              placeholder={copy.orderList.searchPlaceholder}
+              aria-describedby={searchHint ? "orders-search-hint" : undefined}
+              onChange={(e) => { setSearchDraft(e.target.value); if (!e.target.value) clearSearch(); }}
+              className="h-10 pl-9"
+            />
+          </div>
+          <Button type="submit" variant="outline" className="h-10">{copy.orderList.searchSubmit}</Button>
+          {search && (
+            <Button type="button" variant="ghost" className="h-10" onClick={clearSearch} aria-label={copy.orderList.searchClear}>
+              <X className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+        {searchHint && <p id="orders-search-hint" role="status" className="text-xs text-destructive-strong">{searchHint}</p>}
+        {search && !startDate && !endDate && <p role="status" className="text-xs text-muted-foreground">{copy.orderList.searchAllDates}</p>}
+      </form>
 
       {/* Filter bar */}
       <div
@@ -272,7 +325,7 @@ export default function OrderListView() {
           <Card className="overflow-hidden">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground">{copy.orderList.emptyFiltered}</p>
+              <p className="text-muted-foreground">{search ? copy.orderList.emptySearch(search) : copy.orderList.emptyFiltered}</p>
               <button
                 type="button"
                 onClick={clearFilters}
@@ -309,6 +362,11 @@ export default function OrderListView() {
                           timeStyle: "short",
                         }).format(new Date(order.created_at))}
                       </p>
+                      {(order.receipt_number || order.customer_name) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {[order.receipt_number && `${copy.orderList.folio} ${order.receipt_number}`, order.customer_name].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
                       <StatusBadge className="mt-2" domain="sale" value={order.status === "voided" ? "voided" : "completed"} label={order.status === "voided" ? copy.orderList.statusVoided : copy.orderList.statusCompleted} />
                     </div>
                     <div className="text-right">
@@ -327,6 +385,8 @@ export default function OrderListView() {
                 <thead>
                   <tr className="border-b border-kova-border bg-kova-blue/[0.055]">
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.date}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.folio}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.customer}</th>
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.status}</th>
                     <th scope="col" className="text-right px-4 py-3 font-semibold">{copy.orderList.amount}</th>
                     <th scope="col" className="px-4 py-3 w-20">
@@ -343,6 +403,8 @@ export default function OrderListView() {
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatDateTime(order.created_at)}
                       </td>
+                      <td className="px-4 py-3 font-mono text-xs tabular-nums">{order.receipt_number ?? ""}</td>
+                      <td className="px-4 py-3">{order.customer_name ?? <span className="text-muted-foreground">{copy.orderList.noCustomer}</span>}</td>
                       <td className="px-4 py-3">
                         <StatusBadge domain="sale" value={order.status === "voided" ? "voided" : "completed"} label={order.status === "voided" ? copy.orderList.statusVoided : copy.orderList.statusCompleted} />
                       </td>

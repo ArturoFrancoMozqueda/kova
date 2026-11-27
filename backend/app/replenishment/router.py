@@ -65,7 +65,8 @@ def suggestions(db: Session, tenant_id: UUID) -> list[Suggestion]:
         db.query(
             PurchaseOrderItem.product_id,
             func.sum(
-                (PurchaseOrderItem.quantity - PurchaseOrderItem.received_quantity)
+                # Over-received lines expect nothing more; closed lines are settled.
+                func.greatest(PurchaseOrderItem.quantity - PurchaseOrderItem.received_quantity, 0)
                 * PurchaseOrderItem.units_per_purchase
             ),
         )
@@ -76,6 +77,7 @@ def suggestions(db: Session, tenant_id: UUID) -> list[Suggestion]:
             PurchaseOrderItem.tenant_id == tenant_id,
             PurchaseOrderItem.product_id.in_(ids),
             PurchaseOrder.status.in_(["pending", "partial"]),
+            PurchaseOrderItem.closed_at.is_(None),
         )
         .group_by(PurchaseOrderItem.product_id)
         .all()

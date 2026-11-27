@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -222,6 +223,56 @@ def create_order(
     )
 
 
+def _difference(item: PurchaseOrderItem, incoming) -> str | None:
+    """'over' when the line ends above the order, 'short' when closed with units missing."""
+    total = item.received_quantity + incoming.quantity
+    if total > item.quantity:
+        return "over"
+    if incoming.close_remaining and total < item.quantity:
+        return "short"
+    return None
+
+
+def _settled(item: PurchaseOrderItem) -> bool:
+    return item.closed_at is not None or item.received_quantity >= item.quantity
+
+
+def _receive_units(db, order, item, product, incoming, body, tenant_id, user_id) -> dict:
+    # Received in purchase units (2 Litros); stock moves in base units (2000 ml).
+    stock_quantity = incoming.quantity * item.units_per_purchase
+    stock = inventory.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+    _validate_movement_range(quantity_delta=stock_quantity, stock_on_hand=stock + stock_quantity)
+    parts = lots.choose(db, product, stock_quantity, incoming.lot_allocations, incoming=True)
+    movement = inventory.create_movement(
+        db,
+        tenant_id=tenant_id,
+        product_id=product.id,
+        user_id=user_id,
+        movement_type="purchase",
+        lot_tracked=product.track_lots,
+        quantity_delta=stock_quantity,
+        reason=f"Compra {order.id}; partida {item.id}",
+    )
+    lots.attach(db, movement, parts, required=product.track_lots)
+    old_cost = product.cost_price
+    if body.update_catalog_cost:
+        # unit_cost is per ordered unit; the catalog cost uses the product's
+        # current purchase unit. Convert only when they differ.
+        current_units = units_per_purchase(product)
+        product.cost_price = (
+            item.unit_cost
+            if current_units == item.units_per_purchase
+            else calculator.money(item.unit_cost * current_units / item.units_per_purchase)
+        )
+    return {
+        "movement_id": str(movement.id),
+        "stock_quantity": stock_quantity,
+        "unit_cost": str(item.unit_cost),
+        "previous_catalog_cost": str(old_cost) if old_cost is not None else None,
+        "catalog_cost_updated": body.update_catalog_cost,
+    }
+
+
 def receive(
     db: Session, *, tenant_id: UUID, user_id: UUID, order_id: UUID, body: PurchaseReceive, key: str
 ):
@@ -230,9 +281,11 @@ def receive(
         "order_id": str(order_id),
         **body.model_dump(mode="json"),
     }
+    # Fields added later are omitted when unset so earlier payloads keep their hash.
     for part in payload.get("items", []):
-        if part.get("lot_allocations") is None:
-            part.pop("lot_allocations", None)
+        for optional in ("lot_allocations", "close_remaining", "difference_reason"):
+            if part.get(optional) is None:
+                part.pop(optional, None)
     existing = _stored_response(db, tenant_id=tenant_id, idempotency_key=key, payload=payload)
     if existing:
         return existing
@@ -256,16 +309,16 @@ def receive(
     )
     by_id = {item.id: item for item in items}
     for incoming in body.items:
-        if (
-            incoming.item_id not in by_id
-            or incoming.quantity
-            > by_id[incoming.item_id].quantity - by_id[incoming.item_id].received_quantity
-        ):
+        item = by_id.get(incoming.item_id)
+        if item is None or item.closed_at is not None:
+            raise bad_request("La recepción contiene una partida ajena o ya cerrada")
+        if _difference(item, incoming) and not incoming.difference_reason:
             raise bad_request(
-                "La recepción excede la cantidad pendiente o contiene una partida ajena"
+                "Escribe el motivo cuando recibes más de lo pedido o cierras con faltante"
             )
     # Product locks are shared with sales/adjustments; deterministic ordering prevents deadlocks.
-    selected = sorted((by_id[item.item_id].product_id for item in body.items), key=str)
+    arriving = [item for item in body.items if item.quantity > 0]
+    selected = sorted((by_id[item.item_id].product_id for item in arriving), key=str)
     products = {
         p.id: p
         for p in db.query(Product)
@@ -279,52 +332,32 @@ def receive(
     ):
         raise conflict("La compra contiene productos inactivos o sin inventario")
     changes = []
+    now = datetime.now(UTC)
     for incoming in body.items:
         item = by_id[incoming.item_id]
-        product = products[item.product_id]
-        # Received in purchase units (2 Litros); stock moves in base units (2000 ml).
-        stock_quantity = incoming.quantity * item.units_per_purchase
-        stock = inventory.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
-        _validate_movement_range(
-            quantity_delta=stock_quantity, stock_on_hand=stock + stock_quantity
-        )
-        parts = lots.choose(db, product, stock_quantity, incoming.lot_allocations, incoming=True)
-        movement = inventory.create_movement(
-            db,
-            tenant_id=tenant_id,
-            product_id=product.id,
-            user_id=user_id,
-            movement_type="purchase",
-            lot_tracked=product.track_lots,
-            quantity_delta=stock_quantity,
-            reason=f"Compra {order.id}; partida {item.id}",
-        )
-        lots.attach(db, movement, parts, required=product.track_lots)
-        old_cost = product.cost_price
-        if body.update_catalog_cost:
-            # unit_cost is per ordered unit; the catalog cost uses the product's
-            # current purchase unit. Convert only when they differ.
-            current_units = units_per_purchase(product)
-            product.cost_price = (
-                item.unit_cost
-                if current_units == item.units_per_purchase
-                else calculator.money(item.unit_cost * current_units / item.units_per_purchase)
+        difference = _difference(item, incoming)
+        change = {
+            "item_id": str(item.id),
+            "quantity": incoming.quantity,
+            "ordered_quantity": item.quantity,
+            "received_before": item.received_quantity,
+        }
+        if incoming.quantity > 0:
+            change.update(
+                _receive_units(
+                    db, order, item, products[item.product_id], incoming, body, tenant_id, user_id
+                )
             )
         item.received_quantity += incoming.quantity
-        changes.append(
-            {
-                "item_id": str(item.id),
-                "movement_id": str(movement.id),
-                "quantity": incoming.quantity,
-                "stock_quantity": stock_quantity,
-                "unit_cost": str(item.unit_cost),
-                "previous_catalog_cost": str(old_cost) if old_cost is not None else None,
-                "catalog_cost_updated": body.update_catalog_cost,
-            }
-        )
-    order.status = (
-        "received" if all(item.quantity == item.received_quantity for item in items) else "partial"
-    )
+        if difference:
+            item.difference_reason = incoming.difference_reason
+            change["difference_reason"] = incoming.difference_reason
+            change["difference"] = item.received_quantity - item.quantity
+        if difference == "short":
+            item.closed_at = now
+            change["closed_short"] = True
+        changes.append(change)
+    order.status = "received" if all(_settled(item) for item in items) else "partial"
     db.flush()
     result = serialize(db, order)
     audit.log(

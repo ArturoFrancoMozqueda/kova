@@ -135,6 +135,9 @@ export type OrderListItem = {
   subtotal_amount: string;
   total_amount: string;
   created_at: string;
+  /** Ticket folio (last eight characters of the receipt), as printed. */
+  receipt_number?: string;
+  customer_name?: string | null;
 };
 
 export type OrderListResponse = {
