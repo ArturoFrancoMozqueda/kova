@@ -29,8 +29,10 @@ en Tesseract 5.5.5, con los 29 avisos upstream revisados
 ([PR #393](https://github.com/ArturoFrancoMozqueda/kova/pull/393)).
 Segunda entrega (P1): insumos que no se venden, unidad de inventario
 (pza, g, ml) y unidad de compra con conversión al recibir ([contrato](../specs/inventory/ingredients_units.md),
-[ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md)). Implementada y probada
-localmente; sin publicar.
+[ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md)). Publicada el 26 de
+noviembre con el [PR #392](https://github.com/ArturoFrancoMozqueda/kova/pull/392) y el
+[release 45922044316](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45922044316): API y
+frontend sirven `7e056134`. Falta su uso en un negocio real.
 
 ## En producción
 

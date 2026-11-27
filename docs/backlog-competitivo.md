@@ -39,14 +39,14 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | B | Productos, SKU, código de barras, modificadores con precio | 1 | `catalog/`, `modifiers/` | — |
 | B | Importación CSV/XLSX con vista previa | 1 | ADR-013, `test_catalog_import.py` | Exportación de catálogo |
 | B | Costo desconocido distinto de cero | 1 | `products.cost_price` nullable, `order_items.unit_cost` | — |
-| B | Insumos no vendibles, unidades y conversiones | 1 (E2, sin publicar) | [ingredients_units](../specs/inventory/ingredients_units.md), `test_ingredients_units.py` | Publicación; recetas (E3) |
+| B | Insumos no vendibles, unidades y conversiones | 1 (publicada 26-nov, #392) | [ingredients_units](../specs/inventory/ingredients_units.md), `test_ingredients_units.py` | Aceptación en un negocio; recetas (E3) |
 | B | Modificador con costo/consumo | 5 | `modifier_options` solo tiene `price_delta` | E3 |
 | B | Variantes con precio, SKU y existencias propias | 4 | [variants.md](../specs/catalog/variants.md) | Decidir tras pilotos |
 | C | Recetas al vender | 5 | — | E3 |
 | C | Producción por lote, rendimiento y merma | 5 | — | E4 |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
 | D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión | Recepción con diferencias (E8b) |
-| D | Unidad de compra distinta a la de consumo | 1 (E2, sin publicar) | Factor congelado por partida, recepción convertida | Publicación |
+| D | Unidad de compra distinta a la de consumo | 1 (publicada 26-nov, #392) | Factor congelado por partida, recepción convertida | Aceptación en un negocio |
 | D | Traspasos entre sucursales | 1 | `branches/transfers.py` | — |
 | D | Sugerencias de reposición → compra aprobada | 1 | `replenishment/` | Incluir insumos (E5) |
 | D | Cobertura estimada (`days_until_out`) | 2 | `inventory/service.py`, sin prueba propia | E5 |
@@ -80,7 +80,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | # | Entrega | Prioridad | Depende de | Estado |
 |---|---|---|---|---|
 | E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Publicada (#391, release 45920243100) |
-| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | PR #392 abierto, sin publicar |
+| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Publicada (#392, release 45922044316) |
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Siguiente |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Pendiente |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Pendiente |
@@ -136,9 +136,10 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 (migración `0109`) está publicada. E2 (`feat/ingredients-units`, migración `0110`) está en el
-   PR #392; fusionarlo con su CI y esperar su release.
-2. Siguiente: **E3, recetas al vender**, en una rama apilada sobre E2 (su migración baja de `0110`).
+1. E1 (migración `0109`) y E2 (migración `0110`) están publicadas; producción sirve `7e056134`.
+   Al abrir E3, actualizar la línea de estado de `specs/inventory/ingredients_units.md` a publicada
+   (#392, release 45922044316); no se cambió sola para no disparar un release sin código.
+2. Siguiente: **E3, recetas al vender**, en una rama nueva sobre `main` (su migración baja de `0110`).
    Arranque concreto:
    - Spec `specs/recipes/recipes_on_sale.md` y ADR nuevo de recetas versionadas.
    - Migración `0111`: `recipes` (producto, `version`, `effective_from`, `mode` `on_sale|batch`),
