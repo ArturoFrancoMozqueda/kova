@@ -71,7 +71,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | K | Roles fijos, permisos de descuento/devolución/ajuste, sucursales | 1 | `rbac/permissions.py`, `branches/` | — |
 | K | Permiso para ver costos, PIN rápido, asistencia | 5 | — | P3 |
 | L | Presets por giro, tour, importación, exportación de cuenta | 1–2 | `onboarding/`, `account_lifecycle/` | Asistente inicial por giro |
-| M | Panel de control y cola de operaciones | 2 | `reports/control.py`; E5 agrega existencias negativas e insumos sin costo en recetas (sin publicar) | Pendientes de sincronización en la cola |
+| M | Panel de control y cola de operaciones | 2 | `reports/control.py`; E5 agrega existencias negativas e insumos sin costo en recetas (publicada 27-nov, #399) | Pendientes de sincronización en la cola |
 | M | Asistente con respuestas ancladas | 3 | ADR-017/034 | Corpus y revisión humana |
 | 9 | Medición de tareas (venta, pedido, recepción, reposición) | 2 | `telemetry/useTaskMeasurement.ts`, [task_experience](../specs/reports/task_experience.md) | Producción y cierre |
 
@@ -83,7 +83,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Publicada (#392, release 45922044316) |
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Publicada (#395, release 45937609716) |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Publicada (#397, release 45941970426) |
-| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Implementada en `feat/inventory-decisions`; PR abierto, sin publicar |
+| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Publicada (#399, release 46032469644) |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Siguiente |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
@@ -136,8 +136,8 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E4 están publicadas (`cc43ae22`). E5 (`feat/inventory-decisions`, sin migración) está en su
-   PR; fusionarlo con su CI y esperar su release.
+1. E1 a E5 están publicadas; producción sirve `1369693a`. El servidor nativo prepara rutas y modelos
+   ORM antes de escuchar (#400): nuevas áreas no deben agregar trabajo a la primera petición.
 2. Siguiente: **E8b**, en una rama sobre `main`:
    - Recepción con diferencias en `purchasing/service.py`: permitir recibir más o menos de lo pedido
      con motivo, cerrar la partida aunque falte mercancía y dejar evidencia de la diferencia.
