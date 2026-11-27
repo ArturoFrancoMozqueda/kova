@@ -43,7 +43,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | B | Modificador con costo/consumo | 1 (publicada 26-nov, #395) | `modifier_option_consumptions` | Aceptación en un negocio |
 | B | Variantes con precio, SKU y existencias propias | 4 | [variants.md](../specs/catalog/variants.md) | Decidir tras pilotos |
 | C | Recetas al vender | 1 (publicada 26-nov, #395) | [recipes_on_sale](../specs/recipes/recipes_on_sale.md), `test_recipes_on_sale.py` | Aceptación en un negocio; producción (E4) |
-| C | Producción por lote, rendimiento y merma | 5 | — | E4 |
+| C | Producción por lote, rendimiento y merma | 1 (E4, sin publicar) | [batch_production](../specs/recipes/batch_production.md), `test_batch_production.py` | Publicación |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
 | D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión | Recepción con diferencias (E8b) |
 | D | Unidad de compra distinta a la de consumo | 1 (publicada 26-nov, #392) | Factor congelado por partida, recepción convertida | Aceptación en un negocio |
@@ -82,8 +82,8 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Publicada (#391, release 45920243100) |
 | E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Publicada (#392, release 45922044316) |
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Publicada (#395, release 45937609716) |
-| E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Siguiente |
-| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Pendiente |
+| E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Implementada en `feat/batch-production`; PR abierto, sin publicar |
+| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Siguiente |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Pendiente |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
@@ -136,17 +136,15 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1, E2 y E3 están publicadas; producción sirve `7bd6bfdf`. Al abrir E4, actualizar la línea de
-   estado de `specs/recipes/recipes_on_sale.md` a publicada (#395, release 45937609716).
-2. Siguiente: **E4, producción por lote**, en una rama sobre `main` (migración que baja de `0111`).
-   Arranque concreto:
-   - Spec `specs/recipes/batch_production.md`; reutilizar `recipes` con `mode = 'batch'` para el
-     producto terminado (que sí controla existencias).
-   - Tabla `production_batches` (producto, versión de receta, cantidad planeada y real, merma con
-     motivo, costo total y por pieza, usuario, fecha) con RLS forzado.
-   - Al registrar: movimientos `consumption` de insumos (escalados por lote planeado) y uno de
-     entrada del producto terminado por el rendimiento real; la merma usa `reason_code`.
-   - Costo por pieza = costo de insumos / rendimiento real; política documentada para actualizar
-     `cost_price` del terminado. La venta de piezas descuenta sólo el terminado (sin receta `on_sale`).
-   - UI en Inventario: «Producir» con vista previa de consumo y costo.
-3. Después E5 (panel: insumos bajos → propuesta de compra; productos sin costo completo).
+1. E1, E2 y E3 están publicadas (`7bd6bfdf`). E4 (`feat/batch-production`, migración `0112`) está en
+   su PR; fusionarlo con su CI y esperar su release. Al abrir E5, actualizar la línea de estado de
+   `specs/recipes/batch_production.md` a publicada.
+2. Siguiente: **E5, panel de decisiones de inventario**, en una rama sobre `main`. Arranque concreto:
+   - Reposición ya sugiere unidades de compra (E2); confirmar que incluye insumos consumidos por
+     recetas y producción (cobertura `days_until_out` ya cuenta `consumption`).
+   - Agregar al panel (`reports/control.py`, `BusinessControlCenter`) tarjetas accionables:
+     insumos bajo mínimo → «Preparar compra» con la propuesta de `replenishment`; productos con
+     receta incompleta (insumo sin costo) → editor de costo; existencias negativas por consumo →
+     «Contar».
+   - Sin duplicados ni alertas viejas: cada tarjeta se calcula al leer, con su fundamento visible.
+3. Después E8b (recepción con diferencias y búsqueda de ventas) y E6 (anticipos en pedidos).

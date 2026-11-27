@@ -950,6 +950,126 @@
         "title": "AvailabilityWrite",
         "type": "object"
       },
+      "BatchRecipeResponse": {
+        "properties": {
+          "batch_yield": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Yield"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "cost_per_piece": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Piece"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "ingredients_without_cost": {
+            "title": "Ingredients Without Cost",
+            "type": "integer"
+          },
+          "known_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Known Cost",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "product_id",
+          "version",
+          "effective_from",
+          "lines",
+          "cost",
+          "known_cost",
+          "ingredients_without_cost",
+          "batch_yield",
+          "cost_per_piece"
+        ],
+        "title": "BatchRecipeResponse",
+        "type": "object"
+      },
+      "BatchRecipeWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "batch_yield": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Batch Yield",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeLineWrite"
+            },
+            "maxItems": 50,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch_yield"
+        ],
+        "title": "BatchRecipeWrite",
+        "type": "object"
+      },
       "BatchResponse": {
         "properties": {
           "created_at": {
@@ -14800,6 +14920,198 @@
         "title": "ProductUpdate",
         "type": "object"
       },
+      "ProductionCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "actual_quantity": {
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Actual Quantity",
+            "type": "integer"
+          },
+          "batches": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Batches",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "update_catalog_cost": {
+            "default": true,
+            "title": "Update Catalog Cost",
+            "type": "boolean"
+          },
+          "waste_reason_code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "merma",
+                  "caducidad",
+                  "robo",
+                  "da\u00f1o",
+                  "autoconsumo",
+                  "otro"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waste Reason Code"
+          }
+        },
+        "required": [
+          "product_id",
+          "batches",
+          "actual_quantity"
+        ],
+        "title": "ProductionCreate",
+        "type": "object"
+      },
+      "ProductionResponse": {
+        "properties": {
+          "actual_quantity": {
+            "title": "Actual Quantity",
+            "type": "integer"
+          },
+          "batches": {
+            "title": "Batches",
+            "type": "integer"
+          },
+          "catalog_cost_updated": {
+            "title": "Catalog Cost Updated",
+            "type": "boolean"
+          },
+          "consumed": {
+            "items": {
+              "$ref": "#/components/schemas/CostedLine"
+            },
+            "title": "Consumed",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expected_quantity": {
+            "title": "Expected Quantity",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingredient_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredient Cost"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "recipe_version": {
+            "title": "Recipe Version",
+            "type": "integer"
+          },
+          "shortfall": {
+            "title": "Shortfall",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Cost"
+          },
+          "waste_reason_code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "merma",
+                  "caducidad",
+                  "robo",
+                  "da\u00f1o",
+                  "autoconsumo",
+                  "otro"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waste Reason Code"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "product_name",
+          "recipe_version",
+          "batches",
+          "expected_quantity",
+          "actual_quantity",
+          "shortfall",
+          "waste_reason_code",
+          "ingredient_cost",
+          "unit_cost",
+          "catalog_cost_updated",
+          "notes",
+          "created_at",
+          "consumed"
+        ],
+        "title": "ProductionResponse",
+        "type": "object"
+      },
       "ProgramResponse": {
         "properties": {
           "appearance": {
@@ -21560,6 +21872,16 @@
             "title": "Movement Count",
             "type": "integer"
           },
+          "production_shortfall": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnrestockedRefunds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "products_without_cost": {
             "title": "Products Without Cost",
             "type": "integer"
@@ -27147,6 +27469,116 @@
         ]
       }
     },
+    "/api/v1/catalog/products/{product_id}/batch-recipe": {
+      "get": {
+        "operationId": "get_batch_recipe_api_v1_catalog_products__product_id__batch_recipe_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Batch Recipe",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "put": {
+        "operationId": "put_batch_recipe_api_v1_catalog_products__product_id__batch_recipe_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRecipeWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Batch Recipe",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
     "/api/v1/catalog/products/{product_id}/image": {
       "delete": {
         "operationId": "delete_product_image_api_v1_catalog_products__product_id__image_delete",
@@ -32676,6 +33108,88 @@
         "summary": "List Low Stock",
         "tags": [
           "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production": {
+      "get": {
+        "operationId": "list_production_api_v1_inventory_production_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductionResponse"
+                  },
+                  "title": "Response List Production Api V1 Inventory Production Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Production",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "post": {
+        "operationId": "create_production_api_v1_inventory_production_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Production",
+        "tags": [
+          "recipes"
         ]
       }
     },

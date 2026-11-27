@@ -149,7 +149,7 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
-                "refund_payments recipes recipe_lines "
+                "refund_payments recipes recipe_lines production_batches "
                 "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "

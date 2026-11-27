@@ -58,3 +58,11 @@ algún insumo no tiene costo, la partida queda sin costo y el margen se reporta 
 con costo cero. El consumo de insumos (`movement_type = 'consumption'`) cuenta para la cobertura
 de inventario; no es merma ni venta del insumo.
 
+## Producción por lote
+
+Un lote descuenta sus insumos (`consumption`) y suma las piezas que salieron (`production`). El costo
+por pieza es el costo de insumos del lote entre las piezas reales; sin costo si falta alguno.
+«Piezas que no salieron en producción» en Merma son las piezas esperadas menos las reales de los
+lotes registrados en el rango, valuadas con el costo de insumos del lote por pieza esperada. No
+forman parte de la merma tipificada ni de sus unidades.
+

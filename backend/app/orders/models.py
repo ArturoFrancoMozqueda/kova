@@ -183,6 +183,12 @@ class InventoryMovement(BranchScoped, Base):
             ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_inventory_movements_tenant_order",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "production_batch_id"],
+            ["production_batches.tenant_id", "production_batches.branch_id",
+             "production_batches.id"],
+            name="fk_inventory_movements_production_batch",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -194,6 +200,8 @@ class InventoryMovement(BranchScoped, Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     order_item_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    # Set on ingredient consumption and finished output of a production batch.
+    production_batch_id: Mapped[UUID | None] = mapped_column(nullable=True)
     quantity_delta: Mapped[int] = mapped_column(Integer, nullable=False)
     stock_on_hand_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -307,3 +315,7 @@ class Void(BranchScoped, Base):
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(String(30), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# Movements reference production batches; register that table with the same metadata.
+from app.recipes import models as _recipe_models  # noqa: E402,F401

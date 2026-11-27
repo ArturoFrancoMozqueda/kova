@@ -48,7 +48,7 @@ ROUTERS = (
     ('app.expenses.router', ('/api/v1/expenses',)),
     ('app.fiscal.router', ('/api/v1/fiscal',)),
     ('app.modifiers.router', ('/api/v1/catalog',)),
-    ('app.recipes.router', ('/api/v1/catalog',)),
+    ('app.recipes.router', ('/api/v1/catalog', '/api/v1/inventory')),
     ('app.inventory.router', ('/api/v1/inventory',)),
     ('app.inventory.lot_router', ('/api/v1/inventory',)),
     ('app.imports.router', ('/api/v1/catalog/import',)),

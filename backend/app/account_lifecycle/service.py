@@ -342,7 +342,7 @@ _EXPORT_TABLES = (
     ExportTable(
         "inventory_movements",
         _columns(
-            "id tenant_id branch_id product_id order_id order_item_id "
+            "id tenant_id branch_id product_id order_id order_item_id production_batch_id "
             "lot_tracked movement_type quantity_delta "
             "stock_on_hand_after "
             "reason reason_code created_by_user_id created_at"
@@ -355,7 +355,16 @@ _EXPORT_TABLES = (
     ExportTable(
         "recipes",
         _columns(
-            "id tenant_id product_id version mode effective_from created_by_user_id created_at"
+            "id tenant_id product_id version mode batch_yield effective_from created_by_user_id "
+            "created_at"
+        ),
+    ),
+    ExportTable(
+        "production_batches",
+        _columns(
+            "id tenant_id branch_id product_id recipe_id batches expected_quantity "
+            "actual_quantity waste_reason_code ingredient_cost unit_cost catalog_cost_updated "
+            "notes created_by_user_id created_at"
         ),
     ),
     ExportTable(
@@ -698,6 +707,7 @@ _TENANT_DELETE_ORDER = (
     "order_item_modifiers",
     "payments",
     "inventory_movements",
+    "production_batches",
     "order_items",
     "customer_order_item_modifiers",
     "inventory_reservations",

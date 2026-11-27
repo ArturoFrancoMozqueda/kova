@@ -233,6 +233,8 @@ class WasteReport(BaseModel):
     by_reason: list[WasteByReasonRow]
     # Separate from the movement totals above, whose definition is unchanged.
     refunds_not_restocked: UnrestockedRefunds | None = None
+    # Pieces a production batch was expected to yield but did not.
+    production_shortfall: UnrestockedRefunds | None = None
 
 
 class OperatingExpenseCategoryRow(BaseModel):

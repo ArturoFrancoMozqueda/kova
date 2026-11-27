@@ -11,6 +11,7 @@ from app.catalog.units import stock_unit_cost
 from app.inventory.repository import stock_on_hand_for_products
 from app.orders.models import Order, Refund
 from app.pricing import calculator
+from app.recipes.production import shortfall_between
 from app.reports import repository
 from app.shared.exceptions import bad_request
 from app.shared.timezone import local_day_bounds
@@ -1178,6 +1179,7 @@ def _waste_report(
         "refunds_not_restocked": _unrestocked_refunds(
             db, tenant_id=tenant_id, start=start, end=end
         ),
+        "production_shortfall": shortfall_between(db, tenant_id=tenant_id, start=start, end=end),
     }
 
 

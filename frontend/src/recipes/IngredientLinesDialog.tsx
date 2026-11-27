@@ -14,7 +14,7 @@ import { formatMoney } from "@/orders/format";
 import { centsToMoney, moneyToCents } from "@/lib/money";
 import type { CostedLine, IngredientLine } from "./api";
 
-type Loaded = { lines: CostedLine[]; cost: string | null };
+type Loaded = { lines: CostedLine[]; cost: string | null; batchYield?: number | null; costPerPiece?: string | null };
 type Draft = { key: string; ingredientId: string; quantity: string };
 
 /**
@@ -26,6 +26,7 @@ export function IngredientLinesDialog({
   description,
   ingredients,
   signed = false,
+  withYield = false,
   load,
   save,
   onClose,
@@ -35,14 +36,17 @@ export function IngredientLinesDialog({
   description: string;
   ingredients: Product[];
   signed?: boolean;
+  /** Production recipes state how many pieces one batch yields. */
+  withYield?: boolean;
   load: () => Promise<Loaded>;
-  save: (lines: IngredientLine[], idempotencyKey: string) => Promise<Loaded>;
+  save: (lines: IngredientLine[], idempotencyKey: string, batchYield?: number) => Promise<Loaded>;
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [yieldDraft, setYieldDraft] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   // Reused until the server confirms, so a retry after a lost response is the same save.
@@ -53,6 +57,7 @@ export function IngredientLinesDialog({
   const apply = (data: Loaded) => {
     setLoaded(data);
     setDrafts(data.lines.map((line) => ({ key: line.ingredient_product_id, ingredientId: line.ingredient_product_id, quantity: String(line.quantity) })));
+    setYieldDraft(data.batchYield ? String(data.batchYield) : "");
   };
 
   useEffect(() => {
@@ -69,15 +74,18 @@ export function IngredientLinesDialog({
   const parsed = drafts.map((draft) => ({ ...draft, value: Number(draft.quantity) }));
   const invalid = parsed.some((draft) => !draft.ingredientId || !Number.isInteger(draft.value) || draft.value === 0 || (!signed && draft.value < 0) || Math.abs(draft.value) > 1_000_000);
   const duplicate = new Set(parsed.map((draft) => draft.ingredientId)).size !== parsed.length;
-  const changed = JSON.stringify(parsed.map((d) => [d.ingredientId, d.value])) !== JSON.stringify((loaded?.lines ?? []).map((l) => [l.ingredient_product_id, l.quantity]));
+  const yieldValue = Number(yieldDraft);
+  const invalidYield = withYield && (!Number.isInteger(yieldValue) || yieldValue < 1 || yieldValue > 1_000_000);
+  const changed = JSON.stringify(parsed.map((d) => [d.ingredientId, d.value])) !== JSON.stringify((loaded?.lines ?? []).map((l) => [l.ingredient_product_id, l.quantity]))
+    || (withYield && yieldValue !== (loaded?.batchYield ?? 0));
 
   const submit = async () => {
-    if (invalid || duplicate || saving) return;
+    if (invalid || invalidYield || duplicate || saving) return;
     setSaving(true);
     setError("");
     saveKey.current ??= crypto.randomUUID();
     try {
-      const data = await save(parsed.map((draft) => ({ ingredient_product_id: draft.ingredientId, quantity: draft.value })), saveKey.current);
+      const data = await save(parsed.map((draft) => ({ ingredient_product_id: draft.ingredientId, quantity: draft.value })), saveKey.current, withYield ? yieldValue : undefined);
       saveKey.current = null;
       apply(data);
       onSaved(copy.recipes.saved);
@@ -100,6 +108,12 @@ export function IngredientLinesDialog({
       {state === "error" && <p className="text-sm text-destructive" role="alert">{copy.recipes.loadError}</p>}
       {state === "ready" && (
         <div className="space-y-4">
+          {withYield && (
+            <div className="space-y-1">
+              <Label htmlFor={`${baseId}-yield`}>{copy.production.batchYield}</Label>
+              <Input id={`${baseId}-yield`} className="w-32" type="number" inputMode="numeric" min={1} step={1} value={yieldDraft} disabled={saving} onChange={(event) => setYieldDraft(event.target.value)} aria-invalid={invalidYield ? "true" : undefined} />
+            </div>
+          )}
           {ingredients.length === 0 ? (
             <p className="rounded-lg border p-3 text-sm">{copy.recipes.noIngredients}</p>
           ) : drafts.length === 0 ? (
@@ -149,7 +163,11 @@ export function IngredientLinesDialog({
           {loaded && !changed && loaded.lines.length > 0 && (
             <p className="rounded-lg bg-kova-mist p-3 text-sm" aria-live="polite">
               {loaded.cost !== null
-                ? (signed ? copy.recipes.optionCost(formatMoney(loaded.cost)) : copy.recipes.recipeCost(formatMoney(loaded.cost)))
+                ? (signed
+                    ? copy.recipes.optionCost(formatMoney(loaded.cost))
+                    : withYield && loaded.costPerPiece
+                      ? copy.production.costPerPiece(formatMoney(loaded.costPerPiece))
+                      : copy.recipes.recipeCost(formatMoney(loaded.cost)))
                 : copy.recipes.incompleteCost(
                     formatMoney(centsToMoney(loaded.lines.reduce((sum, line) => sum + (line.cost === null ? 0 : moneyToCents(line.cost)), 0))),
                     loaded.lines.filter((line) => line.cost === null).length,
@@ -161,7 +179,7 @@ export function IngredientLinesDialog({
       )}
       <DialogFooter>
         <Button type="button" variant="outline" disabled={saving} onClick={onClose}>{copy.recipes.close}</Button>
-        <Button type="button" disabled={state !== "ready" || saving || invalid || duplicate || !changed} onClick={() => void submit()}>
+        <Button type="button" disabled={state !== "ready" || saving || invalid || invalidYield || duplicate || !changed} onClick={() => void submit()}>
           {saving ? copy.recipes.saving : copy.recipes.save}
         </Button>
       </DialogFooter>
