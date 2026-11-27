@@ -20,11 +20,13 @@ import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useIsOnline } from "@/offline/useSyncQueue";
 import { formatDateTime, formatMoney } from "@/orders/format";
-import { cancelCustomerOrder, changeCustomerOrderStatus, confirmCustomerOrder, getCustomerOrder } from "./api";
+import { cancelCustomerOrder, changeCustomerOrderStatus, confirmCustomerOrder, getCustomerOrder, getCustomerOrderSettings } from "./api";
 import { readCustomerOrderCache, saveCustomerOrderDetail } from "./cache";
 import { channelLabels, fulfillmentLabels, nextStatus, paymentLabels, previousStatus, statusLabels } from "./labels";
 import { CustomerOrderStatusTracker } from "./CustomerOrderStatusTracker";
-import type { CustomerOrder } from "./types";
+import { DepositPanel } from "./DepositPanel";
+import { centsOf } from "./deposits";
+import type { CustomerOrder, CustomerOrderSettings } from "./types";
 
 export default function CustomerOrderDetailView() {
   const { orderId = "" } = useParams();
@@ -55,6 +57,8 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<"customer_request" | "out_of_stock" | "duplicate" | "other">("customer_request");
   const [cancelNote, setCancelNote] = useState("");
+  const [depositResolution, setDepositResolution] = useState<"refund" | "retain">("refund");
+  const [depositPolicy, setDepositPolicy] = useState<CustomerOrderSettings["cancelled_deposit_policy"] | null>(null);
   const cancelReasonId = useId();
   const cancelNoteId = useId();
   useDocumentTitle(order?.folio ?? "Detalle de pedido");
@@ -109,9 +113,23 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
   if (!order) return <ViewLayout width="focused"><ViewError message={error ?? "Pedido no encontrado"} onRetry={() => void load()} retryLabel="Reintentar" /></ViewLayout>;
 
   const writable = isOnline && !fromCache && order.id === orderId;
+  const holdsDeposit = centsOf(order.deposits?.balance_amount ?? "0") > 0;
+  // Cancelling with a deposit moves money: returning or keeping it is a manager decision.
   const canCancel = !["fulfilled", "cancelled"].includes(order.status)
+    && (!holdsDeposit || isManager)
     && (order.payment_status === "unpaid"
       || (isManager && ["refunded", "voided"].includes(order.payment_status)));
+  const openCancel = () => {
+    setCancelOpen(true);
+    if (!holdsDeposit) return;
+    setDepositPolicy(null);
+    void getCustomerOrderSettings()
+      .then((settings) => {
+        setDepositPolicy(settings.cancelled_deposit_policy);
+        setDepositResolution(settings.cancelled_deposit_policy);
+      })
+      .catch(() => { setDepositPolicy("refund"); setDepositResolution("refund"); });
+  };
 
   const applyMutation = async (mutation: () => Promise<CustomerOrder>) => {
     if (!writable || mutationPending.current) return false;
@@ -128,8 +146,10 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
       return true;
     } catch (caught) {
       if (!current()) return false;
-      const api = caught as { detail?: { detail?: { message?: string } } };
-      setError(resolveApiErrorMessage(caught, safeUserMessage(api.detail?.detail?.message, "No se pudo actualizar el pedido.")));
+      const api = caught as { detail?: { detail?: { message?: string } | string } };
+      const detail = api.detail?.detail;
+      const message = typeof detail === "string" ? detail : detail?.message;
+      setError(resolveApiErrorMessage(caught, safeUserMessage(message, "No se pudo actualizar el pedido.")));
       return false;
     } finally {
       mutationPending.current = false;
@@ -137,6 +157,9 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
     }
   };
 
+  // The business's minimum deposit must be in before confirming (the server enforces it too).
+  const depositMissing = Boolean(order.deposits)
+    && centsOf(order.deposits!.minimum_amount) > centsOf(order.deposits!.balance_amount);
   const following = nextStatus(order.status);
   const previous = previousStatus(order.status);
   const editable = order.payment_status === "unpaid" && !["fulfilled", "cancelled"].includes(order.status);
@@ -184,6 +207,7 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
             <div className="flex items-center justify-between"><StatusBadge domain="customerOrderPayment" value={order.payment_status} label={paymentLabels[order.payment_status]} /><span className="text-2xl font-bold tabular-nums">{formatMoney(order.total_amount)}</span></div>
             {order.sale_order_id ? <Link className="mt-4 inline-flex text-sm font-medium text-primary hover:underline print:hidden" to={`/orders/${order.sale_order_id}`}>Ver venta vinculada</Link> : null}
             {order.stock_conflict ? <div className="mt-4 flex gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground"><AlertTriangle className="h-4 w-4 shrink-0" /> El stock físico ya no cubre todas las reservas. Corrige inventario o artículos antes de cobrar.</div> : null}
+            <DepositPanel order={order} writable={writable} isManager={isManager} busy={mutating} onMutate={applyMutation} />
           </CardContent>
         </Card>
       </div>
@@ -208,11 +232,11 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
             {order.status === "new" && <p className="mb-3 text-sm text-muted-foreground">Confirma el pedido para reservar sus productos y comenzar a prepararlo.</p>}
             {order.status === "ready" && order.payment_status === "unpaid" && <p className="mb-3 text-sm text-muted-foreground">El pedido está listo. Registra el cobro en Caja para poder marcarlo como entregado.</p>}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {order.status === "new" ? <Button disabled={mutating} onClick={() => void applyMutation(() => confirmCustomerOrder(order.id, order.version))}>Confirmar y reservar</Button> : null}
+            {order.status === "new" ? <Button disabled={mutating || depositMissing} onClick={() => void applyMutation(() => confirmCustomerOrder(order.id, order.version))}>Confirmar y reservar</Button> : null}
             {canCheckout ? <Button disabled={mutating || order.stock_conflict} onClick={() => navigate(`/register?customerOrderId=${order.id}`)}><Banknote className="mr-2 h-4 w-4" /> Cobrar en Caja</Button> : null}
             {isManager && previous ? <Button variant="outline" disabled={mutating} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, previous))}><ChevronLeft className="mr-2 h-4 w-4" /> Corregir a {statusLabels[previous]}</Button> : null}
             {following && following !== "confirmed" ? <Button variant="secondary" disabled={mutating || (following === "fulfilled" && order.payment_status !== "paid")} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, following))}><ChevronRight className="mr-2 h-4 w-4" /> Marcar {statusLabels[following].toLocaleLowerCase("es-MX")}</Button> : null}
-            <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating || !canCancel} onClick={() => setCancelOpen(true)}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
+            <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating || !canCancel} onClick={openCancel}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
             </div>
           </CardContent>
         </Card>
@@ -221,8 +245,14 @@ function CustomerOrderDetailSession({ orderId }: { orderId: string }) {
       <Dialog open={cancelOpen && writable} onClose={() => setCancelOpen(false)}>
         <DialogHeader><DialogTitle>Cancelar {order.folio}</DialogTitle><DialogDescription>Se liberará el inventario reservado. Si ya fue cobrado, primero deberá revertirse la venta.</DialogDescription></DialogHeader>
         {error ? <div className="mb-3"><p role="alert" className="text-sm text-destructive">{error}</p><Button variant="outline" className="mt-2" onClick={() => void load()}>Actualizar pedido</Button></div> : null}
-        <div className="space-y-3"><div><Label htmlFor={cancelReasonId}>Motivo</Label><Select id={cancelReasonId} value={cancelReason} onChange={(event) => setCancelReason(event.target.value as typeof cancelReason)}><option value="customer_request">Solicitud del cliente</option><option value="out_of_stock">Sin existencias</option><option value="duplicate">Duplicado</option><option value="other">Otro</option></Select></div><div><Label htmlFor={cancelNoteId}>Nota opcional</Label><Input id={cancelNoteId} value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} maxLength={300} /></div></div>
-        <DialogFooter><Button variant="outline" onClick={() => setCancelOpen(false)}>Volver</Button><Button variant="destructive" disabled={mutating || !canCancel || !writable} onClick={() => { if (!canCancel) return; void applyMutation(() => cancelCustomerOrder(order.id, order.version, cancelReason, cancelNote)).then((succeeded) => { if (succeeded) setCancelOpen(false); }); }}>Cancelar pedido</Button></DialogFooter>
+        <div className="space-y-3"><div><Label htmlFor={cancelReasonId}>Motivo</Label><Select id={cancelReasonId} value={cancelReason} onChange={(event) => setCancelReason(event.target.value as typeof cancelReason)}><option value="customer_request">Solicitud del cliente</option><option value="out_of_stock">Sin existencias</option><option value="duplicate">Duplicado</option><option value="other">Otro</option></Select></div><div><Label htmlFor={cancelNoteId}>Nota opcional</Label><Input id={cancelNoteId} value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} maxLength={300} /></div>
+          {holdsDeposit ? <fieldset className="space-y-2 rounded-lg border p-3 text-sm"><legend className="px-1 font-medium">Anticipo de {formatMoney(order.deposits!.balance_amount)}</legend>
+            {depositPolicy === null ? <p role="status" className="text-muted-foreground">Consultando la política del negocio…</p> : <>
+              <label className="flex items-start gap-2"><input type="radio" name="deposit-resolution" checked={depositResolution === "refund"} onChange={() => setDepositResolution("refund")} /><span>Devolver al cliente por el mismo medio con que pagó. El efectivo sale de la caja del turno.</span></label>
+              {depositPolicy === "retain" ? <label className="flex items-start gap-2"><input type="radio" name="deposit-resolution" checked={depositResolution === "retain"} onChange={() => setDepositResolution("retain")} /><span>Conservarlo, como indica la política del negocio. Se registra como ingreso de hoy, aparte de las ventas.</span></label> : <p className="text-xs text-muted-foreground">La política del negocio es devolver el anticipo al cancelar.</p>}
+            </>}
+          </fieldset> : null}</div>
+        <DialogFooter><Button variant="outline" onClick={() => setCancelOpen(false)}>Volver</Button><Button variant="destructive" disabled={mutating || !canCancel || !writable || (holdsDeposit && depositPolicy === null)} onClick={() => { if (!canCancel) return; void applyMutation(() => cancelCustomerOrder(order.id, order.version, cancelReason, cancelNote, holdsDeposit ? depositResolution : undefined)).then((succeeded) => { if (succeeded) setCancelOpen(false); }); }}>Cancelar pedido</Button></DialogFooter>
       </Dialog>
     </ViewLayout>
   );

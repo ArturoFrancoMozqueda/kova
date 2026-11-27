@@ -54,11 +54,17 @@ Publicada el 27 de noviembre con el [PR #399](https://github.com/ArturoFrancoMoz
 frontend sirven `1369693a`. Antes se publicó el [PR #400](https://github.com/ArturoFrancoMozqueda/kova/pull/400):
 el servidor nativo configura los modelos ORM al arrancar, y la primera foto tras arrancar bajó en CI
 de 2,3–2,5 s (y más de 3 s) a 1,1 s, y tras reiniciar de ~1,4 s a 0,22 s.
-Entrega E8b (P1), en revisión: una compra puede recibir más de lo pedido o cerrar una partida con
-faltante, siempre con motivo que queda en la partida y en la auditoría; lo que ya no llegará deja de
-contar como mercancía por llegar ([contrato](../specs/purchasing/purchasing.md)). Ventas busca por
-folio del ticket o por cliente ([contrato](../specs/orders/history.md)). Migración
-`0113_receiving_differences`. No está publicada.
+Entrega E8b (P1): una compra puede recibir más de lo pedido o cerrar una partida con faltante,
+siempre con motivo que queda en la partida y en la auditoría ([contrato](../specs/purchasing/purchasing.md)).
+Ventas busca por folio del ticket o por cliente ([contrato](../specs/orders/history.md)). Publicada el
+27 de noviembre con el [PR #402](https://github.com/ArturoFrancoMozqueda/kova/pull/402) y el
+[release 46051884447](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46051884447): API y
+frontend sirven `695fbbf3`. Falta su uso en un negocio real.
+Entrega E6, en revisión: anticipos en pedidos. Decisión del dueño (27 de noviembre): el ingreso se
+reconoce al liquidar, y cada negocio configura el anticipo mínimo y si el anticipo de un pedido
+cancelado se devuelve o se conserva ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md),
+[contrato](../specs/customer_orders/customer_orders.md)). Migración `0114_customer_order_deposits`.
+No está publicada.
 
 ## En producción
 

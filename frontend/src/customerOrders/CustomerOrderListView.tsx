@@ -6,6 +6,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, CloudOff, Pack
 import { Link, Navigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
+import { DepositSettingsButton } from "./DepositSettingsDialog";
 import { useFeature } from "@/auth/useFeature";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -189,6 +190,7 @@ export default function CustomerOrderListView() {
           isOnline ? (
             <div className="flex flex-wrap gap-2">
             {state.status === "authenticated" && ["owner", "manager"].includes(state.user.role) && <Link to="/commercial-requests" className={buttonVariants({ variant: "outline" })}>Solicitudes del menú</Link>}
+            {state.status === "authenticated" && ["owner", "manager"].includes(state.user.role) && <DepositSettingsButton />}
             {canCreate && <Link to="/pedidos/nuevo" className={buttonVariants()}>
               <Plus className="mr-2 h-4 w-4" /> Nuevo pedido
             </Link>}
@@ -299,6 +301,7 @@ export default function CustomerOrderListView() {
                   </div>
                   <div className="flex items-center justify-between gap-4 sm:block sm:text-right">
                     <p className="text-lg font-bold tabular-nums">{formatMoney(order.total_amount)}</p>
+                    {Number(order.deposit_balance_amount ?? 0) > 0 ? <p className="text-xs text-muted-foreground tabular-nums">Anticipo {formatMoney(order.deposit_balance_amount!)}</p> : null}
                     <span className="mt-1 inline-flex items-center text-xs font-medium text-primary">
                       <PackageCheck className="mr-1 h-3.5 w-3.5" /> Ver pedido
                     </span>

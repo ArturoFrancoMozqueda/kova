@@ -37,6 +37,11 @@ const paymentOptions = [
   { value: "manual_card" as const, label: "Tarjeta manual", icon: <CreditCard className="h-5 w-5" /> },
 ];
 
+/** What is left to collect once deposits are applied (older cached copies: the total). */
+function dueAmount(order: CustomerOrder): string {
+  return order.deposits?.due_amount ?? order.total_amount;
+}
+
 export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) {
   // Each pedido owns its payments, confirmation and durable retry identity.
   return <CustomerOrderCheckoutSession key={orderId} orderId={orderId} />;
@@ -69,7 +74,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
     void getCustomerOrder(orderId)
       .then((detail) => {
         setOrder(detail);
-        setPayments((current) => [{ ...current[0], amount: detail.total_amount }]);
+        setPayments((current) => [{ ...current[0], amount: dueAmount(detail) }]);
       })
       .catch(() => setError("No se pudo cargar el pedido. Pedidos requiere conexión para cobrar."))
       .finally(() => setLoading(false));
@@ -99,21 +104,24 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
   }, []);
 
 
-  const totalCents = moneyToCents(order?.total_amount ?? "0");
+  // Payments cover only what the deposits left pending.
+  const totalCents = moneyToCents(order ? dueAmount(order) : "0");
+  const depositCents = moneyToCents(order?.deposits?.balance_amount ?? "0");
+  const coveredByDeposit = depositCents > 0 && totalCents === 0;
   const assignedCents = payments.reduce((sum, payment) => sum + moneyToCents(payment.amount), 0);
   const remainingCents = totalCents - assignedCents;
   const includesCash = payments.some((payment) => payment.method === "cash");
   const cashBlocked = includesCash && openShift !== true;
   const valid = useMemo(
-    () =>
+    () => coveredByDeposit || (
       !cashBlocked &&
       assignedCents === totalCents &&
       payments.every((payment) =>
         (moneyToCents(payment.amount) > 0 ||
           (totalCents === 0 && payments.length === 1 && moneyToCents(payment.amount) === 0)) &&
         (payment.method !== "cash" || moneyToCents(payment.tendered) >= moneyToCents(payment.amount)),
-      ),
-    [assignedCents, cashBlocked, payments, totalCents],
+      )),
+    [assignedCents, cashBlocked, coveredByDeposit, payments, totalCents],
   );
 
   const updatePayment = (id: string, patch: Partial<DraftPayment>) => {
@@ -127,7 +135,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
     submittingRef.current = true;
     setSubmitting(true);
     setError(null);
-    const payload: CustomerOrderPayments = payments.map((payment) => ({
+    const payload: CustomerOrderPayments = coveredByDeposit ? [] : payments.map((payment) => ({
       method: payment.method,
       amount: centsToMoney(moneyToCents(payment.amount)),
       ...(payment.method === "cash" ? { amount_tendered: centsToMoney(moneyToCents(payment.tendered)) } : { reference: payment.reference.trim() || undefined }),
@@ -221,18 +229,19 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
         </div>
       ) : null}
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_420px]">
-        <Card><CardHeader><CardTitle>Pedido listo para cobrar</CardTitle></CardHeader><CardContent className="divide-y p-0">{order.items.map((item) => <div key={item.id} className="grid grid-cols-[auto_1fr_auto] gap-3 px-5 py-4"><span className="font-semibold">{item.quantity}×</span><div><p className="font-medium">{item.product_name}</p>{item.modifiers.length ? <p className="text-xs text-muted-foreground">{item.modifiers.map((modifier) => modifier.modifier_option_name).join(" · ")}</p> : null}</div><span className="font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span></div>)}<div className="flex justify-between px-5 py-5 text-xl font-bold"><span>Total</span><span>{formatMoney(order.total_amount)}</span></div></CardContent></Card>
+        <Card><CardHeader><CardTitle>Pedido listo para cobrar</CardTitle></CardHeader><CardContent className="divide-y p-0">{order.items.map((item) => <div key={item.id} className="grid grid-cols-[auto_1fr_auto] gap-3 px-5 py-4"><span className="font-semibold">{item.quantity}×</span><div><p className="font-medium">{item.product_name}</p>{item.modifiers.length ? <p className="text-xs text-muted-foreground">{item.modifiers.map((modifier) => modifier.modifier_option_name).join(" · ")}</p> : null}</div><span className="font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span></div>)}<div className="flex justify-between px-5 py-5 text-xl font-bold"><span>Total</span><span>{formatMoney(order.total_amount)}</span></div>{depositCents > 0 ? <div className="space-y-1 px-5 py-4 text-sm tabular-nums"><div className="flex justify-between text-muted-foreground"><span>Anticipo recibido</span><span>−{formatMoney(order.deposits!.balance_amount)}</span></div><div className="flex justify-between text-base font-semibold"><span>Saldo por cobrar</span><span>{formatMoney(dueAmount(order))}</span></div></div> : null}</CardContent></Card>
 
         <Card><CardHeader><CardTitle>Pago</CardTitle></CardHeader><CardContent className="space-y-5">
           {Object.entries(order.lot_reservations ?? {}).map(([productId, original]) => {
             const quantity = order.items.filter(item => item.product_id === productId).reduce((sum, item) => sum + item.quantity, 0);
             return <div key={productId}><p className="font-semibold">{order.items.find(item => item.product_id === productId)?.product_name} · lotes reservados</p><LotAllocationEditor productId={productId} quantity={quantity} reservedParts={original} value={lotParts[productId] ?? original} onChange={parts => { setLotParts(previous => ({ ...previous, [productId]: parts })); checkoutKeyRef.current = null; }} /></div>;
           })}
-          {!split ? <RegisterPaymentMethodSelector value={payments[0].method} options={paymentOptions.map((option) => ({ ...option, disabled: option.value === "cash" && openShift !== true }))} onChange={(method) => updatePayment(payments[0].id, { method, tendered: "", reference: "" })} label="Método de pago" /> : null}
-          <Button variant="ghost" className="w-full" onClick={() => {
+          {coveredByDeposit ? <p role="status" className="rounded-lg bg-kova-growth/10 p-3 text-sm text-kova-growth-strong">El anticipo cubre el total del pedido. No hay saldo por cobrar.</p> : null}
+          {!coveredByDeposit && !split ? <RegisterPaymentMethodSelector value={payments[0].method} options={paymentOptions.map((option) => ({ ...option, disabled: option.value === "cash" && openShift !== true }))} onChange={(method) => updatePayment(payments[0].id, { method, tendered: "", reference: "" })} label="Método de pago" /> : null}
+          {!coveredByDeposit ? <><Button variant="ghost" className="w-full" onClick={() => {
             checkoutKeyRef.current = null;
             setSplit((current) => !current);
-            if (split) setPayments([{ ...payments[0], amount: order.total_amount }]);
+            if (split) setPayments([{ ...payments[0], amount: dueAmount(order) }]);
           }}><SplitSquareHorizontal className="mr-2 h-4 w-4" /> {split ? "Usar un solo pago" : "Dividir pago"}</Button>
           <div className="space-y-3">
             {payments.map((payment, index) => {
@@ -243,8 +252,9 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
           </div>
           {split ? <Button variant="outline" className="w-full" disabled={remainingCents <= 0} onClick={() => { checkoutKeyRef.current = null; setPayments((current) => [...current, { id: crypto.randomUUID(), method: "bank_transfer", amount: centsToMoney(Math.max(remainingCents, 0)), tendered: "", reference: "" }]); }}><Plus className="mr-2 h-4 w-4" /> Agregar pago</Button> : null}
           <div className="rounded-lg bg-muted/60 p-3 text-sm tabular-nums"><div className="flex justify-between"><span>Asignado</span><span>{formatMoney(centsToMoney(assignedCents))}</span></div><div className="mt-1 flex justify-between font-semibold"><span>Restante</span><span className={remainingCents === 0 ? "text-kova-growth-strong" : "text-destructive"}>{formatMoney(centsToMoney(Math.abs(remainingCents)))}</span></div></div>
-          {cashBlocked ? <p className="text-sm text-destructive" role="alert">{openShift === false ? "Abre un turno para cobrar en efectivo." : "No se pudo comprobar el turno para este cobro en efectivo."}</p> : null}
-          <Button className="w-full" size="lg" disabled={!valid || submitting} onClick={() => void submit()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />} Cobrar {formatMoney(order.total_amount)}</Button>
+          </> : null}
+          {cashBlocked && !coveredByDeposit ? <p className="text-sm text-destructive" role="alert">{openShift === false ? "Abre un turno para cobrar en efectivo." : "No se pudo comprobar el turno para este cobro en efectivo."}</p> : null}
+          <Button className="w-full" size="lg" disabled={!valid || submitting} onClick={() => void submit()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />} {coveredByDeposit ? "Liquidar con el anticipo" : `Cobrar ${formatMoney(dueAmount(order))}`}</Button>
         </CardContent></Card>
       </div>
     </ViewLayout>

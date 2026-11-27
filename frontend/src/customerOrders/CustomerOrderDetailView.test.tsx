@@ -1,11 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { CustomerOrder } from "./types";
 
 const api = vi.hoisted(() => ({
   route: { orderId: "a" }, online: true,
-  get: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), changeStatus: vi.fn(),
+  get: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), changeStatus: vi.fn(), settings: vi.fn(),
+  deposit: vi.fn(), refund: vi.fn(),
   readCache: vi.fn(), saveCache: vi.fn(),
 }));
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: {
@@ -20,7 +21,11 @@ vi.mock("./api", () => ({
   confirmCustomerOrder: (...args: unknown[]) => api.confirm(...args),
   cancelCustomerOrder: (...args: unknown[]) => api.cancel(...args),
   changeCustomerOrderStatus: (...args: unknown[]) => api.changeStatus(...args),
+  getCustomerOrderSettings: (...args: unknown[]) => api.settings(...args),
+  recordCustomerOrderDeposit: (...args: unknown[]) => api.deposit(...args),
+  refundCustomerOrderDeposit: (...args: unknown[]) => api.refund(...args),
 }));
+vi.mock("@/shifts/api", () => ({ getOpenShift: () => Promise.resolve({ id: "shift" }) }));
 vi.mock("./cache", () => ({
   readCustomerOrderCache: (...args: unknown[]) => api.readCache(...args),
   saveCustomerOrderDetail: (...args: unknown[]) => api.saveCache(...args),
@@ -104,4 +109,60 @@ it("uses only the specific cached detail timestamp when consulting offline", asy
   expect(await screen.findByRole("status")).toHaveTextContent(/01\/11\/2026/);
   expect(screen.getByRole("status")).not.toHaveTextContent(/17\/11\/2026/);
   expect(api.get).not.toHaveBeenCalled();
+});
+
+
+const withDeposit = (overrides: Partial<CustomerOrder> = {}): CustomerOrder => ({
+  ...order("a"), total_amount: "600.00", subtotal_amount: "600.00",
+  deposits: {
+    received_amount: "300.00", balance_amount: "300.00", due_amount: "300.00", minimum_amount: "0.00",
+    applied: false,
+    entries: [{ id: "d1", kind: "deposit", method: "cash", amount: "300.00", reference: null, reason: null,
+      created_at: "2026-11-27T12:00:00Z" }],
+  },
+  ...overrides,
+});
+
+it("holds confirmation until the business's minimum deposit is in", async () => {
+  api.get.mockResolvedValue(withDeposit({ deposits: { ...withDeposit().deposits!, received_amount: "0.00",
+    balance_amount: "0.00", due_amount: "600.00", minimum_amount: "300.00", entries: [] } }));
+  renderView();
+  expect(await screen.findByText(/pide un anticipo de \$300\.00 para confirmar/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Confirmar y reservar" })).toBeDisabled();
+});
+
+it("records a deposit with its method and keeps one key per attempt", async () => {
+  api.get.mockResolvedValue(withDeposit());
+  api.deposit.mockResolvedValue(withDeposit({ version: 2 }));
+  renderView();
+  fireEvent.click(await screen.findByRole("button", { name: "Registrar anticipo" }));
+  fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "120" } });
+  fireEvent.change(screen.getByLabelText("Referencia opcional"), { target: { value: "SPEI 123" } });
+  const dialog = screen.getByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Registrar anticipo" }));
+  await waitFor(() => expect(api.deposit).toHaveBeenCalledWith("a", 1,
+    { method: "bank_transfer", amount: "120.00", reference: "SPEI 123" }, expect.any(String)));
+});
+
+it("asks a manager to return or keep the deposit when cancelling, following the policy", async () => {
+  api.get.mockResolvedValue(withDeposit());
+  api.settings.mockResolvedValue({ deposit_minimum_percent: "0.00", cancelled_deposit_policy: "retain" });
+  api.cancel.mockResolvedValue({ ...withDeposit(), status: "cancelled", version: 2 });
+  renderView();
+  fireEvent.click(await screen.findByRole("button", { name: /Cancelar pedido/ }));
+  const keep = await screen.findByRole("radio", { name: /Conservarlo/ });
+  expect(keep).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: /Devolver al cliente/ }));
+  const dialog = screen.getByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar pedido" }));
+  await waitFor(() => expect(api.cancel).toHaveBeenCalledWith("a", 1, "customer_request", "", "refund"));
+});
+
+it("offers only returning the deposit when the policy is to refund", async () => {
+  api.get.mockResolvedValue(withDeposit());
+  api.settings.mockResolvedValue({ deposit_minimum_percent: "0.00", cancelled_deposit_policy: "refund" });
+  renderView();
+  fireEvent.click(await screen.findByRole("button", { name: /Cancelar pedido/ }));
+  expect(await screen.findByText("La política del negocio es devolver el anticipo al cancelar.")).toBeVisible();
+  expect(screen.queryByRole("radio", { name: /Conservarlo/ })).not.toBeInTheDocument();
 });

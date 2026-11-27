@@ -22,6 +22,7 @@ type ReceiptItem = {
 type ReceiptPayment = {
   method: string;
   amount_amount: string;
+  deposit_applied?: boolean;
 };
 
 export type ReceiptTemplateRefund = {
@@ -175,7 +176,7 @@ export function ReceiptTemplate({
         {payments.map((payment, index) => (
           <ReceiptLine
             key={`${payment.method}-${index}`}
-            label={reasonLabel(payment.method)}
+            label={payment.deposit_applied ? `Anticipo · ${reasonLabel(payment.method)}` : reasonLabel(payment.method)}
             value={formatMoney(payment.amount_amount)}
             muted
           />

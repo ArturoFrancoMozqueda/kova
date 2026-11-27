@@ -188,6 +188,7 @@ def request_open(db: Session, tenant_id: UUID, user_id: UUID, body: OpenDrawer) 
                 Payment.tenant_id == tenant_id,
                 Payment.order_id == order.id,
                 Payment.method == "cash",
+                Payment.deposit_applied.is_(False),
                 Payment.amount_amount > 0,
             )
             .first()

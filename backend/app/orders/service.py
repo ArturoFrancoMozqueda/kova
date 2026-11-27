@@ -104,6 +104,8 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
         ),
         "change_due_amount": str(payment.change_due_amount),
         "reference": payment.reference,
+        # Same shape in create, read and receipt responses (see PaymentResponse).
+        "deposit_applied": bool(payment.deposit_applied),
     }
 
 
@@ -207,10 +209,10 @@ class PricedOrderLine:
 
 
 def _validate_payments(
-    payments: list[PaymentCreate], total: Decimal
+    payments: list[PaymentCreate], total: Decimal, already_paid: Decimal = Decimal("0.00")
 ) -> list[tuple[Decimal, Decimal | None, Decimal]]:
     """Validate split payment entries and return (amount, tendered, change_due) per entry."""
-    payment_sum = calculator.money(sum(p.amount for p in payments))
+    payment_sum = calculator.money(sum(p.amount for p in payments) + already_paid)
     if payment_sum != total:
         raise bad_request(f"Payment total {payment_sum} does not equal order total {total}")
 
@@ -241,10 +243,18 @@ def persist_completed_order(
     shift_id: UUID | None = None,
     occurred_at: datetime | None = None,
     customer_id: UUID | None = None,
+    applied_deposits: list[tuple[str, Decimal]] | None = None,
 ) -> Order:
-    """Persist one trusted, fully paid sale without audit, idempotency or commit."""
+    """Persist one trusted, fully paid sale without audit, idempotency or commit.
+
+    applied_deposits are (method, amount) collected earlier as customer order
+    deposits; they count toward the total but are not cash taken now.
+    """
     total = calculator.order_total([line.line_total for line in priced_items])
-    validated_payments = _validate_payments(payments, total)
+    applied_deposits = applied_deposits or []
+    validated_payments = _validate_payments(
+        payments, total, calculator.money(sum(amount for _, amount in applied_deposits))
+    )
     if customer_id is not None:
         from app.customers.models import Customer
 
@@ -330,6 +340,18 @@ def persist_completed_order(
             amount_tendered=tendered,
             change_due=change_due,
             reference=payment_entry.reference,
+        )
+    for method, amount in applied_deposits:
+        repo.create_payment(
+            db,
+            tenant_id=tenant_id,
+            order_id=order.id,
+            method=method,
+            amount=amount,
+            amount_tendered=None,
+            change_due=Decimal("0.00"),
+            reference="Anticipo",
+            deposit_applied=True,
         )
     fiscal_repo.capture_baseline_snapshot(db, tenant_id=tenant_id, order=order)
     return order

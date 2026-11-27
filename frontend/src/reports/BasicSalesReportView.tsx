@@ -83,6 +83,12 @@ export function BasicSalesReportView({ dashboard = false }: { dashboard?: boolea
                 note={`${summary.data.refund_count.toLocaleString("es-MX")} ${summary.data.refund_count === 1 ? "devolución" : "devoluciones"}`} />
               <KpiCard label="Ventas brutas" value={formatMoney(summary.data.gross_sales)} icon={<Receipt />} note="Antes de devoluciones" />
             </div>
+            {Number(summary.data.retained_deposits ?? 0) > 0 ? (
+              <p className="rounded-kova-md border bg-muted/40 px-4 py-3 text-sm">
+                <span className="font-medium">Anticipos conservados: {formatMoney(summary.data.retained_deposits!)}</span>
+                {" "}de {summary.data.retained_deposit_count} {summary.data.retained_deposit_count === 1 ? "pedido cancelado" : "pedidos cancelados"}. Es ingreso del periodo, aparte de las ventas.
+              </p>
+            ) : null}
             {summary.data.order_count === 0 && <ViewEmpty icon={<ShoppingCart className="h-5 w-5" />} illustration="chart" title="Aún no hay ventas en este periodo"
               body="Elige otro periodo o registra una venta para ver aquí sus resultados." />}
           </> : <SectionLoading label="Cargando resumen de ventas" />}

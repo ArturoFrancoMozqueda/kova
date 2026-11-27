@@ -40,8 +40,9 @@ El flujo normal es `new → confirmed → in_progress → ready → fulfilled`. 
 - Se aceptan fecha prometida opcional, nota general y nota por artículo de hasta 200 caracteres.
 - Producto, nombre, precio y modificadores se congelan al capturar. Cambios posteriores al
   catálogo no alteran el total prometido.
-- No se permiten precio libre, descuentos, impuestos, anticipos, pagos parciales ni cargos de
-  entrega automáticos. Un envío cobrable se modela como producto de catálogo.
+- No se permiten precio libre, descuentos, impuestos ni cargos de entrega automáticos. Un envío
+  cobrable se modela como producto de catálogo. Los anticipos siguen las reglas de la sección
+  Anticipos.
 
 ## Inventario
 
@@ -57,10 +58,47 @@ El flujo normal es `new → confirmed → in_progress → ready → fulfilled`. 
   artículos, notas ni cliente. La disponibilidad de un pedido confirmado conserva sus propias
   reservas y sigue descontando las de otros pedidos después del reintento.
 
+## Anticipos
+
+Decisión y razones en [ADR-044](../../docs/adr/ADR-044-anticipos-en-pedidos.md).
+
+- `POST /api/v1/customer-orders/{id}/deposits` (`customer_orders.checkout`) recibe un anticipo
+  con método `cash`, `bank_transfer` o `manual_card`, monto y referencia opcional. Se permiten
+  varios abonos mientras el pedido esté activo o nuevo y sin venta. La suma nunca supera el total
+  (`DEPOSIT_EXCEEDS_TOTAL`).
+- Efectivo exige turno abierto y crea una entrada `cash_in` con el folio. El anticipo no es venta:
+  no cambia ventas, recibos ni reportes de ingreso.
+- `POST /api/v1/customer-orders/{id}/deposits/refund` (`orders.refund`, gerencia) devuelve parte
+  del saldo con motivo, sin superar lo recibido con ese método
+  (`DEPOSIT_REFUND_EXCEEDS_BALANCE`). Efectivo crea una salida `cash_out`.
+- Cada respuesta de pedido trae `deposits`:
+  - `received_amount`, `balance_amount` (saldo retenido) y `due_amount` (lo que falta cobrar).
+  - `minimum_amount` (solo pedidos nuevos), `applied` y el historial `entries`.
+  - El listado agrega `deposit_balance_amount`.
+- **Política por negocio** en `GET/PUT /api/v1/customer-orders/settings` (`settings.manage`
+  para cambiarla):
+  - `deposit_minimum_percent` de 0 a 100: confirmar un pedido nuevo exige ese anticipo
+    (`DEPOSIT_REQUIRED`, con `required_amount`).
+  - `cancelled_deposit_policy`: `refund` (predeterminado) o `retain`.
+- **Cancelar con saldo** exige gerencia y `deposit_resolution`:
+  - Sin ella responde `DEPOSIT_RESOLUTION_REQUIRED` con la política.
+  - `refund` devuelve el saldo por cada medio con el que se recibió.
+  - `retain` solo con política `retain` (`DEPOSIT_RETAIN_NOT_ALLOWED`); conserva el saldo como
+    ingreso del día, que el resumen de ventas muestra aparte (`retained_deposits`).
+- **Al cobrar:**
+  - Los pagos del cuerpo cubren solo el saldo pendiente (`PAYMENT_MISMATCH`, con `due_amount`);
+    pueden ir vacíos si el anticipo cubre todo.
+  - La venta registra el total una vez: cada medio con anticipo aparece como pago
+    `deposit_applied`, que no vuelve a contar como efectivo del turno.
+  - Si el anticipo supera el total, primero se devuelve la diferencia.
+- Anular la venta liquidada libera el anticipo; cancelar el pedido después exige resolverlo.
+- Toda operación de anticipo exige `Idempotency-Key` y `expected_version`, y aumenta `version`.
+  La auditoría registra monto y método; el historial es solo de inserción.
+
 ## Conversión a venta
 
 `POST /api/v1/customer-orders/{id}/checkout` bloquea pedido, reservas y productos, valida versión,
-pago exacto y turno para efectivo, y crea exactamente una venta financiera junto con artículos,
+pago exacto del saldo después de anticipos y turno para efectivo, y crea exactamente una venta financiera junto con artículos,
 modificadores, pagos y movimientos. Después consume reservas y vincula la venta en la misma
 transacción. Usa precios prometidos y costo vigente. Un producto desactivado puede cobrarse si aún
 existe y conserva una reserva válida.

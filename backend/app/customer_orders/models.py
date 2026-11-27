@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -193,3 +194,88 @@ class InventoryReservation(BranchScoped, Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
+
+
+class CustomerOrderSettings(Base):
+    """Each business's deposit policy; no row means no minimum and returning deposits."""
+
+    __tablename__ = "customer_order_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "deposit_minimum_percent >= 0 AND deposit_minimum_percent <= 100",
+            name="ck_customer_order_settings_minimum",
+        ),
+        CheckConstraint(
+            "cancelled_deposit_policy IN ('refund', 'retain')",
+            name="ck_customer_order_settings_policy",
+        ),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
+    deposit_minimum_percent: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=Decimal("0"), server_default="0"
+    )
+    cancelled_deposit_policy: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="refund", server_default="refund"
+    )
+    updated_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class CustomerOrderDeposit(BranchScoped, Base):
+    """Append-only money history of an order before it is settled (anticipos)."""
+
+    __tablename__ = "customer_order_deposits"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_customer_order_deposits_branch",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "customer_order_id"],
+            ["customer_orders.tenant_id", "customer_orders.branch_id", "customer_orders.id"],
+            name="fk_customer_order_deposits_order",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "shift_id"],
+            ["shifts.tenant_id", "shifts.branch_id", "shifts.id"],
+            name="fk_customer_order_deposits_shift",
+        ),
+        CheckConstraint(
+            "kind IN ('deposit', 'refund', 'retained')", name="ck_customer_order_deposits_kind"
+        ),
+        CheckConstraint("amount > 0", name="ck_customer_order_deposits_amount"),
+        CheckConstraint(
+            "(kind = 'retained' AND method IS NULL AND shift_id IS NULL) OR "
+            "(kind <> 'retained' AND method IS NOT NULL "
+            "AND method IN ('cash', 'bank_transfer', 'manual_card'))",
+            name="ck_customer_order_deposits_method",
+        ),
+        CheckConstraint(
+            "method IS DISTINCT FROM 'cash' OR shift_id IS NOT NULL",
+            name="ck_customer_order_deposits_cash_shift",
+        ),
+        CheckConstraint(
+            "kind = 'deposit' OR coalesce(length(btrim(reason)), 0) > 0",
+            name="ck_customer_order_deposits_reason",
+        ),
+        Index("ix_customer_order_deposits_order", "tenant_id", "customer_order_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    customer_order_id: Mapped[UUID] = mapped_column(nullable=False)
+    # deposit receives money, refund returns it, retained keeps it on cancellation.
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    shift_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

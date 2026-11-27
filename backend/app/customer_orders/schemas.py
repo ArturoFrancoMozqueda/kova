@@ -92,6 +92,9 @@ class CustomerOrderStatusChange(VersionedAction):
 class CustomerOrderCancel(VersionedAction):
     reason: Literal["customer_request", "out_of_stock", "duplicate", "other"]
     note: str | None = Field(default=None, max_length=300)
+    # Required only when the order still holds a deposit: return it, or keep it
+    # when the business's policy allows.
+    deposit_resolution: Literal["refund", "retain"] | None = None
 
     @field_validator("note")
     @classmethod
@@ -101,7 +104,43 @@ class CustomerOrderCancel(VersionedAction):
 
 class CustomerOrderCheckout(VersionedAction):
     lot_allocations: dict[UUID, list[LotAllocation]] | None = Field(default=None, max_length=200)
-    payments: list[PaymentCreate] = Field(min_length=1, max_length=10)
+    # Covers the balance after deposits; empty only when deposits cover the total.
+    payments: list[PaymentCreate] = Field(default_factory=list, max_length=10)
+
+
+DepositMethod = Literal["cash", "bank_transfer", "manual_card"]
+
+
+class CustomerOrderDepositCreate(VersionedAction):
+    method: DepositMethod
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    reference: str | None = Field(default=None, max_length=255)
+
+    @field_validator("reference")
+    @classmethod
+    def validate_reference(cls, value: str | None) -> str | None:
+        return reject_html(value.strip() or None if value else None)
+
+
+class CustomerOrderDepositRefund(VersionedAction):
+    method: DepositMethod
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    reason: str = Field(min_length=1, max_length=200)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = reject_html(value.strip())
+        if not value:
+            raise ValueError("Escribe el motivo de la devolución")
+        return value
+
+
+class CustomerOrderSettingsBody(StrictModel):
+    # Share of the order total required as deposit before confirming (0 = none).
+    deposit_minimum_percent: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    # What happens to a deposit when the order is cancelled.
+    cancelled_deposit_policy: Literal["refund", "retain"]
 
 
 class CustomerOrderModifierResponse(BaseModel):
@@ -123,6 +162,28 @@ class CustomerOrderItemResponse(BaseModel):
     note: str | None
     modifier_option_ids: list[UUID]
     modifiers: list[CustomerOrderModifierResponse]
+
+
+class CustomerOrderDepositEntry(BaseModel):
+    id: UUID
+    kind: Literal["deposit", "refund", "retained"]
+    method: DepositMethod | None
+    amount: Decimal
+    reference: str | None
+    reason: str | None
+    created_at: datetime
+
+
+class CustomerOrderDepositSummary(BaseModel):
+    received_amount: Decimal = Decimal("0.00")
+    # Deposit still held: not applied to a sale, returned or kept.
+    balance_amount: Decimal = Decimal("0.00")
+    # What the customer still owes at settlement.
+    due_amount: Decimal = Decimal("0.00")
+    # Deposit the business requires before confirming (new orders only).
+    minimum_amount: Decimal = Decimal("0.00")
+    applied: bool = False
+    entries: list[CustomerOrderDepositEntry] = Field(default_factory=list)
 
 
 class CustomerOrderResponse(BaseModel):
@@ -156,6 +217,7 @@ class CustomerOrderResponse(BaseModel):
     cancellation_note: str | None
     created_at: datetime
     updated_at: datetime
+    deposits: CustomerOrderDepositSummary = Field(default_factory=CustomerOrderDepositSummary)
 
 
 class CustomerOrderListItem(BaseModel):
@@ -168,6 +230,7 @@ class CustomerOrderListItem(BaseModel):
     customer_phone: str | None
     promised_at: datetime | None
     total_amount: Decimal
+    deposit_balance_amount: Decimal = Decimal("0.00")
     stock_conflict: bool
     created_at: datetime
     updated_at: datetime

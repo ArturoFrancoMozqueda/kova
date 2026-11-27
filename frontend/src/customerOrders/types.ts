@@ -70,6 +70,37 @@ export type CustomerOrder = {
   cancellation_note: string | null;
   created_at: string;
   updated_at: string;
+  /** Absent in copies cached before deposits existed. */
+  deposits?: CustomerOrderDeposits;
+};
+
+export type DepositMethod = "cash" | "bank_transfer" | "manual_card";
+
+export type CustomerOrderDepositEntry = {
+  id: string;
+  kind: "deposit" | "refund" | "retained";
+  method: DepositMethod | null;
+  amount: string;
+  reference: string | null;
+  reason: string | null;
+  created_at: string;
+};
+
+export type CustomerOrderDeposits = {
+  received_amount: string;
+  /** Deposit still held: not applied to the sale, returned or kept. */
+  balance_amount: string;
+  /** What the customer still owes at settlement. */
+  due_amount: string;
+  /** Deposit the business requires before confirming a new order. */
+  minimum_amount: string;
+  applied: boolean;
+  entries: CustomerOrderDepositEntry[];
+};
+
+export type CustomerOrderSettings = {
+  deposit_minimum_percent: string;
+  cancelled_deposit_policy: "refund" | "retain";
 };
 
 export type CustomerOrderListItem = Pick<
@@ -86,7 +117,7 @@ export type CustomerOrderListItem = Pick<
   | "stock_conflict"
   | "created_at"
   | "updated_at"
->;
+> & { deposit_balance_amount?: string };
 
 export type CustomerOrderListResponse = {
   items: CustomerOrderListItem[];

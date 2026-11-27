@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.catalog.units import stock_unit_cost
+from app.customer_orders import deposits as customer_order_deposits
 from app.inventory.repository import stock_on_hand_for_products
 from app.orders.models import Order, Refund
 from app.pricing import calculator
@@ -162,11 +163,16 @@ def sales_summary(
 ) -> dict:
     tz = _tenant_timezone(db, tenant_id=tenant_id)
     start_date, end_date = _normalize_range(start_date, end_date, tz)
-    return _summary_from_window(
+    summary = _summary_from_window(
         _load_sale_window(
             db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
         )
     )
+    start, end = _local_bounds(start_date, end_date, tz)
+    retained, retained_count = customer_order_deposits.retained_between(
+        db, tenant_id=tenant_id, start=start, end=end
+    )
+    return {**summary, "retained_deposits": retained, "retained_deposit_count": retained_count}
 
 
 @dataclass(frozen=True)

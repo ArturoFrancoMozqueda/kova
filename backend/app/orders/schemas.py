@@ -73,6 +73,8 @@ class PaymentResponse(BaseModel):
     amount_tendered_amount: Decimal | None
     change_due_amount: Decimal
     reference: str | None
+    # Collected earlier as a customer order deposit and applied to this sale.
+    deposit_applied: bool = False
 
 
 class LoyaltyRewardSnapshot(BaseModel):
@@ -112,6 +114,8 @@ class ReceiptPaymentLine(BaseModel):
     amount_tendered_amount: Decimal | None
     change_due_amount: Decimal
     reference: str | None
+    # Collected earlier as a customer order deposit and applied to this sale.
+    deposit_applied: bool = False
 
 
 class ReceiptRefundItemLine(BaseModel):

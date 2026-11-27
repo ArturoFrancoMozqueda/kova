@@ -59,6 +59,9 @@ class SalesSummaryResponse(BaseModel):
     order_count: int
     refund_count: int
     void_count: int
+    # Deposits kept on cancelled orders: income of the cancellation day, not sales.
+    retained_deposits: Decimal = Decimal("0.00")
+    retained_deposit_count: int = 0
 
 
 class PaymentBreakdownRow(BaseModel):
