@@ -213,7 +213,8 @@ export default function AppShell() {
   const primaryNavItems = primaryNavigationPaths.flatMap(path => filteredNavItems.filter(item => item.to === path));
   const bottomNavItems = commercialBlocked
     ? filteredNavItems.filter(item => item.to === "/settings/billing")
-    : primaryNavItems.filter(item => item.to !== "/dashboard");
+    // Three destinations plus "Más" fit one row at 390 px; the rest stay in the menu.
+    : primaryNavItems.filter(item => item.to !== "/dashboard").slice(0, 3);
   const navigationPreferenceKey = state.status === "authenticated"
     ? `kova-navigation-groups-v2:${state.tenantId}:${state.user.id}:${state.user.role}` : "kova-navigation-groups-v2:guest";
 

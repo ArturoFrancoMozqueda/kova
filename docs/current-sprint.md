@@ -67,6 +67,10 @@ cancelado se devuelve o se conserva ([ADR-044](adr/ADR-044-anticipos-en-pedidos.
 [PR #403](https://github.com/ArturoFrancoMozqueda/kova/pull/403) y el
 [release 46064467636](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46064467636): API y
 frontend sirven `e31cf6e1`. Falta su uso en un negocio real.
+Entrega E7, en revisión: cola de preparación por estación para ventas de Caja y pedidos, con número
+corto del día. Decisión del dueño (27 de noviembre): todos los planes, ventas y pedidos, número del
+día ([ADR-045](adr/ADR-045-cola-de-preparacion.md), [contrato](../specs/prep_queue/prep_queue.md)).
+Migración `0115_prep_queue`. No está publicada.
 
 ## En producción
 

@@ -57,7 +57,8 @@ test("drawer can navigate and desktop resize makes the sidebar operable", async 
   await openShell(page);
   await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
   const drawer = page.getByRole("dialog");
-  await expect(drawer.getByRole("navigation").getByRole("link")).toHaveCount(3);
+  // Caja, Ventas, Preparación (E7) and Panel stay outside the categories.
+  await expect(drawer.getByRole("navigation").getByRole("link")).toHaveCount(4);
   await expect(drawer.getByRole("button", { name: "Productos y operación", exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("mobile-navigation-expanded-top.png"), animations: "disabled" });
   await drawer.getByRole("button", { name: "Configuración", exact: true }).scrollIntoViewIfNeeded();

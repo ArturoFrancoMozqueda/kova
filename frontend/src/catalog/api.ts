@@ -124,6 +124,8 @@ function productPayload(body: ProductCreate | ProductUpdate) {
     stock_unit: body.stock_unit,
     purchase_unit_label: body.purchase_unit_label,
     purchase_unit_quantity: body.purchase_unit_quantity,
+    // Sent only when the form manages it, so other callers keep their payloads.
+    ...(body.prep_station_id !== undefined ? { prep_station_id: body.prep_station_id } : {}),
     track_lots: body.track_lots,
     rotation_label: body.rotation_label,
     rotation_days: body.rotation_days,

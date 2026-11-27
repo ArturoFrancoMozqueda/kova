@@ -42,6 +42,10 @@ _RUNTIME_TABLE_PRIVILEGES = {
     # Deposits are append-only money history; the policy row changes by column.
     "customer_order_deposits": {"SELECT", "INSERT"},
     "customer_order_settings": {"SELECT", "INSERT"},
+    # Stations, daily numbers and tickets change only through their workflow columns.
+    "prep_stations": {"SELECT", "INSERT"},
+    "prep_daily_numbers": {"SELECT", "INSERT"},
+    "prep_tickets": {"SELECT", "INSERT"},
     "modifier_option_consumptions": {"SELECT", "INSERT", "DELETE"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},
@@ -186,6 +190,12 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "prep_stations": {"name", "alert_minutes", "position", "is_active", "updated_at"},
+    "prep_daily_numbers": {"last_number"},
+    "prep_tickets": {
+        "status", "version", "preparing_at", "ready_at", "delivered_at", "updated_by_user_id",
+        "updated_at",
+    },
     "customer_order_settings": {
         "deposit_minimum_percent", "cancelled_deposit_policy", "updated_by_user_id", "updated_at",
     },

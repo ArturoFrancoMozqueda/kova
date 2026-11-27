@@ -223,7 +223,8 @@ describe("simple task navigation and complete discovery", () => {
       fireEvent.click(nav.getByRole("button", { name }));
     const paths = nav.getAllByRole("link").map(link => link.getAttribute("href"));
     expect(new Set(paths).size).toBe(paths.length);
-    expect(paths).toHaveLength(27);
+    // 28 with Preparación (E7), a destination for every role that sells.
+    expect(paths).toHaveLength(28);
     expect(paths).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers", "/appointments", "/loyalty"]));
     expect(paths).not.toContain("/settings/channels");
     expect(nav.getByRole("link", { name: "Compras y proveedores" }).querySelector("span[aria-hidden]")).not.toHaveClass("truncate");
@@ -281,9 +282,9 @@ describe("simple task navigation and complete discovery", () => {
     view.unmount(); auth.state.user.role = "manager"; const manager = host("/settings");
     expect(navigation().queryByRole("link", { name: "Suscripción" })).toBeNull();
     manager.unmount(); auth.state.user.role = "cashier"; const cashier = host();
-    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Turnos"]);
+    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Preparación", "Turnos"]);
     fireEvent.click(navigation().getByRole("button", { name: "Clientes y atención" }));
-    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Turnos", "Clientes", "Agenda"]);
+    expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja", "Ventas", "Preparación", "Turnos", "Clientes", "Agenda"]);
     cashier.unmount(); auth.state.sessionMode = "offline"; host();
     expect(navigation().getAllByRole("link").map(link => link.textContent)).toEqual(["Caja"]);
     expect(navigation().queryAllByRole("button")).toHaveLength(0);

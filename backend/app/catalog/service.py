@@ -13,6 +13,7 @@ from app.catalog.models import Category, Product
 from app.catalog.schemas import CategoryCreate, CategoryUpdate, ProductCreate, ProductUpdate
 from app.idempotency import service as idempotency_service
 from app.inventory import lots as lot_service
+from app.prep_queue import service as prep_service
 from app.shared.exceptions import bad_request, not_found
 from app.tenants.repository import lock_by_id
 
@@ -120,6 +121,7 @@ def _product_body(product: Product) -> dict[str, Any]:
         "stock_unit": product.stock_unit,
         "purchase_unit_label": product.purchase_unit_label,
         "purchase_unit_quantity": product.purchase_unit_quantity,
+        "prep_station_id": str(product.prep_station_id) if product.prep_station_id else None,
         "track_lots": product.track_lots,
         "rotation_label": product.rotation_label,
         "rotation_days": product.rotation_days,
@@ -345,7 +347,9 @@ def create_product(
     commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
-    for field in ("track_lots", "rotation_label", "rotation_days", "expiry_days"):
+    for field in (
+        "track_lots", "rotation_label", "rotation_days", "expiry_days", "prep_station_id"
+    ):
         if field not in body.model_fields_set:
             payload.pop(field, None)
     stored = _stored_response(
@@ -391,6 +395,8 @@ def create_product(
     product.stock_unit = body.stock_unit
     product.purchase_unit_label = body.purchase_unit_label
     product.purchase_unit_quantity = body.purchase_unit_quantity
+    prep_service.ensure_station(db, tenant_id=tenant_id, station_id=body.prep_station_id)
+    product.prep_station_id = body.prep_station_id
     if body.track_lots:
         lot_service.configure(db, product, True)
     db.flush()
@@ -475,6 +481,9 @@ def update_product(
                 "controlar existencias propias."
             )
     _apply_units(db, tenant_id=tenant_id, product=product, body=body)
+    if "prep_station_id" in body.model_fields_set:
+        prep_service.ensure_station(db, tenant_id=tenant_id, station_id=body.prep_station_id)
+        product.prep_station_id = body.prep_station_id
     # Configuration is atomic with activation/backfill across every branch.
     for field in ("rotation_label", "rotation_days", "expiry_days"):
         if field in body.model_fields_set:

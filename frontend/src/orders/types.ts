@@ -92,6 +92,8 @@ export type Receipt = {
   loyalty_reward?: LoyaltyRewardSnapshot | null;
   order_id: string;
   receipt_number: string;
+  /** Daily number to call the customer when the order is ready. */
+  prep_number?: number | null;
   tenant_name: string;
   paper_width_mm?: import("@/lib/receiptPaper").ReceiptPaperWidth;
   created_at: string;

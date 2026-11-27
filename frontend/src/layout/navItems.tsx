@@ -1,7 +1,7 @@
 import type React from "react";
 import {
   BarChart3, CalendarDays, ClipboardCheck, ClipboardList, Clock, CreditCard, FileText, Gift, Handshake,
-  HeartHandshake, LayoutDashboard, LayoutGrid, LifeBuoy, ListChecks, MessagesSquare, Package, Receipt,
+  ChefHat, HeartHandshake, LayoutDashboard, LayoutGrid, LifeBuoy, ListChecks, MessagesSquare, Package, Receipt,
   Settings, ShoppingCart, Sparkles, Store, Truck, Users, WalletCards, Workflow,
 } from "lucide-react";
 import { copy } from "@/i18n/messages";
@@ -13,6 +13,7 @@ import {
   CUSTOMERS_VIEW_PERMISSION,
   EXPENSES_MANAGE_PERMISSION,
   INVENTORY_ADJUST_PERMISSION,
+  ORDER_CREATE_PERMISSION,
   REPORTS_VIEW_ALL_PERMISSION,
 } from "@/auth/permissions";
 
@@ -31,6 +32,7 @@ export const adminNavItems: NavItem[] = [
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
+  { to: "/preparacion", label: copy.nav.prepQueue, icon: <ChefHat className="h-4.5 w-4.5" />, group: "operation", permission: ORDER_CREATE_PERMISSION },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
@@ -62,6 +64,7 @@ export const cashierNavItems: NavItem[] = [
 
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
+  { to: "/preparacion", label: copy.nav.prepQueue, icon: <ChefHat className="h-4.5 w-4.5" />, group: "operation", permission: ORDER_CREATE_PERMISSION },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   // Operational agenda only; its configuration stays owner/manager inside the view.

@@ -70,6 +70,8 @@ class Product(Base):
     # When set, cost_price is the cost of one purchase unit (e.g. "Litro" = 1000 ml).
     purchase_unit_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
     purchase_unit_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Station that prepares it after a counter sale (Barra, Cocina); FK fk_products_prep_station.
+    prep_station_id: Mapped[UUID | None] = mapped_column(nullable=True)
     track_lots: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
