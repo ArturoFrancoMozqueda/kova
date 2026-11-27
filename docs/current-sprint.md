@@ -35,8 +35,12 @@ noviembre con el [PR #392](https://github.com/ArturoFrancoMozqueda/kova/pull/392
 frontend sirven `7e056134`. Falta su uso en un negocio real.
 Tercera entrega (P1): recetas al vender con versiones, ajustes por opción de modificador y costo
 real por partida ([contrato](../specs/recipes/recipes_on_sale.md),
-[ADR-041](adr/ADR-041-recetas-versionadas-al-vender.md)). Implementada y probada localmente; sin
-publicar.
+[ADR-041](adr/ADR-041-recetas-versionadas-al-vender.md)). Publicada el 26 de noviembre con el
+[PR #395](https://github.com/ArturoFrancoMozqueda/kova/pull/395) y el
+[release 45937609716](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45937609716): API y
+frontend sirven `7bd6bfdf`. Falta su uso en un negocio real. El mismo PR cambió el parser aislado
+a libxml2 oficial de Alpine 2.13.9-r5 con aprobación del dueño
+([ADR-042](adr/ADR-042-libxml2-oficial-de-alpine-en-el-parser.md)).
 
 ## En producción
 
