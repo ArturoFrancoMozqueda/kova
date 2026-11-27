@@ -52,3 +52,27 @@ def test_native_preparation_materializes_all_areas_without_executing_dependencie
         assert client.get("/openapi.json").status_code == 404
     assert guard.call_count == 3
     populate.assert_not_called()
+
+
+def test_native_preparation_configures_orm_mappers_before_the_first_query(monkeypatch):
+    import app.native_checks as native_checks
+
+    configured = Mock()
+    monkeypatch.setattr(native_checks, "configure_mappers", configured)
+    application = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+    prepare_native_routes(application)
+
+    configured.assert_called_once_with()
+
+
+def test_real_application_mappers_are_configured_after_preparation():
+    from sqlalchemy import inspect
+
+    from app.catalog.models import Product
+    from app.main import app as application
+
+    prepare_native_routes(application)
+
+    assert inspect(Product).configured
+

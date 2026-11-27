@@ -3,6 +3,8 @@
 import re
 from uuid import uuid4
 
+from sqlalchemy.orm import configure_mappers
+
 
 def validate_image_identity(image_sha: str | None, release_sha: str) -> None:
     if (
@@ -55,5 +57,11 @@ def prepare_native_routes(application) -> None:
     that work during a customer's first visit to a product area. The public
     OpenAPI generator walks all included routes without invoking endpoints or
     dependencies. Production docs remain disabled by the existing app config.
+
+    SQLAlchemy likewise configures every mapper on the process's first ORM
+    query. On the resident instance that query is usually a customer's first
+    product photo, so configure them here; it reads no data and needs no
+    database connection.
     """
     application.openapi()
+    configure_mappers()
