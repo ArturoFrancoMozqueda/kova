@@ -66,7 +66,7 @@ def _hash_payload(payload: dict[str, Any]) -> str:
         if not (
             v is None
             and (
-                k in {"lot_allocations", "deposit_resolution"}
+                k in {"lot_allocations", "deposit_resolution", "item_groups"}
                 or (k == "customer_id" and "order_id" not in payload)
             )
         )
@@ -941,6 +941,9 @@ def checkout_customer_order(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = {"order_id": str(order_id), **body.model_dump(mode="json")}
+    for payment_payload in payload["payments"]:
+        if payment_payload.get("split_group") is None:
+            payment_payload.pop("split_group", None)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
@@ -994,6 +997,7 @@ def checkout_customer_order(
         if body.lot_allocations and product_id in body.lot_allocations:
             lots.assign_reservation(db, product, reservation, parts)
         allocation_pools[product_id] = parts
+    groups_by_item = _groups_by_item(items, body.item_groups)
     for item in items:
         product = products[item.product_id]
         modifiers = modifiers_by_item[item.id]
@@ -1007,19 +1011,21 @@ def checkout_customer_order(
             }
             for modifier in modifiers
         ]
-        priced_lines.append(
-            order_service.PricedOrderLine(
-                product=product,
-                product_name=item.product_name,
-                quantity=item.quantity,
-                unit_price=item.unit_price_amount,
-                line_total=item.line_total_amount,
-                modifier_snapshots=snapshots,
-                lot_allocations=lots.split(allocation_pools[product.id], item.quantity)
-                if product.track_lots
-                else None,
+        for split_group, quantity, line_total in _item_portions(item, groups_by_item):
+            priced_lines.append(
+                order_service.PricedOrderLine(
+                    product=product,
+                    product_name=item.product_name,
+                    quantity=quantity,
+                    unit_price=item.unit_price_amount,
+                    line_total=line_total,
+                    modifier_snapshots=snapshots,
+                    lot_allocations=lots.split(allocation_pools[product.id], quantity)
+                    if product.track_lots
+                    else None,
+                    split_group=split_group,
+                )
             )
-        )
         if product.track_inventory:
             quantity_by_product[product.id] = quantity_by_product.get(product.id, 0) + item.quantity
     inventory_product_ids = sorted(quantity_by_product, key=lambda value: value.int)
@@ -1341,3 +1347,37 @@ def update_customer_order_settings(
     )
     db.commit()
     return after
+
+
+def _groups_by_item(items, item_groups) -> dict[UUID, list[tuple[int, int]]]:
+    """Split bill: each item's units by person; all units must be assigned."""
+    if not item_groups:
+        return {}
+    by_item: dict[UUID, list[tuple[int, int]]] = {}
+    for entry in item_groups:
+        by_item.setdefault(entry.item_id, []).append((entry.split_group, entry.quantity))
+    known = {item.id: item.quantity for item in items}
+    if set(by_item) != set(known) or any(
+        sum(quantity for _, quantity in parts) != known[item_id]
+        or len({group for group, _ in parts}) != len(parts)
+        for item_id, parts in by_item.items()
+    ):
+        raise _error(
+            422, "SPLIT_INCOMPLETE", "Asigna cada unidad del pedido a una sola persona."
+        )
+    return {item_id: sorted(parts) for item_id, parts in by_item.items()}
+
+
+def _item_portions(item, groups_by_item):
+    """(person, units, amount) for an item; amounts add up to the line total exactly."""
+    parts = groups_by_item.get(item.id)
+    if not parts:
+        return [(None, item.quantity, item.line_total_amount)]
+    portions, taken = [], 0
+    for split_group, quantity in parts:
+        amount = calculator.money(
+            item.line_total_amount * (taken + quantity) / item.quantity
+        ) - calculator.money(item.line_total_amount * taken / item.quantity)
+        portions.append((split_group, quantity, amount))
+        taken += quantity
+    return portions

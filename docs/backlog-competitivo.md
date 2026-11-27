@@ -57,7 +57,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | F | Cotizaciones | 1 | `quotes/` | — |
 | F | Anticipos, abonos y saldo | 1 | Anticipos con política por negocio (E6) | Uso real del caso integral 3 |
 | F | Crédito a clientes | 5 | Diferido | Decisión del dueño |
-| G | Cola de preparación / estaciones | 3 | Cola por estación para Caja y pedidos en E7 (en revisión) | Publicar E7; comandas impresas y mesas después |
+| G | Cola de preparación / estaciones | 1 | Cola por estación para Caja y pedidos (E7) | Comandas impresas y mesas después |
 | G | Mesas y cuentas abiertas | 5 | Solo solicitudes de mesa (ADR-033) | P3 |
 | H | Menú QR, catálogo público, seguimiento | 1 | `storefront/` | — |
 | H | Checkout en línea y pedidos programados | 5 | El pedido sale por WhatsApp | P2/P3 |
@@ -86,7 +86,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Publicada (#399, release 46032469644) |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Publicada (#402, release 46051884447) |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Publicada (#403, release 46064467636) |
-| E7 | Cola de preparación de mostrador | P2 | E3 | En revisión |
+| E7 | Cola de preparación de mostrador | P2 | E3 | Publicada (#405, release 46073577075) |
 | E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
 | E9 | CFDI Test | P2 | Emisor del dueño | Bloqueado externo |
 | E10+ | Variantes, mesas, reparto, PIN, campañas, Wallet, terminal | P3 | Decisiones/externos | Pendiente |
@@ -142,9 +142,10 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E6 y E8b están publicadas; producción sirve `e31cf6e1`.
-2. **E7** en rama `feat/prep-queue`, sin publicar: estaciones, número del día y cola en
-   Preparación ([contrato](../specs/prep_queue/prep_queue.md)). Migración `0115`. Falta fusionar,
-   publicar y probarla en una cafetería real.
+1. E1 a E7 y E8b están publicadas; producción sirve `6338bbd1`. Falta probar la cola de
+   preparación en una cafetería real con dos dispositivos.
+2. Las decisiones de E6 y E7 están en ADR-044 y ADR-045.
 3. Falta probar con un negocio real el caso integral 3 (anticipo de un pastel).
-4. Siguiente: E8 (cupones).
+4. **Dividir la cuenta por persona** (pedido del dueño) en rama `feat/split-bill`, sin publicar
+   ([contrato](../specs/orders/split_bill.md)). Migración `0116`.
+5. Siguiente: E8 (cupones).

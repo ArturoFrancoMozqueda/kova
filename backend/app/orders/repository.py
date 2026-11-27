@@ -156,6 +156,7 @@ def create_order_item(
     discount_amount: Decimal = Decimal("0.00"),
     tax_amount: Decimal = Decimal("0.00"),
     flush: bool = True,
+    split_group: int | None = None,
 ) -> OrderItem:
     item = OrderItem(
         # Assigned up front so dependants can reference it before a batched flush.
@@ -173,6 +174,7 @@ def create_order_item(
         discount_amount=discount_amount,
         tax_amount=tax_amount,
         line_total_amount=line_total_amount,
+        split_group=split_group,
     )
     db.add(item)
     if flush:
@@ -192,6 +194,7 @@ def create_payment(
     reference: str | None,
     flush: bool = True,
     deposit_applied: bool = False,
+    split_group: int | None = None,
 ) -> Payment:
     payment = Payment(
         id=uuid4(),
@@ -203,6 +206,7 @@ def create_payment(
         change_due_amount=change_due,
         reference=reference,
         deposit_applied=deposit_applied,
+        split_group=split_group,
     )
     db.add(payment)
     if flush:

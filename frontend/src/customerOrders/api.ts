@@ -154,10 +154,12 @@ export function checkoutCustomerOrder(
   payments: CustomerOrderPayments,
   idempotencyKey?: string,
   lotAllocations?: Record<string, import("@/inventory/lots").LotAllocation[]>,
+  itemGroups?: { item_id: string; split_group: number; quantity: number }[],
 ): Promise<CustomerOrderCheckoutResponse> {
   return mutation<CustomerOrderCheckoutResponse>(`/api/v1/customer-orders/${id}/checkout`, {
     version,
     payments,
     ...(lotAllocations ? { lot_allocations: lotAllocations } : {}),
+    ...(itemGroups ? { item_groups: itemGroups } : {}),
   }, "POST", idempotencyKey);
 }

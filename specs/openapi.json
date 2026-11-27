@@ -4306,6 +4306,21 @@
       "CustomerOrderCheckout": {
         "additionalProperties": false,
         "properties": {
+          "item_groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CustomerOrderItemGroup"
+                },
+                "maxItems": 400,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Groups"
+          },
           "lot_allocations": {
             "anyOf": [
               {
@@ -4331,7 +4346,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentCreate"
             },
-            "maxItems": 10,
+            "maxItems": 20,
             "title": "Payments",
             "type": "array"
           },
@@ -4742,6 +4757,35 @@
           "quantity"
         ],
         "title": "CustomerOrderItemCreate",
+        "type": "object"
+      },
+      "CustomerOrderItemGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "format": "uuid",
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100000.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "split_group": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Split Group",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "split_group",
+          "quantity"
+        ],
+        "title": "CustomerOrderItemGroup",
         "type": "object"
       },
       "CustomerOrderItemResponse": {
@@ -13128,6 +13172,19 @@
             "title": "Quantity",
             "type": "integer"
           },
+          "split_group": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
+          },
           "unit_price_amount": {
             "anyOf": [
               {
@@ -13219,6 +13276,17 @@
           "quantity": {
             "title": "Quantity",
             "type": "integer"
+          },
+          "split_group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
           },
           "stock_consumed": {
             "anyOf": [
@@ -13796,6 +13864,19 @@
               }
             ],
             "title": "Reference"
+          },
+          "split_group": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
           }
         },
         "required": [
@@ -13853,6 +13934,17 @@
               }
             ],
             "title": "Reference"
+          },
+          "split_group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
           }
         },
         "required": [
@@ -17313,6 +17405,17 @@
             "title": "Quantity",
             "type": "integer"
           },
+          "split_group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
+          },
           "unit_price_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Unit Price Amount",
@@ -17371,6 +17474,17 @@
               }
             ],
             "title": "Reference"
+          },
+          "split_group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Group"
           }
         },
         "required": [

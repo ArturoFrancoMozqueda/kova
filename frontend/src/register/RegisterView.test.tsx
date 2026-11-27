@@ -316,6 +316,36 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(cashDrawer.open).not.toHaveBeenCalled();
   });
 
+  it("splits the bill so each friend pays their own units in one sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "split-sale" });
+    syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "split-order", total_amount: "100.00" } }]);
+    renderRegister();
+    await addProductToCart();
+    await addProductToCart();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Dividir cuenta/ }));
+    fireEvent.change(screen.getByLabelText(new RegExp(`${product.name} \\(2 de 2\\)`)), { target: { value: "1" } });
+    const first = screen.getByRole("region", { name: "Persona 1" });
+    const second = screen.getByRole("region", { name: "Persona 2" });
+    expect(within(first).getByText("$50.00")).toBeVisible();
+    fireEvent.change(within(first).getByLabelText("Efectivo recibido"), { target: { value: "100" } });
+    fireEvent.change(within(second).getByLabelText("Paga con"), { target: { value: "manual_card" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    await waitFor(() => expect(queueOfflineSale).toHaveBeenCalledTimes(1));
+    const [, sale, , receipt] = queueOfflineSale.mock.calls[0];
+    expect(sale.items).toEqual([
+      expect.objectContaining({ product_id: product.id, quantity: 1, split_group: 1 }),
+      expect.objectContaining({ product_id: product.id, quantity: 1, split_group: 2 }),
+    ]);
+    expect(sale.payments).toEqual([
+      { method: "cash", amount: "50.00", amount_tendered: "100.00", split_group: 1 },
+      { method: "manual_card", amount: "50.00", reference: undefined, split_group: 2 },
+    ]);
+    expect(receipt.payments.map((payment: { split_group?: number }) => payment.split_group)).toEqual([1, 2]);
+  });
+
   it("uses one Caja h1 with Catálogo and Carrito as section headings", async () => {
     getOpenShift.mockResolvedValue(openShift);
     renderRegister();

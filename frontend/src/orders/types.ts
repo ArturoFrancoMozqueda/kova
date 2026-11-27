@@ -61,6 +61,8 @@ export type OrderCreatePayload = {
     amount: string;
     amount_tendered?: string | null;
     reference?: string | null;
+    /** Split bill: the person (1–20) paying. */
+    split_group?: number;
   }>;
 };
 
