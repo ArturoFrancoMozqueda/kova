@@ -1,11 +1,11 @@
 {
   "source": {
     "project": "tesseract",
-    "version": "5.5.3",
-    "commit": "a95faa0078bcbb59357468f81e079814f8f28e74",
-    "url": "https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/a95faa0078bcbb59357468f81e079814f8f28e74",
-    "sha256": "c1d7238a80d9543445dddc2dc2663fe4e5dc0e0189fc1eeb4ed42c9b1e66f615",
-    "release_status": "maintainer source after 5.5.3; not a 5.5.4 release"
+    "version": "5.5.5",
+    "commit": "9a4ea5129422277b3bf316e2c29bd57544981aae",
+    "url": "https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/9a4ea5129422277b3bf316e2c29bd57544981aae",
+    "sha256": "ef7520ff6bdec93d14251285728fa8695bb3b5d9cdfe835fb0aac6ad4c5c4bac",
+    "release_status": "official 5.5.5 release"
   },
   "model": {
     "project": "tessdata_fast",
@@ -14,7 +14,7 @@
     "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/spa.traineddata",
     "sha256": "6f2e04d02774a18f01bed44b1111f2cd7f3ba7ac9dc4373cd3f898a40ea6b464"
   },
-  "advisory_snapshot_date": "2026-11-02",
+  "advisory_snapshot_date": "2026-11-26",
   "advisories": [
     {
       "ghsa_id": "GHSA-6xhq-wvww-6xfg",
@@ -25,7 +25,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/ccstruct/matrix.h",
-      "source_sha256": "a399c9782acd2db619358f38c860038ff39ee5c0eaea07d92ea675c6bdbcbbaa",
+      "source_sha256": "39e206a95c2c8c6f4b36c97c66199fad1b502f965c3abf500041122f4233ac91",
       "regression_suites": [
         "matrix_deserializesize_test"
       ],
@@ -40,7 +40,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/weightmatrix.cpp",
-      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "source_sha256": "c5c3c68e6e34578bdbf147efd1049397238f6e9edc898470adceb1df0feb6626",
       "regression_suites": [
         "weightmatrix_deserialize_test"
       ],
@@ -55,7 +55,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/api/pagerenderer.cpp",
-      "source_sha256": "a42d1f5637f2ad0737831084f53629dd9cd196124663887bbb7e4c16ade45b56",
+      "source_sha256": "cb4f07c01ec1c9fd64b65a8b8d4b374641e8ddc5a46e209513ec8603dbbfde4e",
       "regression_suites": [],
       "verification": "maintainer source fix included; no dedicated suite executed for this advisory"
     },
@@ -68,7 +68,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/weightmatrix.cpp",
-      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "source_sha256": "c5c3c68e6e34578bdbf147efd1049397238f6e9edc898470adceb1df0feb6626",
       "regression_suites": [
         "weightmatrix_intdim_test"
       ],
@@ -83,7 +83,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/classify/adaptive.cpp",
-      "source_sha256": "3aa35c0e891410d28ceceb56976fe77b36e11684ee32b586e56bf409d6fab86f",
+      "source_sha256": "feb5516b05fc0d969026e10d2802a03d088cc06e3f51e00e2286e5a213a3b7c0",
       "regression_suites": [
         "adaptive_test"
       ],
@@ -98,7 +98,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/weightmatrix.cpp",
-      "source_sha256": "f7e2469028ffaeb33d28dfee09fad2f136b25795133ea200072394ac8730dfd6",
+      "source_sha256": "c5c3c68e6e34578bdbf147efd1049397238f6e9edc898470adceb1df0feb6626",
       "regression_suites": [
         "weightmatrix_scales_test"
       ],
@@ -113,7 +113,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/lstmrecognizer.cpp",
-      "source_sha256": "86c2d5e01dd38ff9b5606c72e3e779a73ea60f12743373a7da045e646512b1d0",
+      "source_sha256": "f794dbfa159f4cce9ef7a268e8a866b76e69724e1350cb70718e9faa3329c724",
       "regression_suites": [
         "lstm_recoder_test"
       ],
@@ -128,7 +128,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/classify/intproto.cpp",
-      "source_sha256": "2affdad6ff6620f6fbec604aa5944b75a29464610b981a07027f5f58c247ce9d",
+      "source_sha256": "f930ace55701db7caa6ef20b2aa16b65801add121b4bdb4cc2a05345563b7a4a",
       "regression_suites": [
         "intproto_test",
         "intproto_addclass_test"
@@ -144,7 +144,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/lstmrecognizer.cpp",
-      "source_sha256": "86c2d5e01dd38ff9b5606c72e3e779a73ea60f12743373a7da045e646512b1d0",
+      "source_sha256": "f794dbfa159f4cce9ef7a268e8a866b76e69724e1350cb70718e9faa3329c724",
       "regression_suites": [
         "lstm_nullchar_test"
       ],
@@ -174,7 +174,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/plumbing.cpp",
-      "source_sha256": "5af5550e0b6f6901a93dabe214156dc60893b8ad8f5fab7059738fa89c688e2a",
+      "source_sha256": "3131a3db946fee7e0aa26ede784b2ecfbf62b6230a295a84f935307ec9455558",
       "regression_suites": [
         "plumbing_test"
       ],
@@ -189,7 +189,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/fullyconnected.cpp",
-      "source_sha256": "d96e4d431787c7d4118f142facd4979952f02fdafa4b3cd3c939590d85bd9597",
+      "source_sha256": "934166a321726e91d4325b7f1c544022d6e7e29a03a3c305e5035c4b003d5438",
       "regression_suites": [
         "fullyconnected_test"
       ],
@@ -204,7 +204,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/lstm/lstm.cpp",
-      "source_sha256": "5a4ef05d95b2c3cf4efad0f518dfe32c04140490c85a755649f1839134546e91",
+      "source_sha256": "22264e24eee21e8f530856a241fd942b32d70704fc8e09329e3ab917c983ab4a",
       "regression_suites": [
         "lstm_layer_test"
       ],
@@ -249,7 +249,7 @@
         "main branch, 5.5.4 (planned)"
       ],
       "source_file": "src/classify/intproto.cpp",
-      "source_sha256": "2affdad6ff6620f6fbec604aa5944b75a29464610b981a07027f5f58c247ce9d",
+      "source_sha256": "f930ace55701db7caa6ef20b2aa16b65801add121b4bdb4cc2a05345563b7a4a",
       "regression_suites": [
         "intproto_test"
       ],
@@ -277,7 +277,7 @@
         "5.5.3"
       ],
       "source_file": "src/dict/dawg.cpp",
-      "source_sha256": "c567d932f6095d6f030afe2f5212b08f8ac964a79ec37266ee79c92e2f86a2cb",
+      "source_sha256": "25ab8d20d03fe0e53a0b8408899333c386ad6f382edc1d75d6eaff4b4b0a2938",
       "regression_suites": [],
       "verification": "maintainer source fix included; no dedicated suite executed for this advisory"
     },
@@ -305,11 +305,130 @@
         "5.5.4"
       ],
       "source_file": "src/ccstruct/pageres.cpp",
-      "source_sha256": "198e7cca53eba9f7b99e298fe8d12f66405b562075d689cd1547242b2619558c",
+      "source_sha256": "5ca7f9a0a048964de7ccbad01bc93cfb75cf5461f7bb3ef88729a373fcd1717d",
       "regression_suites": [
         "pageres_test"
       ],
       "verification": "upstream fix a95faa0078; both shared-input and shared-combination regressions required during build"
+    },
+    {
+      "ghsa_id": "GHSA-9jw8-h38w-2m69",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-9jw8-h38w-2m69",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccstruct/blread.cpp",
+      "source_sha256": "542ef9058f44c8e7dd8ff8f1c91a3d370a3368e37cefcea1155c5f20f140f768",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-75cw-g97f-pg6w",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-75cw-g97f-pg6w",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccmain/thresholder.cpp",
+      "source_sha256": "609189d619328a8dbfc5ca087df740a9b1a9a5f600af5f3f2b031b55e8c4960c",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-xwwv-9h8h-xx8h",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-xwwv-9h8h-xx8h",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccmain/thresholder.cpp",
+      "source_sha256": "609189d619328a8dbfc5ca087df740a9b1a9a5f600af5f3f2b031b55e8c4960c",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-5vh6-g6xj-pchc",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-5vh6-g6xj-pchc",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccmain/control.cpp",
+      "source_sha256": "4ddbb5ec25d55543cea7405c8ac1e63d45bbbeafa0e74f9bb5aea3045e89296a",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-f478-8362-67wj",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-f478-8362-67wj",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccmain/reject.cpp",
+      "source_sha256": "764ca29d65b2c8970cb57a9f3ed473d1cbb47b74f8b3f6dd21227350138b6e02",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-7wf8-58wx-cg2r",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-7wf8-58wx-cg2r",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/textord/tabvector.cpp",
+      "source_sha256": "4b4495ea57d410bb1a292d7aefd21bb3d8f702e6d2a5a65de4d8dfa4822bec5b",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-2h39-p3c8-3vp6",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-2h39-p3c8-3vp6",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccstruct/points.h",
+      "source_sha256": "c92702ade191cd6a2f1ac89544d5748b0a9cee4139a17ba027b7b06a4dea7e93",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-fhxm-qh9p-wc39",
+      "cve_id": null,
+      "severity": "high",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-fhxm-qh9p-wc39",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/textord/topitch.cpp",
+      "source_sha256": "d8d032052f4c5b36332ac488d14c7e578f6abee271f9f1fa5a3a0ffe67e12ffd",
+      "regression_suites": [],
+      "verification": "5.5.5 fix included; no dedicated upstream suite exists for this advisory"
+    },
+    {
+      "ghsa_id": "GHSA-fxpc-5x59-r9px",
+      "cve_id": null,
+      "severity": "medium",
+      "url": "https://github.com/tesseract-ocr/tesseract/security/advisories/GHSA-fxpc-5x59-r9px",
+      "upstream_patched_versions": [
+        "5.5.5"
+      ],
+      "source_file": "src/ccutil/serialis.h",
+      "source_sha256": "da4e116e7926156210ad782d2e1b5febbae0df3702eb22958e97a6ba85291854",
+      "regression_suites": [
+        "tfile_test"
+      ],
+      "verification": "5.5.5 fix included; unbacked-count rejections required during build"
     }
   ],
   "scanner_limitations": "OS package scanning does not discover source-built Tesseract. This inventory retains its real version, source hashes, upstream advisory mapping and build regression results; an empty image scan alone is not proof of OCR remediation."
