@@ -65,6 +65,12 @@ export const test = base.extend<GuardFixtures>({
             await route.fulfill({ json: [] });
             return;
           }
+          // The product form discovers preparation stations (Barra, Cocina). Queue
+          // scenarios override this route; others keep a business without stations.
+          if (request.method() === "GET" && pathname === "/api/v1/prep-stations") {
+            await route.fulfill({ json: [] });
+            return;
+          }
           // Register/settings discover an optional drawer. Hardware scenarios
           // override this exact route; other stories exercise the disabled default.
           if (request.method() === "GET" && pathname === "/api/v1/hardware/drawer") {

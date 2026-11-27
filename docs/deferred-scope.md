@@ -28,8 +28,10 @@ publica precios ni migra suscripciones. Siguen fuera:
 
 ## Operación especializada
 
-- KDS, mesas/plano del local, comandas y estaciones de cocina. Pedidos sirve a comida, retail y
-  encargos sin convertirse en sistema de restaurante ([ADR-014](adr/ADR-014-customer-orders-domain.md)).
+- Mesas/plano del local, cuentas abiertas e impresión de comandas. La cola de preparación por
+  estación salió de esta lista por decisión del dueño (27-nov-2026,
+  [ADR-045](adr/ADR-045-cola-de-preparacion.md)); Pedidos sigue sin convertirse en sistema de
+  restaurante ([ADR-014](adr/ADR-014-customer-orders-domain.md)).
 - Repartidores, mapas y tarifas de entrega. Insumos, recetas y producción salieron de esta
   lista por decisión del dueño (26-nov-2026, [ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md));
   su avance está en [backlog-competitivo.md](backlog-competitivo.md).

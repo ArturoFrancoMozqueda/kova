@@ -89,8 +89,8 @@ test("categories open without navigation, persist and expand the compact rail wi
   await page.route("**/api/v1/purchasing/orders?*", route => route.fulfill({ json: [] }));
   await page.goto("/dashboard");
   const nav = page.locator("aside nav");
-  await expect(nav.getByRole("link")).toHaveCount(3);
-  for (const name of ["Caja", "Ventas", "Panel"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+  await expect(nav.getByRole("link")).toHaveCount(4);
+  for (const name of ["Caja", "Ventas", "Preparación", "Panel"]) await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
   const group = nav.getByRole("button", { name: "Productos y operación", exact: true });
   await expect(group).toHaveAttribute("aria-expanded", "false");
   await expect(nav.getByRole("link", { name: "Catálogo", exact: true })).toHaveCount(0);

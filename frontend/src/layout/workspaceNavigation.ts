@@ -6,7 +6,7 @@ export const workspaceGroupLabels: Record<WorkspaceGroupId, string> = {
   analysis: "Análisis y finanzas",
   settings: "Configuración",
 };
-export const primaryNavigationPaths = ["/register", "/pedidos", "/orders", "/dashboard"] as const;
+export const primaryNavigationPaths = ["/register", "/pedidos", "/orders", "/preparacion", "/dashboard"] as const;
 
 /** Already filtered by AppShell's role, feature, capability and session gates. */
 export type WorkspaceNavigationContext = {

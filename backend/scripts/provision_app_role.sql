@@ -222,6 +222,9 @@ BEGIN
             ('production_batches', 'SELECT, INSERT'),
             ('customer_order_deposits', 'SELECT, INSERT'),
             ('customer_order_settings', 'SELECT, INSERT'),
+            ('prep_stations', 'SELECT, INSERT'),
+            ('prep_daily_numbers', 'SELECT, INSERT'),
+            ('prep_tickets', 'SELECT, INSERT'),
             ('modifier_option_consumptions', 'SELECT, INSERT, DELETE'),
             ('refunds', 'SELECT, INSERT'),
             ('telemetry_events', 'INSERT'),
@@ -336,6 +339,13 @@ DO $$ BEGIN
     IF to_regclass('public.purchase_orders') IS NOT NULL THEN
         GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
         GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;
+    END IF;
+    IF to_regclass('public.prep_tickets') IS NOT NULL THEN
+        GRANT UPDATE (name, alert_minutes, position, is_active, updated_at) ON TABLE prep_stations
+            TO kova_app;
+        GRANT UPDATE (last_number) ON TABLE prep_daily_numbers TO kova_app;
+        GRANT UPDATE (status, version, preparing_at, ready_at, delivered_at, updated_by_user_id,
+            updated_at) ON TABLE prep_tickets TO kova_app;
     END IF;
     IF to_regclass('public.customer_order_settings') IS NOT NULL THEN
         GRANT UPDATE (deposit_minimum_percent, cancelled_deposit_policy, updated_by_user_id,

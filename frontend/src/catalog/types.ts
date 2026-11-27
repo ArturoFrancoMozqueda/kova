@@ -51,6 +51,8 @@ export type Product = {
   stock_unit?: StockUnit;
   purchase_unit_label?: string | null;
   purchase_unit_quantity?: number | null;
+  /** Station that prepares it after a counter sale; absent in older cached rows. */
+  prep_station_id?: string | null;
   low_stock_threshold: number | null;
   image_url: string | null;
   image_position_x: number;
@@ -90,6 +92,7 @@ export type ProductCreate = {
   stock_unit?: StockUnit;
   purchase_unit_label?: string | null;
   purchase_unit_quantity?: number | null;
+  prep_station_id?: string | null;
   low_stock_threshold?: number | null;
   image_position_x?: number;
   image_position_y?: number;
@@ -113,6 +116,7 @@ export type ProductUpdate = {
   stock_unit?: StockUnit;
   purchase_unit_label?: string | null;
   purchase_unit_quantity?: number | null;
+  prep_station_id?: string | null;
   low_stock_threshold?: number | null;
   image_position_x?: number;
   image_position_y?: number;

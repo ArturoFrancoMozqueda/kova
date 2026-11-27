@@ -23,6 +23,7 @@ from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
 from app.orders.models import Order, OrderItem, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
+from app.prep_queue import service as prep_service
 from app.pricing import calculator
 from app.rbac.permissions import Permission, has_permission
 from app.recipes import service as recipes_service
@@ -699,6 +700,14 @@ def create_order(
             for line, order_item in zip(priced_items, order_items, strict=True)
         ],
     )
+    # Products with a station go to the preparation queue (none: nothing happens).
+    prep_service.queue_sale(
+        db,
+        tenant_id=tenant_id,
+        order=order,
+        products=[line.product for line in priced_items],
+        synced_offline=client_uuid is not None,
+    )
 
     payments = [
         repo.create_payment(
@@ -810,6 +819,8 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
         "loyalty_reward": order_reward(db, tenant_id, order.id),
         "order_id": str(order.id),
         "receipt_number": str(order.id).replace("-", "")[-8:].upper(),
+        # Short daily number to call the customer when the order is ready.
+        "prep_number": prep_service.number_for_sale(db, tenant_id=tenant_id, order_id=order.id),
         "tenant_name": tenant.name if tenant else "",
         "paper_width_mm": receipt_settings.paper_width_mm if receipt_settings else 80,
         # Ring-time so the receipt shows when the sale happened, not when an
@@ -1310,6 +1321,7 @@ def create_void(
 
     order.status = "voided"
     db.add(order)
+    prep_service.cancel_for_sale(db, tenant_id=tenant_id, order_id=order.id)
 
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
     for item in items:

@@ -38,6 +38,7 @@ import app.modifiers.models  # noqa: F401
 import app.onboarding.models  # noqa: F401
 import app.ops.models  # noqa: F401
 import app.orders.models  # noqa: F401
+import app.prep_queue.models  # noqa: F401
 import app.purchasing.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.recipes.models  # noqa: F401
@@ -151,6 +152,7 @@ def _provision_kova_app() -> None:
             "SELECT, INSERT": (
                 "refund_payments recipes recipe_lines production_batches "
                 "customer_order_deposits customer_order_settings "
+                "prep_stations prep_daily_numbers prep_tickets "
                 "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "
@@ -223,6 +225,15 @@ def _provision_kova_app() -> None:
         conn.execute(text(
             "GRANT UPDATE (deposit_minimum_percent, cancelled_deposit_policy, updated_by_user_id, "
             "updated_at) ON customer_order_settings TO kova_app"
+        ))
+        conn.execute(text(
+            "GRANT UPDATE (name, alert_minutes, position, is_active, updated_at) "
+            "ON prep_stations TO kova_app"
+        ))
+        conn.execute(text("GRANT UPDATE (last_number) ON prep_daily_numbers TO kova_app"))
+        conn.execute(text(
+            "GRANT UPDATE (status, version, preparing_at, ready_at, delivered_at, "
+            "updated_by_user_id, updated_at) ON prep_tickets TO kova_app"
         ))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
         conn.execute(text(

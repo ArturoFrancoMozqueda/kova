@@ -284,7 +284,7 @@ _EXPORT_TABLES = (
         _columns(
             "id tenant_id category_id name description sku barcode price_amount cost_price "
             "track_inventory is_sellable stock_unit purchase_unit_label purchase_unit_quantity "
-            "track_lots rotation_label rotation_days expiry_days "
+            "prep_station_id track_lots rotation_label rotation_days expiry_days "
             "low_stock_threshold is_active image_url image_position_x "
             "image_position_y image_zoom created_at updated_at"
         ),
@@ -425,6 +425,21 @@ _EXPORT_TABLES = (
             "id tenant_id customer_order_id product_id product_name quantity unit_price_amount "
             "line_total_amount note"
         ),
+    ),
+    ExportTable(
+        "prep_stations",
+        _columns("id tenant_id name alert_minutes position is_active created_at updated_at"),
+    ),
+    ExportTable(
+        "prep_tickets",
+        _columns(
+            "id tenant_id branch_id order_id station_id number local_date status version "
+            "received_at preparing_at ready_at delivered_at updated_by_user_id updated_at"
+        ),
+    ),
+    ExportTable(
+        "prep_daily_numbers",
+        _columns("tenant_id branch_id local_date last_number"),
     ),
     ExportTable(
         "customer_order_deposits",
@@ -724,6 +739,8 @@ _TENANT_DELETE_ORDER = (
     "inventory_movements",
     "production_batches",
     "order_items",
+    "prep_tickets",
+    "prep_daily_numbers",
     "customer_order_deposits",
     "customer_order_settings",
     "customer_order_item_modifiers",
@@ -740,6 +757,7 @@ _TENANT_DELETE_ORDER = (
     "modifier_options",
     "modifier_groups",
     "products",
+    "prep_stations",
     "categories",
     "cash_movements",
     "shifts",

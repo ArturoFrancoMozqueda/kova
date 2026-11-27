@@ -39,6 +39,8 @@ export type ReceiptTemplateRefund = {
 type ReceiptTemplateProps = {
   businessName: string;
   receiptNumber?: string;
+  /** Daily preparation number (#12) the customer hears when the order is ready. */
+  prepNumber?: number | null;
   createdAt: string | Date;
   logoUrl?: string;
   taxContactText?: string;
@@ -76,6 +78,7 @@ function band(index: number) {
 export function ReceiptTemplate({
   businessName,
   receiptNumber,
+  prepNumber,
   createdAt,
   logoUrl,
   taxContactText,
@@ -128,6 +131,7 @@ export function ReceiptTemplate({
           <p className="whitespace-pre-line text-[10px] tkt-caption">{taxContactText}</p>
         ) : null}
         {receiptNumber ? <p className="text-[10px] tkt-caption">{receiptNumber}</p> : null}
+        {prepNumber ? <p className="mt-1 text-lg font-bold">Orden #{prepNumber}</p> : null}
         {pendingSync ? (
           <p className="rounded-sm border border-current px-2 py-1 text-[9px] font-semibold uppercase tracking-wide">
             {copy.register.pendingSync}

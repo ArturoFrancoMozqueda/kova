@@ -66,6 +66,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
+import { listPrepStations, type PrepStation } from "@/prep/api";
 import { useToast } from "@/components/ui/toast";
 import {
   Plus,
@@ -1482,6 +1483,7 @@ type ProductFormValues = {
   stock_unit: StockUnit;
   purchase_unit_label: string | null;
   purchase_unit_quantity: number | null;
+  prep_station_id?: string | null;
   low_stock_threshold: number | null;
   modifier_group_ids: string[];
   image_file: File | null;
@@ -1555,6 +1557,13 @@ export function ProductForm({
     initial?.modifier_groups?.map((g) => g.id) ?? [],
   );
   const [sellable, setSellable] = useState(initial ? isSellable(initial) : true);
+  const [prepStationId, setPrepStationId] = useState(initial?.prep_station_id ?? "");
+  const [prepStations, setPrepStations] = useState<PrepStation[] | null>(null);
+  useEffect(() => {
+    let current = true;
+    listPrepStations().then((rows) => { if (current) setPrepStations(rows); }).catch(() => { if (current) setPrepStations(null); });
+    return () => { current = false; };
+  }, []);
   const [stockUnit, setStockUnit] = useState<StockUnit>(stockUnitOf(initial));
   const [purchaseLabel, setPurchaseLabel] = useState(initial?.purchase_unit_label ?? "");
   const [purchaseQuantity, setPurchaseQuantity] = useState(
@@ -1662,6 +1671,8 @@ export function ProductForm({
       stock_unit: stockUnit,
       purchase_unit_label: purchaseUnit,
       purchase_unit_quantity: purchaseUnit ? purchaseUnitsValue : null,
+      // Only when stations exist: otherwise the product keeps what it had.
+      ...(prepStations?.length ? { prep_station_id: sellable && prepStationId ? prepStationId : null } : {}),
       track_lots: trackLots && trackInventory,
       rotation_label: rotationLabel,
       rotation_days: rotationDays ? Number(rotationDays) : null,
@@ -1763,6 +1774,17 @@ export function ProductForm({
             ))}
           </Select>
         </div>
+        {sellable && prepStations?.length ? (
+          <div className="space-y-2">
+            <Label htmlFor="prod-prep-station">Estación de preparación</Label>
+            <Select id="prod-prep-station" value={prepStationId} onChange={(e) => setPrepStationId(e.target.value)} aria-describedby="prod-prep-station-hint">
+              <option value="">No se prepara</option>
+              {prepStations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}
+              {prepStationId && !prepStations.some((station) => station.id === prepStationId) ? <option value={prepStationId} disabled>Estación desactivada</option> : null}
+            </Select>
+            <p id="prod-prep-station-hint" className="text-xs text-muted-foreground">Al cobrarlo en Caja aparece en Preparación con el número del día.</p>
+          </div>
+        ) : null}
         </div>
       </FormSection>
       <FormSection title={copy.catalog.productSectionUnits} hint={copy.catalog.productSectionUnitsHint} icon={Scale}>

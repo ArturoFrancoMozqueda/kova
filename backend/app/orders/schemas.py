@@ -153,6 +153,8 @@ class ReceiptResponse(BaseModel):
     tax_amount: Decimal = Decimal("0.00")
     order_id: UUID
     receipt_number: str
+    # Daily number for the preparation queue, when the sale has products to prepare.
+    prep_number: int | None = None
     tenant_name: str
     paper_width_mm: Literal[58, 80] = 80
     created_at: datetime

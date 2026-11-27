@@ -80,6 +80,8 @@ class ProductCreate(StrictModel):
     stock_unit: StockUnit = "pza"
     purchase_unit_label: str | None = Field(default=None, min_length=1, max_length=40)
     purchase_unit_quantity: int | None = Field(default=None, ge=1, le=1_000_000)
+    # Station that prepares it after a counter sale (Barra, Cocina); none = not queued.
+    prep_station_id: UUID | None = None
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int = Field(default=50, ge=0, le=100)
     image_position_y: int = Field(default=50, ge=0, le=100)
@@ -137,6 +139,7 @@ class ProductUpdate(StrictModel):
     )
     purchase_unit_label: str | None = Field(default=None, min_length=1, max_length=40)
     purchase_unit_quantity: int | None = Field(default=None, ge=1, le=1_000_000)
+    prep_station_id: UUID | None = None
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int | None = Field(
         default=None, ge=0, le=100, json_schema_extra=non_nullable_patch_schema
@@ -196,6 +199,7 @@ class ProductResponse(BaseModel):
     stock_unit: StockUnit = "pza"
     purchase_unit_label: str | None = None
     purchase_unit_quantity: int | None = None
+    prep_station_id: UUID | None = None
     low_stock_threshold: int | None
     image_url: str | None = None
     image_position_x: int = 50
