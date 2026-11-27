@@ -38,6 +38,7 @@ _RUNTIME_TABLE_PRIVILEGES = {
     # Recipe versions are append-only; option adjustments are replaced as a set.
     "recipes": {"SELECT", "INSERT"},
     "recipe_lines": {"SELECT", "INSERT"},
+    "production_batches": {"SELECT", "INSERT"},
     "modifier_option_consumptions": {"SELECT", "INSERT", "DELETE"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},

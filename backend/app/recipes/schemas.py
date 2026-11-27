@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -74,3 +75,45 @@ class OptionConsumptionResponse(BaseModel):
     modifier_option_id: UUID
     lines: list[CostedLine]
     cost_delta: Decimal | None
+
+
+class BatchRecipeWrite(RecipeWrite):
+    # Pieces one batch of the recipe yields (a tray of 24 conchas).
+    batch_yield: int = Field(gt=0, le=MAX_QUANTITY)
+
+
+class BatchRecipeResponse(RecipeResponse):
+    batch_yield: int | None
+    # Ingredient cost per expected piece; None when incomplete or no recipe.
+    cost_per_piece: Decimal | None
+
+
+WasteReason = Literal["merma", "caducidad", "robo", "daño", "autoconsumo", "otro"]
+
+
+class ProductionCreate(StrictModel):
+    product_id: UUID
+    batches: int = Field(gt=0, le=1000)
+    actual_quantity: int = Field(ge=0, le=10_000_000)
+    # Required when fewer pieces than expected came out of the oven.
+    waste_reason_code: WasteReason | None = None
+    notes: str | None = Field(default=None, max_length=255)
+    update_catalog_cost: bool = True
+
+
+class ProductionResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    product_name: str
+    recipe_version: int
+    batches: int
+    expected_quantity: int
+    actual_quantity: int
+    shortfall: int
+    waste_reason_code: WasteReason | None
+    ingredient_cost: Decimal | None
+    unit_cost: Decimal | None
+    catalog_cost_updated: bool
+    notes: str | None
+    created_at: datetime
+    consumed: list[CostedLine]

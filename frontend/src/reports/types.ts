@@ -176,6 +176,14 @@ export type BusinessStoryReport = {
       units_without_cost: number;
       complete: boolean;
     } | null;
+    /** Pieces a production batch was expected to yield but did not. */
+    production_shortfall?: {
+      units: number;
+      value: string | null;
+      known_value: string;
+      units_without_cost: number;
+      complete: boolean;
+    } | null;
   };
   operating_expenses?: {
     total: string;

@@ -1,7 +1,7 @@
 # Recetas al vender
 
-Estado: implementado localmente (E3 del [backlog competitivo](../../docs/backlog-competitivo.md));
-publicación no acreditada. Decisión: [ADR-041](../../docs/adr/ADR-041-recetas-versionadas-al-vender.md).
+Estado: publicado el 26-nov-2026 (#395, release 45937609716; E3 del
+[backlog competitivo](../../docs/backlog-competitivo.md)). Decisión: [ADR-041](../../docs/adr/ADR-041-recetas-versionadas-al-vender.md).
 
 ## Problema, usuarios y valor
 

@@ -6,19 +6,23 @@ was current at the counter and historical costs never change.
 """
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.branches.scope import BranchScoped
 from app.orm_metadata import Base
 
 
@@ -39,6 +43,11 @@ class Recipe(Base):
         CheckConstraint("version > 0", name="ck_recipes_version"),
         CheckConstraint("mode IN ('on_sale', 'batch')", name="ck_recipes_mode"),
         Index("ix_recipes_product_effective", "tenant_id", "product_id", "effective_from"),
+        CheckConstraint(
+            "(mode = 'on_sale' AND batch_yield IS NULL) OR "
+            "(mode = 'batch' AND batch_yield IS NOT NULL AND batch_yield > 0)",
+            name="ck_recipes_batch_yield",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -48,6 +57,8 @@ class Recipe(Base):
     # on_sale: consumed when the product is sold. batch is reserved for production.
     mode: Mapped[str] = mapped_column(String(10), nullable=False, default="on_sale")
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Pieces one batch of this recipe is expected to yield (batch mode only).
+    batch_yield: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -102,3 +113,53 @@ class ModifierOptionConsumption(Base):
     ingredient_product_id: Mapped[UUID] = mapped_column(nullable=False)
     # Signed: "leche de almendra" = -240 ml leche entera, +240 ml leche de almendra.
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class ProductionBatch(BranchScoped, Base):
+    """One recorded production run: ingredients out once, finished pieces in."""
+
+    __tablename__ = "production_batches"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"],
+            name="fk_production_batches_branch",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"], ["products.tenant_id", "products.id"],
+            name="fk_production_batches_product",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "recipe_id"], ["recipes.tenant_id", "recipes.id"],
+            name="fk_production_batches_recipe",
+        ),
+        UniqueConstraint("tenant_id", "branch_id", "id",
+                         name="uq_production_batches_tenant_branch_id"),
+        CheckConstraint("batches > 0", name="ck_production_batches_batches"),
+        CheckConstraint("expected_quantity > 0", name="ck_production_batches_expected"),
+        CheckConstraint("actual_quantity >= 0", name="ck_production_batches_actual"),
+        CheckConstraint(
+            "waste_reason_code IS NULL OR waste_reason_code IN "
+            "('merma', 'caducidad', 'robo', 'daño', 'autoconsumo', 'otro')",
+            name="ck_production_batches_reason",
+        ),
+        CheckConstraint("ingredient_cost IS NULL OR ingredient_cost >= 0",
+                        name="ck_production_batches_cost"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    recipe_id: Mapped[UUID] = mapped_column(nullable=False)
+    batches: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    actual_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    waste_reason_code: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # None when any ingredient had no known cost; never presented as $0.
+    ingredient_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    catalog_cost_updated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    notes: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

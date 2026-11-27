@@ -41,6 +41,9 @@ real por partida ([contrato](../specs/recipes/recipes_on_sale.md),
 frontend sirven `7bd6bfdf`. Falta su uso en un negocio real. El mismo PR cambió el parser aislado
 a libxml2 oficial de Alpine 2.13.9-r5 con aprobación del dueño
 ([ADR-042](adr/ADR-042-libxml2-oficial-de-alpine-en-el-parser.md)).
+Cuarta entrega (P1): producción por lote con rendimiento, merma de horno, costo por pieza y venta sin
+doble descuento de insumos ([contrato](../specs/recipes/batch_production.md),
+[ADR-043](adr/ADR-043-produccion-por-lote.md)). Implementada y probada localmente; sin publicar.
 
 ## En producción
 

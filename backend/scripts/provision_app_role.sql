@@ -219,6 +219,7 @@ BEGIN
             ('refund_payments', 'SELECT, INSERT'),
             ('recipes', 'SELECT, INSERT'),
             ('recipe_lines', 'SELECT, INSERT'),
+            ('production_batches', 'SELECT, INSERT'),
             ('modifier_option_consumptions', 'SELECT, INSERT, DELETE'),
             ('refunds', 'SELECT, INSERT'),
             ('telemetry_events', 'INSERT'),

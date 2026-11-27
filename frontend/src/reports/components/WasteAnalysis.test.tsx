@@ -85,3 +85,20 @@ it("shows refunds kept out of stock even without typed waste", () => {
   expect(block).toHaveTextContent("$8.00 con costo conocido");
   expect(block).not.toHaveTextContent("$0.00");
 });
+
+it("shows production pieces that did not come out", () => {
+  render(
+    <WasteAnalysis
+      story={makeStory({
+        waste: {
+          units: 0, movement_count: 0, value: "0.00", known_value: "0.00", products_without_cost: 0,
+          complete: true, by_reason: [],
+          production_shortfall: { units: 3, value: "4.50", known_value: "4.50", units_without_cost: 0, complete: true },
+        },
+      })}
+    />,
+  );
+  const block = screen.getByTestId("waste-production-shortfall");
+  expect(block).toHaveTextContent("Piezas que no salieron en producción");
+  expect(block).toHaveTextContent("$4.50");
+});

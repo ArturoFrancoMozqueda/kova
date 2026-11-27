@@ -54,3 +54,48 @@ export const getOptionConsumption = (optionId: string) =>
 
 export const saveOptionConsumption = (optionId: string, lines: IngredientLine[], key: string) =>
   request<OptionConsumption>(`/api/v1/catalog/modifier-options/${optionId}/consumption`, "PUT", { lines }, key);
+
+export type BatchRecipe = Recipe & {
+  batch_yield: number | null;
+  /** Ingredient cost per expected piece; null when incomplete or there is no recipe. */
+  cost_per_piece: string | null;
+};
+
+export const getBatchRecipe = (productId: string) =>
+  request<BatchRecipe>(`/api/v1/catalog/products/${productId}/batch-recipe`);
+
+export const saveBatchRecipe = (productId: string, batchYield: number, lines: IngredientLine[], key: string) =>
+  request<BatchRecipe>(`/api/v1/catalog/products/${productId}/batch-recipe`, "PUT", { batch_yield: batchYield, lines }, key);
+
+export type WasteReason = "merma" | "caducidad" | "robo" | "daño" | "autoconsumo" | "otro";
+
+export type ProductionInput = {
+  product_id: string;
+  batches: number;
+  actual_quantity: number;
+  waste_reason_code?: WasteReason;
+  notes?: string;
+  update_catalog_cost: boolean;
+};
+
+export type ProductionBatch = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  recipe_version: number;
+  batches: number;
+  expected_quantity: number;
+  actual_quantity: number;
+  shortfall: number;
+  waste_reason_code: WasteReason | null;
+  ingredient_cost: string | null;
+  unit_cost: string | null;
+  catalog_cost_updated: boolean;
+  notes: string | null;
+  created_at: string;
+  consumed: CostedLine[];
+};
+
+/** The key is kept by the caller so a retry after a lost response records one batch. */
+export const recordProduction = (body: ProductionInput, key: string) =>
+  request<ProductionBatch>("/api/v1/inventory/production", "POST", body, key);

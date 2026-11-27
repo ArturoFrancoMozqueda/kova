@@ -45,7 +45,7 @@ import { STOCK_UNITS, formatStockQuantity, isSellable, stockUnitLabels, stockUni
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { IngredientLinesDialog } from "@/recipes/IngredientLinesDialog";
-import { getOptionConsumption, getRecipe, saveOptionConsumption, saveRecipe } from "@/recipes/api";
+import { getBatchRecipe, getOptionConsumption, getRecipe, saveBatchRecipe, saveOptionConsumption, saveRecipe } from "@/recipes/api";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { ProductThumbnail } from "./ProductThumbnail";
@@ -90,6 +90,7 @@ import {
   type LucideIcon,
   Scale,
   ChefHat,
+  CookingPot,
 } from "lucide-react";
 import { SectionHeadingIcon } from "@/components/ui/section-heading-icon";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
@@ -147,6 +148,7 @@ export default function CatalogView() {
   const [presetApplying, setPresetApplying] = useState(false);
   const [storyProduct, setStoryProduct] = useState<Product | null>(null);
   const [recipeProduct, setRecipeProduct] = useState<Product | null>(null);
+  const [batchRecipeProduct, setBatchRecipeProduct] = useState<Product | null>(null);
   const [consumptionOption, setConsumptionOption] = useState<{ id: string; name: string } | null>(null);
   const [productSearch, setProductSearch] = useState(() => searchParams.get("search") ?? "");
   const [productSort, setProductSort] = useState<ProductSort>("name_asc");
@@ -725,6 +727,20 @@ export default function CatalogView() {
                             <ChefHat className="h-4 w-4" />
                           </Button>
                         )}
+                        {canUpdate && product.track_inventory && !product.track_lots && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11 lg:h-8 lg:w-8"
+                            aria-label={copy.production.batchRecipeAction(product.name)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBatchRecipeProduct(product);
+                            }}
+                          >
+                            <CookingPot className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canUpdate && (
                           <Button
                             variant="ghost"
@@ -835,6 +851,18 @@ export default function CatalogView() {
           load={() => getRecipe(recipeProduct.id)}
           save={(lines, key) => saveRecipe(recipeProduct.id, lines, key)}
           onClose={() => setRecipeProduct(null)}
+          onSaved={(message) => showNotice(message)}
+        />
+      )}
+      {batchRecipeProduct && loadState.status === "ready" && (
+        <IngredientLinesDialog
+          withYield
+          title={copy.production.batchRecipeTitle(batchRecipeProduct.name)}
+          description={copy.production.batchRecipeDescription}
+          ingredients={ingredientCandidates(loadState.products, batchRecipeProduct.id)}
+          load={() => getBatchRecipe(batchRecipeProduct.id).then((data) => ({ ...data, batchYield: data.batch_yield, costPerPiece: data.cost_per_piece }))}
+          save={(lines, key, batchYield) => saveBatchRecipe(batchRecipeProduct.id, batchYield ?? 0, lines, key).then((data) => ({ ...data, batchYield: data.batch_yield, costPerPiece: data.cost_per_piece }))}
+          onClose={() => setBatchRecipeProduct(null)}
           onSaved={(message) => showNotice(message)}
         />
       )}

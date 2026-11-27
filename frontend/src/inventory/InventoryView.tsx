@@ -1,4 +1,6 @@
 import { commercialPlanIdentity, hasPlanFeature } from "@/billing/entitlements";
+import { ProductionDialog } from "@/recipes/ProductionDialog";
+import { formatMoney } from "@/orders/format";
 import { formatStockQuantity, stockUnitOf } from "@/catalog/units";
 import { LotAllocationEditor, LotsPanel } from "./LotControls";
 import { allocationValid, listLots, type Lot, type LotAllocation } from "./lots";
@@ -26,7 +28,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
-import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown, CalendarClock } from "lucide-react";
+import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown, CalendarClock, CookingPot } from "lucide-react";
 import { inventoryVelocityAttention, isActionableInventoryVelocity } from "./attention";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ActionDisclosure } from "@/components/ui/action-disclosure";
@@ -96,6 +98,7 @@ export default function InventoryView() {
     ? { status: "loading" } : storedLoadState, [storedLoadState, dataIdentity]);
   const requestId = useRef(0);
   const [modal, setModal] = useState<ModalState>(null);
+  const [produceItem, setProduceItem] = useState<StockItem | null>(null);
   const [pending, setPending] = useState(false);
   const submissionPending = useRef(false);
   // Retain the last ambiguous write across modal closes; a changed operation,
@@ -506,11 +509,25 @@ export default function InventoryView() {
                   imagePending={loadState.productsPending}
                   canAdjust={canAdjust}
                   onModal={setModal}
+                  onProduce={setProduceItem}
                 />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {produceItem && (
+        <ProductionDialog
+          productId={produceItem.product_id}
+          productName={produceItem.product_name}
+          onClose={() => setProduceItem(null)}
+          onRecorded={(batch) => {
+            setProduceItem(null);
+            toast(copy.production.recorded(batch.actual_quantity, batch.unit_cost ? formatMoney(batch.unit_cost) : null), "success");
+            void load();
+          }}
+        />
       )}
 
       {modal && (
@@ -533,6 +550,7 @@ function movementTypeLabel(type: string): string {
     transfer_in: copy.inventoryView.movementTypeTransferIn,
     transfer_out: copy.inventoryView.movementTypeTransferOut,
     consumption: copy.inventoryView.movementTypeConsumption,
+    production: copy.inventoryView.movementTypeProduction,
   };
   return map[type] ?? copy.inventoryView.movementTypeUnknown;
 }
@@ -548,6 +566,7 @@ function StockCard({
   imagePending,
   canAdjust,
   onModal,
+  onProduce,
 }: {
   item: StockItem;
   product?: Product;
@@ -555,6 +574,7 @@ function StockCard({
   imagePending: boolean;
   canAdjust: boolean;
   onModal: (modal: ModalState) => void;
+  onProduce: (item: StockItem) => void;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<MovementHistoryItem[]>([]);
@@ -667,6 +687,7 @@ function StockCard({
             <ActionDisclosure label={copy.inventoryView.moreActions(item.product_name)} actions={[
               { label: copy.inventoryView.stockTake, icon: <ClipboardCheck />, onSelect: () => onModal({ type: "stockTake", item }) },
               { label: copy.inventoryView.setThreshold, icon: <Settings2 />, onSelect: () => onModal({ type: "threshold", item }) },
+              ...(item.track_lots ? [] : [{ label: copy.production.action, icon: <CookingPot />, onSelect: () => onProduce(item) }]),
             ]} />
           )}
         </div>
