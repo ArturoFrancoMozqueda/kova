@@ -12642,6 +12642,17 @@
             "title": "Quantity",
             "type": "integer"
           },
+          "stock_consumed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Consumed"
+          },
           "unit_price_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Unit Price Amount",
@@ -16171,6 +16182,17 @@
             "title": "Quantity",
             "type": "integer"
           },
+          "restocked_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restocked Quantity"
+          },
           "unit_price_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Unit Price Amount",
@@ -16709,6 +16731,17 @@
             "exclusiveMinimum": 0.0,
             "title": "Quantity",
             "type": "integer"
+          },
+          "restock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restock"
           }
         },
         "required": [
@@ -16738,6 +16771,17 @@
           "quantity": {
             "title": "Quantity",
             "type": "integer"
+          },
+          "restocked_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restocked Quantity"
           },
           "unit_price_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -20814,6 +20858,49 @@
         "title": "TrialItem",
         "type": "object"
       },
+      "UnrestockedRefunds": {
+        "description": "Refunded units kept out of stock, valued at their sale-time cost.",
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "known_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Known Value",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          },
+          "units_without_cost": {
+            "title": "Units Without Cost",
+            "type": "integer"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "units",
+          "value",
+          "known_value",
+          "units_without_cost",
+          "complete"
+        ],
+        "title": "UnrestockedRefunds",
+        "type": "object"
+      },
       "UserResponse": {
         "properties": {
           "email": {
@@ -21075,6 +21162,16 @@
           "products_without_cost": {
             "title": "Products Without Cost",
             "type": "integer"
+          },
+          "refunds_not_restocked": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnrestockedRefunds"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "units": {
             "title": "Units",

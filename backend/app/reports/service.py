@@ -1174,6 +1174,33 @@ def _waste_report(
         "products_without_cost": len(missing_product_ids),
         "complete": complete,
         "by_reason": by_reason,
+        "refunds_not_restocked": _unrestocked_refunds(
+            db, tenant_id=tenant_id, start=start, end=end
+        ),
+    }
+
+
+def _unrestocked_refunds(
+    db: Session, *, tenant_id: UUID, start: datetime, end: datetime
+) -> dict:
+    units = 0
+    units_without_cost = 0
+    known_value = Decimal("0.00")
+    for unrestored, _product_id, unit_cost in repository.unrestocked_refund_items_between(
+        db, tenant_id=tenant_id, start=start, end=end
+    ):
+        units += unrestored
+        if unit_cost is None:
+            units_without_cost += unrestored
+            continue
+        known_value = calculator.money(known_value + calculator.money(unit_cost * unrestored))
+    complete = units_without_cost == 0
+    return {
+        "units": units,
+        "value": known_value if complete else None,
+        "known_value": known_value,
+        "units_without_cost": units_without_cost,
+        "complete": complete,
     }
 
 

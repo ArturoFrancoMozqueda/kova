@@ -8,6 +8,8 @@ export type LoyaltyRewardSnapshot = { id: string; title: string; points_cost: nu
 
 export type OrderItem = {
   lot_tracked?: boolean;
+  /** Reads of a saved sale say whether checkout took this line out of stock. */
+  stock_consumed?: boolean | null;
   lot_allocations?: (import("@/inventory/lots").LotAllocation & { code?: string })[];
   id: string;
   product_id: string;
@@ -65,6 +67,8 @@ export type ReceiptRefundItem = {
   quantity: number;
   unit_price_amount: string;
   line_total_amount: string;
+  /** Units put back in stock; null for refunds recorded before this was kept. */
+  restocked_quantity?: number | null;
 };
 
 export type ReceiptRefund = {
@@ -118,7 +122,8 @@ export type RefundPayload = {
   reason: string;
   refund_payment_method?: "cash" | "bank_transfer" | "manual_card";
   refund_payments?: RefundPaymentAllocation[];
-  items: Array<{ order_item_id: string; quantity: number }>;
+  /** `restock` is omitted for lines without stock, keeping older payloads intact. */
+  items: Array<{ order_item_id: string; quantity: number; restock?: boolean }>;
 };
 
 export type OrderListItem = {

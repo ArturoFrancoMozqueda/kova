@@ -11,6 +11,7 @@ mismo PR.
 | [despliegue.md](despliegue.md) | Cómo llega `main` a producción, rollback, entorno de GitHub, backups |
 | [desarrollo-y-ci.md](desarrollo-y-ci.md) | Levantar local, correr pruebas, qué valida CI |
 | [current-sprint.md](current-sprint.md) | Trabajo en curso y gates abiertos |
+| [backlog-competitivo.md](backlog-competitivo.md) | Estado por capacidad, backlog priorizado y punto de continuación |
 
 ## Decisiones (ADR) — `adr/`
 

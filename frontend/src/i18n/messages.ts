@@ -1132,6 +1132,10 @@ export const copy = {
     quantity: "Cantidad",
     submit: "Registrar devolución",
     cancel: "Cancelar",
+    restock: "Regresar al inventario",
+    restockHint: "Desmárcalo si el producto ya no se puede vender, por ejemplo si está maltratado o caducado. El dinero se devuelve igual.",
+    lotRestockHint: "Con control de lotes: si regresa al inventario, regístralo con un ajuste en su lote.",
+    notRestocked: "Devuelto sin regresar al inventario",
     paymentMethods: {
       cash: "Efectivo",
       bank_transfer: "Transferencia",
@@ -1559,6 +1563,11 @@ export const copy = {
       `${units} unidad${units === 1 ? "" : "es"} en ${movements} movimiento${movements === 1 ? "" : "s"}.`,
     wasteKnownValue: (amount: string, count: number) =>
       `${amount} con costo conocido; faltan ${count} producto${count === 1 ? "" : "s"}.`,
+    unrestockedRefundsTitle: "Devoluciones que no regresaron al inventario",
+    unrestockedRefundsUnits: (units: number) =>
+      `${units} unidad${units === 1 ? "" : "es"} devuelta${units === 1 ? "" : "s"} al cliente sin volver a la venta, valuada${units === 1 ? "" : "s"} con su costo al vender.`,
+    unrestockedRefundsMissing: (amount: string, units: number) =>
+      `${amount} con costo conocido; ${units} unidad${units === 1 ? "" : "es"} se vendi${units === 1 ? "ó" : "eron"} sin costo registrado.`,
     operatingTitle: "Resultado después de gastos",
     operatingBody: "Utilidad bruta menos los gastos que registraste en este periodo.",
     operatingExpenseCount: (count: number) => `${count} gasto${count === 1 ? "" : "s"} registrado${count === 1 ? "" : "s"}`,

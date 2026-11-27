@@ -125,7 +125,7 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
     modifiers = repo.order_item_modifiers_for_items(
         db, tenant_id=tenant_id, item_ids=[item.id for item in items]
     )
-    return _order_body_from_rows(
+    body = _order_body_from_rows(
         db,
         tenant_id=tenant_id,
         order=order,
@@ -134,6 +134,12 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
         modifiers=modifiers,
         loyalty_reward=order_reward(db, tenant_id, order.id),
     )
+    # Whether checkout took the line out of stock; the refund form only offers
+    # restocking for lines that actually consumed inventory.
+    consumed = repo.stock_consuming_item_ids(db, tenant_id=tenant_id, order_id=order.id)
+    for item in body["items"]:
+        item["stock_consumed"] = UUID(item["id"]) in consumed
+    return body
 
 
 def _order_body_from_rows(
@@ -790,6 +796,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                         "quantity": ri.quantity,
                         "unit_price_amount": str(ri.unit_price_amount),
                         "line_total_amount": str(ri.line_total_amount),
+                        "restocked_quantity": ri.restocked_quantity,
                     }
                     for ri in refund_items[r.id]
                 ],
@@ -863,10 +870,17 @@ def create_refund(
     # client may send the same line more than once, but the combined quantity
     # must never exceed what remains refundable.
     requested_by_item: dict[UUID, int] = {}
+    restock_by_item: dict[UUID, bool] = {}
     for refund_item in body.items:
         requested_by_item[refund_item.order_item_id] = (
             requested_by_item.get(refund_item.order_item_id, 0) + refund_item.quantity
         )
+        # Omitted means the previous rule: restore what the sale consumed.
+        restock = refund_item.restock is not False
+        if restock_by_item.setdefault(refund_item.order_item_id, restock) != restock:
+            raise bad_request(
+                "Indica una sola vez si cada producto devuelto regresa al inventario"
+            )
 
     existing_refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
     refunded_by_item: dict[UUID, int] = {}
@@ -959,6 +973,17 @@ def create_refund(
             )
 
     for order_item, quantity, line_total in refund_lines:
+        restorable_quantity = repo.restorable_inventory_quantity(
+            db,
+            tenant_id=tenant_id,
+            order_id=order_id,
+            product_id=order_item.product_id,
+        )
+        quantity_to_restore = (
+            0
+            if order_item.lot_tracked or not restock_by_item[order_item.id]
+            else min(quantity, restorable_quantity)
+        )
         repo.create_refund_item(
             db,
             tenant_id=tenant_id,
@@ -967,15 +992,8 @@ def create_refund(
             quantity=quantity,
             unit_price_amount=order_item.unit_price_amount,
             line_total_amount=line_total,
+            restocked_quantity=quantity_to_restore,
         )
-
-        restorable_quantity = repo.restorable_inventory_quantity(
-            db,
-            tenant_id=tenant_id,
-            order_id=order_id,
-            product_id=order_item.product_id,
-        )
-        quantity_to_restore = 0 if order_item.lot_tracked else min(quantity, restorable_quantity)
         if quantity_to_restore:
             product = reversal_products[order_item.product_id]
             _validate_movement_range(
@@ -1022,6 +1040,7 @@ def create_refund(
                 "quantity": ri.quantity,
                 "unit_price_amount": str(ri.unit_price_amount),
                 "line_total_amount": str(ri.line_total_amount),
+                "restocked_quantity": ri.restocked_quantity,
             }
             for ri in refund_items
         ],
@@ -1139,6 +1158,7 @@ def list_refunds(db: Session, *, tenant_id: UUID, order_id: UUID) -> list[dict[s
                     "quantity": ri.quantity,
                     "unit_price_amount": str(ri.unit_price_amount),
                     "line_total_amount": str(ri.line_total_amount),
+                    "restocked_quantity": ri.restocked_quantity,
                 }
                 for ri in repo.list_refund_items(db, refund_id=r.id)
             ],
@@ -1169,6 +1189,7 @@ def get_refund(db: Session, *, tenant_id: UUID, refund_id: UUID) -> dict[str, An
                 "quantity": ri.quantity,
                 "unit_price_amount": str(ri.unit_price_amount),
                 "line_total_amount": str(ri.line_total_amount),
+                "restocked_quantity": ri.restocked_quantity,
             }
             for ri in items
         ],

@@ -519,6 +519,22 @@ def refund_payments_for_refunds(
     return result
 
 
+def stock_consuming_item_ids(db: Session, *, tenant_id: UUID, order_id: UUID) -> set[UUID]:
+    rows = (
+        db.query(InventoryMovement.order_item_id)
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.order_id == order_id,
+            InventoryMovement.movement_type == "sale",
+            InventoryMovement.quantity_delta < 0,
+            InventoryMovement.order_item_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
 def create_refund_item(
     db: Session,
     *,
@@ -528,6 +544,7 @@ def create_refund_item(
     quantity: int,
     unit_price_amount: Decimal,
     line_total_amount: Decimal,
+    restocked_quantity: int | None = None,
 ) -> RefundItem:
     item = RefundItem(
         tenant_id=tenant_id,
@@ -536,6 +553,7 @@ def create_refund_item(
         quantity=quantity,
         unit_price_amount=unit_price_amount,
         line_total_amount=line_total_amount,
+        restocked_quantity=restocked_quantity,
     )
     db.add(item)
     db.flush()
