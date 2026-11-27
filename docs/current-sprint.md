@@ -43,7 +43,10 @@ a libxml2 oficial de Alpine 2.13.9-r5 con aprobación del dueño
 ([ADR-042](adr/ADR-042-libxml2-oficial-de-alpine-en-el-parser.md)).
 Cuarta entrega (P1): producción por lote con rendimiento, merma de horno, costo por pieza y venta sin
 doble descuento de insumos ([contrato](../specs/recipes/batch_production.md),
-[ADR-043](adr/ADR-043-produccion-por-lote.md)). Implementada y probada localmente; sin publicar.
+[ADR-043](adr/ADR-043-produccion-por-lote.md)). Publicada el 27 de noviembre con el
+[PR #397](https://github.com/ArturoFrancoMozqueda/kova/pull/397) y el
+[release 45941970426](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45941970426): API y
+frontend sirven `cc43ae22`. Falta su uso en un negocio real.
 
 ## En producción
 
