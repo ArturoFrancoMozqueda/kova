@@ -252,7 +252,8 @@ _EXPORT_TABLES = (
         "purchase_order_items",
         _columns(
             "id tenant_id purchase_order_id product_id product_name quantity "
-            "received_quantity unit_cost units_per_purchase purchase_unit_label"
+            "received_quantity unit_cost units_per_purchase purchase_unit_label closed_at "
+            "difference_reason"
         ),
     ),
     ExportTable(

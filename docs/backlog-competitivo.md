@@ -33,7 +33,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | A | Descuentos con permiso | 1 | `orders.discount`, `test_order_pricing_controls.py` | Cupones (E8) |
 | A | Devoluciones por medio original, anulaciones | 1 | ADR-037, `test_refund_*` | — |
 | A | Devolver dinero sin reponer producto | 1 (publicada 26-nov, #391) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Aceptación en un negocio |
-| A | Historial, recibo y reimpresión | 2 | `GET /orders/{id}/receipt`; la lista no busca por folio/cliente | E8b |
+| A | Historial, recibo y reimpresión | 2 | `GET /orders/{id}/receipt`; búsqueda por folio/cliente en E8b (en revisión) | E8b |
 | A | Offline: recarga, reconexión, sin duplicados | 1 | [offline_sync](../specs/orders/offline_sync.md), e2e `offline-sale-real` | — |
 | A | Tickets 58/80 mm, cajón, lector | 3 | Impresión del navegador, cajón ESC/POS por red; [matriz](runbooks/pos-hardware-acceptance.md) | Prueba física por modelo |
 | B | Productos, SKU, código de barras, modificadores con precio | 1 | `catalog/`, `modifiers/` | — |
@@ -45,7 +45,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | C | Recetas al vender | 1 (publicada 26-nov, #395) | [recipes_on_sale](../specs/recipes/recipes_on_sale.md), `test_recipes_on_sale.py` | Aceptación en un negocio; producción (E4) |
 | C | Producción por lote, rendimiento y merma | 1 (publicada 27-nov, #397) | [batch_production](../specs/recipes/batch_production.md), `test_batch_production.py` | Aceptación en un negocio |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
-| D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión | Recepción con diferencias (E8b) |
+| D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión; diferencias con motivo en E8b (en revisión) | Publicar E8b |
 | D | Unidad de compra distinta a la de consumo | 1 (publicada 26-nov, #392) | Factor congelado por partida, recepción convertida | Aceptación en un negocio |
 | D | Traspasos entre sucursales | 1 | `branches/transfers.py` | — |
 | D | Sugerencias de reposición → compra aprobada | 1 | `replenishment/` | Incluir insumos (E5) |
@@ -84,7 +84,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Publicada (#395, release 45937609716) |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Publicada (#397, release 45941970426) |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Publicada (#399, release 46032469644) |
-| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Siguiente |
+| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | En revisión |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
 | E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
@@ -138,9 +138,11 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 1. E1 a E5 están publicadas; producción sirve `1369693a`. El servidor nativo prepara rutas y modelos
    ORM antes de escuchar (#400): nuevas áreas no deben agregar trabajo a la primera petición.
-2. Siguiente: **E8b**, en una rama sobre `main`:
-   - Recepción con diferencias en `purchasing/service.py`: permitir recibir más o menos de lo pedido
-     con motivo, cerrar la partida aunque falte mercancía y dejar evidencia de la diferencia.
-   - Búsqueda de ventas por folio (últimos 8 caracteres del recibo) y cliente en `GET /orders`, con
-     índice si hace falta y la misma paginación.
-3. Después E6 (anticipos y saldo en pedidos) y E7 (cola de preparación).
+2. **E8b** en rama `feat/receiving-and-search`, sin publicar:
+   - Recepción con diferencias: `close_remaining` y `difference_reason` por partida
+     ([contrato](../specs/purchasing/purchasing.md)); la base exige motivo
+     (`ck_purchase_items_difference`) y reposición ya no cuenta lo cerrado ni lo excedido.
+   - Búsqueda `q` en `GET /orders` por folio o cliente, con índice `ix_orders_tenant_folio`
+     ([contrato](../specs/orders/history.md)).
+   - Falta: fusionar, publicar y probarlo con una recepción real.
+3. Siguiente: E6 (anticipos y saldo en pedidos) y después E7 (cola de preparación).

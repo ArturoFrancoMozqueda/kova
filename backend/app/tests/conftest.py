@@ -218,7 +218,7 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id, last_inbound_at, version, updated_at) ON messaging_conversations TO kova_app"))
         conn.execute(text("GRANT UPDATE(state, binding_id, provider_message_id, contact_fingerprint, version, error_code, updated_at) ON messaging_messages TO kova_app"))
         conn.execute(text("GRANT UPDATE (matched_amount, status, version, reasons, confirmed_by_user_id, reversal_reason, updated_at) ON reconciliation_matches TO kova_app"))
-        conn.execute(text("GRANT UPDATE (received_quantity) ON purchase_order_items TO kova_app"))
+        conn.execute(text("GRANT UPDATE (received_quantity, closed_at, difference_reason) ON purchase_order_items TO kova_app"))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
         conn.execute(text(
             "GRANT UPDATE (organization_id, issuer_snapshot, state, operation_id, creation_rejected, "

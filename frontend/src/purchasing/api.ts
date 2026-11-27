@@ -4,7 +4,7 @@ import { safeUserMessage } from "@/lib/apiError";
 
 export type Supplier = { id: string; name: string; contact: string | null; is_active: boolean };
 /** quantity, received_quantity and unit_cost refer to the purchase unit frozen on the line. */
-export type PurchaseItem = { id: string; product_id: string; product_name: string; quantity: number; received_quantity: number; unit_cost: string; units_per_purchase?: number; purchase_unit_label?: string | null };
+export type PurchaseItem = { id: string; product_id: string; product_name: string; quantity: number; received_quantity: number; unit_cost: string; units_per_purchase?: number; purchase_unit_label?: string | null; closed_at?: string | null; difference_reason?: string | null };
 export type Purchase = { id: string; branch_id: string; supplier_id: string; supplier_name: string; notes: string | null; status: "pending" | "partial" | "received" | "cancelled"; created_at: string; items: PurchaseItem[] };
 class PurchasingError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
@@ -26,5 +26,5 @@ export const listSuppliers = () => request<Supplier[]>("suppliers");
 export const listPurchases = (offset = 0) => request<Purchase[]>(`orders?limit=100&offset=${offset}`);
 export const createSupplier = (name: string, contact: string, key: string) => request<Supplier>("suppliers", { name, contact: contact.trim() || null }, key);
 export const createPurchase = (supplier_id: string, notes: string, items: { product_id: string; quantity: number; unit_cost: string }[], key: string) => request<Purchase>("orders", { supplier_id, notes: notes.trim() || null, items }, key);
-export const receivePurchase = (id: string, items: { item_id: string; quantity: number; lot_allocations?: import("@/inventory/lots").LotAllocation[] }[], update_catalog_cost: boolean, key: string) => request<Purchase>(`orders/${id}/receive`, { items, update_catalog_cost }, key);
+export const receivePurchase = (id: string, items: (import("./receiveDifferences").ReceiveLine & { lot_allocations?: import("@/inventory/lots").LotAllocation[] })[], update_catalog_cost: boolean, key: string) => request<Purchase>(`orders/${id}/receive`, { items, update_catalog_cost }, key);
 export const cancelPurchase = (id: string, key: string) => request<Purchase>(`orders/${id}/cancel`, {}, key);

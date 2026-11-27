@@ -171,6 +171,9 @@ class OrderListItem(BaseModel):
     subtotal_amount: Decimal
     total_amount: Decimal
     created_at: datetime
+    # Ticket folio and the linked customer, so a search result is recognizable.
+    receipt_number: str = ""
+    customer_name: str | None = None
 
 
 class OrderListResponse(BaseModel):

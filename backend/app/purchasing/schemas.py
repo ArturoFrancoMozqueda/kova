@@ -50,7 +50,25 @@ class PurchaseCreate(StrictModel):
 class ReceiveItem(StrictModel):
     lot_allocations: list[LotAllocation] | None = Field(default=None, max_length=100)
     item_id: UUID
-    quantity: int = Field(gt=0, le=INTEGER_MAX)
+    # Zero only when closing the line without receiving anything else.
+    quantity: int = Field(ge=0, le=INTEGER_MAX)
+    # Stop expecting the units still missing; requires difference_reason.
+    close_remaining: bool | None = None
+    # Required when the line ends above what was ordered or is closed short.
+    difference_reason: str | None = Field(default=None, max_length=200)
+
+    @field_validator("difference_reason")
+    @classmethod
+    def clean_reason(cls, value):
+        value = value.strip() if value is not None else None
+        reject_html(value)
+        return value or None
+
+    @model_validator(mode="after")
+    def something_to_record(self):
+        if self.quantity == 0 and not self.close_remaining:
+            raise ValueError("Indica cuántas unidades llegaron o cierra la partida")
+        return self
 
 
 class PurchaseReceive(StrictModel):
@@ -75,6 +93,9 @@ class PurchaseItemResponse(BaseModel):
     # quantity, received_quantity and unit_cost refer to this purchase unit.
     units_per_purchase: int = 1
     purchase_unit_label: str | None = None
+    # A closed line no longer expects its missing units.
+    closed_at: datetime | None = None
+    difference_reason: str | None = None
 
 
 class PurchaseResponse(BaseModel):

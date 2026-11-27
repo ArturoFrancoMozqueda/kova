@@ -1,11 +1,13 @@
 import datetime
+import re
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import func
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Product
+from app.customers.models import Customer
 from app.modifiers.models import OrderItemModifier
 from app.orders.models import (
     InventoryMovement,
@@ -291,13 +293,65 @@ def _resolve_bounds(
     return start, end
 
 
+# Receipt folio: last eight hex characters of the id, as printed on the ticket.
+# Must match the expression of ix_orders_tenant_folio (0113) to use the index.
+def customer_names(db: Session, *, tenant_id: UUID, customer_ids: set[UUID]) -> dict[UUID, str]:
+    if not customer_ids:
+        return {}
+    return dict(
+        db.query(Customer.id, Customer.name)
+        .filter(Customer.tenant_id == tenant_id, Customer.id.in_(customer_ids))
+        .all()
+    )
+
+
+def receipt_folio_expression():
+    return func.right(func.replace(cast(Order.id, String), "-", ""), 8)
+
+
+_FOLIO = re.compile(r"[0-9a-f]{4,8}")
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _search_filter(query, *, tenant_id: UUID, q: str, customers: bool):
+    """Match the receipt folio (whole or its last digits) or the customer's name, phone or email."""
+    term = q.strip().lstrip("#").strip()
+    conditions = []
+    if customers:
+        pattern = f"%{_escape_like(term)}%"
+        matching = select(Customer.id).where(
+            Customer.tenant_id == tenant_id,
+            or_(
+                Customer.name.ilike(pattern, escape="\\"),
+                Customer.phone.ilike(pattern, escape="\\"),
+                Customer.email.ilike(pattern, escape="\\"),
+            ),
+        )
+        conditions.append(Order.customer_id.in_(matching))
+    folio = term.replace("-", "").lower()
+    if _FOLIO.fullmatch(folio):
+        expression = receipt_folio_expression()
+        conditions.append(
+            expression == folio if len(folio) == 8 else expression.like(f"%{folio}")
+        )
+    return query.filter(or_(*conditions)) if conditions else query.filter(False)
+
+
 def _apply_order_filters(
     query,
     *,
+    tenant_id: UUID | None = None,
     status: str | None = None,
     start: datetime.datetime | None = None,
     end: datetime.datetime | None = None,
+    q: str | None = None,
+    search_customers: bool = False,
 ):
+    if q and tenant_id is not None:
+        query = _search_filter(query, tenant_id=tenant_id, q=q, customers=search_customers)
     if status:
         query = query.filter(Order.status == status)
     if start is not None:
@@ -316,13 +370,23 @@ def list_orders_by_tenant(
     status: str | None = None,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    q: str | None = None,
+    search_customers: bool = False,
     sort: str = "created_desc",
 ) -> list[Order]:
     start, end = _resolve_bounds(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
     )
     query = db.query(Order).filter(Order.tenant_id == tenant_id)
-    query = _apply_order_filters(query, status=status, start=start, end=end)
+    query = _apply_order_filters(
+        query,
+        tenant_id=tenant_id,
+        status=status,
+        start=start,
+        end=end,
+        q=q,
+        search_customers=search_customers,
+    )
     ordering = {
         "created_desc": (_SALE_TIME.desc(), Order.id.desc()),
         "created_asc": (_SALE_TIME.asc(), Order.id.asc()),
@@ -339,12 +403,22 @@ def count_orders_by_tenant(
     status: str | None = None,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
+    q: str | None = None,
+    search_customers: bool = False,
 ) -> int:
     start, end = _resolve_bounds(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
     )
     query = db.query(Order).filter(Order.tenant_id == tenant_id)
-    query = _apply_order_filters(query, status=status, start=start, end=end)
+    query = _apply_order_filters(
+        query,
+        tenant_id=tenant_id,
+        status=status,
+        start=start,
+        end=end,
+        q=q,
+        search_customers=search_customers,
+    )
     return query.count()
 
 
