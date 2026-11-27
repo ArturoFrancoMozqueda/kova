@@ -63,8 +63,8 @@ def valid_report(expected):
             "model_sha256": manifest["model"]["sha256"],
             "summary": {
                 "architecture": "x86_64",
-                "suites": 18,
-                "tests": 18,
+                "suites": len(GATE.EXPECTED_SUITES),
+                "tests": len(GATE.EXPECTED_SUITES),
                 "failures": 0,
                 "errors": 0,
                 "skipped": 0,
@@ -392,7 +392,7 @@ class AdvisoryFeedTests(unittest.TestCase):
     def test_public_feed_uses_no_credentials_and_covers_all_reviewed_severities(self):
         opener = mock.Mock(return_value=Response(self.rows))
         result = GATE.check_upstream_advisories(self.expected, open_url=opener)
-        self.assertEqual(len(result), 20)
+        self.assertEqual(len(result), len(self.rows))
         request = opener.call_args.args[0]
         self.assertNotIn("Authorization", dict(request.header_items()))
         self.assertNotIn("Cookie", dict(request.header_items()))
@@ -406,7 +406,7 @@ class AdvisoryFeedTests(unittest.TestCase):
         opener = mock.Mock(return_value=Response(self.rows))
         self.assertEqual(len(GATE.check_upstream_advisories(
             self.expected, open_url=opener, token=token,
-        )), 20)
+        )), len(self.rows))
         request = opener.call_args.args[0]
         self.assertEqual(request.get_header("Authorization"), f"Bearer {token}")
         self.assertEqual(request.full_url, GATE.ADVISORY_URL + "?per_page=100&state=published")

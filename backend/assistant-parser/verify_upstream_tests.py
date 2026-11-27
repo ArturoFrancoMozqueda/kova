@@ -13,7 +13,7 @@ HIGH_SEVERITY_SUITES = {
 EXPECTED_SUITES = HIGH_SEVERITY_SUITES | {
     "weightmatrix_deserialize_test", "weightmatrix_scales_test", "weightmatrix_intdim_test",
     "lstm_recoder_test", "recoder_test", "matrix_deserializesize_test", "adaptive_test",
-    "adaptive_templates_test", "plumbing_test", "pageres_test",
+    "adaptive_templates_test", "plumbing_test", "pageres_test", "tfile_test",
 }
 
 
@@ -34,6 +34,10 @@ def verify(directory: Path) -> dict:
             "ReplaceCurrentWordCopiesSharedCombinationWord",
         }.issubset({case.get("name") for case in root.iter("testcase")}):
             raise ValueError("Both shared-word ownership regressions must execute: pageres_test")
+        if name == "tfile_test" and not {
+            "RejectsUnbackedVectorCount", "RejectsUnbackedStringVectorCount",
+        }.issubset({case.get("name") for case in root.iter("testcase")}):
+            raise ValueError("Unbacked model-count regressions must execute: tfile_test")
         if name in HIGH_SEVERITY_SUITES and counts["skipped"]:
             raise ValueError(f"High-severity security regression was skipped: {name}")
         for key, value in counts.items():
