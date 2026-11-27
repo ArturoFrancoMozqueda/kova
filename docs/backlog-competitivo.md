@@ -32,7 +32,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | A | Efectivo, transferencia, tarjeta manual, pago dividido | 1 | `orders/schemas.py`, `test_split_payment.py` | — |
 | A | Descuentos con permiso | 1 | `orders.discount`, `test_order_pricing_controls.py` | Cupones (E8) |
 | A | Devoluciones por medio original, anulaciones | 1 | ADR-037, `test_refund_*` | — |
-| A | Devolver dinero sin reponer producto | 1 (E1, sin publicar) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Publicación y aceptación |
+| A | Devolver dinero sin reponer producto | 1 (publicada 26-nov, #391) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Aceptación en un negocio |
 | A | Historial, recibo y reimpresión | 2 | `GET /orders/{id}/receipt`; la lista no busca por folio/cliente | E8b |
 | A | Offline: recarga, reconexión, sin duplicados | 1 | [offline_sync](../specs/orders/offline_sync.md), e2e `offline-sale-real` | — |
 | A | Tickets 58/80 mm, cajón, lector | 3 | Impresión del navegador, cajón ESC/POS por red; [matriz](runbooks/pos-hardware-acceptance.md) | Prueba física por modelo |
@@ -79,8 +79,8 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 
 | # | Entrega | Prioridad | Depende de | Estado |
 |---|---|---|---|---|
-| E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Implementada en `feat/refund-restock`; PR abierto, sin publicar |
-| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Implementada en `feat/ingredients-units` (apilada sobre E1); PR abierto, sin publicar |
+| E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Publicada (#391, release 45920243100) |
+| E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | PR #392 abierto, sin publicar |
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Siguiente |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Pendiente |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Pendiente |
@@ -136,8 +136,8 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 (`feat/refund-restock`, migración `0109`) y E2 (`feat/ingredients-units`, migración `0110`,
-   apilada sobre E1) están en PRs abiertos. Fusionar en orden E1 → E2, cada uno con su CI y release.
+1. E1 (migración `0109`) está publicada. E2 (`feat/ingredients-units`, migración `0110`) está en el
+   PR #392; fusionarlo con su CI y esperar su release.
 2. Siguiente: **E3, recetas al vender**, en una rama apilada sobre E2 (su migración baja de `0110`).
    Arranque concreto:
    - Spec `specs/recipes/recipes_on_sale.md` y ADR nuevo de recetas versionadas.

@@ -20,9 +20,14 @@ sin cambiar precios ni planes. Decidió que insumos, unidades, recetas y producc
 núcleo de inventario en **todos los planes**; compras sigue en Gestión. Estado por capacidad,
 orden de entregas y continuación en [backlog-competitivo.md](backlog-competitivo.md).
 Primera entrega (P0): una devolución puede regresar el dinero sin reponer el producto, y esa
-pérdida aparece en Merma ([contrato](../specs/orders/refunds.md)). Implementada y probada
-localmente; su publicación se acredita con su PR y release.
-Segunda entrega (P1, apilada sobre la primera): insumos que no se venden, unidad de inventario
+pérdida aparece en Merma ([contrato](../specs/orders/refunds.md)). Publicada el 26 de noviembre
+con el [PR #391](https://github.com/ArturoFrancoMozqueda/kova/pull/391) y el
+[release 45920243100](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45920243100):
+API y frontend sirven `78282c04`. Falta su uso en un negocio real.
+El mismo día se publicaron la copia de zstd corregido en la imagen nativa y el OCR del parser
+en Tesseract 5.5.5, con los 29 avisos upstream revisados
+([PR #393](https://github.com/ArturoFrancoMozqueda/kova/pull/393)).
+Segunda entrega (P1): insumos que no se venden, unidad de inventario
 (pza, g, ml) y unidad de compra con conversión al recibir ([contrato](../specs/inventory/ingredients_units.md),
 [ADR-040](adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md)). Implementada y probada
 localmente; sin publicar.
