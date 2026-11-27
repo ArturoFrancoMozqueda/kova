@@ -60,11 +60,13 @@ Ventas busca por folio del ticket o por cliente ([contrato](../specs/orders/hist
 27 de noviembre con el [PR #402](https://github.com/ArturoFrancoMozqueda/kova/pull/402) y el
 [release 46051884447](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46051884447): API y
 frontend sirven `695fbbf3`. Falta su uso en un negocio real.
-Entrega E6, en revisión: anticipos en pedidos. Decisión del dueño (27 de noviembre): el ingreso se
+Entrega E6: anticipos en pedidos. Decisión del dueño (27 de noviembre): el ingreso se
 reconoce al liquidar, y cada negocio configura el anticipo mínimo y si el anticipo de un pedido
 cancelado se devuelve o se conserva ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md),
-[contrato](../specs/customer_orders/customer_orders.md)). Migración `0114_customer_order_deposits`.
-No está publicada.
+[contrato](../specs/customer_orders/customer_orders.md)). Publicada el 27 de noviembre con el
+[PR #403](https://github.com/ArturoFrancoMozqueda/kova/pull/403) y el
+[release 46064467636](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46064467636): API y
+frontend sirven `e31cf6e1`. Falta su uso en un negocio real.
 
 ## En producción
 

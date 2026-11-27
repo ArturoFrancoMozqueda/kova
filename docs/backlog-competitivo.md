@@ -55,7 +55,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E | Merma valorizada | 2 | Usa costo actual; devoluciones sin reponer ya visibles (E1) | Costo histórico por movimiento |
 | F | Pedidos con fecha comprometida, apartado y seguimiento | 1 | `customer_orders/`, ADR-014 | — |
 | F | Cotizaciones | 1 | `quotes/` | — |
-| F | Anticipos, abonos y saldo | 3 | Anticipos con política por negocio en E6 (en revisión) | Publicar E6 |
+| F | Anticipos, abonos y saldo | 1 | Anticipos con política por negocio (E6) | Uso real del caso integral 3 |
 | F | Crédito a clientes | 5 | Diferido | Decisión del dueño |
 | G | Cola de preparación / estaciones | 5 | Diferido (ADR-014) | E7 |
 | G | Mesas y cuentas abiertas | 5 | Solo solicitudes de mesa (ADR-033) | P3 |
@@ -85,7 +85,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Publicada (#397, release 45941970426) |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Publicada (#399, release 46032469644) |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Publicada (#402, release 46051884447) |
-| E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | En revisión |
+| E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Publicada (#403, release 46064467636) |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
 | E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
 | E9 | CFDI Test | P2 | Emisor del dueño | Bloqueado externo |
@@ -139,11 +139,7 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E5 y E8b están publicadas; producción sirve `695fbbf3`.
-2. **E6** en rama `feat/order-deposits`, sin publicar:
-   - Anticipos en pedidos con historial propio, efectivo al turno cuando llega y venta única al
-     liquidar ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md),
-     [contrato](../specs/customer_orders/customer_orders.md)). Migración `0114`.
-   - Política por negocio (mínimo y cancelación) en Pedidos → Política de anticipos.
-   - Falta: fusionar, publicar y probar el caso integral 3 con un pedido real.
+1. E1 a E6 y E8b están publicadas; producción sirve `e31cf6e1`.
+2. Falta probar con un negocio real el caso integral 3 (anticipo, entrega y liquidación de un
+   pastel) y la política de anticipos ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md)).
 3. Siguiente: E7 (cola de preparación) y después E8 (cupones).
