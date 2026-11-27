@@ -104,8 +104,8 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
         ),
         "change_due_amount": str(payment.change_due_amount),
         "reference": payment.reference,
-        # Only present when true, so earlier payment bodies keep their shape.
-        **({"deposit_applied": True} if payment.deposit_applied else {}),
+        # Same shape in create, read and receipt responses (see PaymentResponse).
+        "deposit_applied": bool(payment.deposit_applied),
     }
 
 
