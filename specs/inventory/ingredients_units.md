@@ -1,7 +1,7 @@
 # Insumos, unidades y unidad de compra
 
-Estado: implementado localmente (E2 del [backlog competitivo](../../docs/backlog-competitivo.md));
-publicación no acreditada. Decisión: [ADR-040](../../docs/adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md).
+Estado: publicado el 26-nov-2026 (#392, release 45922044316; E2 del
+[backlog competitivo](../../docs/backlog-competitivo.md)). Decisión: [ADR-040](../../docs/adr/ADR-040-insumos-unidades-y-recetas-en-todos-los-planes.md).
 
 ## Problema, usuarios y valor
 

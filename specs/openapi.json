@@ -3884,6 +3884,53 @@
         "title": "ConversationCreate",
         "type": "object"
       },
+      "CostedLine": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "ingredient_name": {
+            "title": "Ingredient Name",
+            "type": "string"
+          },
+          "ingredient_product_id": {
+            "format": "uuid",
+            "title": "Ingredient Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "stock_unit": {
+            "enum": [
+              "pza",
+              "g",
+              "ml"
+            ],
+            "title": "Stock Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_product_id",
+          "ingredient_name",
+          "stock_unit",
+          "quantity",
+          "cost"
+        ],
+        "title": "CostedLine",
+        "type": "object"
+      },
       "CrmOverview": {
         "properties": {
           "capabilities": {
@@ -12460,6 +12507,78 @@
         "title": "OpsNoteUpdate",
         "type": "object"
       },
+      "OptionConsumptionLineWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "ingredient_product_id": {
+            "format": "uuid",
+            "title": "Ingredient Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000.0,
+            "minimum": -1000000.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ingredient_product_id",
+          "quantity"
+        ],
+        "title": "OptionConsumptionLineWrite",
+        "type": "object"
+      },
+      "OptionConsumptionResponse": {
+        "properties": {
+          "cost_delta": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Delta"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "modifier_option_id": {
+            "format": "uuid",
+            "title": "Modifier Option Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modifier_option_id",
+          "lines",
+          "cost_delta"
+        ],
+        "title": "OptionConsumptionResponse",
+        "type": "object"
+      },
+      "OptionConsumptionWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OptionConsumptionLineWrite"
+            },
+            "maxItems": 50,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "title": "OptionConsumptionWrite",
+        "type": "object"
+      },
       "OrderCreate": {
         "properties": {
           "customer_id": {
@@ -16760,6 +16879,114 @@
           "quantity"
         ],
         "title": "ReceiveItem",
+        "type": "object"
+      },
+      "RecipeLineWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "ingredient_product_id": {
+            "format": "uuid",
+            "title": "Ingredient Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ingredient_product_id",
+          "quantity"
+        ],
+        "title": "RecipeLineWrite",
+        "type": "object"
+      },
+      "RecipeResponse": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "ingredients_without_cost": {
+            "title": "Ingredients Without Cost",
+            "type": "integer"
+          },
+          "known_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Known Cost",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "product_id",
+          "version",
+          "effective_from",
+          "lines",
+          "cost",
+          "known_cost",
+          "ingredients_without_cost"
+        ],
+        "title": "RecipeResponse",
+        "type": "object"
+      },
+      "RecipeWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeLineWrite"
+            },
+            "maxItems": 50,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "title": "RecipeWrite",
         "type": "object"
       },
       "ReconcileCheckoutRequest": {
@@ -26602,6 +26829,116 @@
         ]
       }
     },
+    "/api/v1/catalog/modifier-options/{option_id}/consumption": {
+      "get": {
+        "operationId": "get_option_consumption_api_v1_catalog_modifier_options__option_id__consumption_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "option_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Option Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionConsumptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Option Consumption",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "put": {
+        "operationId": "put_option_consumption_api_v1_catalog_modifier_options__option_id__consumption_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "option_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Option Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionConsumptionWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionConsumptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Option Consumption",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
     "/api/v1/catalog/products": {
       "get": {
         "operationId": "list_products_api_v1_catalog_products_get",
@@ -27043,6 +27380,116 @@
         "summary": "Set Product Modifier Groups",
         "tags": [
           "modifiers"
+        ]
+      }
+    },
+    "/api/v1/catalog/products/{product_id}/recipe": {
+      "get": {
+        "operationId": "get_recipe_api_v1_catalog_products__product_id__recipe_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recipe",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "put": {
+        "operationId": "put_recipe_api_v1_catalog_products__product_id__recipe_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Recipe",
+        "tags": [
+          "recipes"
         ]
       }
     },

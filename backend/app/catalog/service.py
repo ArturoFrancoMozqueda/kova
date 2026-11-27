@@ -466,6 +466,14 @@ def update_product(
     )
     if desired_lots and not desired_inventory:
         raise bad_request("Desactiva lotes antes de desactivar el inventario")
+    if desired_inventory and not product.track_inventory:
+        from app.recipes.service import has_active_recipe
+
+        if has_active_recipe(db, tenant_id=tenant_id, product_id=product.id):
+            raise bad_request(
+                "Este producto descuenta sus insumos al venderse. Quita su receta antes de "
+                "controlar existencias propias."
+            )
     _apply_units(db, tenant_id=tenant_id, product=product, body=body)
     # Configuration is atomic with activation/backfill across every branch.
     for field in ("rotation_label", "rotation_days", "expiry_days"):

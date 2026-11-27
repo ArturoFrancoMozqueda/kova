@@ -33,6 +33,10 @@ Segunda entrega (P1): insumos que no se venden, unidad de inventario
 noviembre con el [PR #392](https://github.com/ArturoFrancoMozqueda/kova/pull/392) y el
 [release 45922044316](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/45922044316): API y
 frontend sirven `7e056134`. Falta su uso en un negocio real.
+Tercera entrega (P1): recetas al vender con versiones, ajustes por opción de modificador y costo
+real por partida ([contrato](../specs/recipes/recipes_on_sale.md),
+[ADR-041](adr/ADR-041-recetas-versionadas-al-vender.md)). Implementada y probada localmente; sin
+publicar.
 
 ## En producción
 

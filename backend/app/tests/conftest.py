@@ -40,6 +40,7 @@ import app.ops.models  # noqa: F401
 import app.orders.models  # noqa: F401
 import app.purchasing.models  # noqa: F401
 import app.rbac.models  # noqa: F401
+import app.recipes.models  # noqa: F401
 import app.reports  # noqa: F401
 import app.shifts.models  # noqa: F401
 import app.telemetry.models  # noqa: F401
@@ -132,7 +133,8 @@ def _provision_kova_app() -> None:
             "SELECT, INSERT, DELETE": (
                 "public_catalog_items "
                 "customer_order_item_modifiers customer_order_items "
-                "product_modifier_groups inventory_lot_reservations"
+                "product_modifier_groups inventory_lot_reservations "
+                "modifier_option_consumptions"
             ),
             "SELECT, INSERT, UPDATE": (
                 "billing_checkout_attempts "
@@ -147,7 +149,7 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
-                "refund_payments "
+                "refund_payments recipes recipe_lines "
                 "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "

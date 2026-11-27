@@ -50,3 +50,11 @@ ajuste), servicios y devoluciones anteriores a que se guardara la reposición. E
 margen sigue descontando la unidad devuelta de ventas y costo; esta línea hace
 visible la pérdida física que antes no aparecía en ningún reporte.
 
+## Costo de productos con receta
+
+Para un producto preparado al vender, el costo de la partida (`order_items.unit_cost`) es la suma
+de sus insumos según la receta vigente al cobrarse, con los ajustes de las opciones elegidas. Si
+algún insumo no tiene costo, la partida queda sin costo y el margen se reporta incompleto, nunca
+con costo cero. El consumo de insumos (`movement_type = 'consumption'`) cuenta para la cobertura
+de inventario; no es merma ni venta del insumo.
+

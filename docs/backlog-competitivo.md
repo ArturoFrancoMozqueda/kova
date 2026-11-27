@@ -40,9 +40,9 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | B | Importación CSV/XLSX con vista previa | 1 | ADR-013, `test_catalog_import.py` | Exportación de catálogo |
 | B | Costo desconocido distinto de cero | 1 | `products.cost_price` nullable, `order_items.unit_cost` | — |
 | B | Insumos no vendibles, unidades y conversiones | 1 (publicada 26-nov, #392) | [ingredients_units](../specs/inventory/ingredients_units.md), `test_ingredients_units.py` | Aceptación en un negocio; recetas (E3) |
-| B | Modificador con costo/consumo | 5 | `modifier_options` solo tiene `price_delta` | E3 |
+| B | Modificador con costo/consumo | 1 (E3, sin publicar) | `modifier_option_consumptions` | Publicación |
 | B | Variantes con precio, SKU y existencias propias | 4 | [variants.md](../specs/catalog/variants.md) | Decidir tras pilotos |
-| C | Recetas al vender | 5 | — | E3 |
+| C | Recetas al vender | 1 (E3, sin publicar) | [recipes_on_sale](../specs/recipes/recipes_on_sale.md), `test_recipes_on_sale.py` | Publicación; producción (E4) |
 | C | Producción por lote, rendimiento y merma | 5 | — | E4 |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
 | D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión | Recepción con diferencias (E8b) |
@@ -81,8 +81,8 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 |---|---|---|---|---|
 | E1 | Devolución con reposición explícita y merma por devolución valorizada | P0 | — | Publicada (#391, release 45920243100) |
 | E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Publicada (#392, release 45922044316) |
-| E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Siguiente |
-| E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Pendiente |
+| E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Implementada en `feat/recipes-on-sale`; PR abierto, sin publicar |
+| E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Siguiente |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Pendiente |
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Pendiente |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
@@ -136,18 +136,17 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 (migración `0109`) y E2 (migración `0110`) están publicadas; producción sirve `7e056134`.
-   Al abrir E3, actualizar la línea de estado de `specs/inventory/ingredients_units.md` a publicada
-   (#392, release 45922044316); no se cambió sola para no disparar un release sin código.
-2. Siguiente: **E3, recetas al vender**, en una rama nueva sobre `main` (su migración baja de `0110`).
+1. E1 y E2 están publicadas (`7e056134`). E3 (`feat/recipes-on-sale`, migración `0111`) está en su
+   PR; fusionarlo con su CI y esperar su release.
+2. Siguiente: **E4, producción por lote**, en una rama sobre `main` (migración que baja de `0111`).
    Arranque concreto:
-   - Spec `specs/recipes/recipes_on_sale.md` y ADR nuevo de recetas versionadas.
-   - Migración `0111`: `recipes` (producto, `version`, `effective_from`, `mode` `on_sale|batch`),
-     `recipe_lines` (insumo, cantidad entera en unidad base) y `modifier_option_consumptions`
-     (insumo, cantidad con signo), con tenant_id, FKs compuestas y RLS forzado.
-   - En `orders/service.py`, al crear la venta (en línea y offline), resolver la versión vigente en
-     `occurred_at`, crear movimientos `consumption` por insumo ligados a `order_item_id` sin bloquear
-     por existencias, y fijar `unit_cost` con `catalog/units.stock_unit_cost`.
-   - La devolución nunca repone insumos de un producto con receta; la anulación revierte el consumo.
-   - UI: pestaña «Receta» en el editor de producto y consumo por opción de modificador.
-3. Después E4 (producción por lote) y E5 (panel de insumos bajos → compra).
+   - Spec `specs/recipes/batch_production.md`; reutilizar `recipes` con `mode = 'batch'` para el
+     producto terminado (que sí controla existencias).
+   - Tabla `production_batches` (producto, versión de receta, cantidad planeada y real, merma con
+     motivo, costo total y por pieza, usuario, fecha) con RLS forzado.
+   - Al registrar: movimientos `consumption` de insumos (escalados por lote planeado) y uno de
+     entrada del producto terminado por el rendimiento real; la merma usa `reason_code`.
+   - Costo por pieza = costo de insumos / rendimiento real; política documentada para actualizar
+     `cost_price` del terminado. La venta de piezas descuenta sólo el terminado (sin receta `on_sale`).
+   - UI en Inventario: «Producir» con vista previa de consumo y costo.
+3. Después E5 (panel: insumos bajos → propuesta de compra; productos sin costo completo).

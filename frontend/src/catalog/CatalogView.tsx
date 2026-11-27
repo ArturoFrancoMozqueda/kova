@@ -44,6 +44,8 @@ import type { Category, ModifierGroup, Product } from "./types";
 import { STOCK_UNITS, formatStockQuantity, isSellable, stockUnitLabels, stockUnitOf, type StockUnit } from "./units";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProductStoryCard } from "./ProductStoryCard";
+import { IngredientLinesDialog } from "@/recipes/IngredientLinesDialog";
+import { getOptionConsumption, getRecipe, saveOptionConsumption, saveRecipe } from "@/recipes/api";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { ProductThumbnail } from "./ProductThumbnail";
@@ -87,6 +89,7 @@ import {
   ScanBarcode,
   type LucideIcon,
   Scale,
+  ChefHat,
 } from "lucide-react";
 import { SectionHeadingIcon } from "@/components/ui/section-heading-icon";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
@@ -143,6 +146,8 @@ export default function CatalogView() {
   const [showModifiers, setShowModifiers] = useState(false);
   const [presetApplying, setPresetApplying] = useState(false);
   const [storyProduct, setStoryProduct] = useState<Product | null>(null);
+  const [recipeProduct, setRecipeProduct] = useState<Product | null>(null);
+  const [consumptionOption, setConsumptionOption] = useState<{ id: string; name: string } | null>(null);
   const [productSearch, setProductSearch] = useState(() => searchParams.get("search") ?? "");
   const [productSort, setProductSort] = useState<ProductSort>("name_asc");
   const [showCostEditor, setShowCostEditor] = useState(false);
@@ -706,6 +711,20 @@ export default function CatalogView() {
                         >
                           <BarChart2 className="h-4 w-4" />
                         </Button>
+                        {canUpdate && isSellable(product) && !product.track_inventory && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11 lg:h-8 lg:w-8"
+                            aria-label={copy.recipes.recipeAction(product.name)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRecipeProduct(product);
+                            }}
+                          >
+                            <ChefHat className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canUpdate && (
                           <Button
                             variant="ghost"
@@ -758,6 +777,7 @@ export default function CatalogView() {
                 onReload={load}
                 onNotice={(msg) => showNotice(msg)}
                 onError={(error) => showCatalogError(error)}
+                onEditConsumption={canUpdate ? setConsumptionOption : undefined}
               />
             </CardContent>
           )}
@@ -805,6 +825,31 @@ export default function CatalogView() {
           />
         )}
       </Dialog>
+
+      {/* ---- Recipe and option ingredient dialogs ---- */}
+      {recipeProduct && loadState.status === "ready" && (
+        <IngredientLinesDialog
+          title={copy.recipes.recipeTitle(recipeProduct.name)}
+          description={copy.recipes.recipeDescription}
+          ingredients={ingredientCandidates(loadState.products, recipeProduct.id)}
+          load={() => getRecipe(recipeProduct.id)}
+          save={(lines, key) => saveRecipe(recipeProduct.id, lines, key)}
+          onClose={() => setRecipeProduct(null)}
+          onSaved={(message) => showNotice(message)}
+        />
+      )}
+      {consumptionOption && loadState.status === "ready" && (
+        <IngredientLinesDialog
+          signed
+          title={copy.recipes.optionTitle(consumptionOption.name)}
+          description={copy.recipes.optionDescription}
+          ingredients={ingredientCandidates(loadState.products)}
+          load={() => getOptionConsumption(consumptionOption.id).then((data) => ({ lines: data.lines, cost: data.cost_delta }))}
+          save={(lines, key) => saveOptionConsumption(consumptionOption.id, lines, key).then((data) => ({ lines: data.lines, cost: data.cost_delta }))}
+          onClose={() => setConsumptionOption(null)}
+          onSaved={(message) => showNotice(message)}
+        />
+      )}
 
       {/* ---- Product Story Dialog ---- */}
       {storyProduct && (
@@ -1060,6 +1105,7 @@ function ModifierGroupsPanel({
   onReload,
   onNotice,
   onError,
+  onEditConsumption,
 }: {
   groups: ModifierGroup[];
   canEdit: boolean;
@@ -1067,6 +1113,7 @@ function ModifierGroupsPanel({
   onReload: () => Promise<void>;
   onNotice: (msg: string) => void;
   onError: (error: unknown) => void;
+  onEditConsumption?: (option: { id: string; name: string }) => void;
 }) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupRequired, setNewGroupRequired] = useState(false);
@@ -1173,6 +1220,17 @@ function ModifierGroupsPanel({
                   <span className="text-xs text-muted-foreground">
                     {formatMoneyDelta(opt.price_delta)}
                   </span>
+                )}
+                {onEditConsumption && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 lg:h-7 lg:w-7"
+                    aria-label={copy.recipes.optionAction(opt.name)}
+                    onClick={() => onEditConsumption({ id: opt.id, name: opt.name })}
+                  >
+                    <ChefHat className="h-3.5 w-3.5" />
+                  </Button>
                 )}
                 {canDelete && (
                   <Button
@@ -1365,6 +1423,13 @@ function CategoryForm({
 /* ======================================================================
    ProductForm (renders inside Dialog)
    ====================================================================== */
+
+/** Ingredients first; lot-tracked products are not usable in recipes yet. */
+function ingredientCandidates(products: Product[], excludeId?: string): Product[] {
+  return products
+    .filter((product) => product.is_active && !product.track_lots && product.id !== excludeId)
+    .sort((a, b) => Number(isSellable(a)) - Number(isSellable(b)) || a.name.localeCompare(b.name, "es-MX"));
+}
 
 type ProductFormValues = {
   name: string;
