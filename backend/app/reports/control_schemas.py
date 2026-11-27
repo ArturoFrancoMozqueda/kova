@@ -32,6 +32,7 @@ RouteKey = Literal[
     "billing",
     "settings",
     "public_catalog",
+    "catalog",
 ]
 
 

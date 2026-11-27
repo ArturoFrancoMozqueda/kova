@@ -1,7 +1,7 @@
 # Producción por lote
 
-Estado: implementado localmente (E4 del [backlog competitivo](../../docs/backlog-competitivo.md));
-publicación no acreditada. Decisión: [ADR-043](../../docs/adr/ADR-043-produccion-por-lote.md).
+Estado: publicado el 27-nov-2026 (#397, release 45941970426; E4 del
+[backlog competitivo](../../docs/backlog-competitivo.md)). Decisión: [ADR-043](../../docs/adr/ADR-043-produccion-por-lote.md).
 
 ## Problema, usuarios y valor
 

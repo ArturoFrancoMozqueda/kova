@@ -71,7 +71,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | K | Roles fijos, permisos de descuento/devolución/ajuste, sucursales | 1 | `rbac/permissions.py`, `branches/` | — |
 | K | Permiso para ver costos, PIN rápido, asistencia | 5 | — | P3 |
 | L | Presets por giro, tour, importación, exportación de cuenta | 1–2 | `onboarding/`, `account_lifecycle/` | Asistente inicial por giro |
-| M | Panel de control y cola de operaciones | 2 | `reports/control.py`; la cola no incluye inventario ni sincronización | E5 |
+| M | Panel de control y cola de operaciones | 2 | `reports/control.py`; E5 agrega existencias negativas e insumos sin costo en recetas (sin publicar) | Pendientes de sincronización en la cola |
 | M | Asistente con respuestas ancladas | 3 | ADR-017/034 | Corpus y revisión humana |
 | 9 | Medición de tareas (venta, pedido, recepción, reposición) | 2 | `telemetry/useTaskMeasurement.ts`, [task_experience](../specs/reports/task_experience.md) | Producción y cierre |
 
@@ -83,8 +83,8 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E2 | Insumos, unidad base (`pza`/`g`/`ml`) y unidad de compra | P1 | — | Publicada (#392, release 45922044316) |
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Publicada (#395, release 45937609716) |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Publicada (#397, release 45941970426) |
-| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Siguiente |
-| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Pendiente |
+| E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Implementada en `feat/inventory-decisions`; PR abierto, sin publicar |
+| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Siguiente |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
 | E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
@@ -136,14 +136,11 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E4 están publicadas; producción sirve `cc43ae22`. Al abrir E5, actualizar la línea de estado
-   de `specs/recipes/batch_production.md` a publicada (#397, release 45941970426).
-2. Siguiente: **E5, panel de decisiones de inventario**, en una rama sobre `main`. Arranque concreto:
-   - Reposición ya sugiere unidades de compra (E2); confirmar que incluye insumos consumidos por
-     recetas y producción (cobertura `days_until_out` ya cuenta `consumption`).
-   - Agregar al panel (`reports/control.py`, `BusinessControlCenter`) tarjetas accionables:
-     insumos bajo mínimo → «Preparar compra» con la propuesta de `replenishment`; productos con
-     receta incompleta (insumo sin costo) → editor de costo; existencias negativas por consumo →
-     «Contar».
-   - Sin duplicados ni alertas viejas: cada tarjeta se calcula al leer, con su fundamento visible.
-3. Después E8b (recepción con diferencias y búsqueda de ventas) y E6 (anticipos en pedidos).
+1. E1 a E4 están publicadas (`cc43ae22`). E5 (`feat/inventory-decisions`, sin migración) está en su
+   PR; fusionarlo con su CI y esperar su release.
+2. Siguiente: **E8b**, en una rama sobre `main`:
+   - Recepción con diferencias en `purchasing/service.py`: permitir recibir más o menos de lo pedido
+     con motivo, cerrar la partida aunque falte mercancía y dejar evidencia de la diferencia.
+   - Búsqueda de ventas por folio (últimos 8 caracteres del recibo) y cliente en `GET /orders`, con
+     índice si hace falta y la misma paginación.
+3. Después E6 (anticipos y saldo en pedidos) y E7 (cola de preparación).

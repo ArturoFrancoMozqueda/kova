@@ -30,6 +30,7 @@ from app.pricing.calculator import money as round_money
 from app.purchasing.models import PurchaseOrder
 from app.quotes.models import CustomerQuote
 from app.rbac.permissions import Permission, has_permission
+from app.recipes.service import missing_recipe_costs
 from app.reconciliation.models import ReconciliationMatch, SettlementEntry
 from app.reports import service
 from app.reports.control_schemas import (
@@ -137,6 +138,7 @@ def _inventory(db, tenant, branches, today):
             "reserved_units",
             "stock_conflicts",
             "expiring_lots",
+            "negative_stock",
         )
     }
     for row in db.execute(
@@ -152,11 +154,14 @@ def _inventory(db, tenant, branches, today):
             )
             .label("low_stock"),
             func.coalesce(func.sum(positions.c.reserved), 0).label("reserved_units"),
+            # Recipes and production never block a sale, so a count that went
+            # below zero is a difference to verify with a physical count.
+            func.count().filter(positions.c.stock < 0).label("negative_stock"),
         )
         .where(positions.c.is_active.is_(True))
         .group_by(positions.c.branch_id)
     ).mappings():
-        for key in ("out_of_stock", "low_stock", "reserved_units"):
+        for key in ("out_of_stock", "low_stock", "reserved_units", "negative_stock"):
             result[key][row["branch_id"]] = int(row[key])
 
     lot_stock = (
@@ -527,6 +532,7 @@ def read_control(
         signal("out_of_stock", "Productos sin existencias disponibles", "inventory", "now")
         signal("low_stock", "Productos con stock bajo", "replenishment")
         signal("expiring_lots", "Lotes vencidos o por vencer en 7 días", "inventory")
+        signal("negative_stock", "Existencias negativas por contar", "inventory")
         rows = [
             metric(
                 "catalog_active",
@@ -535,13 +541,26 @@ def read_control(
                 "inventory",
                 basis="business",
             )
-        ] + [
+        ]
+        if has_permission(role, Permission.CATALOG_UPDATE):
+            # Catalog-wide, so a metric rather than one alert per branch.
+            rows.append(
+                metric(
+                    "recipe_costs_missing",
+                    "Insumos sin costo en recetas activas",
+                    len(missing_recipe_costs(db, tenant_id=tenant)),
+                    "catalog",
+                    basis="business",
+                )
+            )
+        rows += [
             metric(key, label, total(key), route)
             for key, label, route in [
                 ("out_of_stock", "Sin existencias disponibles", "inventory"),
                 ("low_stock", "Stock bajo", "replenishment"),
                 ("reserved_units", "Unidades reservadas", "inventory"),
                 ("expiring_lots", "Lotes vencidos o por vencer en 7 días", "inventory"),
+                ("negative_stock", "Existencias negativas por contar", "inventory"),
                 ("purchases_pending", "Compras pendientes de recibir", "purchasing"),
                 ("purchases_partial", "Compras con recepción parcial", "purchasing"),
             ]

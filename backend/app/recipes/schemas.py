@@ -117,3 +117,10 @@ class ProductionResponse(BaseModel):
     notes: str | None
     created_at: datetime
     consumed: list[CostedLine]
+
+
+class MissingRecipeCost(BaseModel):
+    ingredient_product_id: UUID
+    ingredient_name: str
+    # Products whose recipe in force uses this ingredient.
+    used_in: list[str]

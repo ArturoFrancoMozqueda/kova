@@ -1156,6 +1156,15 @@ export const copy = {
     saving: "Guardando…",
     close: "Cerrar",
   },
+  recipeCostReview: {
+    title: "Insumos sin costo en recetas",
+    body: "Mientras falte su costo, las ventas y lotes que los usan quedan sin costo y el margen se ve incompleto.",
+    usedIn: (names: string[]) => `Se usa en: ${names.join(", ")}`,
+    complete: "Completar costo",
+    empty: "Todas las recetas vigentes tienen el costo de sus insumos.",
+    loading: "Revisando recetas…",
+    loadError: "No pudimos revisar las recetas. Recarga la página para intentarlo de nuevo.",
+  },
   production: {
     action: "Producir",
     title: (name: string) => `Producir ${name}`,
@@ -1354,6 +1363,7 @@ export const copy = {
     filterAll: "Todos",
     filterLow: "Existencias bajas",
     filterHealthy: "Stock saludable",
+    filterNegative: "Existencias negativas",
     sortStock: "Ordenar inventario",
     sortNameAsc: "Nombre A-Z",
     sortStockAsc: "Menor stock primero",

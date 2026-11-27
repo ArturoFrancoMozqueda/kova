@@ -45,6 +45,7 @@ import { STOCK_UNITS, formatStockQuantity, isSellable, stockUnitLabels, stockUni
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { IngredientLinesDialog } from "@/recipes/IngredientLinesDialog";
+import { RecipeCostReview } from "@/recipes/RecipeCostReview";
 import { getBatchRecipe, getOptionConsumption, getRecipe, saveBatchRecipe, saveOptionConsumption, saveRecipe } from "@/recipes/api";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
@@ -352,6 +353,11 @@ export default function CatalogView() {
           </div>
         ) : undefined}
       />
+
+      {canUpdate && searchParams.get("review") === "recipe-costs" && (
+        // Re-read when any catalog cost changes, so a completed cost leaves the list.
+        <RecipeCostReview key={activeProducts.map((product) => `${product.id}:${product.cost_price ?? ""}`).join("|")} />
+      )}
 
       {/* Preset banner — shown only when catalog is empty and user can create */}
       {activeProducts.length === 0 && canCreate && (

@@ -97,3 +97,23 @@ Las dos señales principales de cada área conservan su etiqueta y añaden icono
 decorativos por significado (entrega, caja, inventario, seguimiento, cita o
 conciliación). Los faltantes confirmados se distinguen también con texto e icono;
 el color no sustituye la etiqueta ni comunica que una fuente pendiente esté sana.
+
+## Decisiones de insumos y recetas (E5, 2026-11-27)
+
+Las recetas y la producción nunca bloquean una venta, así que el Panel muestra lo que dejan por
+revisar, calculado al leer para no duplicar ni conservar alertas viejas:
+
+- **Existencias negativas por contar** (`negative_stock`, área de operación): productos activos con
+  existencia menor que cero en la sucursal. Abre Inventario filtrado en «Existencias negativas»
+  (`/inventory?filter=negative`). Un conteo físico que deja la existencia en cero o más la retira.
+- **Insumos sin costo en recetas activas** (`recipe_costs_missing`, alcance del negocio, sólo para
+  quien puede editar catálogo): insumos activos sin costo que usa la versión vigente de alguna
+  receta al vender o de producción, contados una vez. Abre Catálogo con la revisión
+  (`/catalog?review=recipe-costs`), que lista cada insumo, en qué productos se usa y un acceso
+  directo para completar su costo; la lista se relee al cambiar cualquier costo.
+  `GET /api/v1/catalog/recipes/missing-costs` requiere `catalog.update`.
+
+Los insumos bajo mínimo siguen en «Stock bajo», que abre Reposición; desde E2 la propuesta se
+expresa en unidades de compra y se aprueba antes de crear la compra. Evidencia:
+`backend/app/tests/test_inventory_decisions.py`, `frontend/src/recipes/RecipeCostReview.test.tsx`.
+

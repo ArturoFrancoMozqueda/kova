@@ -3702,7 +3702,8 @@
               "integrations",
               "billing",
               "settings",
-              "public_catalog"
+              "public_catalog",
+              "catalog"
             ],
             "title": "Route Key",
             "type": "string"
@@ -3913,7 +3914,8 @@
               "integrations",
               "billing",
               "settings",
-              "public_catalog"
+              "public_catalog",
+              "catalog"
             ],
             "title": "Route Key",
             "type": "string"
@@ -10928,6 +10930,33 @@
           "checklist"
         ],
         "title": "MessagingReadiness",
+        "type": "object"
+      },
+      "MissingRecipeCost": {
+        "properties": {
+          "ingredient_name": {
+            "title": "Ingredient Name",
+            "type": "string"
+          },
+          "ingredient_product_id": {
+            "format": "uuid",
+            "title": "Ingredient Product Id",
+            "type": "string"
+          },
+          "used_in": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Used In",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ingredient_product_id",
+          "ingredient_name",
+          "used_in"
+        ],
+        "title": "MissingRecipeCost",
         "type": "object"
       },
       "ModifierGroupCreate": {
@@ -27920,6 +27949,31 @@
           }
         },
         "summary": "Put Recipe",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/api/v1/catalog/recipes/missing-costs": {
+      "get": {
+        "operationId": "get_missing_recipe_costs_api_v1_catalog_recipes_missing_costs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissingRecipeCost"
+                  },
+                  "title": "Response Get Missing Recipe Costs Api V1 Catalog Recipes Missing Costs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Missing Recipe Costs",
         "tags": [
           "recipes"
         ]
