@@ -4253,6 +4253,21 @@
       "CustomerOrderCancel": {
         "additionalProperties": false,
         "properties": {
+          "deposit_resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "refund",
+                  "retain"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deposit Resolution"
+          },
           "note": {
             "anyOf": [
               {
@@ -4317,7 +4332,6 @@
               "$ref": "#/components/schemas/PaymentCreate"
             },
             "maxItems": 10,
-            "minItems": 1,
             "title": "Payments",
             "type": "array"
           },
@@ -4328,8 +4342,7 @@
           }
         },
         "required": [
-          "version",
-          "payments"
+          "version"
         ],
         "title": "CustomerOrderCheckout",
         "type": "object"
@@ -4470,6 +4483,222 @@
           "items"
         ],
         "title": "CustomerOrderCreate",
+        "type": "object"
+      },
+      "CustomerOrderDepositCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "method",
+          "amount"
+        ],
+        "title": "CustomerOrderDepositCreate",
+        "type": "object"
+      },
+      "CustomerOrderDepositEntry": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "deposit",
+              "refund",
+              "retained"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cash",
+                  "bank_transfer",
+                  "manual_card"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "method",
+          "amount",
+          "reference",
+          "reason",
+          "created_at"
+        ],
+        "title": "CustomerOrderDepositEntry",
+        "type": "object"
+      },
+      "CustomerOrderDepositRefund": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "method",
+          "amount",
+          "reason"
+        ],
+        "title": "CustomerOrderDepositRefund",
+        "type": "object"
+      },
+      "CustomerOrderDepositSummary": {
+        "properties": {
+          "applied": {
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "balance_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Balance Amount",
+            "type": "string"
+          },
+          "due_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Due Amount",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerOrderDepositEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "minimum_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Minimum Amount",
+            "type": "string"
+          },
+          "received_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Received Amount",
+            "type": "string"
+          }
+        },
+        "title": "CustomerOrderDepositSummary",
         "type": "object"
       },
       "CustomerOrderItemCreate": {
@@ -4669,6 +4898,12 @@
               }
             ],
             "title": "Customer Phone"
+          },
+          "deposit_balance_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Deposit Balance Amount",
+            "type": "string"
           },
           "folio": {
             "title": "Folio",
@@ -4944,6 +5179,9 @@
             ],
             "title": "Delivery Reference"
           },
+          "deposits": {
+            "$ref": "#/components/schemas/CustomerOrderDepositSummary"
+          },
           "folio": {
             "title": "Folio",
             "type": "string"
@@ -5142,6 +5380,63 @@
           "updated_at"
         ],
         "title": "CustomerOrderResponse",
+        "type": "object"
+      },
+      "CustomerOrderSettingsBody-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "cancelled_deposit_policy": {
+            "enum": [
+              "refund",
+              "retain"
+            ],
+            "title": "Cancelled Deposit Policy",
+            "type": "string"
+          },
+          "deposit_minimum_percent": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,6}0*$)\\d{0,3}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Deposit Minimum Percent"
+          }
+        },
+        "required": [
+          "deposit_minimum_percent",
+          "cancelled_deposit_policy"
+        ],
+        "title": "CustomerOrderSettingsBody",
+        "type": "object"
+      },
+      "CustomerOrderSettingsBody-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "cancelled_deposit_policy": {
+            "enum": [
+              "refund",
+              "retain"
+            ],
+            "title": "Cancelled Deposit Policy",
+            "type": "string"
+          },
+          "deposit_minimum_percent": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,6}0*$)\\d{0,3}\\.\\d{0,2}0*$)",
+            "title": "Deposit Minimum Percent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deposit_minimum_percent",
+          "cancelled_deposit_policy"
+        ],
+        "title": "CustomerOrderSettingsBody",
         "type": "object"
       },
       "CustomerOrderStatusChange": {
@@ -13534,6 +13829,11 @@
             "title": "Change Due Amount",
             "type": "string"
           },
+          "deposit_applied": {
+            "default": false,
+            "title": "Deposit Applied",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -16787,6 +17087,11 @@
             "title": "Change Due Amount",
             "type": "string"
           },
+          "deposit_applied": {
+            "default": false,
+            "title": "Deposit Applied",
+            "type": "boolean"
+          },
           "method": {
             "title": "Method",
             "type": "string"
@@ -18411,6 +18716,17 @@
           "refund_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Refund Total",
+            "type": "string"
+          },
+          "retained_deposit_count": {
+            "default": 0,
+            "title": "Retained Deposit Count",
+            "type": "integer"
+          },
+          "retained_deposits": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Retained Deposits",
             "type": "string"
           },
           "start_date": {
@@ -29097,6 +29413,66 @@
         ]
       }
     },
+    "/api/v1/customer-orders/settings": {
+      "get": {
+        "operationId": "get_customer_order_settings_api_v1_customer_orders_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerOrderSettingsBody-Output"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Customer Order Settings",
+        "tags": [
+          "customer-orders"
+        ]
+      },
+      "put": {
+        "operationId": "update_customer_order_settings_api_v1_customer_orders_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerOrderSettingsBody-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerOrderSettingsBody-Output"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Customer Order Settings",
+        "tags": [
+          "customer-orders"
+        ]
+      }
+    },
     "/api/v1/customer-orders/{order_id}": {
       "get": {
         "operationId": "get_customer_order_api_v1_customer_orders__order_id__get",
@@ -29409,6 +29785,144 @@
           }
         },
         "summary": "Confirm Customer Order",
+        "tags": [
+          "customer-orders"
+        ]
+      }
+    },
+    "/api/v1/customer-orders/{order_id}/deposits": {
+      "post": {
+        "operationId": "record_customer_order_deposit_api_v1_customer_orders__order_id__deposits_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerOrderDepositCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerOrderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Customer Order Deposit",
+        "tags": [
+          "customer-orders"
+        ]
+      }
+    },
+    "/api/v1/customer-orders/{order_id}/deposits/refund": {
+      "post": {
+        "operationId": "refund_customer_order_deposit_api_v1_customer_orders__order_id__deposits_refund_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerOrderDepositRefund"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerOrderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refund Customer Order Deposit",
         "tags": [
           "customer-orders"
         ]

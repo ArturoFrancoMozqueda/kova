@@ -310,6 +310,8 @@ def _cash(db, tenant, branches):
             Order.branch_id.in_(branches),
             Order.status == "completed",
             Payment.method == "cash",
+            # Applied deposits entered the drawer when they were received.
+            Payment.deposit_applied.is_(False),
         )
         .group_by(Order.shift_id)
         .subquery()

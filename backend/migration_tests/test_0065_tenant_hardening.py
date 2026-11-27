@@ -39,6 +39,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "recipes": {"SELECT", "INSERT"},
     "recipe_lines": {"SELECT", "INSERT"},
     "production_batches": {"SELECT", "INSERT"},
+    # Deposits are append-only money history; the policy row changes by column.
+    "customer_order_deposits": {"SELECT", "INSERT"},
+    "customer_order_settings": {"SELECT", "INSERT"},
     "modifier_option_consumptions": {"SELECT", "INSERT", "DELETE"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},
@@ -183,6 +186,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "customer_order_settings": {
+        "deposit_minimum_percent", "cancelled_deposit_policy", "updated_by_user_id", "updated_at",
+    },
     "loyalty_appearances": {"color", "use_business_logo", "version"},
     "booking_pages": {
         "enabled", "version", "link_version", "horizon_days", "notice_minutes",

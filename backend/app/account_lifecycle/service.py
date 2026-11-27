@@ -337,7 +337,7 @@ _EXPORT_TABLES = (
         "payments",
         _columns(
             "id tenant_id order_id method amount_amount amount_tendered_amount "
-            "change_due_amount reference created_at"
+            "change_due_amount reference deposit_applied created_at"
         ),
     ),
     ExportTable(
@@ -424,6 +424,20 @@ _EXPORT_TABLES = (
         _columns(
             "id tenant_id customer_order_id product_id product_name quantity unit_price_amount "
             "line_total_amount note"
+        ),
+    ),
+    ExportTable(
+        "customer_order_deposits",
+        _columns(
+            "id tenant_id branch_id customer_order_id kind method amount reference reason "
+            "shift_id created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "customer_order_settings",
+        _columns(
+            "tenant_id deposit_minimum_percent cancelled_deposit_policy updated_by_user_id "
+            "updated_at"
         ),
     ),
     ExportTable(
@@ -710,6 +724,8 @@ _TENANT_DELETE_ORDER = (
     "inventory_movements",
     "production_batches",
     "order_items",
+    "customer_order_deposits",
+    "customer_order_settings",
     "customer_order_item_modifiers",
     "inventory_reservations",
     "customer_order_items",

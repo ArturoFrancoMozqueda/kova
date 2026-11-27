@@ -6,7 +6,9 @@ import type {
   CustomerOrderInput,
   CustomerOrderListResponse,
   CustomerOrderPayments,
+  CustomerOrderSettings,
   CustomerOrderStatus,
+  DepositMethod,
 } from "./types";
 
 export class CustomerOrderApiError extends Error {
@@ -103,11 +105,46 @@ export function cancelCustomerOrder(
   version: number,
   reason: "customer_request" | "out_of_stock" | "duplicate" | "other",
   note?: string,
+  depositResolution?: "refund" | "retain",
 ): Promise<CustomerOrder> {
   return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}/cancel`, {
     version,
     reason,
     note: note || undefined,
+    ...(depositResolution ? { deposit_resolution: depositResolution } : {}),
+  });
+}
+
+export function recordCustomerOrderDeposit(
+  id: string,
+  version: number,
+  body: { method: DepositMethod; amount: string; reference?: string },
+  idempotencyKey?: string,
+): Promise<CustomerOrder> {
+  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}/deposits`, {
+    version, method: body.method, amount: body.amount, reference: body.reference?.trim() || undefined,
+  }, "POST", idempotencyKey);
+}
+
+export function refundCustomerOrderDeposit(
+  id: string,
+  version: number,
+  body: { method: DepositMethod; amount: string; reason: string },
+  idempotencyKey?: string,
+): Promise<CustomerOrder> {
+  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}/deposits/refund`, {
+    version, ...body,
+  }, "POST", idempotencyKey);
+}
+
+export function getCustomerOrderSettings(): Promise<CustomerOrderSettings> {
+  return requestJson<CustomerOrderSettings>("/api/v1/customer-orders/settings");
+}
+
+export function updateCustomerOrderSettings(body: CustomerOrderSettings): Promise<CustomerOrderSettings> {
+  return requestJson<CustomerOrderSettings>("/api/v1/customer-orders/settings", {
+    method: "PUT",
+    body: JSON.stringify(body),
   });
 }
 

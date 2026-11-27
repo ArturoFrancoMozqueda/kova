@@ -33,7 +33,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | A | Descuentos con permiso | 1 | `orders.discount`, `test_order_pricing_controls.py` | Cupones (E8) |
 | A | Devoluciones por medio original, anulaciones | 1 | ADR-037, `test_refund_*` | — |
 | A | Devolver dinero sin reponer producto | 1 (publicada 26-nov, #391) | `test_refund_restock.py`, [spec](../specs/orders/refunds.md) | Aceptación en un negocio |
-| A | Historial, recibo y reimpresión | 2 | `GET /orders/{id}/receipt`; búsqueda por folio/cliente en E8b (en revisión) | E8b |
+| A | Historial, recibo y reimpresión | 1 | `GET /orders/{id}/receipt`; búsqueda por folio/cliente (E8b) | — |
 | A | Offline: recarga, reconexión, sin duplicados | 1 | [offline_sync](../specs/orders/offline_sync.md), e2e `offline-sale-real` | — |
 | A | Tickets 58/80 mm, cajón, lector | 3 | Impresión del navegador, cajón ESC/POS por red; [matriz](runbooks/pos-hardware-acceptance.md) | Prueba física por modelo |
 | B | Productos, SKU, código de barras, modificadores con precio | 1 | `catalog/`, `modifiers/` | — |
@@ -45,7 +45,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | C | Recetas al vender | 1 (publicada 26-nov, #395) | [recipes_on_sale](../specs/recipes/recipes_on_sale.md), `test_recipes_on_sale.py` | Aceptación en un negocio; producción (E4) |
 | C | Producción por lote, rendimiento y merma | 1 (publicada 27-nov, #397) | [batch_production](../specs/recipes/batch_production.md), `test_batch_production.py` | Aceptación en un negocio |
 | D | Movimientos, ajustes, conteos físicos, mermas tipificadas, lotes | 1 | `inventory/`, ADR-011, [physical-counts](../specs/inventory/physical-counts.md) | — |
-| D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión; diferencias con motivo en E8b (en revisión) | Publicar E8b |
+| D | Proveedores, órdenes y recepción parcial | 1 | `purchasing/`, Gestión; diferencias con motivo (E8b) | — |
 | D | Unidad de compra distinta a la de consumo | 1 (publicada 26-nov, #392) | Factor congelado por partida, recepción convertida | Aceptación en un negocio |
 | D | Traspasos entre sucursales | 1 | `branches/transfers.py` | — |
 | D | Sugerencias de reposición → compra aprobada | 1 | `replenishment/` | Incluir insumos (E5) |
@@ -55,7 +55,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E | Merma valorizada | 2 | Usa costo actual; devoluciones sin reponer ya visibles (E1) | Costo histórico por movimiento |
 | F | Pedidos con fecha comprometida, apartado y seguimiento | 1 | `customer_orders/`, ADR-014 | — |
 | F | Cotizaciones | 1 | `quotes/` | — |
-| F | Anticipos, abonos y saldo | 5 | Estados de pago sin parcial | E6 |
+| F | Anticipos, abonos y saldo | 3 | Anticipos con política por negocio en E6 (en revisión) | Publicar E6 |
 | F | Crédito a clientes | 5 | Diferido | Decisión del dueño |
 | G | Cola de preparación / estaciones | 5 | Diferido (ADR-014) | E7 |
 | G | Mesas y cuentas abiertas | 5 | Solo solicitudes de mesa (ADR-033) | P3 |
@@ -84,8 +84,8 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E3 | Recetas al vender, consumo por modificador y costo por partida | P1 | E1, E2 | Publicada (#395, release 45937609716) |
 | E4 | Producción por lote: rendimiento, merma y costo del lote | P1 | E2, E3 | Publicada (#397, release 45941970426) |
 | E5 | Panel: insumos bajos → propuesta de compra; productos sin costo completo | P1 | E2–E4 | Publicada (#399, release 46032469644) |
-| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | En revisión |
-| E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Pendiente |
+| E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Publicada (#402, release 46051884447) |
+| E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | En revisión |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Pendiente |
 | E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
 | E9 | CFDI Test | P2 | Emisor del dueño | Bloqueado externo |
@@ -118,6 +118,9 @@ aceptación externa, no desarrollo.
   cambia precios ni otras funciones. Se formaliza en un ADR al implementar E2/E3.
 - 26-nov-2026: cada entrega sale en su propio PR con CI; no se fusiona ni se publica sin orden
   explícita.
+- 27-nov-2026 (E6): el ingreso de un pedido con anticipo se reconoce al liquidar. Cada negocio
+  configura si un anticipo de un pedido cancelado se devuelve o se conserva, y si exige un anticipo
+  mínimo para confirmar ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md)).
 
 ## Validación comercial
 
@@ -136,13 +139,11 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E5 están publicadas; producción sirve `1369693a`. El servidor nativo prepara rutas y modelos
-   ORM antes de escuchar (#400): nuevas áreas no deben agregar trabajo a la primera petición.
-2. **E8b** en rama `feat/receiving-and-search`, sin publicar:
-   - Recepción con diferencias: `close_remaining` y `difference_reason` por partida
-     ([contrato](../specs/purchasing/purchasing.md)); la base exige motivo
-     (`ck_purchase_items_difference`) y reposición ya no cuenta lo cerrado ni lo excedido.
-   - Búsqueda `q` en `GET /orders` por folio o cliente, con índice `ix_orders_tenant_folio`
-     ([contrato](../specs/orders/history.md)).
-   - Falta: fusionar, publicar y probarlo con una recepción real.
-3. Siguiente: E6 (anticipos y saldo en pedidos) y después E7 (cola de preparación).
+1. E1 a E5 y E8b están publicadas; producción sirve `695fbbf3`.
+2. **E6** en rama `feat/order-deposits`, sin publicar:
+   - Anticipos en pedidos con historial propio, efectivo al turno cuando llega y venta única al
+     liquidar ([ADR-044](adr/ADR-044-anticipos-en-pedidos.md),
+     [contrato](../specs/customer_orders/customer_orders.md)). Migración `0114`.
+   - Política por negocio (mínimo y cancelación) en Pedidos → Política de anticipos.
+   - Falta: fusionar, publicar y probar el caso integral 3 con un pedido real.
+3. Siguiente: E7 (cola de preparación) y después E8 (cupones).

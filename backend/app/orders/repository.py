@@ -135,6 +135,8 @@ def cash_sales_total_for_shift(
             Order.shift_id == shift_id,
             Order.status == "completed",
             Payment.method == "cash",
+            # Applied deposits entered the drawer when they were received.
+            Payment.deposit_applied.is_(False),
         )
         .scalar()
     )
@@ -189,6 +191,7 @@ def create_payment(
     change_due: Decimal,
     reference: str | None,
     flush: bool = True,
+    deposit_applied: bool = False,
 ) -> Payment:
     payment = Payment(
         id=uuid4(),
@@ -199,6 +202,7 @@ def create_payment(
         amount_tendered_amount=amount_tendered,
         change_due_amount=change_due,
         reference=reference,
+        deposit_applied=deposit_applied,
     )
     db.add(payment)
     if flush:

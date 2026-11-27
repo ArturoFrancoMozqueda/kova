@@ -111,6 +111,50 @@ describe("CustomerOrderCheckoutRegister", () => {
     );
   });
 
+  it("charges only what the deposit left pending", async () => {
+    api.getCustomerOrder.mockResolvedValue({ ...order, total_amount: "600.00", subtotal_amount: "600.00",
+      deposits: { received_amount: "200.00", balance_amount: "200.00", due_amount: "400.00",
+        minimum_amount: "0.00", applied: false, entries: [] } });
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-1", version: 2 },
+      sale_order: { id: "sale-1", total_amount: "600.00" },
+    });
+    api.getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    renderCheckout();
+
+    expect(await screen.findByText("Anticipo recibido")).toBeVisible();
+    expect(screen.getByText("Saldo por cobrar")).toBeVisible();
+    fireEvent.click(screen.getByRole("radio", { name: "Transferencia" }));
+    const charge = await screen.findByRole("button", { name: /cobrar \$400\.00/i });
+    await waitFor(() => expect(charge).toBeEnabled());
+    fireEvent.click(charge);
+    await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledWith(
+      order.id, order.version,
+      [expect.objectContaining({ method: "bank_transfer", amount: "400.00" })],
+      expect.any(String), undefined,
+    ));
+  });
+
+  it("settles with the deposit alone when it covers the total", async () => {
+    api.getCustomerOrder.mockResolvedValue({ ...order,
+      deposits: { received_amount: "50.00", balance_amount: "50.00", due_amount: "0.00",
+        minimum_amount: "0.00", applied: false, entries: [] } });
+    api.getOpenShift.mockResolvedValue(null);
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-2", version: 2 },
+      sale_order: { id: "sale-2", total_amount: "50.00" },
+    });
+    api.getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    renderCheckout();
+
+    expect(await screen.findByText("El anticipo cubre el total del pedido. No hay saldo por cobrar.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Liquidar con el anticipo" }));
+    await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledWith(
+      order.id, order.version, [], expect.any(String), undefined,
+    ));
+    expect(api.openDrawer).not.toHaveBeenCalled();
+  });
+
   it("blocks cash before submit when there is no open shift", async () => {
     api.getOpenShift.mockResolvedValue(null);
     renderCheckout();

@@ -7,6 +7,9 @@ export type SalesSummary = {
   order_count: number;
   refund_count: number;
   void_count: number;
+  /** Deposits kept on cancelled orders: income of that day, not sales. */
+  retained_deposits?: string;
+  retained_deposit_count?: number;
 };
 
 export type PaymentBreakdown = {

@@ -149,6 +149,11 @@ class Payment(Base):
     amount_tendered_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     change_due_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Money collected earlier as a customer order deposit (it entered the drawer
+    # then), applied when the order is settled. Not cash taken by this sale.
+    deposit_applied: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

@@ -150,6 +150,7 @@ def _provision_kova_app() -> None:
             ),
             "SELECT, INSERT": (
                 "refund_payments recipes recipe_lines production_batches "
+                "customer_order_deposits customer_order_settings "
                 "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "
@@ -219,6 +220,10 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE(state, binding_id, provider_message_id, contact_fingerprint, version, error_code, updated_at) ON messaging_messages TO kova_app"))
         conn.execute(text("GRANT UPDATE (matched_amount, status, version, reasons, confirmed_by_user_id, reversal_reason, updated_at) ON reconciliation_matches TO kova_app"))
         conn.execute(text("GRANT UPDATE (received_quantity, closed_at, difference_reason) ON purchase_order_items TO kova_app"))
+        conn.execute(text(
+            "GRANT UPDATE (deposit_minimum_percent, cancelled_deposit_policy, updated_by_user_id, "
+            "updated_at) ON customer_order_settings TO kova_app"
+        ))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
         conn.execute(text(
             "GRANT UPDATE (organization_id, issuer_snapshot, state, operation_id, creation_rejected, "

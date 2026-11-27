@@ -12,8 +12,11 @@ from app.customer_orders.schemas import (
     CustomerOrderCheckout,
     CustomerOrderCheckoutResponse,
     CustomerOrderCreate,
+    CustomerOrderDepositCreate,
+    CustomerOrderDepositRefund,
     CustomerOrderListResponse,
     CustomerOrderResponse,
+    CustomerOrderSettingsBody,
     CustomerOrderStatusChange,
     CustomerOrderUpdate,
     VersionedAction,
@@ -104,6 +107,31 @@ def create_customer_order(
     )
     response.status_code = status_code
     return response_body
+
+
+@router.get("/settings", response_model=CustomerOrderSettingsBody)
+def get_customer_order_settings(
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_customer_orders(Permission.CUSTOMER_ORDERS_VIEW)
+    ),
+):
+    _, membership, _ = ctx
+    return service.get_customer_order_settings(db, tenant_id=membership.tenant_id)
+
+
+@router.put("/settings", response_model=CustomerOrderSettingsBody)
+def update_customer_order_settings(
+    body: CustomerOrderSettingsBody,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_customer_orders(Permission.SETTINGS_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    return service.update_customer_order_settings(
+        db, tenant_id=membership.tenant_id, user_id=user.id, body=body
+    )
 
 
 @router.get("/{order_id}", response_model=CustomerOrderResponse)
@@ -233,6 +261,55 @@ def checkout_customer_order(
 ):
     user, membership, _ = ctx
     status_code, response_body = service.checkout_customer_order(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        order_id=order_id,
+        body=body,
+        idempotency_key=idempotency_key,
+    )
+    response.status_code = status_code
+    return response_body
+
+
+@router.post("/{order_id}/deposits", response_model=CustomerOrderResponse, status_code=201)
+def record_customer_order_deposit(
+    order_id: UUID,
+    body: CustomerOrderDepositCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+    idempotency_key: str = Depends(_idempotency_key),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_customer_orders(Permission.CUSTOMER_ORDERS_CHECKOUT)
+    ),
+):
+    user, membership, _ = ctx
+    status_code, response_body = service.record_customer_order_deposit(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        order_id=order_id,
+        body=body,
+        idempotency_key=idempotency_key,
+    )
+    response.status_code = status_code
+    return response_body
+
+
+@router.post("/{order_id}/deposits/refund", response_model=CustomerOrderResponse)
+def refund_customer_order_deposit(
+    order_id: UUID,
+    body: CustomerOrderDepositRefund,
+    response: Response,
+    db: Session = Depends(get_db),
+    idempotency_key: str = Depends(_idempotency_key),
+    # Returning money is a manager decision, like refunding a sale.
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_customer_orders(Permission.ORDERS_REFUND)
+    ),
+):
+    user, membership, _ = ctx
+    status_code, response_body = service.refund_customer_order_deposit(
         db,
         tenant_id=membership.tenant_id,
         user_id=user.id,

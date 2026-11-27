@@ -12,17 +12,22 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.catalog.models import Product
 from app.crm.engagement_models import CatalogRequest
+from app.customer_orders import deposits
 from app.customer_orders import repository as repo
 from app.customer_orders.models import (
     CustomerOrder,
     CustomerOrderItem,
     CustomerOrderItemModifier,
+    CustomerOrderSettings,
     InventoryReservation,
 )
 from app.customer_orders.schemas import (
     CustomerOrderCancel,
     CustomerOrderCheckout,
     CustomerOrderCreate,
+    CustomerOrderDepositCreate,
+    CustomerOrderDepositRefund,
+    CustomerOrderSettingsBody,
     CustomerOrderStatusChange,
     CustomerOrderUpdate,
     VersionedAction,
@@ -60,7 +65,10 @@ def _hash_payload(payload: dict[str, Any]) -> str:
         k: v for k, v in payload.items()
         if not (
             v is None
-            and (k == "lot_allocations" or (k == "customer_id" and "order_id" not in payload))
+            and (
+                k in {"lot_allocations", "deposit_resolution"}
+                or (k == "customer_id" and "order_id" not in payload)
+            )
         )
     }
     encoded = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
@@ -265,6 +273,7 @@ def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, 
         "cancellation_note": order.cancellation_note,
         "created_at": order.created_at.isoformat(),
         "updated_at": order.updated_at.isoformat(),
+        "deposits": deposits.summary(db, order=order),
     }
 
 
@@ -544,6 +553,9 @@ def list_customer_orders(
     stock_conflicts = _stock_conflicts_for_orders(
         db, tenant_id=tenant_id, orders=[order for order, _ in rows]
     )
+    held = deposits.balances_for_orders(
+        db, tenant_id=tenant_id, orders=[order for order, _ in rows]
+    )
     items = [
         {
             "id": str(order.id),
@@ -555,6 +567,7 @@ def list_customer_orders(
             "customer_phone": order.customer_phone,
             "promised_at": order.promised_at.isoformat() if order.promised_at else None,
             "total_amount": str(order.total_amount),
+            "deposit_balance_amount": str(held.get(order.id, Decimal("0.00"))),
             "stock_conflict": order.id in stock_conflicts,
             "created_at": order.created_at.isoformat(),
             "updated_at": order.updated_at.isoformat(),
@@ -744,6 +757,16 @@ def confirm_customer_order(
     _check_version(order, body.version)
     if order.status != "new":
         raise _error(409, "INVALID_TRANSITION", "Solo un pedido nuevo se puede confirmar.")
+    required = deposits.minimum_amount(db, order=order)
+    held = deposits.balance(db, order=order)
+    if held < required:
+        raise _error(
+            422,
+            "DEPOSIT_REQUIRED",
+            f"Este negocio pide un anticipo de ${required} para confirmar el pedido.",
+            required_amount=str(required),
+            balance_amount=str(held),
+        )
     _reserve_inventory(db, order=order)
     order.status = "confirmed"
     order.confirmed_at = datetime.now(UTC)
@@ -874,6 +897,7 @@ def cancel_customer_order(
         )
     if payment in {"refunded", "voided"} and role not in {"owner", "manager"}:
         raise forbidden("Solo gerencia puede cerrar un pedido con una venta revertida")
+    resolved = _resolve_deposit_on_cancel(db, order=order, user_id=user_id, role=role, body=body)
     _release_reservations(db, order=order)
     order.status = "cancelled"
     order.cancelled_by_user_id = user_id
@@ -891,7 +915,7 @@ def cancel_customer_order(
         user_id=user_id,
         resource_type="customer_order",
         resource_id=order.id,
-        changes={"status": "cancelled", "reason": body.reason},
+        changes={"status": "cancelled", "reason": body.reason, **resolved},
     )
     _observe("cancelled", order=order, reason=body.reason)
     _store_response(
@@ -1049,6 +1073,7 @@ def checkout_customer_order(
         )
     customer_id = order.customer_id or (quote.customer_id if quote else None)
     _validate_order_customer(db, tenant_id, customer_id)
+    applied = _deposits_to_apply(db, order=order, payments=body.payments)
     sale = order_service.persist_completed_order(
         db,
         tenant_id=tenant_id,
@@ -1056,6 +1081,7 @@ def checkout_customer_order(
         priced_items=priced_lines,
         payments=body.payments,
         customer_id=customer_id,
+        applied_deposits=applied,
     )
     order.sale_order_id = sale.id
     order.updated_by_user_id = user_id
@@ -1083,7 +1109,10 @@ def checkout_customer_order(
         user_id=user_id,
         resource_type="customer_order",
         resource_id=order.id,
-        changes={"sale_order_id": str(sale.id)},
+        changes={
+            "sale_order_id": str(sale.id),
+            "deposit_applied": str(calculator.money(sum((a for _, a in applied), Decimal(0)))),
+        },
     )
     _observe("checked_out", order=order)
     _store_response(
@@ -1096,3 +1125,219 @@ def checkout_customer_order(
     )
     db.commit()
     return 201, response_body
+
+
+_DEPOSIT_OPEN_STATUSES = {"new", *_ACTIVE_STATUSES}
+_MANAGERS = {"owner", "manager"}
+
+
+def _deposits_to_apply(
+    db: Session, *, order: CustomerOrder, payments: list
+) -> list[tuple[str, Decimal]]:
+    """Deposit money that settles part of the sale, per method; payments cover the rest."""
+    rows = deposits.entries(db, order=order)
+    held = deposits.balance(db, order=order, rows=rows)
+    if held > order.total_amount:
+        raise _error(
+            409,
+            "DEPOSIT_EXCEEDS_TOTAL",
+            "El anticipo supera el total del pedido. Devuelve la diferencia antes de cobrar.",
+            balance_amount=str(held),
+        )
+    due = calculator.money(order.total_amount - held)
+    paid = calculator.money(sum((p.amount for p in payments), Decimal(0)))
+    if paid != due:
+        raise _error(
+            422,
+            "PAYMENT_MISMATCH",
+            f"El pago debe cubrir el saldo de ${due}.",
+            due_amount=str(due),
+            balance_amount=str(held),
+        )
+    return sorted(deposits.net_by_method(rows).items()) if held > 0 else []
+
+
+def _resolve_deposit_on_cancel(
+    db: Session, *, order: CustomerOrder, user_id: UUID, role: str, body: CustomerOrderCancel
+) -> dict[str, Any]:
+    rows = deposits.entries(db, order=order)
+    held = deposits.balance(db, order=order, rows=rows)
+    if held <= 0:
+        return {}
+    policy = deposits.settings_body(deposits.settings_for(db, tenant_id=order.tenant_id))[
+        "cancelled_deposit_policy"
+    ]
+    if body.deposit_resolution is None:
+        raise _error(
+            409,
+            "DEPOSIT_RESOLUTION_REQUIRED",
+            "Este pedido tiene anticipo: indica si se devuelve o se conserva.",
+            balance_amount=str(held),
+            policy=policy,
+        )
+    if role not in _MANAGERS:
+        raise forbidden("Solo gerencia puede cancelar un pedido con anticipo")
+    reason = f"Pedido cancelado: {body.note}" if body.note else "Pedido cancelado"
+    if body.deposit_resolution == "retain":
+        if policy != "retain":
+            raise _error(
+                409,
+                "DEPOSIT_RETAIN_NOT_ALLOWED",
+                "La política del negocio es devolver el anticipo al cancelar.",
+            )
+        deposits.record(
+            db, order=order, user_id=user_id, kind="retained", method=None,
+            amount=held, reason=reason[:200],
+        )
+        return {"deposit_retained": str(held)}
+    for method, amount in sorted(deposits.net_by_method(rows).items()):
+        deposits.record(
+            db, order=order, user_id=user_id, kind="refund", method=method,
+            amount=amount, reason=reason[:200],
+        )
+    return {"deposit_refunded": str(held)}
+
+
+def _deposit_mutation(db: Session, *, tenant_id: UUID, order_id: UUID, version: int, action):
+    """Lock the order, run one deposit change and return (order, audit changes, body)."""
+    order = _get_for_update(db, tenant_id=tenant_id, order_id=order_id)
+    _check_version(order, version)
+    if order.sale_order_id and deposits.balance(db, order=order) <= 0:
+        raise _error(409, "ALREADY_PAID", "Este pedido ya se cobró.")
+    if order.status not in _DEPOSIT_OPEN_STATUSES:
+        raise _error(409, "INVALID_TRANSITION", "Este pedido ya terminó.")
+    changes = action(order)
+    order.version += 1
+    db.flush()
+    response_body = serialize_customer_order(db, order=order)
+    return order, changes, response_body
+
+
+def record_customer_order_deposit(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    order_id: UUID,
+    body: CustomerOrderDepositCreate,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any]]:
+    payload = {"operation": "deposit", "order_id": str(order_id), **body.model_dump(mode="json")}
+
+    def receive(order: CustomerOrder) -> dict[str, Any]:
+        if order.sale_order_id:
+            raise _error(409, "ALREADY_PAID", "Este pedido ya se cobró.")
+        held = deposits.balance(db, order=order)
+        if held + body.amount > order.total_amount:
+            raise _error(
+                422,
+                "DEPOSIT_EXCEEDS_TOTAL",
+                f"El anticipo no puede superar el saldo de ${order.total_amount - held}.",
+                due_amount=str(calculator.money(order.total_amount - held)),
+            )
+        deposits.record(
+            db, order=order, user_id=user_id, kind="deposit", method=body.method,
+            amount=body.amount, reference=body.reference,
+        )
+        order.updated_by_user_id = user_id
+        return {"amount": str(body.amount), "method": body.method}
+
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if stored:
+        return stored
+    order, changes, response_body = _deposit_mutation(
+        db, tenant_id=tenant_id, order_id=order_id, version=body.version, action=receive
+    )
+    audit_service.log(
+        db, action="customer_orders.deposit", tenant_id=tenant_id, user_id=user_id,
+        resource_type="customer_order", resource_id=order.id, changes=changes,
+    )
+    _observe("deposit_received", order=order, method=body.method)
+    _store_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload,
+        status_code=201, response_body=response_body,
+    )
+    db.commit()
+    return 201, response_body
+
+
+def refund_customer_order_deposit(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    order_id: UUID,
+    body: CustomerOrderDepositRefund,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any]]:
+    payload = {
+        "operation": "deposit_refund", "order_id": str(order_id), **body.model_dump(mode="json")
+    }
+
+    def give_back(order: CustomerOrder) -> dict[str, Any]:
+        rows = deposits.entries(db, order=order)
+        held_by_method = deposits.net_by_method(rows)
+        if (
+            body.amount > held_by_method.get(body.method, Decimal("0.00"))
+            or body.amount > deposits.balance(db, order=order, rows=rows)
+        ):
+            raise _error(
+                422,
+                "DEPOSIT_REFUND_EXCEEDS_BALANCE",
+                "La devolución supera el anticipo recibido con ese medio.",
+                held_by_method={k: str(v) for k, v in held_by_method.items()},
+            )
+        deposits.record(
+            db, order=order, user_id=user_id, kind="refund", method=body.method,
+            amount=body.amount, reason=body.reason,
+        )
+        order.updated_by_user_id = user_id
+        return {"amount": str(body.amount), "method": body.method}
+
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if stored:
+        return stored
+    order, changes, response_body = _deposit_mutation(
+        db, tenant_id=tenant_id, order_id=order_id, version=body.version, action=give_back
+    )
+    audit_service.log(
+        db, action="customer_orders.deposit_refund", tenant_id=tenant_id, user_id=user_id,
+        resource_type="customer_order", resource_id=order.id, changes=changes,
+    )
+    _observe("deposit_refunded", order=order, method=body.method)
+    _store_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload,
+        status_code=200, response_body=response_body,
+    )
+    db.commit()
+    return 200, response_body
+
+
+def get_customer_order_settings(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
+    return deposits.settings_body(deposits.settings_for(db, tenant_id=tenant_id))
+
+
+def update_customer_order_settings(
+    db: Session, *, tenant_id: UUID, user_id: UUID, body: CustomerOrderSettingsBody
+) -> dict[str, Any]:
+    row = deposits.settings_for(db, tenant_id=tenant_id)
+    before = deposits.settings_body(row)
+    if row is None:
+        row = CustomerOrderSettings(tenant_id=tenant_id)
+        db.add(row)
+    row.deposit_minimum_percent = body.deposit_minimum_percent
+    row.cancelled_deposit_policy = body.cancelled_deposit_policy
+    row.updated_by_user_id = user_id
+    db.flush()
+    after = deposits.settings_body(row)
+    audit_service.log(
+        db, action="customer_orders.settings", tenant_id=tenant_id, user_id=user_id,
+        resource_type="customer_order_settings", resource_id=tenant_id,
+        changes={"before": before, "after": after},
+    )
+    db.commit()
+    return after

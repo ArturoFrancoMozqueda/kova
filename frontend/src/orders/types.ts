@@ -27,6 +27,8 @@ export type Payment = {
   amount_tendered_amount: string | null;
   change_due_amount: string;
   reference: string | null;
+  /** Collected earlier as a customer order deposit and applied to this sale. */
+  deposit_applied?: boolean;
 };
 
 export type Order = {

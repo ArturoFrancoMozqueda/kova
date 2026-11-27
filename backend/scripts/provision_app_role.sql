@@ -220,6 +220,8 @@ BEGIN
             ('recipes', 'SELECT, INSERT'),
             ('recipe_lines', 'SELECT, INSERT'),
             ('production_batches', 'SELECT, INSERT'),
+            ('customer_order_deposits', 'SELECT, INSERT'),
+            ('customer_order_settings', 'SELECT, INSERT'),
             ('modifier_option_consumptions', 'SELECT, INSERT, DELETE'),
             ('refunds', 'SELECT, INSERT'),
             ('telemetry_events', 'INSERT'),
@@ -334,6 +336,10 @@ DO $$ BEGIN
     IF to_regclass('public.purchase_orders') IS NOT NULL THEN
         GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
         GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;
+    END IF;
+    IF to_regclass('public.customer_order_settings') IS NOT NULL THEN
+        GRANT UPDATE (deposit_minimum_percent, cancelled_deposit_policy, updated_by_user_id,
+            updated_at) ON TABLE customer_order_settings TO kova_app;
     END IF;
     -- Receiving differences (0113); absent on earlier revisions.
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'

@@ -26,6 +26,15 @@ desempeño por persona. Un reporte histórico puede cambiar cuando se registra u
 devolución válida después. Los movimientos físicos de efectivo conservan su hora
 real en el turno donde se registraron y se concilian en Caja.
 
+## Anticipos de pedidos
+
+Un anticipo no es venta: entra a la caja del turno cuando se recibe y la venta del pedido se cuenta
+una sola vez, el día que se liquida, con el anticipo aplicado como pago ya cobrado
+([ADR-044](adr/ADR-044-anticipos-en-pedidos.md)). Ventas brutas, netas y métodos de cobro usan esa
+venta. Un anticipo **conservado** al cancelar un pedido es ingreso del día de la cancelación y el
+resumen de ventas lo muestra aparte (`retained_deposits`, `retained_deposit_count`), sin sumarlo a
+ventas.
+
 ## Cancelaciones: fecha del evento
 
 Una orden anulada deja de contar como venta completada. El contador de
