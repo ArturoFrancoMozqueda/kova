@@ -94,6 +94,14 @@ def test_search_rejects_one_character(client, db):
 
 def test_full_folio_lookup_uses_the_folio_index(client, db):
     tenant, orders = _seed(client, db)
+    # Enough history that scanning the tenant costs more than the folio index;
+    # with a handful of rows the planner may rightly pick any tenant index.
+    db.execute(text(
+        "INSERT INTO orders (id, tenant_id, branch_id, status, subtotal_amount, total_amount, "
+        "created_at) SELECT gen_random_uuid(), :tenant, :branch, 'completed', 10, 10, now() "
+        "FROM generate_series(1, 3000)"
+    ), {"tenant": tenant, "branch": orders[0].branch_id})
+    db.execute(text("ANALYZE orders"))
     query = repository._search_filter(
         db.query(Order.id).filter(Order.tenant_id == tenant),
         tenant_id=tenant, q=orders[0].id.hex[-8:], customers=False,
