@@ -6,6 +6,8 @@ export type OfflinePaymentDraft = {
   amount: string;
   amount_tendered?: string;
   reference?: string;
+  /** Split bill: the person (1–20) paying. */
+  split_group?: number;
 };
 
 export type OfflineSaleDraft = {
@@ -18,6 +20,8 @@ export type OfflineSaleDraft = {
     unit_price_amount?: string;
     quantity: number;
     modifier_option_ids?: string[];
+    /** Split bill: the person (1–20) who consumed this line. */
+    split_group?: number;
   }>;
   payments: OfflinePaymentDraft[];
 };
@@ -36,6 +40,7 @@ export type OfflineReceiptSnapshot = {
       modifier_option_name: string;
       price_delta_amount: string;
     }>;
+    split_group?: number;
   }>;
   discount_amount?: string;
   tax_rate?: string;
@@ -45,6 +50,7 @@ export type OfflineReceiptSnapshot = {
   payments: Array<{
     method: OfflinePaymentDraft["method"];
     amount_amount: string;
+    split_group?: number;
   }>;
   total_tendered: string;
   total_change: string;

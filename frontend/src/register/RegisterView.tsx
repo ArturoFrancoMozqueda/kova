@@ -78,6 +78,7 @@ import {
   Minus,
   Trash2,
   SplitSquareHorizontal,
+  Users,
   CheckCircle2,
   ExternalLink,
   RotateCcw,
@@ -96,6 +97,8 @@ import {
 } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { SplitBillPanel, newPersonPayment, splitBillReady, type PersonPayment } from "./SplitBillPanel";
+import { MIN_PEOPLE, personTotals, unitsOf, type SplitAssignment } from "./splitBill";
 import { getReceiptSettings } from "@/settings/api";
 import {
   cacheReceiptPaperWidth,
@@ -276,7 +279,7 @@ function RegularRegisterView() {
     submittedSaleMeasurement.current = null;
     cartGenerationRef.current += 1;
     setCart({}); setCashTendered(""); setReference(""); setDiscount("0.00");
-    setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]);
+    setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]); resetSplitBill();
     setRewardChoice(null); setPendingReceipt(null); setCompletedOrder(order);
     resetCashInteraction(); void refreshStock(); invalidateOrderLists();
     if (navigator.onLine && order.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount_amount) > 0)) void drawer.open("sale", "", order.id);
@@ -335,6 +338,14 @@ function RegularRegisterView() {
   const [cashTenderedTouched, setCashTenderedTouched] = useState(false);
   const [cashSubmitAttempted, setCashSubmitAttempted] = useState(false);
   const [reference, setReference] = useState("");
+  // "Cada quien paga lo suyo": units assigned to people, one payment per person.
+  const [splitBillEnabled, setSplitBillEnabled] = useState(false);
+  const [splitPeople, setSplitPeople] = useState(MIN_PEOPLE);
+  const [splitAssignment, setSplitAssignment] = useState<SplitAssignment>({});
+  const [splitBillPayments, setSplitBillPayments] = useState<PersonPayment[]>([]);
+  const resetSplitBill = useCallback(() => {
+    setSplitBillEnabled(false); setSplitPeople(MIN_PEOPLE); setSplitAssignment({}); setSplitBillPayments([]);
+  }, []);
   const [splitPaymentsEnabled, setSplitPaymentsEnabled] = useState(false);
   const [splitPayments, setSplitPayments] = useState<PaymentDraft[]>([
     createPaymentDraft("cash"),
@@ -504,6 +515,7 @@ function RegularRegisterView() {
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
+    resetSplitBill();
     setCompletedOrder(null);
     setPendingReceipt(null);
     setOfflineSaleAnnouncement("");
@@ -513,7 +525,7 @@ function RegularRegisterView() {
     // search box. Runs after the success view restores its previous focus.
     // Phones skip it so the on-screen keyboard doesn't pop up uninvited.
     if (!isCartSheetModal) window.requestAnimationFrame(() => skuInputRef.current?.focus());
-  }, [isCartSheetModal, resetCashInteraction, tenantId, clearCustomerIntent, saleMeasurement]);
+  }, [isCartSheetModal, resetCashInteraction, tenantId, clearCustomerIntent, saleMeasurement, resetSplitBill]);
 
   useEffect(() => {
     setCustomers([]);
@@ -939,10 +951,21 @@ function RegularRegisterView() {
   const splitTotalMatches = splitPaymentTotalCents === totalCents;
   const splitIsValid =
     !splitPaymentsEnabled || (splitHasPayment && splitTotalMatches && splitCashIsValid);
+  const billLines = useMemo(() => cartItems.map((item) => ({
+    key: cartLineKey(item), quantity: item.quantity, unitCents: moneyToCents(item.effectiveUnitPrice),
+  })), [cartItems]);
+  const splitBill = useMemo(
+    () => personTotals(billLines, splitAssignment, splitPeople, selectedReward?.discount_amount ?? discount, taxRate),
+    [billLines, splitAssignment, splitPeople, selectedReward, discount, taxRate],
+  );
+  const splitBillValid = !splitBillEnabled
+    || (splitBill.valid && splitBillReady(splitBill.totals, splitBillPayments, hasOpenShift === true));
   // Cash must land in an open drawer so the corte reconciles. Mirrors the
   // backend rule; this is the real enforcement for the register, which only
   // ever rings via the offline-sync path (the backend can't block there).
-  const saleIncludesCash = splitPaymentsEnabled
+  const saleIncludesCash = splitBillEnabled
+    ? splitBill.totals.some((total, person) => total > 0 && splitBillPayments[person]?.method === "cash")
+    : splitPaymentsEnabled
     ? splitPayments.some(
         (payment) => payment.method === "cash" && moneyToCents(payment.amount) > 0,
       )
@@ -975,14 +998,15 @@ function RegularRegisterView() {
     !customerIntentBlocked &&
     pricing.valid &&
     cartItems.length > 0 &&
-    (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
+    (splitBillEnabled ? splitBillValid : splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
     !cashBlocked &&
+    !(splitBillEnabled && selectedReward) &&
     rewardCheckout.ready && !rewardCheckout.pending && !rewardCheckout.busy &&
     (!selectedReward || (online && moneyToCents(discount) === 0)) &&
     !submitting;
   const hasCashTendered = cashTendered.trim().length > 0;
   const cashPaymentNeedsAmount =
-    !splitPaymentsEnabled &&
+    !splitPaymentsEnabled && !splitBillEnabled &&
     paymentMethod === "cash" &&
     cartItems.length > 0 &&
     !cashBlocked &&
@@ -1156,6 +1180,7 @@ function RegularRegisterView() {
   const toggleSplitPayments = (enabled: boolean) => {
     setCashTendered("");
     resetCashInteraction();
+    if (enabled) resetSplitBill();
     setSplitPaymentsEnabled(enabled);
     if (enabled) {
       setSplitPayments([
@@ -1166,6 +1191,31 @@ function RegularRegisterView() {
         },
       ]);
     }
+  };
+
+  const toggleSplitBill = (enabled: boolean) => {
+    setCashTendered("");
+    resetCashInteraction();
+    setSplitPaymentsEnabled(false);
+    setSplitAssignment({});
+    setSplitPeople(MIN_PEOPLE);
+    setSplitBillPayments(Array.from({ length: MIN_PEOPLE }, () => newPersonPayment(hasOpenShift === true ? "cash" : "bank_transfer")));
+    setSplitBillEnabled(enabled);
+  };
+
+  const changeSplitPeople = (people: number) => {
+    setSplitPeople(people);
+    setSplitBillPayments((current) => Array.from({ length: people }, (_, person) => current[person] ?? newPersonPayment(hasOpenShift === true ? "cash" : "bank_transfer")));
+  };
+
+  const assignUnit = (key: string, unit: number, person: number) => {
+    const line = billLines.find((candidate) => candidate.key === key);
+    if (!line) return;
+    setSplitAssignment((current) => {
+      const units = unitsOf(line, current, splitPeople);
+      units[unit] = person;
+      return { ...current, [key]: units };
+    });
   };
 
   const updateSplitPayment = (
@@ -1264,18 +1314,38 @@ function RegularRegisterView() {
     const submittedCart = cart;
     const drawerRequestedAt = Date.now();
 
+    // Split bill: one sale line per (cart line, person), priced in that order like the server.
+    const itemsByKey = new Map(cartItems.map((item) => [cartLineKey(item), item]));
+    const saleLines = splitBillEnabled
+      ? splitBill.parts.map((part) => ({ item: itemsByKey.get(part.key)!, quantity: part.quantity, person: part.person }))
+      : cartItems.map((item) => ({ item, quantity: item.quantity, person: null as number | null }));
+    const saleAllocated = splitBillEnabled ? splitBill.allocated : pricing.allocated;
     const sale = {
       discount_amount: selectedReward ? "0.00" : centsToMoney(pricing.discount),
       tax_rate: taxRate || "0.00",
       ...(customerId ? { customer_id: customerId } : {}),
-      items: cartItems.map((item) => ({
+      items: saleLines.map(({ item, quantity, person }) => ({
         product_id: item.product.id,
-        ...(item.product.track_lots ? { lot_allocations: takeLots(item.product.id, item.quantity) } : {}),
+        ...(item.product.track_lots ? { lot_allocations: takeLots(item.product.id, quantity) } : {}),
         unit_price_amount: item.effectiveUnitPrice,
-        quantity: item.quantity,
+        quantity,
         modifier_option_ids: item.selectedModifiers.map((m) => m.optionId),
+        ...(person !== null ? { split_group: person + 1 } : {}),
       })),
-      payments: splitPaymentsEnabled
+      payments: splitBillEnabled
+        ? splitBill.totals.flatMap((total, person) => {
+            if (total <= 0) return [];
+            const payment = splitBillPayments[person];
+            return [{
+              method: payment.method,
+              amount: centsToMoney(total),
+              ...(payment.method === "cash"
+                ? { amount_tendered: centsToMoney(moneyToCents(payment.tendered)) }
+                : { reference: payment.reference.trim() || undefined }),
+              split_group: person + 1,
+            }];
+          })
+        : splitPaymentsEnabled
         ? splitPayments
             .filter((payment) => moneyToCents(payment.amount) > 0)
             .map((payment) => ({
@@ -1323,11 +1393,12 @@ function RegularRegisterView() {
       business_name: tenantName,
       created_at: new Date().toISOString(),
       paper_width_mm: paperWidthMm,
-      items: cartItems.map((item, index) => ({
+      items: saleLines.map(({ item, quantity, person }, index) => ({
         product_name: item.product.name,
-        quantity: item.quantity,
+        quantity,
         unit_price_amount: item.effectiveUnitPrice,
-        line_total_amount: centsToMoney(pricing.allocated[index]),
+        line_total_amount: centsToMoney(saleAllocated[index]),
+        ...(person !== null ? { split_group: person + 1 } : {}),
         modifiers: item.selectedModifiers.map((modifier) => ({
           modifier_group_name: modifier.groupName,
           modifier_option_name: modifier.optionName,
@@ -1342,6 +1413,7 @@ function RegularRegisterView() {
       payments: sale.payments.map((payment) => ({
         method: payment.method,
         amount_amount: payment.amount,
+        ...("split_group" in payment && typeof payment.split_group === "number" ? { split_group: payment.split_group } : {}),
       })),
       total_tendered: centsToMoney(cashSettlement.tenderedCents),
       total_change: centsToMoney(cashSettlement.changeCents),
@@ -1372,6 +1444,7 @@ function RegularRegisterView() {
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
+    resetSplitBill();
     submittingRef.current = false;
     setSubmitting(false);
 
@@ -1932,6 +2005,24 @@ function RegularRegisterView() {
                     <p className="font-medium text-foreground">{copy.register.paymentEmptyTitle}</p>
                     <p className="mt-1 text-muted-foreground">{copy.register.paymentEmptyBody}</p>
                   </div>
+                ) : splitBillEnabled ? (
+                  <SplitBillPanel
+                    idPrefix="register-split"
+                    lines={cartItems.map((item) => ({
+                      key: cartLineKey(item),
+                      name: item.product.name,
+                      detail: item.selectedModifiers.map((modifier) => modifier.optionName).join(" · ") || undefined,
+                      quantity: item.quantity,
+                    }))}
+                    owners={Object.fromEntries(billLines.map((line) => [line.key, unitsOf(line, splitAssignment, splitPeople)]))}
+                    people={splitPeople}
+                    totals={splitBill.totals}
+                    payments={splitBillPayments}
+                    cashAllowed={hasOpenShift === true}
+                    onPeopleChange={changeSplitPeople}
+                    onAssign={assignUnit}
+                    onPaymentChange={(person, patch) => setSplitBillPayments((current) => current.map((payment, index) => index === person ? { ...payment, ...patch } : payment))}
+                  />
                 ) : splitPaymentsEnabled ? (
                   <div className="space-y-3">
                     {splitPayments.map((payment, index) => (
@@ -2209,6 +2300,26 @@ function RegularRegisterView() {
                     <span className="space-y-0.5">
                       <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
                       <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
+                    </span>
+                  </label>
+                )}
+                {cartItems.length > 0 && !selectedReward && (
+                  <label
+                    className={cn(
+                      "flex min-h-11 cursor-pointer items-start gap-3 rounded-kova-md border px-3 py-2.5 text-sm transition-colors duration-quick ease-standard",
+                      splitBillEnabled ? "border-primary/40 bg-primary/5" : "border-kova-border hover:border-primary/30",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={splitBillEnabled}
+                      onChange={(event) => toggleSplitBill(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                    />
+                    <Users className="mt-0.5 h-4 w-4 shrink-0 text-kova-muted" aria-hidden="true" />
+                    <span className="space-y-0.5">
+                      <span className="block text-sm font-medium">Dividir cuenta</span>
+                      <span className="block text-xs text-muted-foreground">Cada quien paga lo que consumió; un solo ticket con la parte de cada persona.</span>
                     </span>
                   </label>
                 )}

@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     UniqueConstraint,
 )
@@ -115,6 +116,8 @@ class OrderItem(Base):
     order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     product_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    # Person who consumed this line when the bill is split (1–20); None = undivided.
+    split_group: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     lot_tracked: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
@@ -154,6 +157,8 @@ class Payment(Base):
     deposit_applied: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # Person who made this payment when the bill is split (1–20); None = undivided.
+    split_group: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

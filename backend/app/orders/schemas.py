@@ -25,6 +25,8 @@ class OrderItemCreate(BaseModel):
     product_id: UUID
     quantity: int = Field(gt=0)
     modifier_option_ids: list[UUID] = Field(default_factory=list, max_length=MAX_MODIFIER_OPTIONS)
+    # Split bill: the person (1–20) who consumed this line. All lines or none.
+    split_group: int | None = Field(default=None, ge=1, le=20)
 
 
 class PaymentCreate(BaseModel):
@@ -32,6 +34,8 @@ class PaymentCreate(BaseModel):
     amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     amount_tendered: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     reference: str | None = Field(default=None, max_length=255)
+    # Split bill: the person (1–20) paying; their payments cover exactly their lines.
+    split_group: int | None = Field(default=None, ge=1, le=20)
 
 
 class OrderCreate(BaseModel):
@@ -62,6 +66,7 @@ class OrderItemResponse(BaseModel):
     modifiers: list[OrderItemModifierResponse] = Field(default_factory=list)
     # Present on reads of a saved sale; None in the checkout response.
     stock_consumed: bool | None = None
+    split_group: int | None = None
 
 
 class PaymentResponse(BaseModel):
@@ -75,6 +80,7 @@ class PaymentResponse(BaseModel):
     reference: str | None
     # Collected earlier as a customer order deposit and applied to this sale.
     deposit_applied: bool = False
+    split_group: int | None = None
 
 
 class LoyaltyRewardSnapshot(BaseModel):
@@ -106,6 +112,7 @@ class ReceiptItemLine(BaseModel):
     unit_price_amount: Decimal
     line_total_amount: Decimal
     modifiers: list[OrderItemModifierResponse] = Field(default_factory=list)
+    split_group: int | None = None
 
 
 class ReceiptPaymentLine(BaseModel):
@@ -116,6 +123,7 @@ class ReceiptPaymentLine(BaseModel):
     reference: str | None
     # Collected earlier as a customer order deposit and applied to this sale.
     deposit_applied: bool = False
+    split_group: int | None = None
 
 
 class ReceiptRefundItemLine(BaseModel):

@@ -67,10 +67,15 @@ cancelado se devuelve o se conserva ([ADR-044](adr/ADR-044-anticipos-en-pedidos.
 [PR #403](https://github.com/ArturoFrancoMozqueda/kova/pull/403) y el
 [release 46064467636](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46064467636): API y
 frontend sirven `e31cf6e1`. Falta su uso en un negocio real.
-Entrega E7, en revisión: cola de preparación por estación para ventas de Caja y pedidos, con número
-corto del día. Decisión del dueño (27 de noviembre): todos los planes, ventas y pedidos, número del
+Entrega E7: cola de preparación por estación para ventas de Caja y pedidos, con número corto del
+día. Decisión del dueño (27 de noviembre): todos los planes, ventas y pedidos, número del
 día ([ADR-045](adr/ADR-045-cola-de-preparacion.md), [contrato](../specs/prep_queue/prep_queue.md)).
-Migración `0115_prep_queue`. No está publicada.
+Publicada el 27 de noviembre con el [PR #405](https://github.com/ArturoFrancoMozqueda/kova/pull/405)
+y el [release 46073577075](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46073577075): API y
+frontend sirven `6338bbd1`. Falta su uso en un negocio real.
+Dividir la cuenta por persona, en revisión: pedido del dueño (27 de noviembre), cada quien paga lo
+suyo en una sola venta con un ticket por persona, en Caja y al cobrar pedidos
+([contrato](../specs/orders/split_bill.md)). Migración `0116_split_bill`. No está publicada.
 
 ## En producción
 

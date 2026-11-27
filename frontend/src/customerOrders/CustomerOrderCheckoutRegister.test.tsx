@@ -155,6 +155,34 @@ describe("CustomerOrderCheckoutRegister", () => {
     expect(api.openDrawer).not.toHaveBeenCalled();
   });
 
+  it("splits a pedido by person and shares the deposit by what each had", async () => {
+    api.getCustomerOrder.mockResolvedValue({ ...order, total_amount: "100.00", subtotal_amount: "100.00",
+      items: [{ ...order.items[0], quantity: 2, line_total_amount: "100.00" }],
+      deposits: { received_amount: "20.00", balance_amount: "20.00", due_amount: "80.00",
+        minimum_amount: "0.00", applied: false, entries: [] } });
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-3", version: 2 },
+      sale_order: { id: "sale-3", total_amount: "100.00" },
+    });
+    api.getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    renderCheckout();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Dividir cuenta/ }));
+    fireEvent.change(screen.getByLabelText(/Concha \(2 de 2\)/), { target: { value: "1" } });
+    expect(screen.getAllByText("Ya cubrió $10.00 con el anticipo.")).toHaveLength(2);
+    fireEvent.change(screen.getAllByLabelText("Paga con")[1], { target: { value: "manual_card" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cobrar $80.00" }));
+    await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledWith(
+      order.id, order.version,
+      [
+        expect.objectContaining({ method: "bank_transfer", amount: "40.00", split_group: 1 }),
+        expect.objectContaining({ method: "manual_card", amount: "40.00", split_group: 2 }),
+      ],
+      expect.any(String), undefined,
+      [{ item_id: "item-1", split_group: 1, quantity: 1 }, { item_id: "item-1", split_group: 2, quantity: 1 }],
+    ));
+  });
+
   it("blocks cash before submit when there is no open shift", async () => {
     api.getOpenShift.mockResolvedValue(null);
     renderCheckout();

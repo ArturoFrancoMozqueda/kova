@@ -2,6 +2,7 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatMoney, reasonLabel } from "./format";
 import type { HTMLAttributes } from "react";
+import { centsToMoney, moneyToCents } from "@/lib/money";
 import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
 import type { LoyaltyRewardSnapshot, RefundPaymentAllocation } from "./types";
 
@@ -17,13 +18,23 @@ type ReceiptItem = {
   unit_price_amount: string;
   line_total_amount: string;
   modifiers?: ReceiptModifier[];
+  /** Split bill: the person who consumed it. */
+  split_group?: number | null;
 };
 
 type ReceiptPayment = {
   method: string;
   amount_amount: string;
   deposit_applied?: boolean;
+  split_group?: number | null;
 };
+
+/** Items grouped by person when the bill was split; one unnamed group otherwise. */
+function itemGroups(items: ReceiptItem[]): { person: number | null; items: ReceiptItem[] }[] {
+  if (!items.some((item) => item.split_group)) return [{ person: null, items }];
+  const people = [...new Set(items.map((item) => item.split_group ?? 0))].sort((a, b) => a - b);
+  return people.map((person) => ({ person, items: items.filter((item) => (item.split_group ?? 0) === person) }));
+}
 
 export type ReceiptTemplateRefund = {
   id: string;
@@ -143,7 +154,15 @@ export function ReceiptTemplate({
       <ReceiptSeparator band={1} />
 
       <div {...band(1)} className="space-y-1">
-        {items.map((item, index) => (
+        {itemGroups(items).map((group) => (
+        <div key={group.person ?? "all"} className="space-y-1">
+        {group.person ? (
+          <div className="flex justify-between gap-3 pt-1 font-semibold">
+            <span>Persona {group.person}</span>
+            <span className="whitespace-nowrap">{formatMoney(centsToMoney(group.items.reduce((sum, item) => sum + moneyToCents(item.line_total_amount), 0)))}</span>
+          </div>
+        ) : null}
+        {group.items.map((item, index) => (
           <div key={`${item.product_name}-${index}`} className="space-y-0.5" data-receipt-item="">
             <div className="flex justify-between gap-3">
               <span className="min-w-0 flex-1 break-words">
@@ -167,6 +186,8 @@ export function ReceiptTemplate({
             ))}
           </div>
         ))}
+        </div>
+        ))}
       </div>
 
       <ReceiptSeparator band={2} />
@@ -180,7 +201,11 @@ export function ReceiptTemplate({
         {payments.map((payment, index) => (
           <ReceiptLine
             key={`${payment.method}-${index}`}
-            label={payment.deposit_applied ? `Anticipo · ${reasonLabel(payment.method)}` : reasonLabel(payment.method)}
+            label={[
+              payment.split_group ? `Persona ${payment.split_group}` : null,
+              payment.deposit_applied ? "Anticipo" : null,
+              reasonLabel(payment.method),
+            ].filter(Boolean).join(" · ")}
             value={formatMoney(payment.amount_amount)}
             muted
           />

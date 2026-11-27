@@ -2,7 +2,7 @@ import { resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { LotAllocationEditor } from "@/inventory/LotControls";
 import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, Banknote, Building2, CheckCircle2, CreditCard, Loader2, Plus, Printer, SplitSquareHorizontal, Trash2 } from "lucide-react";
+import { Users, AlertCircle, ArrowLeft, Banknote, Building2, CheckCircle2, CreditCard, Loader2, Plus, Printer, SplitSquareHorizontal, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
@@ -26,6 +26,8 @@ import type { Receipt } from "@/orders/types";
 import { RegisterPaymentMethodSelector } from "@/register/RegisterPresentation";
 import { getOpenShift } from "@/shifts/api";
 import { checkoutCustomerOrder, CustomerOrderApiError, getCustomerOrder } from "./api";
+import { SplitBillPanel, newPersonPayment, splitBillReady, type PersonPayment } from "@/register/SplitBillPanel";
+import { MIN_PEOPLE, pedidoPersonDue, unitsOf, type SplitAssignment } from "@/register/splitBill";
 import type { CustomerOrder, CustomerOrderPayments } from "./types";
 
 type Method = "cash" | "bank_transfer" | "manual_card";
@@ -58,6 +60,11 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
   const [payments, setPayments] = useState<DraftPayment[]>([
     { id: crypto.randomUUID(), method: "cash", amount: "", tendered: "", reference: "" },
   ]);
+  // "Cada quien paga lo suyo": units of the pedido by person; the deposit is shared by what each had.
+  const [splitBill, setSplitBill] = useState(false);
+  const [splitPeople, setSplitPeople] = useState(MIN_PEOPLE);
+  const [splitAssignment, setSplitAssignment] = useState<SplitAssignment>({});
+  const [personPayments, setPersonPayments] = useState<PersonPayment[]>(() => [newPersonPayment(), newPersonPayment()]);
   const [split, setSplit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -124,18 +131,36 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
     [assignedCents, cashBlocked, coveredByDeposit, payments, totalCents],
   );
 
+  const splitDue = useMemo(() => pedidoPersonDue(
+    (order?.items ?? []).map((item) => ({ key: item.id, quantity: item.quantity, lineTotalCents: moneyToCents(item.line_total_amount) })),
+    splitAssignment, splitPeople, depositCents,
+  ), [order, splitAssignment, splitPeople, depositCents]);
+  const splitValid = splitBillReady(splitDue.due, personPayments, openShift === true);
+  const canSubmit = splitBill ? splitValid : valid;
+
   const updatePayment = (id: string, patch: Partial<DraftPayment>) => {
     checkoutKeyRef.current = null;
     setPayments((current) => current.map((payment) => payment.id === id ? { ...payment, ...patch } : payment));
   };
 
   const submit = async () => {
-    if (!order || !valid || submittingRef.current) return;
+    if (!order || !canSubmit || submittingRef.current) return;
     if (Object.entries(order.lot_reservations ?? {}).some(([productId, original]) => !allocationValid(lotParts[productId] ?? original, order.items.filter(item => item.product_id === productId).reduce((sum, item) => sum + item.quantity, 0)))) { setError("Completa la asignación de lotes antes de cobrar."); return; }
     submittingRef.current = true;
     setSubmitting(true);
     setError(null);
-    const payload: CustomerOrderPayments = coveredByDeposit ? [] : payments.map((payment) => ({
+    const payload: CustomerOrderPayments = splitBill
+      ? splitDue.due.flatMap((due, person) => {
+          if (due <= 0) return [];
+          const payment = personPayments[person];
+          return [{
+            method: payment.method,
+            amount: centsToMoney(due),
+            ...(payment.method === "cash" ? { amount_tendered: centsToMoney(moneyToCents(payment.tendered)) } : { reference: payment.reference.trim() || undefined }),
+            split_group: person + 1,
+          }];
+        })
+      : coveredByDeposit ? [] : payments.map((payment) => ({
       method: payment.method,
       amount: centsToMoney(moneyToCents(payment.amount)),
       ...(payment.method === "cash" ? { amount_tendered: centsToMoney(moneyToCents(payment.tendered)) } : { reference: payment.reference.trim() || undefined }),
@@ -143,8 +168,11 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
     const idempotencyKey = checkoutKeyRef.current ?? crypto.randomUUID();
     checkoutKeyRef.current = idempotencyKey;
     try {
-      const result = await checkoutCustomerOrder(order.id, order.version, payload, idempotencyKey,
-        Object.keys(order.lot_reservations ?? {}).length ? { ...order.lot_reservations, ...lotParts } : undefined);
+      const lots = Object.keys(order.lot_reservations ?? {}).length ? { ...order.lot_reservations, ...lotParts } : undefined;
+      const result = splitBill
+        ? await checkoutCustomerOrder(order.id, order.version, payload, idempotencyKey, lots,
+          splitDue.groups.map((group) => ({ item_id: group.key, split_group: group.person + 1, quantity: group.quantity })))
+        : await checkoutCustomerOrder(order.id, order.version, payload, idempotencyKey, lots);
       setOrder(result.customer_order);
       setCompletedSaleOrderId(result.sale_order.id);
       checkoutKeyRef.current = null;
@@ -237,8 +265,26 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
             return <div key={productId}><p className="font-semibold">{order.items.find(item => item.product_id === productId)?.product_name} · lotes reservados</p><LotAllocationEditor productId={productId} quantity={quantity} reservedParts={original} value={lotParts[productId] ?? original} onChange={parts => { setLotParts(previous => ({ ...previous, [productId]: parts })); checkoutKeyRef.current = null; }} /></div>;
           })}
           {coveredByDeposit ? <p role="status" className="rounded-lg bg-kova-growth/10 p-3 text-sm text-kova-growth-strong">El anticipo cubre el total del pedido. No hay saldo por cobrar.</p> : null}
-          {!coveredByDeposit && !split ? <RegisterPaymentMethodSelector value={payments[0].method} options={paymentOptions.map((option) => ({ ...option, disabled: option.value === "cash" && openShift !== true }))} onChange={(method) => updatePayment(payments[0].id, { method, tendered: "", reference: "" })} label="Método de pago" /> : null}
-          {!coveredByDeposit ? <><Button variant="ghost" className="w-full" onClick={() => {
+          {!coveredByDeposit ? <Button variant="outline" className="w-full" aria-pressed={splitBill} onClick={() => {
+            checkoutKeyRef.current = null;
+            setSplit(false);
+            setSplitBill((current) => !current);
+          }}><Users className="mr-2 h-4 w-4" /> {splitBill ? "Cobrar a una sola persona" : "Dividir cuenta: cada quien paga lo suyo"}</Button> : null}
+          {splitBill && !coveredByDeposit ? <SplitBillPanel
+            idPrefix="pedido-split"
+            lines={order.items.map((item) => ({ key: item.id, name: item.product_name, detail: item.modifiers.map((modifier) => modifier.modifier_option_name).join(" · ") || undefined, quantity: item.quantity }))}
+            owners={Object.fromEntries(order.items.map((item) => [item.id, unitsOf({ key: item.id, quantity: item.quantity, unitCents: 0 }, splitAssignment, splitPeople)]))}
+            people={splitPeople}
+            totals={splitDue.due}
+            credits={depositCents > 0 ? splitDue.credits : undefined}
+            payments={personPayments}
+            cashAllowed={openShift === true}
+            onPeopleChange={(people) => { checkoutKeyRef.current = null; setSplitPeople(people); setPersonPayments((current) => Array.from({ length: people }, (_, person) => current[person] ?? newPersonPayment())); }}
+            onAssign={(key, unit, person) => { checkoutKeyRef.current = null; const item = order.items.find((candidate) => candidate.id === key); if (!item) return; setSplitAssignment((current) => { const units = unitsOf({ key, quantity: item.quantity, unitCents: 0 }, current, splitPeople); units[unit] = person; return { ...current, [key]: units }; }); }}
+            onPaymentChange={(person, patch) => { checkoutKeyRef.current = null; setPersonPayments((current) => current.map((payment, index) => index === person ? { ...payment, ...patch } : payment)); }}
+          /> : null}
+          {!coveredByDeposit && !split && !splitBill ? <RegisterPaymentMethodSelector value={payments[0].method} options={paymentOptions.map((option) => ({ ...option, disabled: option.value === "cash" && openShift !== true }))} onChange={(method) => updatePayment(payments[0].id, { method, tendered: "", reference: "" })} label="Método de pago" /> : null}
+          {!coveredByDeposit && !splitBill ? <><Button variant="ghost" className="w-full" onClick={() => {
             checkoutKeyRef.current = null;
             setSplit((current) => !current);
             if (split) setPayments([{ ...payments[0], amount: dueAmount(order) }]);
@@ -253,8 +299,8 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
           {split ? <Button variant="outline" className="w-full" disabled={remainingCents <= 0} onClick={() => { checkoutKeyRef.current = null; setPayments((current) => [...current, { id: crypto.randomUUID(), method: "bank_transfer", amount: centsToMoney(Math.max(remainingCents, 0)), tendered: "", reference: "" }]); }}><Plus className="mr-2 h-4 w-4" /> Agregar pago</Button> : null}
           <div className="rounded-lg bg-muted/60 p-3 text-sm tabular-nums"><div className="flex justify-between"><span>Asignado</span><span>{formatMoney(centsToMoney(assignedCents))}</span></div><div className="mt-1 flex justify-between font-semibold"><span>Restante</span><span className={remainingCents === 0 ? "text-kova-growth-strong" : "text-destructive"}>{formatMoney(centsToMoney(Math.abs(remainingCents)))}</span></div></div>
           </> : null}
-          {cashBlocked && !coveredByDeposit ? <p className="text-sm text-destructive" role="alert">{openShift === false ? "Abre un turno para cobrar en efectivo." : "No se pudo comprobar el turno para este cobro en efectivo."}</p> : null}
-          <Button className="w-full" size="lg" disabled={!valid || submitting} onClick={() => void submit()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />} {coveredByDeposit ? "Liquidar con el anticipo" : `Cobrar ${formatMoney(dueAmount(order))}`}</Button>
+          {cashBlocked && !coveredByDeposit && !splitBill ? <p className="text-sm text-destructive" role="alert">{openShift === false ? "Abre un turno para cobrar en efectivo." : "No se pudo comprobar el turno para este cobro en efectivo."}</p> : null}
+          <Button className="w-full" size="lg" disabled={!canSubmit || submitting} onClick={() => void submit()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />} {coveredByDeposit ? "Liquidar con el anticipo" : `Cobrar ${formatMoney(dueAmount(order))}`}</Button>
         </CardContent></Card>
       </div>
     </ViewLayout>

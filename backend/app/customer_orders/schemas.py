@@ -102,10 +102,18 @@ class CustomerOrderCancel(VersionedAction):
         return reject_html(value.strip() or None if value else None)
 
 
+class CustomerOrderItemGroup(StrictModel):
+    item_id: UUID
+    split_group: int = Field(ge=1, le=20)
+    quantity: int = Field(gt=0, le=100_000)
+
+
 class CustomerOrderCheckout(VersionedAction):
     lot_allocations: dict[UUID, list[LotAllocation]] | None = Field(default=None, max_length=200)
     # Covers the balance after deposits; empty only when deposits cover the total.
-    payments: list[PaymentCreate] = Field(default_factory=list, max_length=10)
+    payments: list[PaymentCreate] = Field(default_factory=list, max_length=20)
+    # Split bill: which person takes how many units of each item (all units, or omitted).
+    item_groups: list[CustomerOrderItemGroup] | None = Field(default=None, max_length=400)
 
 
 DepositMethod = Literal["cash", "bank_transfer", "manual_card"]

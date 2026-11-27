@@ -107,6 +107,7 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
         "reference": payment.reference,
         # Same shape in create, read and receipt responses (see PaymentResponse).
         "deposit_applied": bool(payment.deposit_applied),
+        "split_group": payment.split_group,
     }
 
 
@@ -186,6 +187,7 @@ def _order_body_from_rows(
                 "modifiers": _modifier_bodies(
                     sorted(modifiers.get(item.id, []), key=lambda mod: mod.id.int)
                 ),
+                "split_group": item.split_group,
             }
             for item in items
         ],
@@ -207,6 +209,41 @@ class PricedOrderLine:
     line_total: Decimal
     modifier_snapshots: list[dict[str, Any]]
     lot_allocations: list[LotAllocation] | None = None
+    split_group: int | None = None
+
+
+def validate_split_groups(
+    item_groups: list[int | None],
+    line_totals: list[Decimal],
+    payments: list[PaymentCreate],
+    credit: Decimal = Decimal("0.00"),
+) -> None:
+    """A split bill ("each pays their own") must cover each person exactly.
+
+    Every line and every payment names a person, or none does. Each person's
+    payments equal the sum of their lines minus their share of any credit
+    already collected (a customer order deposit), shared by line totals.
+    """
+    payment_groups = [payment.split_group for payment in payments]
+    if all(group is None for group in item_groups + payment_groups):
+        return
+    if any(group is None for group in item_groups + payment_groups):
+        raise bad_request("Asigna cada artículo y cada pago a una persona")
+    owed: dict[int, Decimal] = {}
+    for group, total in zip(item_groups, line_totals, strict=True):
+        owed[group] = owed.get(group, Decimal("0.00")) + total
+    people = sorted(owed)
+    shares = calculator.allocate_amount([owed[person] for person in people], credit)
+    due = {person: calculator.money(owed[person] - share) for person, share in zip(
+        people, shares, strict=True)}
+    paid: dict[int, Decimal] = {}
+    for payment in payments:
+        paid[payment.split_group] = paid.get(payment.split_group, Decimal("0.00")) + payment.amount
+    if set(paid) - set(owed):
+        raise bad_request("Hay un pago de una persona sin artículos")
+    for person in people:
+        if calculator.money(paid.get(person, Decimal("0.00"))) != due[person]:
+            raise bad_request(f"La persona {person} debe pagar ${due[person]}")
 
 
 def _validate_payments(
@@ -253,8 +290,13 @@ def persist_completed_order(
     """
     total = calculator.order_total([line.line_total for line in priced_items])
     applied_deposits = applied_deposits or []
-    validated_payments = _validate_payments(
-        payments, total, calculator.money(sum(amount for _, amount in applied_deposits))
+    already_paid = calculator.money(sum(amount for _, amount in applied_deposits))
+    validated_payments = _validate_payments(payments, total, already_paid)
+    validate_split_groups(
+        [line.split_group for line in priced_items],
+        [line.line_total for line in priced_items],
+        payments,
+        already_paid,
     )
     if customer_id is not None:
         from app.customers.models import Customer
@@ -299,6 +341,7 @@ def persist_completed_order(
             quantity=line.quantity,
             unit_price_amount=line.unit_price,
             line_total_amount=line.line_total,
+            split_group=line.split_group,
         )
         for snapshot in line.modifier_snapshots:
             db.add(
@@ -341,6 +384,7 @@ def persist_completed_order(
             amount_tendered=tendered,
             change_due=change_due,
             reference=payment_entry.reference,
+            split_group=payment_entry.split_group,
         )
     for method, amount in applied_deposits:
         repo.create_payment(
@@ -426,6 +470,11 @@ def create_order(
             item_payload.pop("lot_allocations", None)
         if item_payload.get("unit_price_amount") is None:
             item_payload.pop("unit_price_amount", None)
+        if item_payload.get("split_group") is None:
+            item_payload.pop("split_group", None)
+    for payment_payload in payload["payments"]:
+        if payment_payload.get("split_group") is None:
+            payment_payload.pop("split_group", None)
     if body.customer_id is not None:
         payload["customer_id"] = str(body.customer_id)
     if body.discount_amount:
@@ -599,6 +648,9 @@ def create_order(
     except ValueError as exc:
         raise bad_request(str(exc)) from exc
     validated_payments = _validate_payments(body.payments, total)
+    validate_split_groups(
+        [item.split_group for item in body.items], allocated_totals, body.payments
+    )
 
     # Attribute real-time sales to the open shift so their cash counts toward
     # the drawer's expected cash. Offline syncs pass link_to_open_shift=False
@@ -652,9 +704,10 @@ def create_order(
             discount_amount=line.line_total - net_line,
             tax_amount=allocated_total - net_line,
             flush=False,
+            split_group=item_body.split_group,
         )
-        for line, allocated_total, net_line in zip(
-            priced_items, allocated_totals, net_lines, strict=True
+        for line, allocated_total, net_line, item_body in zip(
+            priced_items, allocated_totals, net_lines, body.items, strict=True
         )
     ]
     # One batched INSERT for the lines. Rows below reference them by FK and the
@@ -719,6 +772,7 @@ def create_order(
             amount_tendered=tendered,
             change_due=change_due,
             reference=payment_entry.reference,
+            split_group=payment_entry.split_group,
             flush=False,
         )
         for payment_entry, (amount, tendered, change_due) in zip(
@@ -834,6 +888,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
                 "modifiers": _modifier_bodies(modifiers[item.id]),
+                "split_group": item.split_group,
             }
             for item in items
         ],
