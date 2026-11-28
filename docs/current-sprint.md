@@ -79,10 +79,13 @@ sola venta con un ticket por persona, en Caja y al cobrar pedidos
 [PR #406](https://github.com/ArturoFrancoMozqueda/kova/pull/406) y el
 [release 46083690966](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46083690966): API y
 frontend sirven `b07dcbfd`. Falta su uso en un negocio real.
-Entrega E8, en revisión: cupones con código, vigencia, compra mínima y límites de uso. Decisión del
+Entrega E8: cupones con código, vigencia, compra mínima y límites de uso. Decisión del
 dueño (27 de noviembre): Gestión y Standard, cualquier cajero los aplica y un solo descuento por
 venta ([ADR-046](adr/ADR-046-cupones.md), [contrato](../specs/discounts/coupons.md)). Migración
-`0117_coupons`. No está publicada.
+`0117_coupons`. Publicada el 27 de noviembre con el
+[PR #408](https://github.com/ArturoFrancoMozqueda/kova/pull/408) y el
+[release 46088186882](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/46088186882): API y
+frontend sirven `403e63b8`. Falta su uso en un negocio real.
 
 ## En producción
 
