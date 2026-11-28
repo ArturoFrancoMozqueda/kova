@@ -110,3 +110,10 @@ de cola antes/después de resolver un caso y otro tenant vacío. La UI aprobó 1
 un recorrido real con cuatro fuentes y 1,102 pruebas frontend completas. Build y escaneo de
 119 JS también aprobaron. CI y publicación conservan aceptación separada. El [informe de entrega](https://github.com/ArturoFrancoMozqueda/kova/blob/34b7df6e6cf768b0b18276e0ea39d5ee0637ddab/docs/audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md)
 registra estos límites sin deducir disponibilidad productiva de los resultados locales.
+
+## Ventas pendientes de este dispositivo
+
+La vista muestra arriba "Este dispositivo", el mismo bloque del Panel: ventas guardadas en el equipo
+por sincronizar, con error o por revisar con soporte, con el enlace fijo a `/sync-queue`. Se calcula
+con la cola local (también sin conexión) y no consulta al servidor ni mezcla otros dispositivos.
+Regresiones: `OperationsQueueView.test.tsx` y `e2e/operations-queue.spec.ts`.

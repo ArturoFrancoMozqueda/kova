@@ -206,6 +206,8 @@ for (const width of [1440, 768, 390, 320]) {
         links.map((link) => link.getAttribute("href")),
       ),
     ).toEqual([
+      // This device's sync review: a fixed route, never built from queue data.
+      "/sync-queue",
       "/service-cases",
       "/crm",
       "/followups",

@@ -36,6 +36,7 @@ import { isRecordId } from "./useLinkedRecord";
 import { useOperationsPanel } from "@/automations/useOperationsPanel";
 import type { AutomationsData } from "@/automations/types";
 import { SectionSkeleton } from "@/components/ui/section-skeleton";
+import { DashboardDeviceStatus } from "@/dashboard/DashboardSupervision";
 import type {
   OperationsQueueData,
   OperationsQueueSection,
@@ -215,6 +216,8 @@ function OperationsQueueWorkspace({
         Encuentra las atenciones, oportunidades, recordatorios y tareas creadas
         por reglas para tu equipo.
       </p>
+      {/* Sales kept on this device are pending too, even offline. */}
+      <DashboardDeviceStatus />
       {!online ? (
         <p
           role="status"
