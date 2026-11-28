@@ -64,7 +64,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | H | Reparto | 5 | Diferido | P3 |
 | I | Clientes, puntos, recompensas y su reversa en devolución | 1 | `loyalty/`, `reward_return` | — |
 | I | Alta pública de tarjeta | 3 | Apagada por sucursal | Activación del dueño |
-| I | Sellos, cupones, promociones, campañas | 3 | Cupones en E8 (en revisión); sellos y campañas siguen fuera | Publicar E8 |
+| I | Sellos, cupones, promociones, campañas | 2 | Cupones (E8); sellos y campañas siguen fuera | Uso real de cupones |
 | J | CFDI (Facturapi) | 3 | Sin emisor ni Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)) | E9: emisor del dueño |
 | J | WhatsApp oficial | 3 | Bloqueo Meta 3441107 ([expediente](runbooks/whatsapp-meta-app-review.md)) | Aprobación de Meta |
 | J | Terminal de pago / Wallet | 5 | Sin proveedor contratado | Decisión y contrato |
@@ -87,7 +87,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Publicada (#402, release 46051884447) |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Publicada (#403, release 46064467636) |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Publicada (#405, release 46073577075) |
-| E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | En revisión |
+| E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Publicada (#408, release 46088186882) |
 | E9 | CFDI Test | P2 | Emisor del dueño | Bloqueado externo |
 | E10+ | Variantes, mesas, reparto, PIN, campañas, Wallet, terminal | P3 | Decisiones/externos | Pendiente |
 
@@ -144,10 +144,10 @@ evidencia en [`current-sprint.md`](current-sprint.md).
 
 ## Punto de continuación
 
-1. E1 a E7, E8b y la división de cuenta por persona están publicadas; producción sirve
-   `b07dcbfd` ([contrato de división](../specs/orders/split_bill.md)).
+1. E1 a E8, E8b y la división de cuenta por persona están publicadas; producción sirve
+   `403e63b8`.
 2. Falta probar con negocios reales: la cola de preparación con dos dispositivos, el anticipo de un
-   pastel (caso integral 3) y una cuenta dividida entre amigos. Decisiones en ADR-044 y ADR-045.
-3. **E8** en rama `feat/coupons`, sin publicar: cupones con código, vigencia y límites
-   ([contrato](../specs/discounts/coupons.md)). Migración `0117`.
-4. Después: E9 (CFDI Test, requiere el emisor del dueño) y E10+.
+   pastel (caso integral 3), una cuenta dividida entre amigos y una promoción con cupón.
+   Decisiones en ADR-044, ADR-045 y ADR-046.
+3. Siguiente: E9 (CFDI Test, requiere el emisor del dueño) y E10+ (variantes, mesas, reparto, PIN,
+   campañas, Wallet, terminal), que dependen de decisiones o proveedores externos.
