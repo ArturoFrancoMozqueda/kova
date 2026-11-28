@@ -29,3 +29,20 @@ CSV añade fricción y puede dañar acentos o encabezados.
   `Content-Type` incompatible devuelve un error accionable y no escribe datos.
 - Un cajero recibe `403` con cualquier formato.
 - La UI acepta `.csv` y `.xlsx`, explica los límites y muestra el preview existente.
+
+## Exportación del catálogo
+
+`GET /api/v1/catalog/export?format=csv|xlsx` (`catalog.create`, como la importación) descarga los
+productos activos del negocio con las columnas exactas de la plantilla, para editarlos en Excel e
+importarlos de nuevo:
+
+- `stock_inicial` lleva las existencias de hoy (nunca negativas) y `umbral_stock` el umbral, solo
+  para productos con inventario. `tipo` distingue `producto` de `insumo`; `unidad` es la unidad base.
+- El CSV usa UTF-8 con BOM, como la plantilla. El XLSX trae una hoja "Catálogo".
+- Un valor que empieza con `=`, `+`, `-` o `@` se exporta con un apóstrofo para que la hoja de
+  cálculo no lo ejecute como fórmula.
+- No incluye productos desactivados ni datos de otros negocios. Un cajero recibe `403`.
+- La UI ofrece "Excel" y "CSV" en el diálogo de importación.
+
+Regresiones: `backend/app/tests/test_catalog_export.py` (columnas, reimportación en otro negocio,
+XLSX, fórmulas, alcance y permiso) y `frontend/src/catalog/CatalogImportDialog.test.tsx`.

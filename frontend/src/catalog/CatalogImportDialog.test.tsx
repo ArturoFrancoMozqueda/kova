@@ -13,6 +13,7 @@ vi.mock("./api", () => ({
   previewCatalogImport: (...args: unknown[]) => previewCatalogImport(...args),
   commitCatalogImport: (...args: unknown[]) => commitCatalogImport(...args),
   catalogImportTemplateUrl: "/api/v1/catalog/import/template",
+  catalogExportUrl: (format: string) => `/api/v1/catalog/export?format=${format}`,
 }));
 
 const validPreview: CatalogImportResponse = {
@@ -70,6 +71,12 @@ describe("CatalogImportDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
     await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(file, expect.any(String)));
     expect(onImported).toHaveBeenCalledWith(expect.objectContaining({ created_products: 1 }));
+  });
+
+  it("offers today's catalog to edit and import back", () => {
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+    expect(screen.getByRole("link", { name: "Excel" })).toHaveAttribute("href", "/api/v1/catalog/export?format=xlsx");
+    expect(screen.getByRole("link", { name: "CSV" })).toHaveAttribute("href", "/api/v1/catalog/export?format=csv");
   });
 
   it("shows row errors and blocks confirmation", async () => {

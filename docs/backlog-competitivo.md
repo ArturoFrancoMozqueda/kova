@@ -37,7 +37,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | A | Offline: recarga, reconexión, sin duplicados | 1 | [offline_sync](../specs/orders/offline_sync.md), e2e `offline-sale-real` | — |
 | A | Tickets 58/80 mm, cajón, lector | 3 | Impresión del navegador, cajón ESC/POS por red; [matriz](runbooks/pos-hardware-acceptance.md) | Prueba física por modelo |
 | B | Productos, SKU, código de barras, modificadores con precio | 1 | `catalog/`, `modifiers/` | — |
-| B | Importación CSV/XLSX con vista previa | 1 | ADR-013, `test_catalog_import.py` | Exportación de catálogo |
+| B | Importación y exportación CSV/XLSX con vista previa | 1 | ADR-013, `test_catalog_import.py`, `test_catalog_export.py` (en revisión) | — |
 | B | Costo desconocido distinto de cero | 1 | `products.cost_price` nullable, `order_items.unit_cost` | — |
 | B | Insumos no vendibles, unidades y conversiones | 1 (publicada 26-nov, #392) | [ingredients_units](../specs/inventory/ingredients_units.md), `test_ingredients_units.py` | Aceptación en un negocio; recetas (E3) |
 | B | Modificador con costo/consumo | 1 (publicada 26-nov, #395) | `modifier_option_consumptions` | Aceptación en un negocio |

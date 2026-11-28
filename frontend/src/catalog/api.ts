@@ -75,6 +75,8 @@ export function commitCatalogImport(file: File, idempotencyKey?: string): Promis
 }
 
 export const catalogImportTemplateUrl = "/api/v1/catalog/import/template";
+/** Today's catalog in the template's columns: edit it in Excel and import it back. */
+export const catalogExportUrl = (format: "csv" | "xlsx") => `/api/v1/catalog/export?format=${format}`;
 
 export function listCategories(): Promise<Category[]> {
   return requestJson<Category[]>("/api/v1/catalog/categories");

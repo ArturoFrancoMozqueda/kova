@@ -28098,6 +28098,51 @@
         ]
       }
     },
+    "/api/v1/catalog/export": {
+      "get": {
+        "operationId": "export_catalog_api_v1_catalog_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Catalog",
+        "tags": [
+          "catalog-import"
+        ]
+      }
+    },
     "/api/v1/catalog/import": {
       "post": {
         "operationId": "import_catalog_api_v1_catalog_import_post",
