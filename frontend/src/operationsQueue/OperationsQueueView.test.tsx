@@ -211,10 +211,13 @@ it("builds only known source links and ignores untrusted route strings", async (
   mockData(data);
   mount();
   await screen.findByText("Revisar entrega");
+  expect(screen.getByRole("heading", { name: "Este dispositivo" })).toBeVisible();
   expect(screen.queryByText("Saldo privado del dueño")).not.toBeInTheDocument();
   expect(
     screen.getAllByRole("link").map((link) => link.getAttribute("href")),
   ).toEqual([
+    // The device's own sync review is a fixed route, never built from data.
+    "/sync-queue",
     "/service-cases",
     "/crm",
     "/followups",
