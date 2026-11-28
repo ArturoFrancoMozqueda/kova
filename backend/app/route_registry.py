@@ -54,6 +54,7 @@ ROUTERS = (
     ('app.inventory.router', ('/api/v1/inventory',)),
     ('app.inventory.lot_router', ('/api/v1/inventory',)),
     ('app.imports.router', ('/api/v1/catalog/import',)),
+    ('app.imports.export_router', ('/api/v1/catalog/export',)),
     ('app.onboarding.router', ('/api/v1/onboarding',)),
     ('app.ops.router', ('/api/v1/internal/ops',)),
     ('app.ops.mfa_router', ('/api/v1/internal/ops/mfa',)),

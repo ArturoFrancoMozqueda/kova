@@ -6,7 +6,7 @@ import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } fr
 import { apiErrorDetailText, apiErrorStatus, resolveApiErrorMessage, safeUserMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { copy } from "../i18n/messages";
-import { catalogImportTemplateUrl, commitCatalogImport, previewCatalogImport } from "./api";
+import { catalogExportUrl, catalogImportTemplateUrl, commitCatalogImport, previewCatalogImport } from "./api";
 import type { CatalogImportResponse } from "./types";
 import { useOptionalAuth } from "../auth/useAuth";
 import { catalogImportFingerprint } from "./importFingerprint";
@@ -178,6 +178,11 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
             {copy.catalog.importDownloadTemplate}
           </a>
         </div>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>¿Quieres editar lo que ya tienes? Descarga tu catálogo actual con las mismas columnas:</span>
+          <a href={catalogExportUrl("xlsx")} download className="font-medium text-primary underline underline-offset-4">Excel</a>
+          <a href={catalogExportUrl("csv")} download className="font-medium text-primary underline underline-offset-4">CSV</a>
+        </p>
 
         <input
           ref={inputRef}

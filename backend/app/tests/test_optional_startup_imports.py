@@ -28,7 +28,9 @@ class BlockOptional(importlib.abc.MetaPathFinder):
 
 sys.meta_path.insert(0, BlockOptional())
 from app.imports import service
+from app.imports import export, export_router
 from app.assistant import storage
+assert export.to_csv([["Pan", "12.50"]]).startswith("\\ufeff")
 assert service._parse_catalog_csv(b"nombre,precio\\nPan,12.50\\n") == [
     (2, {"nombre": "Pan", "precio": "12.50"})
 ]
