@@ -10,6 +10,8 @@ import { Select } from "@/components/ui/select";
 import { copy } from "@/i18n/messages";
 import { resolveUserFacingError } from "@/lib/apiError";
 import { formatMoney } from "@/orders/format";
+import { useOptionalAuth } from "@/auth/useAuth";
+import { useTaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { getBatchRecipe, recordProduction, type BatchRecipe, type ProductionBatch, type WasteReason } from "./api";
 
 const reasons: WasteReason[] = ["merma", "daño", "caducidad", "autoconsumo", "otro"];
@@ -37,6 +39,11 @@ export function ProductionDialog({
   const [error, setError] = useState("");
   const key = useRef<string | null>(null);
   const id = useId();
+  // Active time to record a batch (task telemetry: no product, quantity or cost leaves the device).
+  const auth = useOptionalAuth();
+  const owner = auth?.state.status === "authenticated" && auth.state.user?.id
+    ? { tenantId: auth.state.tenantId, userId: auth.state.user.id } : null;
+  const measurement = useTaskMeasurement("production_batch", owner ? `${owner.tenantId}:${owner.userId}:${productId}` : "", owner);
 
   useEffect(() => {
     let alive = true;
@@ -60,6 +67,8 @@ export function ProductionDialog({
     if (!canSubmit) return;
     setSaving(true);
     setError("");
+    measurement.start();
+    measurement.pause();
     key.current ??= crypto.randomUUID();
     try {
       const batch = await recordProduction({
@@ -70,8 +79,10 @@ export function ProductionDialog({
         update_catalog_cost: updateCost,
       }, key.current);
       key.current = null;
+      measurement.finish("completed");
       onRecorded(batch);
     } catch (caught) {
+      measurement.finish("failed");
       setError(resolveUserFacingError(caught, copy.production.saveError));
     } finally {
       setSaving(false);
@@ -79,7 +90,7 @@ export function ProductionDialog({
   };
 
   return (
-    <Dialog open onClose={saving ? () => undefined : onClose}>
+    <Dialog open onClose={saving ? () => undefined : () => { measurement.finish("cancelled"); onClose(); }}>
       <DialogHeader>
         <DialogTitle>{copy.production.title(productName)}</DialogTitle>
         <DialogDescription>{copy.production.description}</DialogDescription>
@@ -96,19 +107,19 @@ export function ProductionDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor={`${id}-batches`}>{copy.production.batches}</Label>
-              <Input id={`${id}-batches`} type="number" inputMode="numeric" min={1} max={1000} step={1} value={batches} disabled={saving} onChange={(e) => setBatches(e.target.value)} />
+              <Input id={`${id}-batches`} type="number" inputMode="numeric" min={1} max={1000} step={1} value={batches} disabled={saving} onChange={(e) => { measurement.start(); setBatches(e.target.value); }} />
               <p className="text-xs text-muted-foreground">{copy.production.yieldHint(recipe.batch_yield ?? 0)}</p>
             </div>
             <div className="space-y-1">
               <Label htmlFor={`${id}-actual`}>{copy.production.actual}</Label>
-              <Input id={`${id}-actual`} type="number" inputMode="numeric" min={0} step={1} value={actualTouched ? actual : String(expected)} disabled={saving} onChange={(e) => { setActualTouched(true); setActual(e.target.value); }} />
+              <Input id={`${id}-actual`} type="number" inputMode="numeric" min={0} step={1} value={actualTouched ? actual : String(expected)} disabled={saving} onChange={(e) => { measurement.start(); setActualTouched(true); setActual(e.target.value); }} />
               <p className="text-xs text-muted-foreground">{copy.production.expected(expected)}</p>
             </div>
           </div>
           {shortfall > 0 && (
             <div className="space-y-1">
               <Label htmlFor={`${id}-reason`}>{copy.production.reason(shortfall)}</Label>
-              <Select id={`${id}-reason`} value={reason} disabled={saving} onChange={(e) => setReason(e.target.value as WasteReason | "")}>
+              <Select id={`${id}-reason`} value={reason} disabled={saving} onChange={(e) => { measurement.start(); setReason(e.target.value as WasteReason | ""); }}>
                 <option value="">{copy.production.chooseReason}</option>
                 {reasons.map((code) => <option key={code} value={code}>{copy.inventoryModal.reasonCodes[code]}</option>)}
               </Select>
@@ -135,7 +146,7 @@ export function ProductionDialog({
         </div>
       )}
       <DialogFooter>
-        <Button type="button" variant="outline" disabled={saving} onClick={onClose}>{copy.recipes.close}</Button>
+        <Button type="button" variant="outline" disabled={saving} onClick={() => { measurement.finish("cancelled"); onClose(); }}>{copy.recipes.close}</Button>
         <Button type="button" disabled={!canSubmit} onClick={() => void submit()}>{saving ? copy.recipes.saving : copy.production.submit}</Button>
       </DialogFooter>
     </Dialog>

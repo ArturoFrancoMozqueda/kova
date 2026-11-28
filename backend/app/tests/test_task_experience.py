@@ -59,3 +59,12 @@ def test_summary_never_counts_queued_or_conflicting_results_as_completion():
     row = next(row for row in summarize_task_experience(events) if row["task"] == "customer_order")
     assert row["completed"] == row["queued"] == 0
     assert row["conflicting_results"] == row["unresolved"] == 1
+
+
+@pytest.mark.parametrize("task", ["production_batch", "shift_close"])
+def test_production_and_shift_close_are_measured_tasks(task):
+    event = TelemetryEventCreate(
+        event_name="task_finished", client_event_id="event", properties=properties(task=task)
+    )
+    assert event.properties["task"] == task
+    assert task in {row["task"] for row in summarize_task_experience([])}

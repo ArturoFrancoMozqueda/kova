@@ -166,7 +166,10 @@ ANALYSIS_ACTION_TEMPLATE_PATTERN = re.compile(r"^R(?:[1-9]|1[0-2])$")
 ANALYSIS_HELPFULNESS = frozenset({"helpful", "not_yet"})
 TASK_EVENT_NAMES = frozenset({"task_started", "task_finished"})
 MEASURED_TASKS = frozenset(
-    {"cash_sale", "customer_order", "purchase_receipt", "replenishment_purchase", "automation_task"}
+    {
+        "cash_sale", "customer_order", "purchase_receipt", "replenishment_purchase",
+        "automation_task", "production_batch", "shift_close",
+    }
 )
 TASK_OUTCOMES = frozenset({"completed", "failed", "cancelled", "queued"})
 TASK_ATTEMPT_PATTERN = re.compile(

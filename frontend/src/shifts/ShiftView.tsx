@@ -13,6 +13,7 @@ import { CorteTemplate } from "./CorteTemplate";
 import { apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { trackFunnelEvent } from "@/telemetry/funnel";
+import { useTaskMeasurement } from "@/telemetry/useTaskMeasurement";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getReceiptSettings } from "@/settings/api";
 import {
@@ -105,6 +106,10 @@ export default function ShiftView() {
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
   const { state } = useAuth();
+  // Active time to close the drawer (task telemetry: no amounts leave the device).
+  const closeOwner = state.status === "authenticated" && state.user?.id
+    ? { tenantId: state.tenantId, userId: state.user.id } : null;
+  const closeMeasurement = useTaskMeasurement("shift_close", closeOwner ? `${closeOwner.tenantId}:${closeOwner.userId}` : "", closeOwner);
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const [paperWidthMm, setPaperWidthMm] = useState<ReceiptPaperWidth>(() =>
     tenantId ? readCachedReceiptPaperWidth(tenantId) : 80,
@@ -179,13 +184,17 @@ export default function ShiftView() {
       return;
     }
     setOperationPending(true);
+    closeMeasurement.start();
+    closeMeasurement.pause();
     try {
       await closeShift(loadState.openShift.id, payload);
+      closeMeasurement.finish("completed");
       void trackFunnelEvent("close_shift");
       setActiveModal(null);
       toast(copy.shiftView.closeSuccess, "success");
       await load();
     } catch (err) {
+      closeMeasurement.finish("failed");
       if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
@@ -645,14 +654,16 @@ export default function ShiftView() {
         />
       )}
       {activeModal === "close" && currentShift && (
-        <CloseShiftModal
-          shift={currentShift}
-          businessName={businessName}
-          paperWidthMm={paperWidthMm}
-          pending={operationPending}
-          onSubmit={submitCloseShift}
-          onCancel={() => setActiveModal(null)}
-        />
+        <div onChangeCapture={() => closeMeasurement.start()}>
+          <CloseShiftModal
+            shift={currentShift}
+            businessName={businessName}
+            paperWidthMm={paperWidthMm}
+            pending={operationPending}
+            onSubmit={submitCloseShift}
+            onCancel={() => { closeMeasurement.finish("cancelled"); setActiveModal(null); }}
+          />
+        </div>
       )}
       {activeModal === "movement" && (
         <CashMovementModal

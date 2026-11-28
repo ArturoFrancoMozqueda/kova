@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { trackFunnelEvent, type FunnelDeliveryGuard } from "./funnel";
 
-export type MeasuredTask = "cash_sale" | "customer_order" | "purchase_receipt" | "replenishment_purchase" | "automation_task";
+export type MeasuredTask = "cash_sale" | "customer_order" | "purchase_receipt" | "replenishment_purchase" | "automation_task"
+  | "production_batch" | "shift_close";
 export type TaskOutcome = "completed" | "failed" | "cancelled" | "queued";
 export type TaskMeasurement = {
   start: () => void;
