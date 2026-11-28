@@ -50,6 +50,7 @@ ROUTERS = (
     ('app.modifiers.router', ('/api/v1/catalog',)),
     ('app.recipes.router', ('/api/v1/catalog', '/api/v1/inventory')),
     ('app.prep_queue.router', ('/api/v1/prep-queue', '/api/v1/prep-stations')),
+    ('app.coupons.router', ('/api/v1/coupons',)),
     ('app.inventory.router', ('/api/v1/inventory',)),
     ('app.inventory.lot_router', ('/api/v1/inventory',)),
     ('app.imports.router', ('/api/v1/catalog/import',)),

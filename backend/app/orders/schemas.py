@@ -83,6 +83,13 @@ class PaymentResponse(BaseModel):
     split_group: int | None = None
 
 
+class CouponSnapshot(BaseModel):
+    code: str
+    discount_amount: Decimal
+    # applied, or released when the sale was voided.
+    status: str = "applied"
+
+
 class LoyaltyRewardSnapshot(BaseModel):
     id: UUID
     title: str
@@ -92,6 +99,7 @@ class LoyaltyRewardSnapshot(BaseModel):
 
 class OrderResponse(BaseModel):
     loyalty_reward: LoyaltyRewardSnapshot | None = None
+    coupon: CouponSnapshot | None = None
     customer_id: UUID | None = None
     discount_amount: Decimal = Decimal("0.00")
     tax_rate: Decimal = Decimal("0.00")
@@ -156,6 +164,7 @@ class ReceiptVoidLine(BaseModel):
 
 class ReceiptResponse(BaseModel):
     loyalty_reward: LoyaltyRewardSnapshot | None = None
+    coupon: CouponSnapshot | None = None
     discount_amount: Decimal = Decimal("0.00")
     tax_rate: Decimal = Decimal("0.00")
     tax_amount: Decimal = Decimal("0.00")

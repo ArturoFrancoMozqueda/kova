@@ -64,7 +64,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | H | Reparto | 5 | Diferido | P3 |
 | I | Clientes, puntos, recompensas y su reversa en devolución | 1 | `loyalty/`, `reward_return` | — |
 | I | Alta pública de tarjeta | 3 | Apagada por sucursal | Activación del dueño |
-| I | Sellos, cupones, promociones, campañas | 5 | — | E8 / P3 |
+| I | Sellos, cupones, promociones, campañas | 3 | Cupones en E8 (en revisión); sellos y campañas siguen fuera | Publicar E8 |
 | J | CFDI (Facturapi) | 3 | Sin emisor ni Test/Live ([runbook](runbooks/managed-fiscal-onboarding.md)) | E9: emisor del dueño |
 | J | WhatsApp oficial | 3 | Bloqueo Meta 3441107 ([expediente](runbooks/whatsapp-meta-app-review.md)) | Aprobación de Meta |
 | J | Terminal de pago / Wallet | 5 | Sin proveedor contratado | Decisión y contrato |
@@ -87,7 +87,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | E8b | Recepción con diferencias; búsqueda de ventas por folio/cliente | P1 | — | Publicada (#402, release 46051884447) |
 | E6 | Anticipos y saldo: cotización → anticipo → entrega → liquidación | P2 | — | Publicada (#403, release 46064467636) |
 | E7 | Cola de preparación de mostrador | P2 | E3 | Publicada (#405, release 46073577075) |
-| E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | Pendiente |
+| E8 | Cupones con vigencia, límites y compatibilidad | P2 | E1 | En revisión |
 | E9 | CFDI Test | P2 | Emisor del dueño | Bloqueado externo |
 | E10+ | Variantes, mesas, reparto, PIN, campañas, Wallet, terminal | P3 | Decisiones/externos | Pendiente |
 
@@ -118,6 +118,8 @@ aceptación externa, no desarrollo.
   cambia precios ni otras funciones. Se formaliza en un ADR al implementar E2/E3.
 - 26-nov-2026: cada entrega sale en su propio PR con CI; no se fusiona ni se publica sin orden
   explícita.
+- 27-nov-2026 (E8): los cupones van en Gestión y Standard; cualquier cajero aplica uno válido y
+  hay un solo descuento por venta ([ADR-046](adr/ADR-046-cupones.md)).
 - 27-nov-2026 (E7): la cola de preparación por estación está en todos los planes, recibe ventas de
   Caja y pedidos, y llama al cliente con un número corto del día
   ([ADR-045](adr/ADR-045-cola-de-preparacion.md)).
@@ -146,4 +148,6 @@ evidencia en [`current-sprint.md`](current-sprint.md).
    `b07dcbfd` ([contrato de división](../specs/orders/split_bill.md)).
 2. Falta probar con negocios reales: la cola de preparación con dos dispositivos, el anticipo de un
    pastel (caso integral 3) y una cuenta dividida entre amigos. Decisiones en ADR-044 y ADR-045.
-3. Siguiente: E8 (cupones).
+3. **E8** en rama `feat/coupons`, sin publicar: cupones con código, vigencia y límites
+   ([contrato](../specs/discounts/coupons.md)). Migración `0117`.
+4. Después: E9 (CFDI Test, requiere el emisor del dueño) y E10+.

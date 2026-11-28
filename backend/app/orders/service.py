@@ -1,5 +1,6 @@
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -123,6 +124,7 @@ def _modifier_bodies(mods: list[OrderItemModifier]) -> list[dict]:
 
 
 def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]:
+    from app.coupons.service import order_coupon
     from app.loyalty.rewards import order_reward
 
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order.id)
@@ -139,6 +141,7 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
         modifiers=modifiers,
         loyalty_reward=order_reward(db, tenant_id, order.id),
     )
+    body["coupon"] = order_coupon(db, tenant_id=tenant_id, order_id=order.id)
     # Whether checkout took the line out of stock; the refund form only offers
     # restocking for lines that actually consumed inventory.
     consumed = repo.stock_consuming_item_ids(db, tenant_id=tenant_id, order_id=order.id)
@@ -445,6 +448,7 @@ def create_order(
     occurred_at: datetime | None = None,
     external_transaction: bool = False,
     can_adjust_pricing: bool | None = None,
+    discount_resolver: Callable[[Decimal], Decimal] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Create a completed sale.
 
@@ -641,6 +645,12 @@ def create_order(
                     },
                 )
 
+    if discount_resolver is not None:
+        # A coupon checkout (external transaction) prices its discount from the
+        # server's own subtotal, never from a client amount.
+        body = body.model_copy(update={"discount_amount": discount_resolver(
+            calculator.order_total([line.line_total for line in priced_items])
+        )})
     try:
         subtotal, tax, total, allocated_totals = calculator.sale_pricing(
             [line.line_total for line in priced_items], body.discount_amount, body.tax_rate
@@ -844,6 +854,7 @@ def get_order(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, Any]
 
 
 def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, Any]:
+    from app.coupons.service import order_coupon
     from app.loyalty.rewards import order_reward
 
     order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
@@ -871,6 +882,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
 
     return {
         "loyalty_reward": order_reward(db, tenant_id, order.id),
+        "coupon": order_coupon(db, tenant_id=tenant_id, order_id=order.id),
         "order_id": str(order.id),
         "receipt_number": str(order.id).replace("-", "")[-8:].upper(),
         # Short daily number to call the customer when the order is ready.
@@ -1377,6 +1389,9 @@ def create_void(
     order.status = "voided"
     db.add(order)
     prep_service.cancel_for_sale(db, tenant_id=tenant_id, order_id=order.id)
+    from app.coupons import service as coupon_service
+
+    coupon_service.release_for_sale(db, tenant_id=tenant_id, order_id=order.id)
 
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
     for item in items:

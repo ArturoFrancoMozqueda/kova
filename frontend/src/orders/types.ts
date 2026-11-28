@@ -96,6 +96,8 @@ export type Receipt = {
   receipt_number: string;
   /** Daily number to call the customer when the order is ready. */
   prep_number?: number | null;
+  /** The coupon whose discount this sale carries. */
+  coupon?: { code: string; discount_amount: string; status?: string } | null;
   tenant_name: string;
   paper_width_mm?: import("@/lib/receiptPaper").ReceiptPaperWidth;
   created_at: string;

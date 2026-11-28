@@ -51,6 +51,11 @@ predeterminada → 201; venta offline sin permiso y con precio desactualizado �
 una sola vez; venta offline del owner a precio de catálogo → sin auditoría de revisión; precio
 congelado en línea → 400. `test_sale_pricing.py` cubre cálculo y devoluciones.
 
+## Cupones
+
+Los cupones con código, vigencia y límites están en [coupons.md](coupons.md): el servidor
+calcula su descuento y no requieren `orders.discount`.
+
 ## Pendiente (no implementado)
 
 - Descuentos por línea, porcentuales, con motivo/`reason_code` y límites por rol

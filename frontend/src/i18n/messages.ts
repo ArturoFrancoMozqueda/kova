@@ -2550,6 +2550,7 @@ export const copy = {
   nav: {
     customers: "Clientes",
     prepQueue: "Preparación",
+    coupons: "Cupones",
     assistant: "Asistente",
     purchasing: "Compras y proveedores",
     integrations: "Solicitudes de factura",

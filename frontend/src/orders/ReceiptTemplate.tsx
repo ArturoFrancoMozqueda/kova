@@ -52,6 +52,8 @@ type ReceiptTemplateProps = {
   receiptNumber?: string;
   /** Daily preparation number (#12) the customer hears when the order is ready. */
   prepNumber?: number | null;
+  /** Code of the coupon behind the discount, shown next to it. */
+  couponCode?: string | null;
   createdAt: string | Date;
   logoUrl?: string;
   taxContactText?: string;
@@ -90,6 +92,7 @@ export function ReceiptTemplate({
   businessName,
   receiptNumber,
   prepNumber,
+  couponCode,
   createdAt,
   logoUrl,
   taxContactText,
@@ -194,7 +197,7 @@ export function ReceiptTemplate({
 
       <div {...band(2)} className="space-y-1">
         <ReceiptLine label={copy.orderDetail.subtotal} value={formatMoney(subtotalAmount)} />
-        {Number(discountAmount) > 0 && <ReceiptLine label="Descuento" value={`−${formatMoney(discountAmount!)}`} />}
+        {Number(discountAmount) > 0 && <ReceiptLine label={couponCode ? `Descuento · Cupón ${couponCode}` : "Descuento"} value={`−${formatMoney(discountAmount!)}`} />}
         {loyaltyReward && <p className="text-[10px]">{loyaltyReward.title} · {loyaltyReward.points_cost.toLocaleString("es-MX")} puntos canjeados</p>}
         {Number(taxAmount) > 0 && <ReceiptLine label={`Impuesto adicional (${taxRate ?? "0"}%)`} value={formatMoney(taxAmount!)} />}
         <ReceiptLine label={copy.orderDetail.total} value={formatMoney(totalAmount)} strong />

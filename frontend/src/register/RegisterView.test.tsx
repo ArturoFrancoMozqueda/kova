@@ -51,6 +51,8 @@ vi.mock("../offline/sync", () => ({
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn(), scheduleOfflineSyncRetry }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
 vi.mock("@/telemetry/funnel", () => telemetry);
+const couponApi = vi.hoisted(() => ({ previewCoupon: vi.fn(), checkoutCoupon: vi.fn() }));
+vi.mock("@/coupons/api", async (original) => ({ ...(await original<object>()), ...couponApi }));
 vi.mock("../inventory/api", () => ({ listStock: (...args: unknown[]) => inventoryApi.listStock(...args) }));
 vi.mock("../offline/catalogCache", () => ({
   readCatalogCache: (...args: unknown[]) => catalogCache.readCatalogCache(...args),
@@ -344,6 +346,42 @@ describe("RegisterView cash-without-shift guard", () => {
       { method: "manual_card", amount: "50.00", reference: undefined, split_group: 2 },
     ]);
     expect(receipt.payments.map((payment: { split_group?: number }) => payment.split_group)).toEqual([1, 2]);
+  });
+
+  it("applies a coupon the server prices and charges it online", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    couponApi.previewCoupon.mockResolvedValue({
+      coupon: { code: "VERANO10" }, subtotal_amount: "100.00", discount_amount: "10.00" });
+    couponApi.checkoutCoupon.mockResolvedValue({
+      id: "coupon-order", tenant_id: "tenant-1", status: "completed", customer_id: null,
+      total_amount: "90.00", items: [], payments: [{ method: "manual_card", amount_amount: "90.00" }] });
+    getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    renderRegister();
+    await addProductToCart();
+    await addProductToCart();
+
+    fireEvent.change(screen.getByLabelText("Cupón"), { target: { value: "verano10" } });
+    // Enter in the coupon field validates the code; it never charges the sale.
+    fireEvent.keyDown(screen.getByLabelText("Cupón"), { key: "Enter" });
+    expect(await screen.findByText("Cupón VERANO10")).toBeVisible();
+    expect(couponApi.checkoutCoupon).not.toHaveBeenCalled();
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+    expect(couponApi.previewCoupon).toHaveBeenCalledWith("verano10", {
+      items: [expect.objectContaining({ product_id: product.id, quantity: 2 })] });
+    fireEvent.click(screen.getByRole("radio", { name: copy.register.manualCard }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    await waitFor(() => expect(couponApi.checkoutCoupon).toHaveBeenCalledTimes(1));
+    const [, body, key] = couponApi.checkoutCoupon.mock.calls[0];
+    expect(body).toMatchObject({ code: "VERANO10", expected_discount: "10.00",
+      order: { discount_amount: "0.00", payments: [expect.objectContaining({ method: "manual_card", amount: "90.00" })] } });
+    expect(typeof key).toBe("string");
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+    // A coupon sale without a customer is confirmed (null customer on both sides).
+    await waitFor(() => {
+      expect(screen.queryByText(/Hay una venta con cupón por confirmar/)).not.toBeInTheDocument();
+      expect(screen.queryByText("Cupón VERANO10")).not.toBeInTheDocument();
+    });
   });
 
   it("uses one Caja h1 with Catálogo and Carrito as section headings", async () => {
