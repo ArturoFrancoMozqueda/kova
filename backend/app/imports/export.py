@@ -5,7 +5,6 @@ import io
 from decimal import Decimal
 from uuid import UUID
 
-from openpyxl import Workbook
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Category, Product
@@ -68,6 +67,9 @@ def to_csv(rows: list[list[object]]) -> str:
 
 
 def to_xlsx(rows: list[list[object]]) -> bytes:
+    # Imported here: openpyxl is heavy and must stay off the native startup path.
+    from openpyxl import Workbook
+
     workbook = Workbook(write_only=True)
     sheet = workbook.create_sheet("Catálogo")
     sheet.append(list(TEMPLATE_COLUMNS))
