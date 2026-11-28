@@ -223,8 +223,8 @@ describe("simple task navigation and complete discovery", () => {
       fireEvent.click(nav.getByRole("button", { name }));
     const paths = nav.getAllByRole("link").map(link => link.getAttribute("href"));
     expect(new Set(paths).size).toBe(paths.length);
-    // 28 with Preparación (E7), a destination for every role that sells.
-    expect(paths).toHaveLength(28);
+    // 28 with Preparación (E7); 29 with Cupones (E8), for roles that manage discounts.
+    expect(paths).toHaveLength(29);
     expect(paths).toEqual(expect.arrayContaining(["/purchasing", "/settings/integrations", "/followups", "/commercial-requests", "/customers", "/appointments", "/loyalty"]));
     expect(paths).not.toContain("/settings/channels");
     expect(nav.getByRole("link", { name: "Compras y proveedores" }).querySelector("span[aria-hidden]")).not.toHaveClass("truncate");

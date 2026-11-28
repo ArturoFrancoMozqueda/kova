@@ -225,6 +225,8 @@ BEGIN
             ('prep_stations', 'SELECT, INSERT'),
             ('prep_daily_numbers', 'SELECT, INSERT'),
             ('prep_tickets', 'SELECT, INSERT'),
+            ('coupons', 'SELECT, INSERT'),
+            ('coupon_redemptions', 'SELECT, INSERT'),
             ('modifier_option_consumptions', 'SELECT, INSERT, DELETE'),
             ('refunds', 'SELECT, INSERT'),
             ('telemetry_events', 'INSERT'),
@@ -339,6 +341,11 @@ DO $$ BEGIN
     IF to_regclass('public.purchase_orders') IS NOT NULL THEN
         GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
         GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;
+    END IF;
+    IF to_regclass('public.coupons') IS NOT NULL THEN
+        GRANT UPDATE (description, value, min_purchase, starts_at, ends_at, max_uses,
+            max_uses_per_customer, is_active, version, updated_at) ON TABLE coupons TO kova_app;
+        GRANT UPDATE (status, released_at) ON TABLE coupon_redemptions TO kova_app;
     END IF;
     IF to_regclass('public.prep_tickets') IS NOT NULL THEN
         GRANT UPDATE (name, alert_minutes, position, is_active, updated_at) ON TABLE prep_stations

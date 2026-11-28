@@ -2,7 +2,7 @@ import type React from "react";
 import {
   BarChart3, CalendarDays, ClipboardCheck, ClipboardList, Clock, CreditCard, FileText, Gift, Handshake,
   ChefHat, HeartHandshake, LayoutDashboard, LayoutGrid, LifeBuoy, ListChecks, MessagesSquare, Package, Receipt,
-  Settings, ShoppingCart, Sparkles, Store, Truck, Users, WalletCards, Workflow,
+  Settings, ShoppingCart, Sparkles, Store, TicketPercent, Truck, Users, WalletCards, Workflow,
 } from "lucide-react";
 import { copy } from "@/i18n/messages";
 export { workspaceGroupLabels } from "./workspaceNavigation";
@@ -14,6 +14,7 @@ import {
   EXPENSES_MANAGE_PERMISSION,
   INVENTORY_ADJUST_PERMISSION,
   ORDER_CREATE_PERMISSION,
+  ORDER_DISCOUNT_PERMISSION,
   REPORTS_VIEW_ALL_PERMISSION,
 } from "@/auth/permissions";
 
@@ -46,6 +47,7 @@ export const adminNavItems: NavItem[] = [
   { to: "/service-cases", label: copy.nav.serviceCases, icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
   { to: "/appointments", label: copy.nav.appointments, icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business", permission: APPOINTMENTS_OPERATE_PERMISSION },
   { to: "/loyalty", label: copy.nav.loyalty, icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/cupones", label: copy.nav.coupons, icon: <TicketPercent className="h-4.5 w-4.5" />, group: "business", permission: ORDER_DISCOUNT_PERMISSION },
   { to: "/inbox", label: copy.nav.inbox, icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
   { to: "/commercial-requests", label: copy.nav.commercialRequests, icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
   { to: "/followups", label: copy.nav.followups, icon: <HeartHandshake className="h-4.5 w-4.5" />, group: "business" },

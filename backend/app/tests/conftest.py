@@ -27,6 +27,7 @@ import app.branches.transfers  # noqa: F401
 import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.cfdi.models  # noqa: F401
+import app.coupons.models  # noqa: F401
 import app.customer_orders.models  # noqa: F401
 import app.customers.models  # noqa: F401
 import app.employees.models  # noqa: F401
@@ -152,7 +153,7 @@ def _provision_kova_app() -> None:
             "SELECT, INSERT": (
                 "refund_payments recipes recipe_lines production_batches "
                 "customer_order_deposits customer_order_settings "
-                "prep_stations prep_daily_numbers prep_tickets "
+                "prep_stations prep_daily_numbers prep_tickets coupons coupon_redemptions "
                 "table_reservations table_reservation_history "
                 "loyalty_appearances booking_pages booking_services booking_service_resources booking_availability public_bookings booking_history "
                 "public_catalog_links "
@@ -231,6 +232,11 @@ def _provision_kova_app() -> None:
             "ON prep_stations TO kova_app"
         ))
         conn.execute(text("GRANT UPDATE (last_number) ON prep_daily_numbers TO kova_app"))
+        conn.execute(text(
+            "GRANT UPDATE (description, value, min_purchase, starts_at, ends_at, max_uses, "
+            "max_uses_per_customer, is_active, version, updated_at) ON coupons TO kova_app"
+        ))
+        conn.execute(text("GRANT UPDATE (status, released_at) ON coupon_redemptions TO kova_app"))
         conn.execute(text(
             "GRANT UPDATE (status, version, preparing_at, ready_at, delivered_at, "
             "updated_by_user_id, updated_at) ON prep_tickets TO kova_app"

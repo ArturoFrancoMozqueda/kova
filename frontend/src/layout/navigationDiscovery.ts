@@ -12,6 +12,7 @@ const sectionDetails: Record<string, { description: string; keywords: string; ta
   "/dashboard": { description: "Entiende tus ventas y decide qué atender.", keywords: "resumen hoy numeros negocio panel" },
   "/register": { description: "Agrega productos y cobra una venta.", keywords: "vender cobrar caja ticket efectivo tarjeta servicio servicios identificar socio canjear recompensa" },
   "/customers": { description: "Consulta clientes y su historial.", keywords: "crear nuevo nueva agregar contactos compradores historial ficha cliente" },
+  "/cupones": { description: "Crea códigos de promoción con vigencia y límites para Caja.", keywords: "cupon cupones codigo promocion descuento promo" },
   "/preparacion": { description: "Prepara lo que se cobró en Caja y los pedidos del día, por estación.", keywords: "preparar barra cocina comanda orden lista cola estaciones" },
   "/pedidos": { description: "Prepara y entrega pedidos de clientes.", keywords: "crear nuevo nueva preparar encargos entregas pedidos" },
   "/orders": { description: "Consulta las ventas que ya registraste.", keywords: "historial ventas tickets devoluciones" },

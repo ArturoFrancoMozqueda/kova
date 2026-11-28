@@ -38,6 +38,7 @@ const CustomerOrderDetailView = lazy(() => import("./customerOrders/CustomerOrde
 const CustomerOrderFormView = lazy(() => import("./customerOrders/CustomerOrderFormView"));
 const CustomerOrderListView = lazy(() => import("./customerOrders/CustomerOrderListView"));
 const PrepQueueView = lazy(() => import("./prep/PrepQueueView"));
+const CouponsView = lazy(() => import("./coupons/CouponsView"));
 const OrderDetail = lazy(() => import("./orders/OrderDetail"));
 const OrderListView = lazy(() => import("./orders/OrderListView"));
 const SyncQueueView = lazy(() => import("./offline/SyncQueueView"));
@@ -161,6 +162,7 @@ export function AppRoutes() {
               <Route path="/inventory" element={<InventoryView />} />
               <Route path="/expenses" element={<ExpensesView />} />
               <Route path="/preparacion" element={<PrepQueueView />} />
+              <Route path="/cupones" element={<CouponsView />} />
               <Route path="/pedidos" element={<CustomerOrderListView />} />
               <Route path="/pedidos/nuevo" element={<CustomerOrderFormView />} />
               <Route path="/pedidos/:orderId" element={<CustomerOrderDetailView />} />

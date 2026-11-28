@@ -46,6 +46,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "prep_stations": {"SELECT", "INSERT"},
     "prep_daily_numbers": {"SELECT", "INSERT"},
     "prep_tickets": {"SELECT", "INSERT"},
+    "coupons": {"SELECT", "INSERT"},
+    "coupon_redemptions": {"SELECT", "INSERT"},
     "modifier_option_consumptions": {"SELECT", "INSERT", "DELETE"},
     # Service cases add two private relations; only workflow columns are mutable.
     "service_cases": {"SELECT", "INSERT"},
@@ -190,6 +192,11 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "coupons": {
+        "description", "value", "min_purchase", "starts_at", "ends_at", "max_uses",
+        "max_uses_per_customer", "is_active", "version", "updated_at",
+    },
+    "coupon_redemptions": {"status", "released_at"},
     "prep_stations": {"name", "alert_minutes", "position", "is_active", "updated_at"},
     "prep_daily_numbers": {"last_number"},
     "prep_tickets": {

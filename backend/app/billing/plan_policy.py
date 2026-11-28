@@ -51,6 +51,12 @@ def route_feature(method: str, path: str) -> str | None:
             "/api/v1/loyalty/customers/{customer_id}/digital-card",
         }:
             return "loyalty"
+        # Coupons are part of the Gestión marketing tools (owner decision, ADR-046).
+        if path in {
+            "/api/v1/coupons", "/api/v1/coupons/{coupon_id}", "/api/v1/coupons/preview",
+            "/api/v1/coupons/checkout",
+        }:
+            return "loyalty"
         if method == "POST" and path == "/api/v1/expenses":
             return "advanced_reports"
     return None

@@ -97,6 +97,9 @@ import {
 } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { previewCoupon } from "@/coupons/api";
+import { useCouponCheckout } from "@/coupons/useCouponCheckout";
+import { hasPlanFeature } from "@/billing/entitlements";
 import { SplitBillPanel, newPersonPayment, splitBillReady, type PersonPayment } from "./SplitBillPanel";
 import { MIN_PEOPLE, personTotals, unitsOf, type SplitAssignment } from "./splitBill";
 import { getReceiptSettings } from "@/settings/api";
@@ -274,6 +277,12 @@ function RegularRegisterView() {
   const [rewardChoice, setRewardChoice] = useState<{ scope: string; offer: RewardOffer } | null>(null);
   const rewardOffer = rewardChoice?.scope === rewardIdentityKey ? rewardChoice.offer : null;
   const selectedReward = rewardOffer?.reward ?? null;
+  // A coupon applies to the exact cart it was priced for; any change asks to apply it again.
+  const [couponCode, setCouponCode] = useState("");
+  const [couponOffer, setCouponOffer] = useState<{ code: string; discount: string; signature: string } | null>(null);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const canUseCoupons = hasPlanFeature(state.status === "authenticated" ? state.commercialAccess : undefined, "loyalty");
   const rewardCheckout = useRewardCheckout(rewardIdentity, (order) => {
     submittedSaleMeasurement.current?.finish("completed");
     submittedSaleMeasurement.current = null;
@@ -286,6 +295,19 @@ function RegularRegisterView() {
     void trackFunnelEventOnce("first_sale", "first_sale_completed");
     toast(copy.register.saleComplete, { variant: "success", srOnly: true });
   }, () => { submittedSaleMeasurement.current?.finish("failed"); submittedSaleMeasurement.current = null; setRewardChoice(null); });
+  const couponCheckout = useCouponCheckout(rewardIdentity, (order) => {
+    submittedSaleMeasurement.current?.finish("completed");
+    submittedSaleMeasurement.current = null;
+    cartGenerationRef.current += 1;
+    setCart({}); setCashTendered(""); setReference(""); setDiscount("0.00");
+    setSplitPaymentsEnabled(false); setSplitPayments([createPaymentDraft("cash")]); resetSplitBill();
+    setCouponOffer(null); setCouponCode(""); setCouponMessage("");
+    setPendingReceipt(null); setCompletedOrder(order);
+    resetCashInteraction(); void refreshStock(); invalidateOrderLists();
+    if (navigator.onLine && order.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount_amount) > 0)) void drawer.open("sale", "", order.id);
+    void trackFunnelEventOnce("first_sale", "first_sale_completed");
+    toast(copy.register.saleComplete, { variant: "success", srOnly: true });
+  }, () => { submittedSaleMeasurement.current?.finish("failed"); submittedSaleMeasurement.current = null; setCouponOffer(null); });
   const [customerQuery, setCustomerQuery] = useState("");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const selectedCustomerName = customerSelection?.scope === customerSelectionScope && customerSelection.id === customerId
@@ -918,9 +940,12 @@ function RegularRegisterView() {
     }
     previousCartLineCountRef.current = cartItems.length;
   }, [cartItems.length, resetCashInteraction]);
+  const couponSignature = JSON.stringify([customerId, cartItems.map((item) => [item.product.id, item.quantity, item.selectedModifiers.map((m) => m.optionId)])]);
+  const activeCoupon = couponOffer && couponOffer.signature === couponSignature ? couponOffer : null;
+  const saleDiscount = selectedReward?.discount_amount ?? activeCoupon?.discount ?? discount;
   const pricing = useMemo(() => calculateSalePricing(
-    cartItems.map((item) => moneyToCents(item.effectiveUnitPrice) * item.quantity), selectedReward?.discount_amount ?? discount, taxRate,
-  ), [cartItems, discount, taxRate, selectedReward]);
+    cartItems.map((item) => moneyToCents(item.effectiveUnitPrice) * item.quantity), saleDiscount, taxRate,
+  ), [cartItems, saleDiscount, taxRate]);
   const totalCents = pricing.total;
   const totalAmount = centsToMoney(totalCents);
   // Total units, not lines. Drives the two cart count badges (mobile sheet
@@ -955,8 +980,8 @@ function RegularRegisterView() {
     key: cartLineKey(item), quantity: item.quantity, unitCents: moneyToCents(item.effectiveUnitPrice),
   })), [cartItems]);
   const splitBill = useMemo(
-    () => personTotals(billLines, splitAssignment, splitPeople, selectedReward?.discount_amount ?? discount, taxRate),
-    [billLines, splitAssignment, splitPeople, selectedReward, discount, taxRate],
+    () => personTotals(billLines, splitAssignment, splitPeople, saleDiscount, taxRate),
+    [billLines, splitAssignment, splitPeople, saleDiscount, taxRate],
   );
   const splitBillValid = !splitBillEnabled
     || (splitBill.valid && splitBillReady(splitBill.totals, splitBillPayments, hasOpenShift === true));
@@ -1002,6 +1027,8 @@ function RegularRegisterView() {
     !cashBlocked &&
     !(splitBillEnabled && selectedReward) &&
     rewardCheckout.ready && !rewardCheckout.pending && !rewardCheckout.busy &&
+    couponCheckout.ready && !couponCheckout.pending && !couponCheckout.busy &&
+    (!activeCoupon || online) &&
     (!selectedReward || (online && moneyToCents(discount) === 0)) &&
     !submitting;
   const hasCashTendered = cashTendered.trim().length > 0;
@@ -1193,6 +1220,18 @@ function RegularRegisterView() {
     }
   };
 
+  const applyCoupon = () => {
+    const code = couponCode.trim();
+    if (!code || couponBusy) return;
+    if (moneyToCents(discount) > 0) { setCouponMessage("El cupón no se combina con otro descuento. Quita el descuento manual."); return; }
+    setCouponBusy(true); setCouponMessage("");
+    const signature = couponSignature;
+    void previewCoupon(code, { ...(customerId ? { customer_id: customerId } : {}), items: cartItems.map((item) => ({ product_id: item.product.id, quantity: item.quantity, modifier_option_ids: item.selectedModifiers.map((m) => m.optionId) })) })
+      .then((result) => setCouponOffer({ code: result.coupon.code, discount: result.discount_amount, signature }))
+      .catch((caught) => setCouponMessage(resolveUserFacingError(caught, "No pudimos validar el cupón. Revisa el código e intenta de nuevo.")))
+      .finally(() => setCouponBusy(false));
+  };
+
   const toggleSplitBill = (enabled: boolean) => {
     setCashTendered("");
     resetCashInteraction();
@@ -1321,7 +1360,7 @@ function RegularRegisterView() {
       : cartItems.map((item) => ({ item, quantity: item.quantity, person: null as number | null }));
     const saleAllocated = splitBillEnabled ? splitBill.allocated : pricing.allocated;
     const sale = {
-      discount_amount: selectedReward ? "0.00" : centsToMoney(pricing.discount),
+      discount_amount: selectedReward || activeCoupon ? "0.00" : centsToMoney(pricing.discount),
       tax_rate: taxRate || "0.00",
       ...(customerId ? { customer_id: customerId } : {}),
       items: saleLines.map(({ item, quantity, person }) => ({
@@ -1365,6 +1404,15 @@ function RegularRegisterView() {
             },
           ],
     };
+
+    if (activeCoupon) {
+      activeSaleClientUuidRef.current = null;
+      try {
+        const onlineSale = { ...sale, items: sale.items.map(item => ({ product_id: item.product_id, quantity: item.quantity, modifier_option_ids: item.modifier_option_ids, ...("lot_allocations" in item ? { lot_allocations: item.lot_allocations } : {}), ...("split_group" in item ? { split_group: item.split_group } : {}) })) };
+        await couponCheckout.submit({ code: activeCoupon.code, order: onlineSale, expected_discount: activeCoupon.discount });
+      } finally { submittingRef.current = false; setSubmitting(false); }
+      return;
+    }
 
     if (selectedReward && rewardOffer) {
       activeSaleClientUuidRef.current = null;
@@ -1555,6 +1603,10 @@ function RegularRegisterView() {
       {(rewardCheckout.pending || rewardCheckout.error) && <section ref={rewardRecoveryRef} tabIndex={-1} aria-label="Confirmar venta con recompensa" className="mb-4 scroll-mt-4 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm focus:outline-none">
         {rewardCheckout.pending && <><p className="font-semibold">Hay una venta con recompensa por confirmar</p><p>Consulta su resultado antes de cobrar otra vez. Se conservaron la venta y su referencia para evitar duplicados.</p><Button type="button" disabled={rewardCheckout.busy || !online} onClick={() => void rewardCheckout.retry()}>{rewardCheckout.busy ? "Consultando…" : "Consultar resultado de la venta"}</Button></>}
         {rewardCheckout.error && <p role="alert">{rewardCheckout.error}</p>}
+      </section>}
+      {(couponCheckout.pending || couponCheckout.error) && <section aria-label="Confirmar venta con cupón" className="mb-4 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+        {couponCheckout.pending && <><p className="font-semibold">Hay una venta con cupón por confirmar</p><p>Consulta su resultado antes de cobrar otra vez. Se conservaron la venta y su referencia para evitar duplicados.</p><Button type="button" disabled={couponCheckout.busy || !online} onClick={() => void couponCheckout.retry()}>{couponCheckout.busy ? "Consultando…" : "Consultar resultado de la venta"}</Button></>}
+        {couponCheckout.error && <p role="alert">{couponCheckout.error}</p>}
       </section>}
       {loadState.status === "ready" && loadState.fromCache && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
@@ -1979,7 +2031,7 @@ function RegularRegisterView() {
                     </Select>
                     {canAdjustPricing && <>
                       <Label htmlFor="sale-discount">{copy.register.saleDiscount}</Label>
-                      <Input id="sale-discount" inputMode="decimal" value={discount} disabled={Boolean(selectedReward)} onChange={(event) => setDiscount(event.target.value)} />
+                      <Input id="sale-discount" inputMode="decimal" value={discount} disabled={Boolean(selectedReward) || Boolean(activeCoupon)} onChange={(event) => setDiscount(event.target.value)} />
                       <Label htmlFor="sale-tax">{copy.register.saleTax}</Label>
                       <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
                       <p className="text-xs text-muted-foreground">{copy.register.saleTaxHint}</p>
@@ -1988,6 +2040,28 @@ function RegularRegisterView() {
                   </div>
                 </details>
                   {customerId && cartItems.length > 0 && <RewardPicker key={rewardIdentityKey} identity={rewardIdentity} customerId={customerId} subtotal={pricing.subtotal} online={online} manualDiscount={moneyToCents(discount) > 0} selected={Boolean(selectedReward)} onSelect={offer => setRewardChoice(offer ? { scope: rewardIdentityKey, offer } : null)} />}
+                  {canUseCoupons && cartItems.length > 0 && !selectedReward && (
+                    <div className="space-y-2 rounded-kova-md border px-3 py-2.5 text-sm">
+                      {activeCoupon ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <span><span className="font-medium">Cupón {activeCoupon.code}</span> · −{formatMoney(activeCoupon.discount)}</span>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setCouponOffer(null); setCouponMessage(""); }}>Quitar</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-end gap-2">
+                          <div className="min-w-0 flex-1">
+                            <Label htmlFor="sale-coupon" className="text-xs">Cupón</Label>
+                            {/* Not a nested form: inside the sale form, Enter or a submit would charge the sale. */}
+                            <Input id="sale-coupon" value={couponCode} maxLength={40} autoComplete="off" placeholder="Código" disabled={!online} onChange={(event) => setCouponCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); applyCoupon(); } }} />
+                          </div>
+                          <Button type="button" variant="outline" disabled={!online || couponBusy || !couponCode.trim()} onClick={applyCoupon}>Aplicar</Button>
+                        </div>
+                      )}
+                      {couponOffer && !activeCoupon ? <p className="text-xs text-muted-foreground">El carrito cambió: vuelve a aplicar el cupón.</p> : null}
+                      {!online ? <p className="text-xs text-muted-foreground">Los cupones se validan con conexión.</p> : null}
+                      {couponMessage ? <p role="alert" className="text-xs text-destructive">{couponMessage}</p> : null}
+                    </div>
+                  )}
                 {(pricing.discount > 0 || pricing.tax > 0) && <div className="text-sm space-y-1">
                   <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(centsToMoney(pricing.subtotal))}</span></div>
                   <div className="flex justify-between"><span>Descuento</span><span>−{formatMoney(centsToMoney(pricing.discount))}</span></div>

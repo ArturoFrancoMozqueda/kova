@@ -427,6 +427,20 @@ _EXPORT_TABLES = (
         ),
     ),
     ExportTable(
+        "coupons",
+        _columns(
+            "id tenant_id code description kind value min_purchase starts_at ends_at max_uses "
+            "max_uses_per_customer is_active version created_by_user_id created_at updated_at"
+        ),
+    ),
+    ExportTable(
+        "coupon_redemptions",
+        _columns(
+            "id tenant_id branch_id coupon_id sale_order_id customer_id code discount_amount "
+            "status created_by_user_id created_at released_at"
+        ),
+    ),
+    ExportTable(
         "prep_stations",
         _columns("id tenant_id name alert_minutes position is_active created_at updated_at"),
     ),
@@ -739,6 +753,8 @@ _TENANT_DELETE_ORDER = (
     "inventory_movements",
     "production_batches",
     "order_items",
+    "coupon_redemptions",
+    "coupons",
     "prep_tickets",
     "prep_daily_numbers",
     "customer_order_deposits",

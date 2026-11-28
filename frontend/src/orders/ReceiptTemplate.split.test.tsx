@@ -29,3 +29,11 @@ it("keeps an undivided ticket as before", () => {
   expect(screen.queryByText(/Persona/)).not.toBeInTheDocument();
   expect(screen.getByText("Efectivo")).toBeVisible();
 });
+
+it("names the coupon behind a discount", () => {
+  render(<ReceiptTemplate businessName="Café" createdAt="2026-11-27T12:00:00Z" subtotalAmount="110.00"
+    discountAmount="11.00" totalAmount="99.00" couponCode="VERANO10"
+    items={[{ product_name: "Latte", quantity: 2, unit_price_amount: "55.00", line_total_amount: "99.00" }]}
+    payments={[{ method: "manual_card", amount_amount: "99.00" }]} />);
+  expect(screen.getByText("Descuento · Cupón VERANO10")).toBeVisible();
+});
