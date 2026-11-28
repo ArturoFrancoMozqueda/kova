@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func
@@ -80,6 +81,7 @@ def create_movement(
     reason: str,
     reason_code: str | None = None,
     lot_tracked: bool = False,
+    unit_cost: Decimal | None = None,
 ) -> InventoryMovement:
     stock_after = stock_on_hand(db, tenant_id=tenant_id, product_id=product_id) + quantity_delta
     movement = InventoryMovement(
@@ -93,6 +95,7 @@ def create_movement(
         lot_tracked=lot_tracked,
         created_by_user_id=user_id,
         stock_on_hand_after=stock_after,
+        unit_cost=unit_cost,
     )
     db.add(movement)
     db.flush()

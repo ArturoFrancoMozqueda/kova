@@ -49,10 +49,10 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | D | Unidad de compra distinta a la de consumo | 1 (publicada 26-nov, #392) | Factor congelado por partida, recepción convertida | Aceptación en un negocio |
 | D | Traspasos entre sucursales | 1 | `branches/transfers.py` | — |
 | D | Sugerencias de reposición → compra aprobada | 1 | `replenishment/` | Incluir insumos (E5) |
-| D | Cobertura estimada (`days_until_out`) | 2 | `inventory/service.py`, sin prueba propia | E5 |
+| D | Cobertura estimada (`days_until_out`) | 1 | `inventory/service.py`, `test_waste_cost_and_coverage.py` (en revisión) | — |
 | E | Costo histórico por partida y margen | 1 | ADR-010, `test_report_margins.py` | Costo por receta (E3) |
 | E | Gastos y resultado operativo aproximado | 3 | ADR-012/015, flag `margin_reports` | Activación por negocio |
-| E | Merma valorizada | 2 | Usa costo actual; devoluciones sin reponer ya visibles (E1) | Costo histórico por movimiento |
+| E | Merma valorizada | 1 | Costo por unidad guardado en cada merma (migración `0118`, en revisión); devoluciones sin reponer visibles (E1) | — |
 | F | Pedidos con fecha comprometida, apartado y seguimiento | 1 | `customer_orders/`, ADR-014 | — |
 | F | Cotizaciones | 1 | `quotes/` | — |
 | F | Anticipos, abonos y saldo | 1 | Anticipos con política por negocio (E6) | Uso real del caso integral 3 |

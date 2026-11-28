@@ -216,6 +216,8 @@ class InventoryMovement(BranchScoped, Base):
     stock_on_hand_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reason_code: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # Cost of one base unit when a typed waste was recorded; None before 0118.
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

@@ -47,8 +47,11 @@ para evitar interpretar ambos contadores como si compartieran la misma base.
 ## Merma: fecha del movimiento
 
 La merma valúa las salidas tipificadas (merma, caducidad, robo, daño, autoconsumo,
-otro) registradas dentro del rango con el costo actual del producto; si un producto
-no tiene costo, el total queda incompleto.
+otro) registradas dentro del rango con el **costo por unidad que tenía el producto al
+registrarlas** (`inventory_movements.unit_cost`, desde la migración `0118`), así que un
+cambio de precio posterior no reescribe pérdidas pasadas. Los movimientos anteriores a ese
+cambio, o los que no guardaron costo, usan el costo actual del producto, como antes. Si no
+hay costo de ninguna de las dos formas, el total queda incompleto.
 
 **Devoluciones que no regresaron al inventario** se muestran aparte y no cambian
 ese total ni sus unidades. Son las unidades devueltas al cliente cuya venta descontó
