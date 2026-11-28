@@ -1153,11 +1153,15 @@ def _waste_report(
             },
         )
         reason["units"] += movement_units
-        if product.cost_price is None:
+        # The cost kept on the movement; rows from before 0118 fall back to today's cost.
+        unit_cost = (
+            movement.unit_cost if movement.unit_cost is not None else stock_unit_cost(product)
+        )
+        if unit_cost is None:
             missing_product_ids.add(product.id)
             reason["missing_product_ids"].add(product.id)
             continue
-        movement_value = calculator.money(stock_unit_cost(product) * movement_units)
+        movement_value = calculator.money(unit_cost * movement_units)
         known_value = calculator.money(known_value + movement_value)
         reason["known_value"] = calculator.money(reason["known_value"] + movement_value)
 

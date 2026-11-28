@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.catalog.models import Product
+from app.catalog.units import stock_unit_cost
 from app.idempotency import service as idempotency_service
 from app.inventory import lots
 from app.inventory import repository as repo
@@ -278,6 +279,8 @@ def adjust_stock(
         quantity_delta=body.quantity_delta,
         reason=body.reason,
         reason_code=body.reason_code,
+        # Waste keeps the cost it had today, so later price changes don't rewrite past losses.
+        unit_cost=stock_unit_cost(product) if body.reason_code else None,
     )
     lots.attach(db, movement, parts, required=product.track_lots)
     response_body = {
