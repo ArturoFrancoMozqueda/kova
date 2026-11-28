@@ -9,7 +9,8 @@ un proveedor ni se inventan satisfacción, ingresos, retención o resultados de 
 ## Eventos y privacidad
 
 `task_started` y `task_finished` usan la ruta autenticada de telemetría. Las categorías son
-`cash_sale`, `customer_order`, `purchase_receipt`, `replenishment_purchase` y `automation_task`.
+`cash_sale`, `customer_order`, `purchase_receipt`, `replenishment_purchase`, `automation_task`,
+`production_batch` (registrar un lote en Producción) y `shift_close` (cerrar el turno de caja).
 Cada intento usa un UUID aleatorio sin relación con un registro del negocio. No incluye nombres,
 texto libre, importes, productos, clientes ni IDs de operaciones. La ruta se normaliza al módulo.
 

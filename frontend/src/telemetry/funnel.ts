@@ -288,7 +288,7 @@ export async function trackFunnelEvent(event_name: string, properties: Record<st
     const paths: Record<string, string> = {
       cash_sale: "/register", customer_order: "/pedidos",
       purchase_receipt: "/purchasing", replenishment_purchase: "/replenishment",
-      automation_task: "/automations",
+      automation_task: "/automations", production_batch: "/inventory", shift_close: "/shifts",
     };
     event.properties.path = paths[String(properties.task)] ?? "/";
   }

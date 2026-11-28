@@ -73,7 +73,7 @@ no se usan como evidencia hasta contrastarlas con fuentes fechadas.
 | L | Presets por giro, tour, importación, exportación de cuenta | 1–2 | `onboarding/`, `account_lifecycle/` | Asistente inicial por giro |
 | M | Panel de control y cola de operaciones | 2 | `reports/control.py`; E5 agrega existencias negativas e insumos sin costo en recetas (publicada 27-nov, #399) | Pendientes de sincronización en la cola |
 | M | Asistente con respuestas ancladas | 3 | ADR-017/034 | Corpus y revisión humana |
-| 9 | Medición de tareas (venta, pedido, recepción, reposición) | 2 | `telemetry/useTaskMeasurement.ts`, [task_experience](../specs/reports/task_experience.md) | Producción y cierre |
+| 9 | Medición de tareas (venta, pedido, recepción, reposición, producción, cierre de turno) | 1 | `telemetry/useTaskMeasurement.ts`, [task_experience](../specs/reports/task_experience.md); producción y cierre en revisión | — |
 
 ## Backlog priorizado
 

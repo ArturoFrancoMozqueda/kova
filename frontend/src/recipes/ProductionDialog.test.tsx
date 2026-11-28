@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { copy } from "@/i18n/messages";
 import { ProductionDialog } from "./ProductionDialog";
 
+const telemetry = vi.hoisted(() => ({ trackFunnelEvent: vi.fn() }));
+vi.mock("@/telemetry/funnel", () => ({ trackFunnelEvent: (...args: unknown[]) => telemetry.trackFunnelEvent(...args) }));
+vi.mock("@/auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", tenantId: "t1", user: { id: "u1" } } }) }));
+
 const fetchMock = vi.fn<typeof fetch>();
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 const recipe = {
@@ -22,6 +26,7 @@ function mount(onRecorded = vi.fn()) {
 }
 
 beforeEach(() => {
+  telemetry.trackFunnelEvent.mockReset().mockResolvedValue(undefined);
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -56,5 +61,18 @@ describe("ProductionDialog", () => {
     mount();
     expect(await screen.findByText(copy.production.noRecipe, { exact: false })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: copy.production.submit })).toBeDisabled();
+  });
+
+  it("measures recording a batch without sending product, quantity or cost", async () => {
+    fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
+      ? json({ id: "b1", actual_quantity: 24, unit_cost: "1.50" }, 201)
+      : json(recipe));
+    mount();
+    fireEvent.change(await screen.findByLabelText(copy.production.batches), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.production.submit }));
+    await waitFor(() => expect(telemetry.trackFunnelEvent).toHaveBeenCalledWith(
+      "task_finished", expect.objectContaining({ task: "production_batch", outcome: "completed" }), expect.anything()));
+    const [, properties] = telemetry.trackFunnelEvent.mock.calls.find(([name]) => name === "task_finished")!;
+    expect(Object.keys(properties).sort()).toEqual(["active_ms", "attempt_id", "elapsed_ms", "offline", "outcome", "task"]);
   });
 });
